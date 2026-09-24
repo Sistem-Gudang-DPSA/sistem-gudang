@@ -1,0 +1,465 @@
+"use client";
+
+import React, { useState } from 'react';
+import { Search, Calendar, Plus, Download } from 'lucide-react';
+
+export default function BarangMasukGudang() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterDay, setFilterDay] = useState("");
+  const [filterMonth, setFilterMonth] = useState("");
+  const [filterYear, setFilterYear] = useState("");
+  const today = new Date();
+  const formattedToday = `${today.getDate().toString().padStart(2, '0')}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getFullYear()}`;
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalData, setModalData] = useState({ nama: "", supplier: "", tanggal: formattedToday, jumlahKedatangan: "", jumlahRekap: "" });
+  const [isModalKembaliOpen, setIsModalKembaliOpen] = useState(false);
+  const [modalKembaliData, setModalKembaliData] = useState({ nama: "", tanggal: formattedToday, jumlah: "" });
+
+  const dataBarangMasuk = [
+    {
+      no: "1.",
+      tanggal: "11-04-2026",
+      kodeBarang: "T3-LBR-002-A04",
+      namaBarang: "Triplex 3mm",
+      supplier: "Sumber Jaya",
+      jumlahKedatangan: "12",
+      jumlahRekap: "12"
+    },
+    // Empty rows based on the screenshot
+    { no: "", tanggal: "", kodeBarang: "", namaBarang: "", supplier: "", jumlahKedatangan: "", jumlahRekap: "" },
+    { no: "", tanggal: "", kodeBarang: "", namaBarang: "", supplier: "", jumlahKedatangan: "", jumlahRekap: "" },
+    { no: "", tanggal: "", kodeBarang: "", namaBarang: "", supplier: "", jumlahKedatangan: "", jumlahRekap: "" },
+    { no: "", tanggal: "", kodeBarang: "", namaBarang: "", supplier: "", jumlahKedatangan: "", jumlahRekap: "" },
+    { no: "", tanggal: "", kodeBarang: "", namaBarang: "", supplier: "", jumlahKedatangan: "", jumlahRekap: "" },
+  ];
+
+  const filteredData = dataBarangMasuk.filter(item => {
+    // If all filters are empty, show everything (including placeholder rows)
+    if (searchQuery === "" && filterDay === "" && filterMonth === "" && filterYear === "") return true;
+    
+    // If filtering, skip empty rows
+    if (!item.tanggal && !item.no) return false;
+
+    // Date filtering logic
+    let matchesDate = true;
+    if (item.tanggal) {
+      const [d, m, y] = item.tanggal.split("-");
+      const matchesDay = filterDay === "" || d === filterDay.padStart(2, '0');
+      const matchesMonth = filterMonth === "" || m === filterMonth;
+      const matchesYear = filterYear === "" || y === filterYear;
+      matchesDate = matchesDay && matchesMonth && matchesYear;
+    } else {
+      // If row has no date but we are filtering by date, exclude it
+      if (filterDay !== "" || filterMonth !== "" || filterYear !== "") matchesDate = false;
+    }
+    
+    const searches = searchQuery.toLowerCase();
+    const matchesSearch = searchQuery === "" || 
+      item.namaBarang.toLowerCase().includes(searches) ||
+      item.kodeBarang.toLowerCase().includes(searches) ||
+      item.supplier.toLowerCase().includes(searches);
+
+    return matchesDate && matchesSearch;
+  });
+
+  return (
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+      <div className="flex flex-col justify-start mb-8 gap-2">
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1 uppercase">DATA BARANG MASUK</h1>
+        <p className="text-gray-500 text-sm">Kelola rincian kedatangan barang dan rekap pembelian inventaris.</p>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+        {/* Table Toolbar */}
+        <div className="p-5 border-b border-gray-100 bg-gray-50/50 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
+            <div className="relative w-full max-w-xs">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-gray-400" />
+              </div>
+              <input 
+                type="text" 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] sm:text-sm transition-all shadow-sm"
+                placeholder="Cari kode, nama barang, atau supplier..." 
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <select
+                  value={filterDay}
+                  onChange={(e) => setFilterDay(e.target.value)}
+                  className="appearance-none w-[70px] border border-gray-200 rounded-xl py-2.5 pl-3 pr-8 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] text-sm text-gray-700 bg-white transition-all duration-200 cursor-pointer"
+                >
+                  <option value="">Tgl</option>
+                  {Array.from({ length: 31 }, (_, i) => (
+                    <option key={i + 1} value={i + 1}>{(i + 1).toString().padStart(2, '0')}</option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
+                  <Calendar className="h-4 w-4 text-gray-400" />
+                </div>
+              </div>
+
+              <div className="relative">
+                <select
+                  value={filterMonth}
+                  onChange={(e) => setFilterMonth(e.target.value)}
+                  className="appearance-none w-[110px] border border-gray-200 rounded-xl py-2.5 pl-3 pr-8 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-orange-500 text-sm text-gray-700 bg-white transition-all duration-200 cursor-pointer"
+                >
+                  <option value="">Bulan</option>
+                  {[
+                    { v: '01', l: 'Januari' }, { v: '02', l: 'Februari' }, { v: '03', l: 'Maret' },
+                    { v: '04', l: 'April' }, { v: '05', l: 'Mei' }, { v: '06', l: 'Juni' },
+                    { v: '07', l: 'Juli' }, { v: '08', l: 'Agustus' }, { v: '09', l: 'September' },
+                    { v: '10', l: 'Oktober' }, { v: '11', l: 'November' }, { v: '12', l: 'Desember' }
+                  ].map(m => (
+                    <option key={m.v} value={m.v}>{m.l}</option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
+                  <Calendar className="h-4 w-4 text-gray-400" />
+                </div>
+              </div>
+
+              <div className="relative">
+                <select
+                  value={filterYear}
+                  onChange={(e) => setFilterYear(e.target.value)}
+                  className="appearance-none w-[90px] border border-gray-200 rounded-xl py-2.5 pl-3 pr-8 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-orange-500 text-sm text-gray-700 bg-white transition-all duration-200 cursor-pointer"
+                >
+                  <option value="">Tahun</option>
+                  {["2024", "2025", "2026"].map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
+                  <Calendar className="h-4 w-4 text-gray-400" />
+                </div>
+              </div>
+
+              {(filterDay || filterMonth || filterYear) && (
+                <button 
+                  onClick={() => { setFilterDay(""); setFilterMonth(""); setFilterYear(""); }}
+                  className="text-xs text-orange-600 font-bold hover:underline ml-1"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex gap-2 w-full lg:w-auto">
+            <button 
+              onClick={() => setIsModalOpen(true)}
+              className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Barang Baru</span>
+            </button>
+            <button 
+              onClick={() => setIsModalKembaliOpen(true)}
+              className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Barang Kembali</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Table Container */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm whitespace-nowrap">
+            <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
+              <tr>
+                <th scope="col" className="px-6 py-4">No</th>
+                <th scope="col" className="px-6 py-4">Tanggal</th>
+                <th scope="col" className="px-6 py-4">Informasi Barang</th>
+                <th scope="col" className="px-6 py-4">Supplier</th>
+                <th scope="col" className="px-6 py-4 text-center">Jml Kedatangan</th>
+                <th scope="col" className="px-6 py-4 text-center">Jml Rekap</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {filteredData.map((item, index) => (
+                <tr key={index} className="hover:bg-[#FF8A00]/5 transition-colors group">
+                  <td className="px-6 py-4 text-gray-500 text-center">{item.no}</td>
+                  <td className="px-6 py-4 text-gray-500">{item.tanggal}</td>
+                  
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col">
+                      <span className="font-bold text-gray-900">{item.namaBarang}</span>
+                      <span className="text-xs font-mono text-gray-500 mt-0.5">{item.kodeBarang}</span>
+                    </div>
+                  </td>
+                  
+                  <td className="px-6 py-4 text-gray-600">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-md bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">
+                        {item.supplier ? item.supplier.charAt(0) : '-'}
+                      </div>
+                      <span>{item.supplier}</span>
+                    </div>
+                  </td>
+
+                  <td className="px-6 py-4 text-center font-bold text-gray-800">
+                    {item.jumlahKedatangan}
+                  </td>
+
+                  <td className="px-6 py-4 text-center font-bold text-[#FF8A00]">
+                    {item.jumlahRekap}
+                  </td>
+                </tr>
+              ))}
+              {filteredData.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-6 py-10 text-center text-gray-400 italic">
+                    Data tidak ditemukan untuk filter tersebut.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination Footer */}
+        <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
+          <div>
+            Menampilkan <span className="font-semibold text-gray-900">1</span> sampai <span className="font-semibold text-gray-900">{filteredData.filter(i=>i.no).length}</span> dari <span className="font-semibold text-gray-900">{filteredData.filter(i=>i.no).length}</span> data
+          </div>
+          <div className="flex gap-1">
+            <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-400 cursor-not-allowed">Sec</button>
+            <button className="px-3 py-1 bg-[#FF8A00] text-white rounded-md font-medium shadow-sm shadow-orange-500/20">1</button>
+            <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-600 hover:text-[#FF8A00] font-medium transition-colors">2</button>
+            <span className="px-2 py-1 text-gray-400">...</span>
+            <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-600 hover:text-[#FF8A00] font-medium transition-colors">Selanjutnya</button>
+          </div>
+        </div>
+      </div>
+
+      {/* Simpan/Download Button Outside */}
+      <div className="flex justify-end mt-6">
+        <button className="flex items-center gap-2 px-8 py-2.5 bg-[#FF8A00] text-white font-bold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm tracking-wide">
+          <Download className="w-4 h-4" />
+          Download
+        </button>
+      </div>
+
+      {/* Modal Form Barang Masuk */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md transition-opacity duration-300 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[750px] p-8 border border-white/20 relative animate-in zoom-in-95 duration-200">
+            <button 
+              onClick={() => setIsModalOpen(false)}
+              className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <h2 className="text-[20px] font-extrabold text-gray-900 mb-8 tracking-wide uppercase">
+              FORM BARANG MASUK
+            </h2>
+
+            <div className="flex flex-col gap-6 mb-10">
+              {/* Row 1 */}
+              <div className="flex flex-col sm:flex-row gap-6">
+                <div className="flex-1 flex flex-col gap-2">
+                  <label className="text-[15px] font-medium text-gray-900">Kode Barang</label>
+                  <input 
+                    type="text"
+                    disabled
+                    placeholder="Isi Otomatis"
+                    className="w-full border border-gray-300 rounded-md py-3 px-4 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 placeholder-gray-400 bg-[#f8f9fa] text-sm"
+                  />
+                </div>
+                <div className="flex-1 flex flex-col gap-2">
+                  <label className="text-[15px] font-medium text-gray-900">Nama Barang</label>
+                  <div className="relative">
+                    <input 
+                      type="text"
+                      placeholder="Isi Nama Barang"
+                      value={modalData.nama}
+                      onChange={(e) => setModalData({...modalData, nama: e.target.value})}
+                      className="w-full border border-gray-300 rounded-md py-3 pl-4 pr-10 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 placeholder-gray-400 text-sm"
+                    />
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      <Search className="h-4 w-4 text-gray-800" strokeWidth={2.5} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 2 */}
+              <div className="flex flex-col sm:flex-row gap-6">
+                <div className="flex-1 flex flex-col gap-2">
+                  <label className="text-[15px] font-medium text-gray-900">Supplier</label>
+                  <select 
+                    className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400 appearance-none bg-white text-sm"
+                    style={{ backgroundImage: "url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20viewBox%3D%220%200%2020%2020%20%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M5%207.5L10%2012.5L15%207.5%22%20stroke%3D%22%23374151%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E')", backgroundRepeat: "no-repeat", backgroundPosition: "right 1rem center", backgroundSize: "1.2em" }}
+                    value={modalData.supplier}
+                    onChange={(e) => setModalData({...modalData, supplier: e.target.value})}
+                  >
+                    <option value="" disabled>Sesuaikan supplier</option>
+                    <option value="Sumber Jaya">Sumber Jaya</option>
+                    <option value="Baja Sentosa">Baja Sentosa</option>
+                  </select>
+                </div>
+                <div className="flex-1 flex flex-col gap-2">
+                  <label className="text-[15px] font-medium text-gray-900">Tanggal</label>
+                  <div className="relative">
+                    <input 
+                      type="date"
+                      value={modalData.tanggal.split('-').reverse().join('-')}
+                      onChange={(e) => {
+                        const val = e.target.value; // YYYY-MM-DD
+                        if(val) {
+                          const [y, m, d] = val.split('-');
+                          setModalData({...modalData, tanggal: `${d}-${m}-${y}`});
+                        }
+                      }}
+                      className="w-full border border-gray-300 rounded-md py-3 pl-4 pr-10 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 placeholder-gray-400 text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 3 */}
+              <div className="flex flex-col sm:flex-row gap-6">
+                <div className="flex-1 flex flex-col gap-2">
+                  <label className="text-[15px] font-medium text-gray-900">Jumlah Sesuai Kedatangan</label>
+                  <input 
+                    type="number"
+                    placeholder="0"
+                    value={modalData.jumlahKedatangan}
+                    onChange={(e) => setModalData({...modalData, jumlahKedatangan: e.target.value})}
+                    className="w-full border border-gray-200 bg-gray-50/50 rounded-lg py-3 px-4 text-gray-700 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white transition-all duration-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                </div>
+                <div className="flex-1 flex flex-col gap-2">
+                  <label className="text-[15px] font-medium text-gray-900">Jumlah Sesuai Rekap Pembelian</label>
+                  <input 
+                    type="number"
+                    placeholder="0"
+                    value={modalData.jumlahRekap}
+                    onChange={(e) => setModalData({...modalData, jumlahRekap: e.target.value})}
+                    className="w-full border border-gray-200 bg-gray-50/50 rounded-lg py-3 px-4 text-gray-700 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white transition-all duration-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end mt-2">
+              <button 
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setModalData({ nama: "", supplier: "", tanggal: formattedToday, jumlahKedatangan: "", jumlahRekap: "" });
+                }}
+                className="px-8 py-2.5 bg-[#ff8a00] text-white rounded-md hover:bg-[#e07b00] transition-colors font-medium text-[15px] shadow-sm"
+              >
+                Simpan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Form Barang Kembali */}
+      {isModalKembaliOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md transition-opacity duration-300 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[750px] p-8 border border-white/20 relative animate-in zoom-in-95 duration-200">
+            <button 
+              onClick={() => setIsModalKembaliOpen(false)}
+              className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <h2 className="text-[20px] font-extrabold text-gray-900 mb-8 tracking-wide uppercase">
+              FORM BARANG KEMBALI
+            </h2>
+
+            <div className="flex flex-col gap-6 mb-10">
+              {/* Row 1 */}
+              <div className="flex flex-col sm:flex-row gap-6">
+                <div className="flex-1 flex flex-col gap-2">
+                  <label className="text-[15px] font-medium text-gray-900">Kode Barang</label>
+                  <input 
+                    type="text"
+                    disabled
+                    placeholder="Isi Otomatis"
+                    className="w-full border border-gray-300 rounded-md py-3 px-4 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 placeholder-gray-400 bg-[#f8f9fa] text-sm"
+                  />
+                </div>
+                <div className="flex-1 flex flex-col gap-2">
+                  <label className="text-[15px] font-medium text-gray-900">Nama Barang</label>
+                  <div className="relative">
+                    <input 
+                      type="text"
+                      placeholder="Isi Nama Barang"
+                      value={modalKembaliData.nama}
+                      onChange={(e) => setModalKembaliData({...modalKembaliData, nama: e.target.value})}
+                      className="w-full border border-gray-300 rounded-md py-3 pl-4 pr-10 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 placeholder-gray-400 text-sm"
+                    />
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      <Search className="h-4 w-4 text-gray-800" strokeWidth={2.5} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 2 */}
+              <div className="flex flex-col sm:flex-row gap-6">
+                <div className="flex-1 flex flex-col gap-2">
+                  <label className="text-[15px] font-medium text-gray-900">Tanggal</label>
+                  <div className="relative">
+                    <input 
+                      type="date"
+                      value={modalKembaliData.tanggal.split('-').reverse().join('-')}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if(val) {
+                          const [y, m, d] = val.split('-');
+                          setModalKembaliData({...modalKembaliData, tanggal: `${d}-${m}-${y}`});
+                        }
+                      }}
+                      className="w-full border border-gray-300 rounded-md py-3 pl-4 pr-10 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 placeholder-gray-400 text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="flex-1 flex flex-col gap-2">
+                  <label className="text-[15px] font-medium text-gray-900">Jumlah</label>
+                  <input 
+                    type="number"
+                    placeholder="0"
+                    value={modalKembaliData.jumlah}
+                    onChange={(e) => setModalKembaliData({...modalKembaliData, jumlah: e.target.value})}
+                    className="w-full border border-gray-300 rounded-md py-3 px-4 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 placeholder-gray-400 text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end mt-2">
+              <button 
+                onClick={() => {
+                  setIsModalKembaliOpen(false);
+                  setModalKembaliData({ nama: "", tanggal: formattedToday, jumlah: "" });
+                }}
+                className="px-8 py-2.5 bg-[#ff8a00] text-white rounded-md hover:bg-[#e07b00] transition-colors font-medium text-[15px] shadow-sm"
+              >
+                Simpan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
