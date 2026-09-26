@@ -119,14 +119,14 @@ export default function DetailDataBarang() {
                           onChange={(e) => setInputHarga(e.target.value)}
                           onBlur={() => {
                             const newData = [...dataDetail];
-                            newData[index][`harga${month}`] = inputHarga;
+                            (newData[index] as unknown as Record<string, string>)[`harga${month}`] = inputHarga;
                             setDataDetail(newData);
                             setEditingCell(null);
                           }}
                           onKeyDown={(e) => {
                              if (e.key === 'Enter') {
                                const newData = [...dataDetail];
-                               newData[index][`harga${month}`] = inputHarga;
+                               (newData[index] as unknown as Record<string, string>)[`harga${month}`] = inputHarga;
                                setDataDetail(newData);
                                setEditingCell(null);
                              }
@@ -137,13 +137,13 @@ export default function DetailDataBarang() {
                         <div 
                           onClick={() => {
                             setEditingCell({ index, month });
-                            setInputHarga(item[`harga${month}`] || '');
+                            setInputHarga((item as unknown as Record<string, string>)[`harga${month}`] || '');
                           }}
                           className="w-full h-full min-h-[48px] flex justify-center items-center px-1 font-bold text-gray-700 hover:bg-[#FF8A00]/10 transition-colors"
                           title={`Klik untuk edit harga ${month}`}
                         >
-                          {item[`harga${month}`] ? (
-                            <span className="text-sm">{item[`harga${month}`]}</span>
+                          {(item as unknown as Record<string, string>)[`harga${month}`] ? (
+                            <span className="text-sm">{(item as unknown as Record<string, string>)[`harga${month}`]}</span>
                           ) : (
                             <span className="text-gray-300 font-medium text-[10px] italic group-hover/cell:text-[#FF8A00]">+ Input</span>
                           )}
