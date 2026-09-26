@@ -1,61 +1,51 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
-import { Package, ShieldCheck, UserCog, ShoppingCart, Lock, User, ArrowRight, Loader2 } from "lucide-react";
+import { Package, Lock, Mail, ArrowRight, Loader2 } from "lucide-react";
+import { login, dashboardPathFor, refreshSession } from "@/domains/auth/api";
+import { ApiError } from "@/shared/lib/api-client";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [checkingSession, setCheckingSession] = useState(true);
 
-  // Initialize default users if not exists
   useEffect(() => {
-    const existingUsers = localStorage.getItem("app_users");
-    if (!existingUsers) {
-      const defaultUsers = [
-        { username: "admin", password: "admin123", role: "superadmin", name: "Super Admin" },
-        { username: "ppic1", password: "ppic123", role: "ppic", name: "PPIC User 1" },
-        { username: "gudang1", password: "gudang123", role: "gudang", name: "Gudang User 1" },
-        { username: "purchase1", password: "purchasing123", role: "purchasing", name: "Purchasing User 1" },
-      ];
-      localStorage.setItem("app_users", JSON.stringify(defaultUsers));
-    }
-  }, []);
+    refreshSession()
+      .then((user) => {
+        // Sesi dari tab/kunjungan sebelumnya masih valid, jangan tampilkan form
+        // login lagi. Login ulang di sini akan merotasi refresh token backend
+        // dan mencabut sesi yang sedang aktif itu.
+        router.replace(dashboardPathFor(user));
+      })
+      .catch(() => setCheckingSession(false));
+  }, [router]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
 
-    // Simulate API delay
-    setTimeout(() => {
-      const usersJson = localStorage.getItem("app_users");
-      const users = usersJson ? JSON.parse(usersJson) : [];
-      
-      const foundUser = users.find(
-        (u: any) => u.username === username && u.password === password
-      );
-
-      if (foundUser) {
-        localStorage.setItem("userRole", foundUser.role);
-        localStorage.setItem("userName", foundUser.name);
-        localStorage.setItem("currentUser", foundUser.username);
-        
-        if (foundUser.role === "superadmin") {
-          router.push("/dashboard/superadmin");
-        } else {
-          router.push(`/dashboard/${foundUser.role}`);
-        }
-      } else {
-        setError("Username atau Password salah.");
-        setLoading(false);
-      }
-    }, 1200);
+    try {
+      const user = await login(email, password);
+      router.push(dashboardPathFor(user));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Tidak bisa menghubungi server.");
+      setLoading(false);
+    }
   };
+
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans">
@@ -98,7 +88,7 @@ export default function LoginPage() {
         <div className="p-8 md:p-12 flex flex-col justify-center">
           <div className="mb-10 text-center md:text-left">
             <h2 className="text-3xl font-bold text-slate-800 mb-2">Selamat Datang</h2>
-            <p className="text-slate-500">Silakan masukkan username dan password Anda</p>
+            <p className="text-slate-500">Silakan masukkan email dan password Anda</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-6">
@@ -106,14 +96,14 @@ export default function LoginPage() {
             <div className="space-y-4">
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-slate-400" />
+                  <Mail className="h-5 w-5 text-slate-400" />
                 </div>
                 <input
-                  type="text"
+                  type="email"
                   required
-                  placeholder="Username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="block w-full pl-11 pr-4 py-3.5 bg-white border border-slate-200 text-slate-800 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
                 />
               </div>
@@ -162,18 +152,6 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-8 text-center border-t border-slate-100 pt-8">
-             <div className="bg-slate-50 p-4 rounded-xl text-xs text-left">
-                <p className="font-bold text-slate-600 mb-2">Akun Demo:</p>
-                <div className="grid grid-cols-2 gap-2 text-slate-500">
-                   <span>Admin: admin / admin123</span>
-                   <span>PPIC: ppic1 / ppic123</span>
-                   <span>Gudang: gudang1 / gudang123</span>
-                   <span>Purchasing: purchase1 / purchasing123</span>
-                </div>
-             </div>
-          </div>
-
-          <div className="mt-8 text-center">
             <a href="#" className="text-sm font-medium text-slate-400 hover:text-blue-600 transition-colors">
               Lupa password? Hubungi IT Support
             </a>

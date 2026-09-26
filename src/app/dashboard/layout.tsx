@@ -3,7 +3,9 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { Package, UserCog, ShoppingCart, LayoutDashboard, Menu, X, LogOut, ChevronDown, ShieldCheck, Users } from 'lucide-react';
+import { Package, UserCog, ShoppingCart, LayoutDashboard, LogOut, ChevronDown, ShieldCheck, Users } from 'lucide-react';
+import { refreshSession, logout } from '@/domains/auth/api';
+import type { AuthUser } from '@/domains/auth/types';
 
 export default function DashboardLayout({
   children,
@@ -12,30 +14,22 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [userName, setUserName] = useState<string | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    setIsMounted(true);
-    const role = localStorage.getItem("userRole");
-    const name = localStorage.getItem("userName");
-    
-    if (!role) {
-      router.push("/");
-    } else {
-      setUserRole(role);
-      setUserName(name);
-    }
+    refreshSession()
+      .then(setUser)
+      .catch(() => router.push("/"))
+      .finally(() => setIsMounted(true));
   }, [router]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("userRole");
-    localStorage.removeItem("userName");
+  const handleLogout = async () => {
+    await logout();
     router.push("/");
   };
 
-  if (!isMounted || !userRole) {
+  if (!isMounted || !user) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
@@ -43,7 +37,9 @@ export default function DashboardLayout({
     );
   }
 
-  const isSuperAdmin = userRole === "superadmin";
+  const userRole = user.roleName.toLowerCase();
+  const userName = user.username;
+  const isSuperAdmin = user.isSuperadmin;
   const isGudang = userRole === "gudang" || isSuperAdmin;
   const isPPIC = userRole === "ppic" || isSuperAdmin;
   const isPurchasing = userRole === "purchasing" || isSuperAdmin;
