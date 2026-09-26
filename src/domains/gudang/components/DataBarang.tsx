@@ -1,20 +1,123 @@
 "use client";
 
-import React, { useState } from 'react';
-import { Search, Plus, Download, Filter, MoreHorizontal } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Search, Plus, Download, Filter, PackageSearch } from 'lucide-react';
+import { adjustItemStock, assignItemLocation, listItems, listLocations, suggestItemCode } from '@/domains/inventory/api';
+import type { Item, Location } from '@/domains/inventory/types';
+import { listSuppliers } from '@/domains/purchasing/api';
+import type { Supplier } from '@/domains/purchasing/types';
+import { ApiError } from '@/shared/lib/api-client';
 
 export default function DataBarangGudang() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalData, setModalData] = useState({ lokasi: "", stok: "" });
+  const [activeItem, setActiveItem] = useState<Item | null>(null);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [modalData, setModalData] = useState({ locationId: "", code: "" });
+  const [saving, setSaving] = useState(false);
+  const [modalError, setModalError] = useState("");
 
-  const [dataBarang, setDataBarang] = useState([
-    { id: 1, kode: '-', nama: 'Triplex 3mm', stok: 0, satuan: 'Lembar', kategori: 'Lembaran', supplier: 'Sumber Jaya', lokasi: '-', hasAction: true },
-    { id: 2, kode: 'T3-LBR-001-A04', nama: 'Triplex 3mm', stok: 100, satuan: 'Lembar', kategori: 'Lembaran', supplier: 'Sumber Mulai', lokasi: 'A04', hasAction: true },
-    { id: 3, kode: 'BSI-HLW-044-C01', nama: 'Besi Hollow 4x4', stok: 200, satuan: 'Batang', kategori: 'Logam', supplier: 'Baja Sentosa', lokasi: 'C01', hasAction: true },
-    { id: 4, kode: 'CT-PPU-010-D05', nama: 'Cat Polyurethane 5L', stok: 12, satuan: 'Kaleng', kategori: 'Finishing', supplier: 'CV Warna Agung', lokasi: 'D05', hasAction: true },
-    { id: 5, kode: 'SKP-KAY-008-E01', nama: 'Sekrup Kayu 5cm', stok: 1500, satuan: 'Pcs', kategori: 'Aksesoris', supplier: 'Toko Baut Jaya', lokasi: 'E01', hasAction: false },
-  ]);
+  const [dataBarang, setDataBarang] = useState<Item[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const [isStockModalOpen, setIsStockModalOpen] = useState(false);
+  const [stockItem, setStockItem] = useState<Item | null>(null);
+  const [stockDelta, setStockDelta] = useState("");
+  const [stockReason, setStockReason] = useState("");
+  const [stockSaving, setStockSaving] = useState(false);
+  const [stockError, setStockError] = useState("");
+
+  const loadBarang = async (search: string) => {
+    setLoading(true);
+    try {
+      const result = await listItems({ search: search || undefined });
+      setDataBarang(result.rows);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Gagal memuat data barang.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadBarang(searchQuery);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    listLocations().then((res) => setLocations(res.rows)).catch(() => {});
+    listSuppliers().then((res) => setSuppliers(res.rows)).catch(() => {});
+  }, []);
+
+  const supplierName = (id: number) => suppliers.find((s) => s.id === id)?.name ?? '-';
+  const locationCode = (id: number | null) => (id === null ? '-' : locations.find((loc) => loc.id === id)?.code ?? `#${id}`);
+
+  const openAssignModal = (item: Item) => {
+    setActiveItem(item);
+    setModalData({ locationId: "", code: "" });
+    setModalError("");
+    setIsModalOpen(true);
+  };
+
+  const handlePilihLokasi = async (locationId: string) => {
+    setModalData({ locationId, code: "" });
+    if (!activeItem || !locationId) return;
+    try {
+      const suggestion = await suggestItemCode(activeItem.id, Number(locationId));
+      setModalData({ locationId, code: suggestion.code });
+    } catch (err) {
+      setModalError(err instanceof ApiError ? err.message : "Gagal mengambil saran kode.");
+    }
+  };
+
+  const handleSimpanLokasi = async () => {
+    if (!activeItem || !modalData.locationId || !modalData.code) {
+      setModalError("Pilih lokasi dan pastikan kode terisi.");
+      return;
+    }
+    setSaving(true);
+    setModalError("");
+    try {
+      const updated = await assignItemLocation(activeItem.id, {
+        code: modalData.code,
+        locationId: Number(modalData.locationId),
+      });
+      setDataBarang((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
+      setIsModalOpen(false);
+    } catch (err) {
+      setModalError(err instanceof ApiError ? err.message : "Gagal menyimpan lokasi barang.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openStockModal = (item: Item) => {
+    setStockItem(item);
+    setStockDelta("");
+    setStockReason("");
+    setStockError("");
+    setIsStockModalOpen(true);
+  };
+
+  const handleSimpanStok = async () => {
+    const delta = Number(stockDelta);
+    if (!stockItem || !stockDelta || Number.isNaN(delta) || delta === 0 || !stockReason) {
+      setStockError("Isi jumlah perubahan (boleh negatif) dan alasan.");
+      return;
+    }
+    setStockSaving(true);
+    setStockError("");
+    try {
+      const updated = await adjustItemStock(stockItem.id, { delta, reason: stockReason });
+      setDataBarang((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
+      setIsStockModalOpen(false);
+    } catch (err) {
+      setStockError(err instanceof ApiError ? err.message : "Gagal menyesuaikan stok.");
+    } finally {
+      setStockSaving(false);
+    }
+  };
 
   const getCategoryColor = (kategori: string) => {
     if (!kategori) return 'bg-gray-100 text-gray-700 border-gray-200/50';
@@ -30,11 +133,11 @@ export default function DataBarangGudang() {
 
   const handleExportCSV = () => {
     const headers = ['No,Kode Barang,Nama Barang,Supplier,Jumlah Stok,Satuan,Kategori,Lokasi'];
-    const csvData = dataBarang.map((item, index) => 
-      `${index + 1},${item.kode},"${item.nama}","${item.supplier}",${item.stok},${item.satuan},${item.kategori},${item.lokasi}`
+    const csvData = dataBarang.map((item, index) =>
+      `${index + 1},${item.code ?? '-'},"${item.name}","${supplierName(item.supplierId)}",${item.stock},${item.unit},${item.category},${locationCode(item.locationId)}`
     );
     const csvString = [...headers, ...csvData].join('\n');
-    
+
     const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -61,16 +164,16 @@ export default function DataBarangGudang() {
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search className="h-4 w-4 text-gray-400" />
             </div>
-            <input 
-              type="text" 
+            <input
+              type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] sm:text-sm transition-all"
-              placeholder="Cari kode, nama barang, atau supplier..." 
+              placeholder="Cari kode atau nama barang..."
             />
           </div>
           <div className="flex items-center gap-2">
-            <button 
+            <button
               onClick={handleExportCSV}
               className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
               title="Export Data ke CSV"
@@ -84,6 +187,10 @@ export default function DataBarangGudang() {
             </button>
           </div>
         </div>
+
+        {error && (
+          <div className="mx-5 mt-5 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>
+        )}
 
         {/* Table Container */}
         <div className="overflow-x-auto">
@@ -100,42 +207,48 @@ export default function DataBarangGudang() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {dataBarang.map((item, index) => (
+              {loading && (
+                <tr><td colSpan={7} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
+              )}
+              {!loading && dataBarang.length === 0 && (
+                <tr><td colSpan={7} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
+              )}
+              {!loading && dataBarang.map((item, index) => (
                 <tr key={item.id} className="hover:bg-[#FF8A00]/5 transition-colors group">
                   <td className="px-6 py-4 text-gray-500">{index + 1}</td>
-                  
+
                   {/* Informasi Barang */}
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
-                      <span className="font-bold text-gray-900">{item.nama}</span>
-                      <span className="text-xs font-mono text-gray-500 mt-0.5">{item.kode}</span>
+                      <span className="font-bold text-gray-900">{item.name}</span>
+                      <span className="text-xs font-mono text-gray-500 mt-0.5">{item.code ?? '-'}</span>
                     </div>
                   </td>
-                  
+
                   {/* Supplier */}
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2 text-gray-600">
                       <div className="w-6 h-6 rounded-md bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500">
-                        {item.supplier ? item.supplier.charAt(0) : '-'}
+                        {supplierName(item.supplierId).charAt(0)}
                       </div>
-                      <span>{item.supplier || '-'}</span>
+                      <span>{supplierName(item.supplierId)}</span>
                     </div>
                   </td>
 
                   {/* Stok & Satuan */}
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
-                       <span className={`font-bold ${item.stok < 20 ? 'text-red-600' : item.stok < 50 ? 'text-amber-600' : 'text-gray-800'}`}>
-                         {item.stok}
+                       <span className={`font-bold ${item.stock < 20 ? 'text-red-600' : item.stock < 50 ? 'text-amber-600' : 'text-gray-800'}`}>
+                         {item.stock}
                        </span>
-                       <span className="text-gray-500 text-xs bg-gray-100 px-2 py-0.5 rounded-md">{item.satuan}</span>
+                       <span className="text-gray-500 text-xs bg-gray-100 px-2 py-0.5 rounded-md">{item.unit}</span>
                     </div>
                   </td>
 
                   {/* Kategori */}
                   <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getCategoryColor(item.kategori)}`}>
-                      {item.kategori || '-'}
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getCategoryColor(item.category)}`}>
+                      {item.category || '-'}
                     </span>
                   </td>
 
@@ -143,55 +256,48 @@ export default function DataBarangGudang() {
                   <td className="px-6 py-4">
                     <span className="inline-flex items-center gap-1 text-gray-600 font-medium">
                       <div className="w-1.5 h-1.5 rounded-full bg-[#FF8A00]"></div>
-                      {item.lokasi || '-'}
+                      {locationCode(item.locationId)}
                     </span>
                   </td>
 
                   {/* Aksi */}
                   <td className="px-6 py-4 text-center">
-                    {item.hasAction ? (
-                      <button 
-                        onClick={() => setIsModalOpen(true)}
-                        className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] text-xs font-bold rounded-lg hover:bg-[#FF8A00]/20 transition-all duration-200 w-24 opacity-90 group-hover:opacity-100"
+                    <div className="flex items-center justify-center gap-2">
+                      {item.locationId === null ? (
+                        <button
+                          onClick={() => openAssignModal(item)}
+                          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] text-xs font-bold rounded-lg hover:bg-[#FF8A00]/20 transition-all duration-200 opacity-90 group-hover:opacity-100"
+                        >
+                          <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
+                          Tambah
+                        </button>
+                      ) : null}
+                      <button
+                        onClick={() => openStockModal(item)}
+                        className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-100 transition-all duration-200 opacity-90 group-hover:opacity-100"
+                        title="Sesuaikan stok"
                       >
-                        <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
-                        Tambah
+                        <PackageSearch className="w-3.5 h-3.5" strokeWidth={2.5} />
+                        Stok
                       </button>
-                    ) : (
-                      <span className="text-gray-400 text-xs">-</span>
-                    )}
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-
-        {/* Pagination / Footer */}
-        <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
-          <div>
-             Menampilkan <span className="font-semibold text-gray-900">1</span> sampai <span className="font-semibold text-gray-900">5</span> dari <span className="font-semibold text-gray-900">142</span> data
-          </div>
-          <div className="flex gap-1">
-             <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-400 cursor-not-allowed">Sec</button>
-             <button className="px-3 py-1 bg-[#FF8A00] text-white rounded-md font-medium shadow-sm shadow-orange-500/20">1</button>
-             <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-600 hover:text-[#FF8A00] font-medium transition-colors">2</button>
-             <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-600 hover:text-[#FF8A00] font-medium transition-colors">3</button>
-             <span className="px-2 py-1 text-gray-400">...</span>
-             <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-600 hover:text-[#FF8A00] font-medium transition-colors">Selanjutnya</button>
-          </div>
-        </div>
       </div>
-      
+
       {/* Modal Tambah Lokasi */}
-      {isModalOpen && (
+      {isModalOpen && activeItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl w-full max-w-lg p-6 sm:p-8 shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold text-gray-900 uppercase tracking-wide">
-                TAMBAH LOKASI
+                TAMBAH LOKASI · {activeItem.name}
               </h2>
-              <button 
+              <button
                 onClick={() => setIsModalOpen(false)}
                 className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
               >
@@ -201,45 +307,105 @@ export default function DataBarangGudang() {
               </button>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-6 mb-8">
+            <div className="flex flex-col sm:flex-row gap-6 mb-6">
               <div className="flex-1">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Lokasi</label>
-                <div className="relative">
-                  <select 
-                    className="w-full border border-gray-200 bg-gray-50/50 rounded-xl py-2.5 pl-4 pr-10 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] focus:bg-white appearance-none text-sm transition-all duration-200"
-                    style={{ backgroundImage: "url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20viewBox%3D%220%200%2020%2020%20%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M5%207.5L10%2012.5L15%207.5%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E')", backgroundRepeat: "no-repeat", backgroundPosition: "right 1rem center", backgroundSize: "1.2em" }}
-                    value={modalData.lokasi}
-                    onChange={(e) => setModalData({ ...modalData, lokasi: e.target.value })}
-                  >
-                    <option value="" disabled>Pilih Lokasi</option>
-                    <option value="A01">A01</option>
-                    <option value="A02">A02</option>
-                    <option value="A03">A03</option>
-                    <option value="A04">A04</option>
-                  </select>
-                </div>
+                <select
+                  className="w-full border border-gray-200 bg-gray-50/50 rounded-xl py-2.5 pl-4 pr-10 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] focus:bg-white appearance-none text-sm transition-all duration-200"
+                  value={modalData.locationId}
+                  onChange={(e) => handlePilihLokasi(e.target.value)}
+                >
+                  <option value="" disabled>Pilih Lokasi</option>
+                  {locations.map((loc) => (
+                    <option key={loc.id} value={loc.id}>{loc.code}</option>
+                  ))}
+                </select>
               </div>
               <div className="flex-1">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Stok</label>
-                <input 
-                  type="number"
-                  placeholder="0"
-                  className="w-full border border-gray-200 bg-gray-50/50 rounded-xl py-2.5 px-4 text-gray-700 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] focus:bg-white transition-all duration-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  value={modalData.stok}
-                  onChange={(e) => setModalData({ ...modalData, stok: e.target.value })}
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Kode Barang</label>
+                <input
+                  type="text"
+                  placeholder="Kode akan disarankan otomatis"
+                  className="w-full border border-gray-200 bg-gray-50/50 rounded-xl py-2.5 px-4 text-gray-700 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] focus:bg-white transition-all duration-200"
+                  value={modalData.code}
+                  onChange={(e) => setModalData({ ...modalData, code: e.target.value })}
                 />
               </div>
             </div>
 
+            {modalError && (
+              <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{modalError}</div>
+            )}
+
             <div className="flex justify-end gap-3 mt-4">
-              <button 
-                onClick={() => {
-                  setIsModalOpen(false);
-                  setModalData({ lokasi: "", stok: "" });
-                }}
-                className="px-6 py-2.5 bg-[#FF8A00] text-white font-medium rounded-xl hover:bg-[#E67A00] shadow-sm shadow-[#FF8A00]/20 transition-all text-sm"
+              <button
+                onClick={handleSimpanLokasi}
+                disabled={saving}
+                className="px-6 py-2.5 bg-[#FF8A00] text-white font-medium rounded-xl hover:bg-[#E67A00] shadow-sm shadow-[#FF8A00]/20 transition-all text-sm disabled:opacity-60"
               >
-                Simpan
+                {saving ? "Menyimpan..." : "Simpan"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Sesuaikan Stok */}
+      {isStockModalOpen && stockItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl w-full max-w-lg p-6 sm:p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-gray-900 uppercase tracking-wide">
+                SESUAIKAN STOK · {stockItem.name}
+              </h2>
+              <button
+                onClick={() => setIsStockModalOpen(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <p className="text-sm text-gray-500 mb-6">
+              Stok saat ini: <span className="font-bold text-gray-800">{stockItem.stock} {stockItem.unit}</span>
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-6 mb-6">
+              <div className="flex-1">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Perubahan Jumlah</label>
+                <input
+                  type="number"
+                  placeholder="Contoh: 10 atau -5"
+                  className="w-full border border-gray-200 bg-gray-50/50 rounded-xl py-2.5 px-4 text-gray-700 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all duration-200"
+                  value={stockDelta}
+                  onChange={(e) => setStockDelta(e.target.value)}
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Alasan</label>
+                <input
+                  type="text"
+                  placeholder="Contoh: Penerimaan PO-2026-09-001"
+                  className="w-full border border-gray-200 bg-gray-50/50 rounded-xl py-2.5 px-4 text-gray-700 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all duration-200"
+                  value={stockReason}
+                  onChange={(e) => setStockReason(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {stockError && (
+              <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{stockError}</div>
+            )}
+
+            <div className="flex justify-end gap-3 mt-4">
+              <button
+                onClick={handleSimpanStok}
+                disabled={stockSaving}
+                className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 shadow-sm shadow-blue-500/20 transition-all text-sm disabled:opacity-60"
+              >
+                {stockSaving ? "Menyimpan..." : "Simpan"}
               </button>
             </div>
           </div>

@@ -1,23 +1,58 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Search, Plus } from 'lucide-react';
+import { createLocation, listLocations } from '@/domains/inventory/api';
+import type { Location } from '@/domains/inventory/types';
+import { ApiError } from '@/shared/lib/api-client';
 
 export default function DataLokasiGudang() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalData, setModalData] = useState({ namaRak: "", nomerRak: "" });
+  const [dataLokasi, setDataLokasi] = useState<Location[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  const dataLokasi = [
-    { kode: "A04", namaRak: "A", nomerRak: "04" },
-    // Empty rows for display based on the screenshot
-    { kode: "", namaRak: "", nomerRak: "" },
-    { kode: "", namaRak: "", nomerRak: "" },
-    { kode: "", namaRak: "", nomerRak: "" },
-    { kode: "", namaRak: "", nomerRak: "" },
-    { kode: "", namaRak: "", nomerRak: "" },
-    { kode: "", namaRak: "", nomerRak: "" },
-  ];
+  const loadLokasi = async (search: string) => {
+    setLoading(true);
+    try {
+      const result = await listLocations({ search: search || undefined });
+      setDataLokasi(result.rows);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Gagal memuat data lokasi.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadLokasi(searchQuery);
+  }, [searchQuery]);
+
+  const handleSimpan = async () => {
+    if (!modalData.namaRak || !modalData.nomerRak) {
+      setError("Lengkapi nama rak dan nomer rak.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      await createLocation({
+        code: `${modalData.namaRak}${modalData.nomerRak}`,
+        rackName: modalData.namaRak,
+        rackNumber: modalData.nomerRak,
+      });
+      setIsModalOpen(false);
+      setModalData({ namaRak: "", nomerRak: "" });
+      await loadLokasi(searchQuery);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Gagal menyimpan lokasi.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="flex flex-col bg-white min-h-screen p-6">
@@ -43,7 +78,7 @@ export default function DataLokasiGudang() {
               <Search className="h-4 w-4 text-gray-400" strokeWidth={2.5} />
             </div>
           </div>
-          <button 
+          <button
             onClick={() => setIsModalOpen(true)}
             className="flex items-center gap-2 px-5 py-2.5 bg-[#ff8a00] text-white rounded-lg hover:bg-[#eb7d00] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm shadow-sm"
           >
@@ -51,8 +86,11 @@ export default function DataLokasiGudang() {
             Tambah Data
           </button>
         </div>
-        
-        {/* Table */}
+
+        {error && !isModalOpen && (
+          <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>
+        )}
+
         {/* Table */}
         <div className="overflow-hidden w-full bg-white rounded-xl shadow-sm border border-gray-200/80">
           <div className="overflow-x-auto">
@@ -65,11 +103,17 @@ export default function DataLokasiGudang() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {dataLokasi.map((item, index) => (
-                  <tr key={index} className="bg-white hover:bg-orange-50/30 transition-colors duration-200">
-                    <td className="px-6 py-4 h-[52px] text-gray-700 font-medium">{item.kode}</td>
-                    <td className="px-6 py-4 text-gray-600">{item.namaRak}</td>
-                    <td className="px-6 py-4 text-gray-600">{item.nomerRak}</td>
+                {loading && (
+                  <tr><td colSpan={3} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
+                )}
+                {!loading && dataLokasi.length === 0 && (
+                  <tr><td colSpan={3} className="px-6 py-6 text-center text-gray-400">Belum ada data lokasi.</td></tr>
+                )}
+                {!loading && dataLokasi.map((item) => (
+                  <tr key={item.id} className="bg-white hover:bg-orange-50/30 transition-colors duration-200">
+                    <td className="px-6 py-4 h-[52px] text-gray-700 font-medium">{item.code}</td>
+                    <td className="px-6 py-4 text-gray-600">{item.rackName}</td>
+                    <td className="px-6 py-4 text-gray-600">{item.rackNumber}</td>
                   </tr>
                 ))}
               </tbody>
@@ -79,13 +123,12 @@ export default function DataLokasiGudang() {
       </div>
 
       {/* Modal Tambah Data Lokasi */}
-      {/* Modal Tambah Data Lokasi */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md transition-opacity duration-300">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-[550px] p-8 border border-white/20 relative animate-in zoom-in-95 duration-200">
             {/* Close Button at top-right */}
-            <button 
-              onClick={() => setIsModalOpen(false)}
+            <button
+              onClick={() => { setIsModalOpen(false); setError(""); }}
               className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -97,11 +140,11 @@ export default function DataLokasiGudang() {
               TAMBAH DATA LOKASI
             </h2>
 
-            <div className="flex flex-col sm:flex-row gap-6 mb-10">
+            <div className="flex flex-col sm:flex-row gap-6 mb-6">
               <div className="flex-1">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Nama Rak</label>
                 <div className="relative">
-                  <select 
+                  <select
                     className="w-full border border-gray-200 bg-gray-50/50 rounded-lg py-3 pl-4 pr-10 text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white appearance-none text-sm transition-all duration-200"
                     style={{ backgroundImage: "url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20viewBox%3D%220%200%2020%2020%20%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M5%207.5L10%2012.5L15%207.5%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E')", backgroundRepeat: "no-repeat", backgroundPosition: "right 1rem center", backgroundSize: "1.2em" }}
                     value={modalData.namaRak}
@@ -117,7 +160,7 @@ export default function DataLokasiGudang() {
               <div className="flex-1">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Nomer Rak</label>
                 <div className="relative">
-                  <select 
+                  <select
                     className="w-full border border-gray-200 bg-gray-50/50 rounded-lg py-3 pl-4 pr-10 text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white appearance-none text-sm transition-all duration-200"
                     style={{ backgroundImage: "url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20viewBox%3D%220%200%2020%2020%20%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M5%207.5L10%2012.5L15%207.5%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E')", backgroundRepeat: "no-repeat", backgroundPosition: "right 1rem center", backgroundSize: "1.2em" }}
                     value={modalData.nomerRak}
@@ -133,15 +176,17 @@ export default function DataLokasiGudang() {
               </div>
             </div>
 
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>
+            )}
+
             <div className="flex justify-end pt-2 border-t border-gray-50 mt-4">
-              <button 
-                onClick={() => {
-                  setIsModalOpen(false);
-                  setModalData({ namaRak: "", nomerRak: "" });
-                }}
-                className="px-8 py-2.5 bg-[#ff8a00] text-white rounded-lg shadow-sm hover:shadow-md hover:bg-[#f08000] hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm"
+              <button
+                onClick={handleSimpan}
+                disabled={saving}
+                className="px-8 py-2.5 bg-[#ff8a00] text-white rounded-lg shadow-sm hover:shadow-md hover:bg-[#f08000] hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm disabled:opacity-60"
               >
-                Simpan
+                {saving ? "Menyimpan..." : "Simpan"}
               </button>
             </div>
           </div>

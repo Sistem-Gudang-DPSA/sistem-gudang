@@ -1,80 +1,124 @@
 "use client";
 
-import React, { useState, useRef } from 'react';
-import { Search, Plus, Download, Edit2, Trash2, Filter, MoreHorizontal, Upload } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import React, { useEffect, useState } from 'react';
+import { Search, Plus, Download, Edit2, Trash2, Filter, MoreHorizontal } from 'lucide-react';
+import { listItems, createItem, deleteItem, listLocations, updateItem } from '@/domains/inventory/api';
+import type { Item, Location } from '@/domains/inventory/types';
+import { listSuppliers } from '@/domains/purchasing/api';
+import type { Supplier } from '@/domains/purchasing/types';
+import { ApiError } from '@/shared/lib/api-client';
+
+const emptyForm = { name: '', unit: '', category: '', price: '', supplierId: '' };
 
 export default function DataBarangPPIC() {
+  const [dataBarang, setDataBarang] = useState<Item[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  // Mock Data
-  const [dataBarang, setDataBarang] = useState([
-    { id: 1, kode: 'T3-LBR-001-A01', nama: 'Triplex 3mm', supplier: 'Sumber Jaya', stok: 100, satuan: 'Lembar', kategori: 'Lembaran', harga: '55.000', lokasi: 'A04', status: 'In Stock' },
-    { id: 2, kode: 'KY-JTI-012-B02', nama: 'Kayu Jati Grade A', supplier: 'PT Rimba Makmur', stok: 45, satuan: 'Batang', kategori: 'Kayu Solid', harga: '120.000', lokasi: 'B02', status: 'Low Stock' },
-    { id: 3, kode: 'BSI-HLW-044-C01', nama: 'Besi Hollow 4x4', supplier: 'Baja Sentosa', stok: 200, satuan: 'Batang', kategori: 'Logam', harga: '85.000', lokasi: 'C01', status: 'In Stock' },
-    { id: 4, kode: 'CT-PPU-010-D05', nama: 'Cat Polyurethane 5L', supplier: 'CV Warna Agung', stok: 12, satuan: 'Kaleng', kategori: 'Finishing', harga: '350.000', lokasi: 'D05', status: 'Critical' },
-    { id: 5, kode: 'SKP-KAY-008-E01', nama: 'Sekrup Kayu 5cm', supplier: 'Toko Baut Jaya', stok: 1500, satuan: 'Pcs', kategori: 'Aksesoris', harga: '250', lokasi: 'E01', status: 'In Stock' },
-  ]);
-
-  const [formData, setFormData] = useState({ nama: '', satuan: '', kategori: '' });
+  const [formData, setFormData] = useState(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [modalError, setModalError] = useState("");
 
-  const handleSimpan = () => {
-    if (!formData.nama || !formData.satuan || !formData.kategori) {
-      alert('Mohon lengkapi semua data!');
+  const loadBarang = async (search: string) => {
+    setLoading(true);
+    try {
+      const result = await listItems({ search: search || undefined });
+      setDataBarang(result.rows);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Gagal memuat data barang.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadBarang(searchTerm);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    listSuppliers().then((res) => setSuppliers(res.rows)).catch(() => {});
+    listLocations().then((res) => setLocations(res.rows)).catch(() => {});
+  }, []);
+
+  const handleSimpan = async () => {
+    if (!formData.name || !formData.unit || !formData.category || !formData.price || !formData.supplierId) {
+      setModalError('Mohon lengkapi semua data!');
       return;
     }
-
-    if (editingId) {
-      setDataBarang(dataBarang.map(item => 
-        item.id === editingId ? { ...item, nama: formData.nama, satuan: formData.satuan, kategori: formData.kategori } : item
-      ));
-    } else {
-      const newItem = {
-        id: Date.now(),
-        kode: `NW-${Math.floor(Math.random() * 1000)}`,
-        nama: formData.nama,
-        supplier: '-',
-        stok: 0,
-        satuan: formData.satuan,
-        kategori: formData.kategori,
-        harga: '0',
-        lokasi: '-',
-        status: 'New'
-      };
-      setDataBarang([newItem, ...dataBarang]);
+    setSaving(true);
+    setModalError("");
+    try {
+      if (editingId) {
+        const updated = await updateItem(editingId, {
+          name: formData.name,
+          unit: formData.unit,
+          category: formData.category,
+          price: Number(formData.price),
+          supplierId: Number(formData.supplierId),
+        });
+        setDataBarang((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
+      } else {
+        const created = await createItem({
+          name: formData.name,
+          unit: formData.unit,
+          category: formData.category,
+          price: Number(formData.price),
+          supplierId: Number(formData.supplierId),
+        });
+        setDataBarang((prev) => [created, ...prev]);
+      }
+      setIsModalOpen(false);
+      setEditingId(null);
+      setFormData(emptyForm);
+    } catch (err) {
+      setModalError(err instanceof ApiError ? err.message : "Gagal menyimpan barang.");
+    } finally {
+      setSaving(false);
     }
-
-    setIsModalOpen(false);
-    setEditingId(null);
-    setFormData({ nama: '', satuan: '', kategori: '' });
   };
 
   const handleMulaiTambah = () => {
     setEditingId(null);
-    setFormData({ nama: '', satuan: '', kategori: '' });
+    setFormData(emptyForm);
+    setModalError("");
     setIsModalOpen(true);
   };
 
-  const handleEdit = (item: any) => {
+  const handleEdit = (item: Item) => {
     setEditingId(item.id);
-    setFormData({ nama: item.nama, satuan: item.satuan, kategori: item.kategori });
+    setFormData({
+      name: item.name,
+      unit: item.unit,
+      category: item.category,
+      price: String(item.price),
+      supplierId: String(item.supplierId),
+    });
+    setModalError("");
     setIsModalOpen(true);
   };
 
-  const handleHapus = (id: number) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus data ini?')) {
-      setDataBarang(dataBarang.filter(item => item.id !== id));
+  const handleHapus = async (id: number) => {
+    if (!window.confirm('Apakah Anda yakin ingin menghapus data ini?')) return;
+    try {
+      await deleteItem(id);
+      setDataBarang((prev) => prev.filter((item) => item.id !== id));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Gagal menghapus barang.");
     }
   };
 
   const handleExportCSV = () => {
-    const headers = ['No,Kode Barang,Nama Barang,Supplier,Jumlah Stok,Satuan,Kategori,Harga,Lokasi,Status'];
-    const csvData = dataBarang.map((item, index) => 
-      `${index + 1},${item.kode},"${item.nama}","${item.supplier}",${item.stok},${item.satuan},${item.kategori},"${item.harga}",${item.lokasi},${item.status}`
+    const headers = ['No,Kode Barang,Nama Barang,Supplier,Jumlah Stok,Satuan,Kategori,Harga,Lokasi'];
+    const csvData = dataBarang.map((item, index) =>
+      `${index + 1},${item.code ?? '-'},"${item.name}","${supplierName(item.supplierId)}",${item.stock},${item.unit},${item.category},${item.price},${locationCode(item.locationId)}`
     );
     const csvString = [...headers, ...csvData].join('\n');
-    
+
     const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -84,8 +128,6 @@ export default function DataBarangPPIC() {
     link.click();
     document.body.removeChild(link);
   };
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const getCategoryColor = (kategori: string) => {
     if (!kategori) return 'bg-gray-100 text-gray-700 border-gray-200/50';
@@ -99,39 +141,8 @@ export default function DataBarangPPIC() {
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const bstr = evt.target?.result;
-      if (bstr) {
-        const wb = XLSX.read(bstr, { type: 'array' });
-        const wsname = wb.SheetNames[0];
-        const ws = wb.Sheets[wsname];
-        const data = XLSX.utils.sheet_to_json<any>(ws);
-        
-        const importedData = data.map((row: any, index: number) => ({
-          id: Date.now() + index,
-          kode: row['Kode Barang'] || `IMP-${Math.floor(Math.random() * 1000)}`,
-          nama: row['Nama Barang'] || row['Nama'] || 'Unknown Item',
-          supplier: row['Supplier'] || '-',
-          stok: parseInt(row['Jumlah Stok'] || row['Stok'] || '0', 10),
-          satuan: row['Satuan'] || '-',
-          kategori: row['Kategori'] || '-',
-          harga: row['Harga']?.toString() || '0',
-          lokasi: row['Lokasi'] || '-',
-          status: row['Status'] || 'New'
-        }));
-
-        setDataBarang(prev => [...importedData, ...prev]);
-        setTimeout(() => alert(`${importedData.length} data berhasil diimpor!`), 100);
-      }
-    };
-    reader.readAsArrayBuffer(file);
-    e.target.value = ''; // Reset input
-  };
+  const supplierName = (id: number) => suppliers.find((s) => s.id === id)?.name ?? '-';
+  const locationCode = (id: number | null) => (id === null ? '-' : locations.find((loc) => loc.id === id)?.code ?? `#${id}`);
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -141,7 +152,7 @@ export default function DataBarangPPIC() {
           <p className="text-gray-500 text-sm">Kelola master data barang, material, dan stok inventaris PPIC.</p>
         </div>
         <div className="flex items-center gap-3">
-          <button 
+          <button
             onClick={handleMulaiTambah}
             className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:shadow-purple-500/30 hover:-translate-y-0.5 transition-all font-medium text-sm"
           >
@@ -158,32 +169,18 @@ export default function DataBarangPPIC() {
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search className="h-4 w-4 text-gray-400" />
             </div>
-            <input 
-              type="text" 
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 sm:text-sm transition-all"
-              placeholder="Cari kode, nama barang, atau supplier..." 
+              placeholder="Cari kode atau nama barang..."
             />
           </div>
           <div className="flex items-center gap-2">
-            {/* Hidden Input for Excel/CSV */}
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              className="hidden" 
-              accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" 
-              onChange={handleFileUpload} 
-            />
-
-            <button 
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
-              title="Import Data Excel / CSV"
-            >
-              <Upload className="w-4 h-4" />
-              <span className="hidden sm:inline">Import</span>
-            </button>
-
-            <button 
+            {/* Import Excel dinonaktifkan sementara: backend belum punya endpoint bulk-import,
+                jadi data hasil import tidak akan tersimpan di server. */}
+            <button
               onClick={handleExportCSV}
               className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
               title="Export Data ke CSV"
@@ -198,6 +195,10 @@ export default function DataBarangPPIC() {
             </button>
           </div>
         </div>
+
+        {error && (
+          <div className="mx-5 mt-5 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>
+        )}
 
         {/* Table Container */}
         <div className="overflow-x-auto">
@@ -215,65 +216,71 @@ export default function DataBarangPPIC() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {dataBarang.map((item, index) => (
+              {loading && (
+                <tr><td colSpan={8} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
+              )}
+              {!loading && dataBarang.length === 0 && (
+                <tr><td colSpan={8} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
+              )}
+              {!loading && dataBarang.map((item, index) => (
                 <tr key={item.id} className="hover:bg-purple-50/30 transition-colors group">
                   <td className="px-6 py-4 text-gray-500">{index + 1}</td>
-                  
+
                   {/* Informasi Barang */}
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
-                      <span className="font-bold text-gray-900">{item.nama}</span>
-                      <span className="text-xs font-mono text-gray-500 mt-0.5">{item.kode}</span>
+                      <span className="font-bold text-gray-900">{item.name}</span>
+                      <span className="text-xs font-mono text-gray-500 mt-0.5">{item.code ?? '-'}</span>
                     </div>
                   </td>
-                  
+
                   {/* Supplier */}
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2 text-gray-600">
                       <div className="w-6 h-6 rounded-md bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500">
-                        {item.supplier ? item.supplier.charAt(0) : '-'}
+                        {supplierName(item.supplierId).charAt(0)}
                       </div>
-                      <span>{item.supplier || '-'}</span>
+                      <span>{supplierName(item.supplierId)}</span>
                     </div>
                   </td>
 
                   {/* Stok & Satuan */}
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
-                       <span className={`font-bold ${item.stok < 20 ? 'text-red-600' : item.stok < 50 ? 'text-amber-600' : 'text-gray-800'}`}>
-                         {item.stok}
+                       <span className={`font-bold ${item.stock < 20 ? 'text-red-600' : item.stock < 50 ? 'text-amber-600' : 'text-gray-800'}`}>
+                         {item.stock}
                        </span>
-                       <span className="text-gray-500 text-xs bg-gray-100 px-2 py-0.5 rounded-md">{item.satuan}</span>
+                       <span className="text-gray-500 text-xs bg-gray-100 px-2 py-0.5 rounded-md">{item.unit}</span>
                     </div>
                   </td>
 
                   {/* Kategori */}
                   <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getCategoryColor(item.kategori)}`}>
-                      {item.kategori || '-'}
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getCategoryColor(item.category)}`}>
+                      {item.category || '-'}
                     </span>
                   </td>
 
                   {/* Harga */}
                   <td className="px-6 py-4 text-right font-mono text-gray-700">
-                    {item.harga}
+                    {item.price}
                   </td>
 
                   {/* Lokasi */}
                   <td className="px-6 py-4">
                     <span className="inline-flex items-center gap-1 text-gray-600 font-medium">
                       <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
-                      {item.lokasi}
+                      {locationCode(item.locationId)}
                     </span>
                   </td>
 
                   {/* Aksi */}
                   <td className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => handleEdit(item)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors tooltip-trigger" title="Edit Data">
+                      <button onClick={() => handleEdit(item)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit Data">
                          <Edit2 className="w-4 h-4" />
                       </button>
-                      <button onClick={() => handleHapus(item.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors tooltip-trigger" title="Hapus Data">
+                      <button onClick={() => handleHapus(item.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Hapus Data">
                          <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
@@ -287,51 +294,33 @@ export default function DataBarangPPIC() {
             </tbody>
           </table>
         </div>
-
-        {/* Pagination / Footer */}
-        <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
-          <div>
-             Menampilkan <span className="font-semibold text-gray-900">1</span> sampai <span className="font-semibold text-gray-900">5</span> dari <span className="font-semibold text-gray-900">142</span> data
-          </div>
-          <div className="flex gap-1">
-             <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-400 cursor-not-allowed">Sec</button>
-             <button className="px-3 py-1 bg-purple-600 text-white rounded-md font-medium shadow-sm shadow-purple-500/20">1</button>
-             <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-600 hover:text-purple-600 font-medium transition-colors">2</button>
-             <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-600 hover:text-purple-600 font-medium transition-colors">3</button>
-             <span className="px-2 py-1 text-gray-400">...</span>
-             <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-600 hover:text-purple-600 font-medium transition-colors">Selanjutnya</button>
-          </div>
-        </div>
       </div>
-
-
 
       {/* Modal Tambah Data */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl w-full max-w-md p-6 sm:p-8 shadow-2xl animate-in zoom-in-95 duration-200">
             <h2 className="text-xl font-bold text-gray-900 mb-6 uppercase tracking-wide">DATA BARANG</h2>
-            
+
             <div className="space-y-5">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Nama</label>
-                <input 
-                  type="text" 
-                  value={formData.nama}
-                  onChange={(e) => setFormData({...formData, nama: e.target.value})}
-                  placeholder="Masukan nama barang" 
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all sm:text-sm text-gray-900 placeholder:text-gray-400" 
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  placeholder="Masukan nama barang"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all sm:text-sm text-gray-900 placeholder:text-gray-400"
                 />
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Satuan</label>
-                  <select 
-                    value={formData.satuan}
-                    onChange={(e) => setFormData({...formData, satuan: e.target.value})}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all appearance-none sm:text-sm text-gray-700 bg-white" 
-                    style={{ backgroundImage: "url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20viewBox%3D%220%200%2020%2020%20%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M5%207.5L10%2012.5L15%207.5%22%20stroke%3D%22%236B7280%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E')", backgroundRepeat: "no-repeat", backgroundPosition: "right 1rem center", backgroundSize: "1.2em" }}
+                  <select
+                    value={formData.unit}
+                    onChange={(e) => setFormData({...formData, unit: e.target.value})}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all appearance-none sm:text-sm text-gray-700 bg-white"
                   >
                     <option value="" disabled className="text-gray-400">Pilih satuan</option>
                     <option value="Lembar">Lembar</option>
@@ -342,11 +331,10 @@ export default function DataBarangPPIC() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Kategori</label>
-                  <select 
-                    value={formData.kategori}
-                    onChange={(e) => setFormData({...formData, kategori: e.target.value})}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all appearance-none sm:text-sm text-gray-700 bg-white" 
-                    style={{ backgroundImage: "url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20viewBox%3D%220%200%2020%2020%20%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M5%207.5L10%2012.5L15%207.5%22%20stroke%3D%22%236B7280%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E')", backgroundRepeat: "no-repeat", backgroundPosition: "right 1rem center", backgroundSize: "1.2em" }}
+                  <select
+                    value={formData.category}
+                    onChange={(e) => setFormData({...formData, category: e.target.value})}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all appearance-none sm:text-sm text-gray-700 bg-white"
                   >
                     <option value="" disabled className="text-gray-400">Pilih Kategori</option>
                     <option value="Lembaran">Lembaran</option>
@@ -357,20 +345,51 @@ export default function DataBarangPPIC() {
                   </select>
                 </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Harga</label>
+                  <input
+                    type="number"
+                    value={formData.price}
+                    onChange={(e) => setFormData({...formData, price: e.target.value})}
+                    placeholder="0"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all sm:text-sm text-gray-900 placeholder:text-gray-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Supplier</label>
+                  <select
+                    value={formData.supplierId}
+                    onChange={(e) => setFormData({...formData, supplierId: e.target.value})}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all appearance-none sm:text-sm text-gray-700 bg-white"
+                  >
+                    <option value="" disabled className="text-gray-400">Pilih supplier</option>
+                    {suppliers.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
-            
+
+            {modalError && (
+              <div className="mt-5 p-3 bg-red-50 text-red-600 text-sm rounded-xl">{modalError}</div>
+            )}
+
             <div className="flex justify-end gap-3 mt-8">
-              <button 
-                onClick={() => { setIsModalOpen(false); setEditingId(null); }} 
+              <button
+                onClick={() => { setIsModalOpen(false); setEditingId(null); }}
                 className="px-5 py-2 border border-orange-500 text-orange-500 font-medium rounded-xl hover:bg-orange-50 transition-colors text-sm"
               >
                 Batal
               </button>
-              <button 
-                onClick={handleSimpan} 
-                className="px-5 py-2.5 bg-orange-500 text-white font-medium rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/30 transition-all text-sm"
+              <button
+                onClick={handleSimpan}
+                disabled={saving}
+                className="px-5 py-2.5 bg-orange-500 text-white font-medium rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/30 transition-all text-sm disabled:opacity-60"
               >
-                Simpan
+                {saving ? "Menyimpan..." : "Simpan"}
               </button>
             </div>
           </div>
