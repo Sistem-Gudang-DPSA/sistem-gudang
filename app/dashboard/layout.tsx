@@ -189,6 +189,12 @@ export default function DashboardLayout({
                     <div className="space-y-1">
                       <Link href="/dashboard/ppic/transaksi/dokubah" className={`block text-sm py-2 px-3 rounded-lg transition-all ${pathname === "/dashboard/ppic/transaksi/dokubah" ? "bg-purple-500 text-white font-medium shadow-sm" : "text-gray-500 hover:text-purple-600 hover:bg-purple-50"}`}>Dokubah</Link>
                     </div>
+                    <div className="space-y-1">
+                      <Link href="/dashboard/ppic/transaksi/spk-mutasi" className={`block text-sm py-2 px-3 rounded-lg transition-all ${pathname === "/dashboard/ppic/transaksi/spk-mutasi" ? "bg-purple-500 text-white font-medium shadow-sm" : "text-gray-500 hover:text-purple-600 hover:bg-purple-50"}`}>SPK Internal & Mutasi Stok</Link>
+                    </div>
+                    <div className="space-y-1">
+                      <Link href="/dashboard/ppic/transaksi/approval" className={`block text-sm py-2 px-3 rounded-lg transition-all ${pathname === "/dashboard/ppic/transaksi/approval" ? "bg-purple-500 text-white font-medium shadow-sm" : "text-gray-500 hover:text-purple-600 hover:bg-purple-50"}`}>Approval</Link>
+                    </div>
                   </details>
 
                   <details className="group/laporan" open={isPPIC}>
@@ -197,6 +203,10 @@ export default function DashboardLayout({
                       <ChevronDown className="w-3 h-3 transition-transform group-open/laporan:-rotate-180" />
                     </summary>
                     <div className="space-y-1">
+                      <Link href="/dashboard/ppic/laporan/rekap-dokubah" className={`block text-sm py-2 px-3 rounded-lg transition-all ${pathname === "/dashboard/ppic/laporan/rekap-dokubah" ? "bg-purple-500 text-white font-medium shadow-sm" : "text-gray-500 hover:text-purple-600 hover:bg-purple-50"}`}>Rekap Dokubah</Link>
+                      <Link href="/dashboard/ppic/laporan/rekap-mutasi" className={`block text-sm py-2 px-3 rounded-lg transition-all ${pathname === "/dashboard/ppic/laporan/rekap-mutasi" ? "bg-purple-500 text-white font-medium shadow-sm" : "text-gray-500 hover:text-purple-600 hover:bg-purple-50"}`}>Rekap Mutasi Barang</Link>
+                      <Link href="/dashboard/ppic/laporan/rekap-stok" className={`block text-sm py-2 px-3 rounded-lg transition-all ${pathname === "/dashboard/ppic/laporan/rekap-stok" ? "bg-purple-500 text-white font-medium shadow-sm" : "text-gray-500 hover:text-purple-600 hover:bg-purple-50"}`}>Rekap Stok Opname & Mutasi Stok</Link>
+                      <Link href="/dashboard/ppic/laporan/rekap-pembelian" className={`block text-sm py-2 px-3 rounded-lg transition-all ${pathname === "/dashboard/ppic/laporan/rekap-pembelian" ? "bg-purple-500 text-white font-medium shadow-sm" : "text-gray-500 hover:text-purple-600 hover:bg-purple-50"}`}>Rekap Pembelian</Link>
                       <Link href="/dashboard/ppic/laporan/barang-masuk" className={`block text-sm py-2 px-3 rounded-lg transition-all ${pathname === "/dashboard/ppic/laporan/barang-masuk" ? "bg-purple-500 text-white font-medium shadow-sm" : "text-gray-500 hover:text-purple-600 hover:bg-purple-50"}`}>Laporan Barang Masuk</Link>
                       <Link href="/dashboard/ppic/laporan/barang-keluar" className={`block text-sm py-2 px-3 rounded-lg transition-all ${pathname === "/dashboard/ppic/laporan/barang-keluar" ? "bg-purple-500 text-white font-medium shadow-sm" : "text-gray-500 hover:text-purple-600 hover:bg-purple-50"}`}>Laporan Barang Keluar</Link>
                       <Link href="/dashboard/ppic/laporan/barang-dikembalikan" className={`block text-sm py-2 px-3 rounded-lg transition-all ${pathname === "/dashboard/ppic/laporan/barang-dikembalikan" ? "bg-purple-500 text-white font-medium shadow-sm" : "text-gray-500 hover:text-purple-600 hover:bg-purple-50"}`}>Laporan B. Dikembalikan</Link>
@@ -228,6 +238,18 @@ export default function DashboardLayout({
                     <div className="space-y-1">
                       <Link href="/dashboard/purchasing/master/data-barang" className={`block text-sm py-2 px-3 rounded-lg transition-all ${pathname === "/dashboard/purchasing/master/data-barang" ? "bg-teal-500 text-white font-medium shadow-sm" : "text-gray-500 hover:text-teal-600 hover:bg-teal-50"}`}>Data Barang</Link>
                       <Link href="/dashboard/purchasing/master/data-supplier" className={`block text-sm py-2 px-3 rounded-lg transition-all ${pathname === "/dashboard/purchasing/master/data-supplier" ? "bg-teal-500 text-white font-medium shadow-sm" : "text-gray-500 hover:text-teal-600 hover:bg-teal-50"}`}>Data Supplier</Link>
+                    </div>
+                  </details>
+
+                  <details className="group/transaksi" open={isPurchasing}>
+                    <summary className="flex items-center justify-between text-sm font-bold text-gray-400 hover:text-teal-600 cursor-pointer list-none [&::-webkit-details-marker]:hidden uppercase tracking-wider mb-2">
+                      <span>Transaksi</span>
+                      <ChevronDown className="w-3 h-3 transition-transform group-open/laporan:-rotate-180" />
+                    </summary>
+                    <div className="space-y-1">
+                      <Link href="/dashboard/purchasing/transaksi/buat-po" className={`block text-sm py-2 px-3 rounded-lg transition-all ${pathname === "/dashboard/purchasing/transaksi/buat-po" ? "bg-teal-500 text-white font-medium shadow-sm" : "text-gray-500 hover:text-teal-600 hover:bg-teal-50"}`}>Buat PO</Link>
+                      <Link href="/dashboard/purchasing/transaksi/penawaran-harga" className={`block text-sm py-2 px-3 rounded-lg transition-all ${pathname === "/dashboard/purchasing/transaksi/penawaran-harga" ? "bg-teal-500 text-white font-medium shadow-sm" : "text-gray-500 hover:text-teal-600 hover:bg-teal-50"}`}>Penawaran Harga / SPH</Link>
+                      <Link href="/dashboard/purchasing/transaksi/retur-supplier" className={`block text-sm py-2 px-3 rounded-lg transition-all ${pathname === "/dashboard/purchasing/transaksi/retur-supplier" ? "bg-teal-500 text-white font-medium shadow-sm" : "text-gray-500 hover:text-teal-600 hover:bg-teal-50"}`}>Retur ke Supplier</Link>
                     </div>
                   </details>
                   

@@ -145,7 +145,7 @@ export default function DataSupplierPurchasing() {
               </div>
 
               <div>
-                <label className="block text-[15px] font-medium text-gray-800 mb-2">Npwp</label>
+                <label className="block text-[15px] font-medium text-gray-800 mb-2">NPWP</label>
                 <input 
                   type="text" 
                   value={formData.npwp}
@@ -156,7 +156,7 @@ export default function DataSupplierPurchasing() {
               </div>
               
               <div>
-                <label className="block text-[15px] font-medium text-gray-800 mb-2">No telf</label>
+                <label className="block text-[15px] font-medium text-gray-800 mb-2">Kontak</label>
                 <input 
                   type="text" 
                   value={formData.noTelf}
