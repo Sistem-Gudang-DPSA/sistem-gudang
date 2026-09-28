@@ -10,3 +10,4 @@ Satu dokumen membahas satu pekerjaan atau satu keputusan besar. Lihat
 | [02-Integrasi-Inventory-Item-Lokasi.md](02-Integrasi-Inventory-Item-Lokasi.md) | Data Barang dan Data Lokasi di Gudang, PPIC, dan Purchasing disambungkan ke endpoint Item dan Location. |
 | [03-Integrasi-Data-Supplier.md](03-Integrasi-Data-Supplier.md) | Data Supplier di Purchasing disambungkan ke endpoint Supplier, termasuk tombol Edit dan Hapus yang sebelumnya tidak berfungsi. |
 | [04-Rencana-Selanjutnya.md](04-Rencana-Selanjutnya.md) | Status pekerjaan data barang dan urutan modul yang belum digarap: approval, transaksi gudang, dokubah, laporan, penawaran harga. |
+| [05-Struktur-Routing-dan-Domain.md](05-Struktur-Routing-dan-Domain.md) | Konvensi pemisahan routing di `src/app` dan logic fitur di `src/domains`, serta perbaikan folder `app/` root lama di branch `dev`. |

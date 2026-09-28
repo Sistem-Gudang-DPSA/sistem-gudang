@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Search, Plus, Edit2, Trash2, CheckCircle, XCircle, Clock, Download, Calendar } from 'lucide-react';
 
-export default function DokubahPPIC() {
+export default function RekapDokubah() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
   const [filterYear, setFilterYear] = useState("");
@@ -18,14 +18,14 @@ export default function DokubahPPIC() {
     if (searchQuery === "" && filterMonth === "" && filterYear === "") return true;
 
     const searches = searchQuery.toLowerCase();
-    const matchesSearch = searchQuery === "" || 
+    const matchesSearch = searchQuery === "" ||
       item.client.toLowerCase().includes(searches) ||
       item.spk.toLowerCase().includes(searches) ||
       item.noRekap.toLowerCase().includes(searches);
 
     // Scan Month in noRekap (format RKP/04/001)
     const matchesMonth = filterMonth === "" || item.noRekap.split('/')[1] === filterMonth;
-    
+
     // Scan Year in spk (format SPK-2026-001)
     const matchesYear = filterYear === "" || item.spk.includes(filterYear);
 
@@ -60,12 +60,12 @@ export default function DokubahPPIC() {
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Search className="h-4 w-4 text-gray-400" />
               </div>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] sm:text-sm transition-all shadow-sm"
-                placeholder="Cari client, spk, atau rekap..." 
+                placeholder="Cari client, spk, atau rekap..."
               />
             </div>
 
@@ -108,7 +108,7 @@ export default function DokubahPPIC() {
               </div>
 
               {(filterMonth || filterYear) && (
-                <button 
+                <button
                   onClick={() => { setFilterMonth(""); setFilterYear(""); }}
                   className="text-xs text-orange-600 font-bold hover:underline ml-1"
                 >
@@ -118,7 +118,7 @@ export default function DokubahPPIC() {
             </div>
           </div>
 
-          <button 
+          <button
             onClick={() => setIsModalOpen(true)}
             className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0 w-full lg:w-auto"
           >
@@ -144,11 +144,11 @@ export default function DokubahPPIC() {
               {filteredData.map((item, index) => (
                 <tr key={item.id} className="hover:bg-orange-50/20 transition-colors group">
                   <td className="px-6 py-3.5 text-gray-700 border-r border-gray-200 text-center">{index + 1}</td>
-                  
+
                   <td className="px-6 py-3.5 border-r border-gray-200">
                     <span className="font-semibold text-gray-900">{item.client}</span>
                   </td>
-                  
+
                   <td className="px-6 py-3.5 border-r border-gray-200 text-gray-600">
                     {item.spk}
                   </td>
@@ -180,7 +180,7 @@ export default function DokubahPPIC() {
                   </td>
                 </tr>
               )}
-              
+
               {/* Extra empty rows to simulate the wireframe empty box lines */}
               {[...Array(5)].map((_, i) => (
                  <tr key={`empty-${i}`} className="h-12 border-b border-gray-200 last:border-b-0">
@@ -210,24 +210,24 @@ export default function DokubahPPIC() {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-8">
               <h2 className="text-xl font-bold text-gray-900 mb-6 font-sans">Rekap Dokubah</h2>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 row-gap-6 col-gap-8 gap-y-6 gap-x-8 mb-10">
                 {/* Client */}
                 <div>
                   <label className="block text-[15px] font-medium text-gray-800 mb-2 font-sans">Client</label>
-                  <input 
-                    type="text" 
-                    placeholder="Masukkan nama client" 
+                  <input
+                    type="text"
+                    placeholder="Masukkan nama client"
                     className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors font-sans"
                   />
                 </div>
-                
+
                 {/* SPK */}
                 <div>
                   <label className="block text-[15px] font-medium text-gray-800 mb-2 font-sans">SPK</label>
-                  <input 
-                    type="text" 
-                    placeholder="Masukkan nama spk" 
+                  <input
+                    type="text"
+                    placeholder="Masukkan nama spk"
                     className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors font-sans"
                   />
                 </div>
@@ -237,8 +237,8 @@ export default function DokubahPPIC() {
                   <label className="block text-[15px] font-medium text-gray-800 mb-2 font-sans">Upload File Dokubah</label>
                   <div className="relative">
                     <input type="file" id="file-dokubah" className="hidden" />
-                    <label 
-                      htmlFor="file-dokubah" 
+                    <label
+                      htmlFor="file-dokubah"
                       className="flex items-center w-full pl-4 pr-3 py-2.5 bg-white border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors font-sans"
                     >
                       <span className="text-gray-400 flex-1 truncate text-left">Upload file dokubah</span>
@@ -252,8 +252,8 @@ export default function DokubahPPIC() {
                   <label className="block text-[15px] font-medium text-gray-800 mb-2 font-sans">Upload File Rekap</label>
                   <div className="relative">
                     <input type="file" id="file-rekap" className="hidden" />
-                    <label 
-                      htmlFor="file-rekap" 
+                    <label
+                      htmlFor="file-rekap"
                       className="flex items-center w-full pl-4 pr-3 py-2.5 bg-white border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors font-sans"
                     >
                       <span className="text-gray-400 flex-1 truncate text-left">Upload file rekap</span>
@@ -265,13 +265,13 @@ export default function DokubahPPIC() {
 
               {/* Action Buttons */}
               <div className="flex justify-end gap-4 mt-2">
-                <button 
+                <button
                   onClick={() => setIsModalOpen(false)}
                   className="px-8 py-2.5 border-2 border-[#FF8A00] text-[#FF8A00] font-semibold rounded-lg hover:bg-orange-50 transition-colors font-sans"
                 >
                   Batal
                 </button>
-                <button 
+                <button
                   className="px-8 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-lg hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-colors font-sans"
                 >
                   Simpan
