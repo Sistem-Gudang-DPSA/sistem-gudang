@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Search, Calendar, Plus, Download } from 'lucide-react';
+import { Search, Eye, Download, FileUp } from 'lucide-react';
 
 interface BarangMasukItem {
   id: string;
@@ -11,7 +11,7 @@ interface BarangMasukItem {
   namaPemasok: string;
   sumberInbound: 'SUPPLIER' | 'PRODUKSI';
   totalVolumeQty: number;
-  satuan: string;
+  satuan: string; 
   statusQc: 'PASS' | 'PARTIAL_RETUR';
   catatan?: string;
 }
@@ -84,7 +84,7 @@ export default function LaporanBarangMasuk() {
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
         <div className="flex flex-col justify-start mb-8 gap-2">
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1 uppercase">REKAP BARANG MASUK</h1>
-            <p className="text-gray-500 text-sm">Arsip pencatatan riwayat penerimaan fisik barang dari Supplier dan Hasil Produksi</p>
+            <p className="text-gray-500 text-sm">Arsip pencatatan riwayat penerimaan fisik barang dari supplier dan hasil produksi.</p>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -120,6 +120,7 @@ export default function LaporanBarangMasuk() {
                 <option value="ALL" className='text-black'>Semua Sumber (Supplier / Produksi)</option>
                 <option value="SUPPLIER" className='text-black'>Supplier (PO)</option>
                 <option value="PRODUKSI" className='text-black'>Barang Jadi Produksi</option>
+                <option value="KLIEN" className='text-black'>Barang Kembali</option>
                 </select>
             </div>
 
@@ -144,14 +145,19 @@ export default function LaporanBarangMasuk() {
 
             <div>
                 <label className="block text-xs text-black mb-1">Pencarian</label>
-                <input
-                type="text"
-                placeholder="🔍 Cari No. PO / SJ / SKU..." 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="border border-gray-300 rounded-md px-3 py-1.5 text-sm w-60 bg-white text-black placeholder:text-gray focus:outline-none focus:ring-2 focus:ring-blue-500 "
-                />
-            </div>
+                <span className="relative flex items-center w-60">
+                  <input
+                    type="text"
+                    placeholder="Cari No. PO / SJ / SKU..." 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="border border-gray-300 rounded-md pl-3 pr-10 py-1.5 text-sm w-full bg-white text-black placeholder:text-gray focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button className="absolute right-2 flex items-center justify-center">
+                    <Search className="text-black w-4 h-4" />
+                  </button>
+                </span>
+            </div>         
         </div>
       </div>
 
@@ -161,18 +167,18 @@ export default function LaporanBarangMasuk() {
                 <p className="text-xs font-semibold text-gray-500 uppercase m-2">Tabel Rekap Barang Masuk</p>
             </div>
             <div className="flex gap-2 items-end m-2">
-                <button
-                    onClick={() => alert('Exporting to Excel...')}
-                    className="bg-green-600 hover:bg-green-700 text-white px-3.5 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                    📥 Export Excel
-                </button>
-                <button
-                    onClick={() => alert('Printing PDF Laporan...')}
-                    className="bg-slate-700 hover:bg-slate-800 text-white px-3.5 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                    🖨️ Cetak PDF
-                </button>
+              <button 
+                className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0"
+              >
+                <FileUp className='h-4 w-4'></FileUp>
+                <span>Export Excel</span>
+              </button>
+              <button 
+                className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0"
+              >
+                <Download className='h-4 w-4'></Download>
+                <span>Cetak PDF</span>
+              </button>
             </div>
         </div>
         <table className="min-w-full divide-y divide-gray-200 text-sm">
@@ -219,21 +225,22 @@ export default function LaporanBarangMasuk() {
                   <td className="px-4 py-3 text-center">
                     {item.statusQc === 'PASS' && (
                       <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800 border border-green-200">
-                        🟢 Pass (IPM)
+                        Pass (IPM) 
                       </span>
                     )}
                     {item.statusQc === 'PARTIAL_RETUR' && (
                       <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800 border border-yellow-200">
-                        🟡 Part (Retur)
+                        Part (Retur)
                       </span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <button
                       onClick={() => setSelectedDetail(item)}
-                      className="text-blue-600 hover:text-blue-800 font-medium text-xs bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded border border-blue-200 transition-colors"
+                      className="flex-1 lg:flex-none flex items-center justify-center gap-2 text-blue-600 hover:text-blue-800 font-medium text-xs bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded border border-blue-200 transition-colors"
                     >
-                      👁️ View Detail
+                      <Eye className='h-4 w-4'></Eye>
+                      <span>View Detail</span>
                     </button>
                   </td>
                 </tr>
@@ -241,7 +248,22 @@ export default function LaporanBarangMasuk() {
             )}
           </tbody>
         </table>
+
+        <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
+            {/* <div>
+              Menampilkan <span className="font-semibold text-gray-900">1</span> sampai <span className="font-semibold text-gray-900">{filteredData.filter(i=>i.no).length}</span> dari <span className="font-semibold text-gray-900">{filteredData.filter(i=>i.no).length}</span> data
+            </div> */}
+            <div className="flex gap-1">
+              <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-400 cursor-not-allowed">Sec</button>
+              <button className="px-3 py-1 bg-[#FF8A00] text-white rounded-md font-medium shadow-sm shadow-orange-500/20">1</button>
+              <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-600 hover:text-[#FF8A00] font-medium transition-colors">2</button>
+              <span className="px-2 py-1 text-gray-400">...</span>
+              <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-600 hover:text-[#FF8A00] font-medium transition-colors">Selanjutnya</button>
+            </div>
+        </div>
       </div>
+
+      
 
       {selectedDetail && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
