@@ -8,23 +8,47 @@ export default function TambahStockOpnameGudang() {
   const router = useRouter();
 
   const [data, setData] = useState([
-    { no: "1.", namaBarang: "Triplex 3mm", satuan: "Lembar", kategori: "Lembaran", jumlah: "", harga: "", keterangan: "" },
-    { no: "2.", namaBarang: "Triplex 3mm", satuan: "Lembar", kategori: "Lembaran", jumlah: "", harga: "", keterangan: "" },
-    { no: "", namaBarang: "", satuan: "", kategori: "", jumlah: "", harga: "", keterangan: "" },
-    { no: "", namaBarang: "", satuan: "", kategori: "", jumlah: "", harga: "", keterangan: "" },
-    { no: "", namaBarang: "", satuan: "", kategori: "", jumlah: "", harga: "", keterangan: "" },
-    { no: "", namaBarang: "", satuan: "", kategori: "", jumlah: "", harga: "", keterangan: "" },
-    { no: "", namaBarang: "", satuan: "", kategori: "", jumlah: "", harga: "", keterangan: "" },
+    { no: "1.", namaBarang: "Triplex 3mm", satuan: "Lembar", kategori: "Lembaran", jumlahadm: "10", hargaadm: "500000", jumlahfsk: "8", hargafsk: "400000", jumlahsls: "-2", hargasls: "-100000", keterangan: "" },
+    { no: "2.", namaBarang: "Triplex 3mm", satuan: "Lembar", kategori: "Lembaran", jumlahadm: "", hargaadm: "", jumlahfsk: "", hargafsk: "", jumlahsls: "", hargasls: "", keterangan: "" },
+    { no: "", namaBarang: "", satuan: "", kategori: "", jumlahadm: "", hargaadm: "", jumlahfsk: "", hargafsk: "", jumlahsls: "", hargasls: "", keterangan: "" },
+    { no: "", namaBarang: "", satuan: "", kategori: "", jumlahadm: "", hargaadm: "", jumlahfsk: "", hargafsk: "", jumlahsls: "", hargasls: "", keterangan: "" },
+    { no: "", namaBarang: "", satuan: "", kategori: "", jumlahadm: "", hargaadm: "", jumlahfsk: "", hargafsk: "", jumlahsls: "", hargasls: "", keterangan: "" },
+    { no: "", namaBarang: "", satuan: "", kategori: "", jumlahadm: "", hargaadm: "", jumlahfsk: "", hargafsk: "", jumlahsls: "", hargasls: "", keterangan: "" },
+    { no: "", namaBarang: "", satuan: "", kategori: "", jumlahadm: "", hargaadm: "", jumlahfsk: "", hargafsk: "", jumlahsls: "", hargasls: "", keterangan: "" },
   ]);
 
   const handleChange = (index: number, field: string, value: string) => {
     const newData = [...data];
-    newData[index] = { ...newData[index], [field]: value };
+    const item = { ...newData[index], [field]: value };
+
+    const admQty = item.jumlahadm !== "" ? parseFloat(item.jumlahadm) : NaN;
+    const fskQty = item.jumlahfsk !== "" ? parseFloat(item.jumlahfsk) : NaN;
+    const admHarga = item.hargaadm !== "" ? parseFloat(item.hargaadm) : NaN;
+    const fskHarga = item.hargafsk !== "" ? parseFloat(item.hargafsk) : NaN;
+
+    // Hitung Otomatis Jumlah Selisih (Fisik - Administrasi)
+    if (!isNaN(fskQty) && !isNaN(admQty)) {
+      const diffQty = fskQty - admQty;
+      item.jumlahsls = String(diffQty);
+
+      // Hitung Otomatis Harga Selisih (Harga Fisik - Harga Administrasi atau Qty Selisih * Harga Satuan)
+      if (!isNaN(fskHarga) && !isNaN(admHarga)) {
+        item.hargasls = String(fskHarga - admHarga);
+      } else if (!isNaN(admHarga) && admQty > 0) {
+        const hargaSatuan = admHarga / admQty;
+        item.hargasls = String(diffQty * hargaSatuan);
+      }
+    } else {
+      item.jumlahsls = "";
+      item.hargasls = "";
+    }
+
+    newData[index] = item;
     setData(newData);
   };
 
   const handleAddRow = () => {
-    setData([...data, { no: "", namaBarang: "", satuan: "", kategori: "", jumlah: "", harga: "", keterangan: "" }]);
+    setData([...data, { no: "", namaBarang: "", satuan: "", kategori: "", jumlahadm: "", hargaadm: "", jumlahfsk: "", hargafsk: "", jumlahsls: "", hargasls: "", keterangan: "" }]);
   };
 
   return (
@@ -51,10 +75,16 @@ export default function TambahStockOpnameGudang() {
                     <th rowSpan={2} className="border-r border-b border-gray-200 px-6 py-4 align-top whitespace-nowrap">Nama Barang</th>
                     <th rowSpan={2} className="border-r border-b border-gray-200 px-6 py-4 align-top whitespace-nowrap">Satuan</th>
                     <th rowSpan={2} className="border-r border-b border-gray-200 px-6 py-4 align-top whitespace-nowrap">Kategori</th>
+                    <th colSpan={2} className="border-r border-b border-gray-200 px-6 py-2.5 text-center whitespace-nowrap">Administrasi</th>
                     <th colSpan={2} className="border-r border-b border-gray-200 px-6 py-2.5 text-center whitespace-nowrap">Fisik</th>
+                    <th colSpan={2} className="border-r border-b border-gray-200 px-6 py-2.5 text-center whitespace-nowrap">Selisih</th>
                     <th rowSpan={2} className="border-b border-gray-200 px-6 py-4 align-top whitespace-nowrap">Keterangan</th>
                   </tr>
                   <tr>
+                    <th className="border-r border-b border-gray-200 px-6 py-2.5 font-semibold whitespace-nowrap text-center">Jumlah</th>
+                    <th className="border-r border-b border-gray-200 px-6 py-2.5 font-semibold whitespace-nowrap text-center">Harga</th>
+                    <th className="border-r border-b border-gray-200 px-6 py-2.5 font-semibold whitespace-nowrap text-center">Jumlah</th>
+                    <th className="border-r border-b border-gray-200 px-6 py-2.5 font-semibold whitespace-nowrap text-center">Harga</th>
                     <th className="border-r border-b border-gray-200 px-6 py-2.5 font-semibold whitespace-nowrap text-center">Jumlah</th>
                     <th className="border-r border-b border-gray-200 px-6 py-2.5 font-semibold whitespace-nowrap text-center">Harga</th>
                   </tr>
@@ -73,10 +103,22 @@ export default function TambahStockOpnameGudang() {
                         <input type="text" value={item.kategori} placeholder="Kategori" onChange={(e) => handleChange(index, 'kategori', e.target.value)} className="w-full h-full min-h-[48px] px-4 py-2 bg-transparent text-center focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 text-gray-700 text-sm transition-all placeholder-gray-300" />
                       </td>
                       <td className="border-r border-b border-gray-100/50 p-0 w-28">
-                        <input type="number" value={item.jumlah} placeholder="0" onChange={(e) => handleChange(index, 'jumlah', e.target.value)} className="w-full h-full min-h-[48px] px-4 py-2 bg-transparent text-center focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 text-gray-700 text-sm transition-all placeholder-gray-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                        <input type="number" value={item.jumlahadm} placeholder="0" onChange={(e) => handleChange(index, 'jumlahadm', e.target.value)} className="w-full h-full min-h-[48px] px-4 py-2 bg-transparent text-center focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 text-gray-700 text-sm transition-all placeholder-gray-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                       </td>
                       <td className="border-r border-b border-gray-100/50 p-0 w-36">
-                        <input type="number" value={item.harga} placeholder="0" onChange={(e) => handleChange(index, 'harga', e.target.value)} className="w-full h-full min-h-[48px] px-4 py-2 bg-transparent text-center focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 text-gray-700 text-sm transition-all placeholder-gray-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                        <input type="number" value={item.hargaadm} placeholder="0" onChange={(e) => handleChange(index, 'hargaadm', e.target.value)} className="w-full h-full min-h-[48px] px-4 py-2 bg-transparent text-center focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 text-gray-700 text-sm transition-all placeholder-gray-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                      </td>
+                      <td className="border-r border-b border-gray-100/50 p-0 w-28">
+                        <input type="number" value={item.jumlahfsk} placeholder="0" onChange={(e) => handleChange(index, 'jumlahfsk', e.target.value)} className="w-full h-full min-h-[48px] px-4 py-2 bg-transparent text-center focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 text-gray-700 text-sm transition-all placeholder-gray-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                      </td>
+                      <td className="border-r border-b border-gray-100/50 p-0 w-36">
+                        <input type="number" value={item.hargafsk} placeholder="0" onChange={(e) => handleChange(index, 'hargafsk', e.target.value)} className="w-full h-full min-h-[48px] px-4 py-2 bg-transparent text-center focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 text-gray-700 text-sm transition-all placeholder-gray-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                      </td>
+                      <td className="border-r border-b border-gray-100/50 p-0 w-28 bg-gray-50/50">
+                        <input type="number" readOnly value={item.jumlahsls} placeholder="0" className="w-full h-full min-h-[48px] px-4 py-2 bg-transparent text-center font-bold text-gray-700 text-sm cursor-not-allowed [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                      </td>
+                      <td className="border-r border-b border-gray-100/50 p-0 w-36 bg-gray-50/50">
+                        <input type="number" readOnly value={item.hargasls} placeholder="0" className="w-full h-full min-h-[48px] px-4 py-2 bg-transparent text-center font-bold text-gray-700 text-sm cursor-not-allowed [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                       </td>
                       <td className="border-b border-gray-100/50 p-0">
                         <input type="text" value={item.keterangan} placeholder="Tambahkan catatan..." onChange={(e) => handleChange(index, 'keterangan', e.target.value)} className="w-full h-full min-h-[48px] px-6 py-2 bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 text-gray-700 text-sm transition-all placeholder-gray-300 italic" />

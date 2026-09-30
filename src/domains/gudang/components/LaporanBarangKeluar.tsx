@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Search, FileUp, Download, Eye } from 'lucide-react';
+import { Search, FileUp, Download, Eye, AlertCircle, Loader2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import Link from 'next/link';
+import type { BarangKeluarItems } from '../types';
 import { ApiError } from '@/shared/lib/api-client';
 
 
@@ -12,6 +13,32 @@ export default function LaporanBarangKeluar(){
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [filterSumber, setFilterSumber] = useState<string>('ALL');
     const [filterDate, setFilterDate] = useState<string>('2026-09-01');
+
+    const [selectedDetail, setSelectedDetail] = useState<BarangKeluarItems | null>(null);
+    const [data, setData] = useState<BarangKeluarItems[]>([]);
+    const filteredData = data;
+
+    const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+    const handleExportCSV = () => {
+        const exportData = filteredData.map((item, index) => ({
+        'No': index + 1,
+        'Tgl & Jam Penerimaan': item.tanggal,
+        'Total Volume (Qty)': item.jumlah,
+        'Lokasi Gudang': item.asalGudang,
+        'SPK': item.noSPK,
+        'Tujuan / Penerima': item.tujuanPenerima
+        }));
+
+        const worksheet = XLSX.utils.json_to_sheet(exportData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Barang Masuk');
+    };
+
+    const handlePrintPDF = () => {
+      window.print();
+    };
 
     return(
         <div className='animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10'>
@@ -106,18 +133,22 @@ export default function LaporanBarangKeluar(){
                         <p className="text-xs font-semibold text-gray-500 uppercase m-2">Tabel Rekap Barang Keluar</p>
                     </div>
                     <div className="flex gap-2 items-end m-2">
-                    <button 
-                        className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0"
-                    >
-                        <FileUp className='h-4 w-4'></FileUp>
-                        <span>Export Excel</span>
-                    </button>
-                    <button 
-                        className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0"
-                    >
-                        <Download className='h-4 w-4'></Download>
-                        <span>Cetak PDF</span>
-                    </button>
+                        <button
+                            onClick={handleExportCSV}
+                            className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                            title="Export Data ke CSV"
+                            >
+                            <FileUp className="w-4 h-4" />
+                            <span className="hidden sm:inline">Export</span>
+                            </button>
+                            <button
+                            onClick={handlePrintPDF}
+                            className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                            title="Print Data ke PDF"
+                            >
+                            <Download className="w-4 h-4" />
+                            <span className="hidden sm:inline">Print PDF</span>
+                        </button>
                     </div>
                 </div>
                 <table className="min-w-full divide-y divide-gray-200 text-sm">
@@ -133,46 +164,51 @@ export default function LaporanBarangKeluar(){
                         <th className="px-4 py-3 text-center">Aksi</th>
                     </tr>
                 </thead>
-                    {/* <tbody className="divide-y divide-gray-200">
-                        {filteredData.length === 0 ? (
-                        <tr>
-                            <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                            Tidak ada data penerimaan barang masuk ditemukan.
-                            </td>
-                        </tr>
+                    <tbody className="divide-y divide-gray-200">
+                        {isLoading ? (
+                            <tr>
+                                <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                                <div className="flex items-center justify-center gap-2">
+                                    <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                                    <span>Memuat data laporan barang masuk...</span>
+                                </div>
+                                </td>
+                            </tr>
+                            ) : errorMessage ? (
+                            <tr>
+                                <td colSpan={8} className="px-4 py-8 text-center text-red-500">
+                                <div className="flex flex-col items-center justify-center gap-2">
+                                    <AlertCircle className="w-6 h-6 text-red-500" />
+                                    <span className="font-semibold">{errorMessage}</span>
+                                    <span className="text-xs text-gray-400">Pastikan server backend sudah menyala dan endpoint laporan sudah tersedia.</span>
+                                </div>
+                                </td>
+                            </tr>
+                            ) : filteredData.length === 0 ? (
+                            <tr>
+                                <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                                Tidak ada data penerimaan barang masuk ditemukan.
+                                </td>
+                            </tr>
                         ) : (
                         filteredData.map((item, index) => (
                             <tr key={item.id} className="hover:bg-gray-50 transition-colors">
                             <td className="px-4 py-3 text-center text-gray-500">{index + 1}</td>
-                            <td className="px-4 py-3 text-gray-700 font-medium">{item.tanggalJam}</td>
+                            <td className="px-4 py-3 text-gray-700 font-medium">{item.namaBarang}</td>
                             <td className="px-4 py-3 font-mono font-semibold text-blue-600">
-                                {item.noReferensi}
-                                {item.noSuratJalanSupplier && (
-                                <span className="block text-xs font-normal text-gray-500">
-                                    (SJ: {item.noSuratJalanSupplier})
-                                </span>
-                                )}
+                                {item.asalGudang}
                             </td>
                             <td className="px-4 py-3">
-                                <span className="font-medium text-gray-900">{item.namaPemasok}</span>
-                                <span className="block text-xs text-gray-500">
-                                ({item.sumberInbound === 'SUPPLIER' ? 'Supplier External' : 'Produksi Internal'})
-                                </span>
+                                <span className="font-medium text-gray-900">{item.tujuanPenerima}</span>
                             </td>
                             <td className="px-4 py-3 text-right font-bold text-gray-800">
-                                {item.totalVolumeQty} {item.satuan}
+                                {item.noSPK} 
                             </td>
                             <td className="px-4 py-3 text-center">
-                                {item.statusQc === 'PASS' && (
-                                <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800 border border-green-200">
-                                    Pass (IPM) 
-                                </span>
-                                )}
-                                {item.statusQc === 'PARTIAL_RETUR' && (
-                                <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800 border border-yellow-200">
-                                    Part (Retur)
-                                </span>
-                                )}
+                                {item.tanggal}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                                {item.jumlah}
                             </td>
                             <td className="px-4 py-3 text-center">
                                 <button
@@ -186,7 +222,7 @@ export default function LaporanBarangKeluar(){
                             </tr>
                         ))
                         )}
-                    </tbody> */}
+                    </tbody>
                 </table>
 
                 <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">

@@ -37,3 +37,10 @@ export interface LaporanBarangKeluarFilter {
     penerima?: string;
     tanggal?: string;
 }
+
+export interface RekapStokOpname {
+  id: string | number;
+  namaRekap: string;
+  tanggal: string;
+  auditor: string;
+}
