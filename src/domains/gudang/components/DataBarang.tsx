@@ -131,7 +131,7 @@ export default function DataBarangGudang() {
     }
   };
 
-  const handleExportCSV = () => {
+  const handleExportExcel = () => {
     const headers = ['No,Kode Barang,Nama Barang,Supplier,Jumlah Stok,Satuan,Kategori,Lokasi'];
     const csvData = dataBarang.map((item, index) =>
       `${index + 1},${item.code ?? '-'},"${item.name}","${supplierName(item.supplierId)}",${item.stock},${item.unit},${item.category},${locationCode(item.locationId)}`
@@ -174,9 +174,9 @@ export default function DataBarangGudang() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={handleExportCSV}
+              onClick={handleExportExcel}
               className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
-              title="Export Data ke CSV"
+              title="Export Data ke Excel"
             >
               <Download className="w-4 h-4" />
               <span className="hidden sm:inline">Export</span>
@@ -249,7 +249,7 @@ export default function DataBarangGudang() {
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getCategoryColor(item.category)}`}>
                       {item.category || '-'}
-                    </span>
+                    </span> 
                   </td>
 
                   {/* Lokasi */}
