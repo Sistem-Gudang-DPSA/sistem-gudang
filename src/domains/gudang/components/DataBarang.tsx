@@ -153,7 +153,7 @@ export default function DataBarangGudang() {
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1">Data Barang</h1>
-          <p className="text-gray-500 text-sm">Kelola master data barang dan lokasi inventaris Gudang.</p>
+          <p className="text-gray-500 text-sm">Kelola master data barang dan lokasi inventaris gudang.</p>
         </div>
       </div>
 
