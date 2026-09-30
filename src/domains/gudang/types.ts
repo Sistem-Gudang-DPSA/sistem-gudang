@@ -7,6 +7,7 @@ export interface InboundRow {
   itemId: number;
   itemCode: string | null;
   itemName: string;
+  locationCode?: string | null; // pending BE: item's location code
   supplierId: number | null;
   supplierName: string | null;
   source: InboundSource;
