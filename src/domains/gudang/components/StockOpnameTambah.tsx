@@ -5,7 +5,7 @@ import { ArrowLeft, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createStockOpname } from '@/domains/gudang/api';
 import { listItems } from '@/domains/inventory/api';
-import type { Item } from '@/domains/inventory/types';
+import type { ItemListRow } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
 
 const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -17,7 +17,7 @@ export default function TambahStockOpnameGudang() {
   const now = new Date();
   const [month, setMonth] = useState(String(now.getMonth() + 1));
   const [year, setYear] = useState(String(now.getFullYear()));
-  const [items, setItems] = useState<Item[]>([]);
+  const [items, setItems] = useState<ItemListRow[]>([]);
   const [data, setData] = useState(Array.from({ length: 7 }, () => emptyRow));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");

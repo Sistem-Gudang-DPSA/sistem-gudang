@@ -12,6 +12,12 @@ export interface Item {
   updatedAt: string | null;
 }
 
+// Row shape of GET /items (list): joined with location and supplier, no timestamps.
+export type ItemListRow = Omit<Item, "createdAt" | "updatedAt"> & {
+  locationCode: string | null;
+  supplierName: string;
+};
+
 export interface CreateItemInput {
   name: string;
   category: string;

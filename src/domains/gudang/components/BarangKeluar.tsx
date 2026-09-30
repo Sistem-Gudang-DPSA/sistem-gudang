@@ -5,7 +5,7 @@ import { Search, Calendar, Plus, AlertCircle } from 'lucide-react';
 import { createOutbound, listOutbound } from '@/domains/gudang/api';
 import type { RecipientType, WarehouseType } from '@/domains/gudang/types';
 import { listItems } from '@/domains/inventory/api';
-import type { Item } from '@/domains/inventory/types';
+import type { ItemListRow } from '@/domains/inventory/types';
 import { displayDate, todayIso, toDateRange } from '@/domains/gudang/date';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
@@ -26,7 +26,7 @@ export default function BarangKeluarGudang() {
   const [filterMonth, setFilterMonth] = useState("");
   const [filterYear, setFilterYear] = useState("");
 
-  const [items, setItems] = useState<Item[]>([]);
+  const [items, setItems] = useState<ItemListRow[]>([]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalData, setModalData] = useState(emptyForm);
