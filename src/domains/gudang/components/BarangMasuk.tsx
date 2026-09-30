@@ -1,67 +1,135 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Search, Calendar, Plus, Download } from 'lucide-react';
+import { createInbound, createInboundReturn, listInbound } from '@/domains/gudang/api';
+import type { InboundRow, StatusQc } from '@/domains/gudang/types';
+import { listItems } from '@/domains/inventory/api';
+import type { Item } from '@/domains/inventory/types';
+import { listSuppliers } from '@/domains/purchasing/api';
+import type { Supplier } from '@/domains/purchasing/types';
+import { ApiError } from '@/shared/lib/api-client';
+
+const pad = (n: number | string) => String(n).padStart(2, '0');
+const todayIso = () => new Date().toISOString().slice(0, 10);
+const displayDate = (iso: string) => iso.slice(0, 10).split('-').reverse().join('-');
+
+// Turn the Tgl/Bulan/Tahun selects into the API's startDate/endDate range.
+function toDateRange(day: string, month: string, year: string) {
+  if (!day && !month && !year) return {};
+  const y = year || String(new Date().getFullYear());
+  if (!month) return { startDate: `${y}-01-01`, endDate: `${y}-12-31` };
+  const m = pad(month);
+  if (day) return { startDate: `${y}-${m}-${pad(day)}`, endDate: `${y}-${m}-${pad(day)}` };
+  const last = new Date(Number(y), Number(m), 0).getDate();
+  return { startDate: `${y}-${m}-01`, endDate: `${y}-${m}-${pad(last)}` };
+}
+
+const emptyBaru = { itemId: "", supplierId: "", tanggal: todayIso(), jumlahKedatangan: "", jumlahRekap: "", statusQc: "PASS" as StatusQc };
+const emptyKembali = { itemId: "", tanggal: todayIso(), jumlah: "", clientName: "", spk: "" };
 
 export default function BarangMasukGudang() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterDay, setFilterDay] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
   const [filterYear, setFilterYear] = useState("");
-  const today = new Date();
-  const formattedToday = `${today.getDate().toString().padStart(2, '0')}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getFullYear()}`;
+
+  const [rows, setRows] = useState<InboundRow[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [items, setItems] = useState<Item[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalData, setModalData] = useState({ nama: "", supplier: "", tanggal: formattedToday, jumlahKedatangan: "", jumlahRekap: "" });
+  const [modalData, setModalData] = useState(emptyBaru);
   const [isModalKembaliOpen, setIsModalKembaliOpen] = useState(false);
-  const [modalKembaliData, setModalKembaliData] = useState({ nama: "", tanggal: formattedToday, jumlah: "" });
+  const [modalKembaliData, setModalKembaliData] = useState(emptyKembali);
+  const [saving, setSaving] = useState(false);
+  const [modalError, setModalError] = useState("");
 
-  const dataBarangMasuk = [
-    {
-      no: "1.",
-      tanggal: "11-04-2026",
-      kodeBarang: "T3-LBR-002-A04",
-      namaBarang: "Triplex 3mm",
-      supplier: "Sumber Jaya",
-      jumlahKedatangan: "12",
-      jumlahRekap: "12"
-    },
-    // Empty rows based on the screenshot
-    { no: "", tanggal: "", kodeBarang: "", namaBarang: "", supplier: "", jumlahKedatangan: "", jumlahRekap: "" },
-    { no: "", tanggal: "", kodeBarang: "", namaBarang: "", supplier: "", jumlahKedatangan: "", jumlahRekap: "" },
-    { no: "", tanggal: "", kodeBarang: "", namaBarang: "", supplier: "", jumlahKedatangan: "", jumlahRekap: "" },
-    { no: "", tanggal: "", kodeBarang: "", namaBarang: "", supplier: "", jumlahKedatangan: "", jumlahRekap: "" },
-    { no: "", tanggal: "", kodeBarang: "", namaBarang: "", supplier: "", jumlahKedatangan: "", jumlahRekap: "" },
-  ];
-
-  const filteredData = dataBarangMasuk.filter(item => {
-    // If all filters are empty, show everything (including placeholder rows)
-    if (searchQuery === "" && filterDay === "" && filterMonth === "" && filterYear === "") return true;
-    
-    // If filtering, skip empty rows
-    if (!item.tanggal && !item.no) return false;
-
-    // Date filtering logic
-    let matchesDate = true;
-    if (item.tanggal) {
-      const [d, m, y] = item.tanggal.split("-");
-      const matchesDay = filterDay === "" || d === filterDay.padStart(2, '0');
-      const matchesMonth = filterMonth === "" || m === filterMonth;
-      const matchesYear = filterYear === "" || y === filterYear;
-      matchesDate = matchesDay && matchesMonth && matchesYear;
-    } else {
-      // If row has no date but we are filtering by date, exclude it
-      if (filterDay !== "" || filterMonth !== "" || filterYear !== "") matchesDate = false;
+  // ponytail: loads first 100 rows only, add real pagination when the list outgrows it
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await listInbound({
+        pageSize: 100,
+        search: searchQuery || undefined,
+        ...toDateRange(filterDay, filterMonth, filterYear),
+      });
+      setRows(res.rows);
+      setTotal(res.total);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Gagal memuat data barang masuk.");
+    } finally {
+      setLoading(false);
     }
-    
-    const searches = searchQuery.toLowerCase();
-    const matchesSearch = searchQuery === "" || 
-      item.namaBarang.toLowerCase().includes(searches) ||
-      item.kodeBarang.toLowerCase().includes(searches) ||
-      item.supplier.toLowerCase().includes(searches);
+  }, [searchQuery, filterDay, filterMonth, filterYear]);
 
-    return matchesDate && matchesSearch;
-  });
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    listItems({ pageSize: 100 }).then((res) => setItems(res.rows)).catch(() => {});
+    listSuppliers({ pageSize: 100 }).then((res) => setSuppliers(res.rows)).catch(() => {});
+  }, []);
+
+  const openModal = () => { setModalData({ ...emptyBaru, tanggal: todayIso() }); setModalError(""); setIsModalOpen(true); };
+  const openModalKembali = () => { setModalKembaliData({ ...emptyKembali, tanggal: todayIso() }); setModalError(""); setIsModalKembaliOpen(true); };
+
+  const handleSimpan = async () => {
+    const { itemId, supplierId, tanggal, jumlahKedatangan, jumlahRekap, statusQc } = modalData;
+    if (!itemId || !supplierId || !tanggal || !jumlahKedatangan || jumlahRekap === "") {
+      setModalError("Lengkapi semua isian.");
+      return;
+    }
+    setSaving(true);
+    setModalError("");
+    try {
+      await createInbound({
+        itemId: Number(itemId),
+        supplierId: Number(supplierId),
+        date: tanggal,
+        qtyArrived: Number(jumlahKedatangan),
+        qtyPurchased: Number(jumlahRekap),
+        statusQc,
+      });
+      setIsModalOpen(false);
+      await loadData();
+    } catch (err) {
+      setModalError(err instanceof ApiError ? err.message : "Gagal menyimpan barang masuk.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSimpanKembali = async () => {
+    const { itemId, tanggal, jumlah, clientName, spk } = modalKembaliData;
+    if (!itemId || !tanggal || !jumlah) {
+      setModalError("Barang, tanggal, dan jumlah wajib diisi.");
+      return;
+    }
+    setSaving(true);
+    setModalError("");
+    try {
+      await createInboundReturn({
+        itemId: Number(itemId),
+        date: tanggal,
+        qty: Number(jumlah),
+        clientName: clientName || undefined,
+        spk: spk || undefined,
+      });
+      setIsModalKembaliOpen(false);
+      await loadData();
+    } catch (err) {
+      setModalError(err instanceof ApiError ? err.message : "Gagal menyimpan barang kembali.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -154,14 +222,14 @@ export default function BarangMasukGudang() {
 
           <div className="flex gap-2 w-full lg:w-auto">
             <button 
-              onClick={() => setIsModalOpen(true)}
+              onClick={openModal}
               className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0"
             >
               <Plus className="w-4 h-4" />
               <span>Barang Baru</span>
             </button>
             <button 
-              onClick={() => setIsModalKembaliOpen(true)}
+              onClick={openModalKembali}
               className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0"
             >
               <Plus className="w-4 h-4" />
@@ -184,37 +252,43 @@ export default function BarangMasukGudang() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {filteredData.map((item, index) => (
-                <tr key={index} className="hover:bg-[#FF8A00]/5 transition-colors group">
-                  <td className="px-6 py-4 text-gray-500 text-center">{item.no}</td>
-                  <td className="px-6 py-4 text-gray-500">{item.tanggal}</td>
-                  
+              {loading && (
+                <tr><td colSpan={6} className="px-6 py-10 text-center text-gray-400">Memuat data...</td></tr>
+              )}
+              {!loading && error && (
+                <tr><td colSpan={6} className="px-6 py-10 text-center text-red-500">{error}</td></tr>
+              )}
+              {!loading && !error && rows.map((item, index) => (
+                <tr key={item.id} className="hover:bg-[#FF8A00]/5 transition-colors group">
+                  <td className="px-6 py-4 text-gray-500 text-center">{index + 1}.</td>
+                  <td className="px-6 py-4 text-gray-500">{displayDate(item.date)}</td>
+
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
-                      <span className="font-bold text-gray-900">{item.namaBarang}</span>
-                      <span className="text-xs font-mono text-gray-500 mt-0.5">{item.kodeBarang}</span>
+                      <span className="font-bold text-gray-900">{item.itemName}</span>
+                      <span className="text-xs font-mono text-gray-500 mt-0.5">{item.itemCode ?? '-'}</span>
                     </div>
                   </td>
-                  
+
                   <td className="px-6 py-4 text-gray-600">
                     <div className="flex items-center gap-2">
                       <div className="w-6 h-6 rounded-md bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">
-                        {item.supplier ? item.supplier.charAt(0) : '-'}
+                        {(item.supplierName ?? item.clientName ?? '-').charAt(0)}
                       </div>
-                      <span>{item.supplier}</span>
+                      <span>{item.supplierName ?? (item.source === 'KLIEN' ? `Retur${item.clientName ? ` - ${item.clientName}` : ''}` : '-')}</span>
                     </div>
                   </td>
 
                   <td className="px-6 py-4 text-center font-bold text-gray-800">
-                    {item.jumlahKedatangan}
+                    {item.qtyArrived}
                   </td>
 
                   <td className="px-6 py-4 text-center font-bold text-[#FF8A00]">
-                    {item.jumlahRekap}
+                    {item.qtyPurchased ?? '-'}
                   </td>
                 </tr>
               ))}
-              {filteredData.length === 0 && (
+              {!loading && !error && rows.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-6 py-10 text-center text-gray-400 italic">
                     Data tidak ditemukan untuk filter tersebut.
@@ -228,7 +302,7 @@ export default function BarangMasukGudang() {
         {/* Pagination Footer */}
         <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
           <div>
-            Menampilkan <span className="font-semibold text-gray-900">1</span> sampai <span className="font-semibold text-gray-900">{filteredData.filter(i=>i.no).length}</span> dari <span className="font-semibold text-gray-900">{filteredData.filter(i=>i.no).length}</span> data
+            Menampilkan <span className="font-semibold text-gray-900">{rows.length}</span> dari <span className="font-semibold text-gray-900">{total}</span> data
           </div>
           <div className="flex gap-1">
             <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-400 cursor-not-allowed">Sec</button>
@@ -270,27 +344,24 @@ export default function BarangMasukGudang() {
               <div className="flex flex-col sm:flex-row gap-6">
                 <div className="flex-1 flex flex-col gap-2">
                   <label className="text-[15px] font-medium text-gray-900">Kode Barang</label>
-                  <input 
+                  <input
                     type="text"
                     disabled
                     placeholder="Isi Otomatis"
+                    value={items.find((it) => String(it.id) === modalData.itemId)?.code ?? ''}
                     className="w-full border border-gray-300 rounded-md py-3 px-4 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 placeholder-gray-400 bg-[#f8f9fa] text-sm"
                   />
                 </div>
                 <div className="flex-1 flex flex-col gap-2">
                   <label className="text-[15px] font-medium text-gray-900">Nama Barang</label>
-                  <div className="relative">
-                    <input 
-                      type="text"
-                      placeholder="Isi Nama Barang"
-                      value={modalData.nama}
-                      onChange={(e) => setModalData({...modalData, nama: e.target.value})}
-                      className="w-full border border-gray-300 rounded-md py-3 pl-4 pr-10 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 placeholder-gray-400 text-sm"
-                    />
-                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                      <Search className="h-4 w-4 text-gray-800" strokeWidth={2.5} />
-                    </div>
-                  </div>
+                  <select
+                    value={modalData.itemId}
+                    onChange={(e) => setModalData({...modalData, itemId: e.target.value})}
+                    className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white text-sm"
+                  >
+                    <option value="" disabled>Pilih barang</option>
+                    {items.map((it) => <option key={it.id} value={it.id}>{it.name}</option>)}
+                  </select>
                 </div>
               </div>
 
@@ -301,12 +372,11 @@ export default function BarangMasukGudang() {
                   <select 
                     className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400 appearance-none bg-white text-sm"
                     style={{ backgroundImage: "url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20viewBox%3D%220%200%2020%2020%20%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M5%207.5L10%2012.5L15%207.5%22%20stroke%3D%22%23374151%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E')", backgroundRepeat: "no-repeat", backgroundPosition: "right 1rem center", backgroundSize: "1.2em" }}
-                    value={modalData.supplier}
-                    onChange={(e) => setModalData({...modalData, supplier: e.target.value})}
+                    value={modalData.supplierId}
+                    onChange={(e) => setModalData({...modalData, supplierId: e.target.value})}
                   >
                     <option value="" disabled>Sesuaikan supplier</option>
-                    <option value="Sumber Jaya">Sumber Jaya</option>
-                    <option value="Baja Sentosa">Baja Sentosa</option>
+                    {suppliers.map((sp) => <option key={sp.id} value={sp.id}>{sp.name}</option>)}
                   </select>
                 </div>
                 <div className="flex-1 flex flex-col gap-2">
@@ -314,14 +384,8 @@ export default function BarangMasukGudang() {
                   <div className="relative">
                     <input 
                       type="date"
-                      value={modalData.tanggal.split('-').reverse().join('-')}
-                      onChange={(e) => {
-                        const val = e.target.value; // YYYY-MM-DD
-                        if(val) {
-                          const [y, m, d] = val.split('-');
-                          setModalData({...modalData, tanggal: `${d}-${m}-${y}`});
-                        }
-                      }}
+                      value={modalData.tanggal}
+                      onChange={(e) => setModalData({...modalData, tanggal: e.target.value})}
                       className="w-full border border-gray-300 rounded-md py-3 pl-4 pr-10 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 placeholder-gray-400 text-sm"
                     />
                   </div>
@@ -351,14 +415,29 @@ export default function BarangMasukGudang() {
                   />
                 </div>
               </div>
+
+              {/* Row 4 */}
+              <div className="flex flex-col sm:flex-row gap-6">
+                <div className="flex-1 flex flex-col gap-2">
+                  <label className="text-[15px] font-medium text-gray-900">Status QC</label>
+                  <select
+                    value={modalData.statusQc}
+                    onChange={(e) => setModalData({...modalData, statusQc: e.target.value as StatusQc})}
+                    className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white text-sm"
+                  >
+                    <option value="PASS">Pass (IPM)</option>
+                    <option value="PARTIAL_RETUR">Part (Retur)</option>
+                  </select>
+                </div>
+                <div className="flex-1" />
+              </div>
             </div>
 
+            {modalError && <p className="text-sm text-red-500 mb-2 text-right">{modalError}</p>}
             <div className="flex justify-end mt-2">
               <button 
-                onClick={() => {
-                  setIsModalOpen(false);
-                  setModalData({ nama: "", supplier: "", tanggal: formattedToday, jumlahKedatangan: "", jumlahRekap: "" });
-                }}
+                onClick={handleSimpan}
+                disabled={saving}
                 className="px-8 py-2.5 bg-[#ff8a00] text-white rounded-md hover:bg-[#e07b00] transition-colors font-medium text-[15px] shadow-sm"
               >
                 Simpan
@@ -390,27 +469,24 @@ export default function BarangMasukGudang() {
               <div className="flex flex-col sm:flex-row gap-6">
                 <div className="flex-1 flex flex-col gap-2">
                   <label className="text-[15px] font-medium text-gray-900">Kode Barang</label>
-                  <input 
+                  <input
                     type="text"
                     disabled
                     placeholder="Isi Otomatis"
+                    value={items.find((it) => String(it.id) === modalKembaliData.itemId)?.code ?? ''}
                     className="w-full border border-gray-300 rounded-md py-3 px-4 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 placeholder-gray-400 bg-[#f8f9fa] text-sm"
                   />
                 </div>
                 <div className="flex-1 flex flex-col gap-2">
                   <label className="text-[15px] font-medium text-gray-900">Nama Barang</label>
-                  <div className="relative">
-                    <input 
-                      type="text"
-                      placeholder="Isi Nama Barang"
-                      value={modalKembaliData.nama}
-                      onChange={(e) => setModalKembaliData({...modalKembaliData, nama: e.target.value})}
-                      className="w-full border border-gray-300 rounded-md py-3 pl-4 pr-10 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 placeholder-gray-400 text-sm"
-                    />
-                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                      <Search className="h-4 w-4 text-gray-800" strokeWidth={2.5} />
-                    </div>
-                  </div>
+                  <select
+                    value={modalKembaliData.itemId}
+                    onChange={(e) => setModalKembaliData({...modalKembaliData, itemId: e.target.value})}
+                    className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white text-sm"
+                  >
+                    <option value="" disabled>Pilih barang</option>
+                    {items.map((it) => <option key={it.id} value={it.id}>{it.name}</option>)}
+                  </select>
                 </div>
               </div>
 
@@ -421,14 +497,8 @@ export default function BarangMasukGudang() {
                   <div className="relative">
                     <input 
                       type="date"
-                      value={modalKembaliData.tanggal.split('-').reverse().join('-')}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if(val) {
-                          const [y, m, d] = val.split('-');
-                          setModalKembaliData({...modalKembaliData, tanggal: `${d}-${m}-${y}`});
-                        }
-                      }}
+                      value={modalKembaliData.tanggal}
+                      onChange={(e) => setModalKembaliData({...modalKembaliData, tanggal: e.target.value})}
                       className="w-full border border-gray-300 rounded-md py-3 pl-4 pr-10 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 placeholder-gray-400 text-sm"
                     />
                   </div>
@@ -444,14 +514,35 @@ export default function BarangMasukGudang() {
                   />
                 </div>
               </div>
+
+              {/* Row 3 */}
+              <div className="flex flex-col sm:flex-row gap-6">
+                <div className="flex-1 flex flex-col gap-2">
+                  <label className="text-[15px] font-medium text-gray-900">Nama Klien (opsional)</label>
+                  <input
+                    type="text"
+                    value={modalKembaliData.clientName}
+                    onChange={(e) => setModalKembaliData({...modalKembaliData, clientName: e.target.value})}
+                    className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white text-sm"
+                  />
+                </div>
+                <div className="flex-1 flex flex-col gap-2">
+                  <label className="text-[15px] font-medium text-gray-900">SPK (opsional)</label>
+                  <input
+                    type="text"
+                    value={modalKembaliData.spk}
+                    onChange={(e) => setModalKembaliData({...modalKembaliData, spk: e.target.value})}
+                    className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white text-sm"
+                  />
+                </div>
+              </div>
             </div>
 
+            {modalError && <p className="text-sm text-red-500 mb-2 text-right">{modalError}</p>}
             <div className="flex justify-end mt-2">
               <button 
-                onClick={() => {
-                  setIsModalKembaliOpen(false);
-                  setModalKembaliData({ nama: "", tanggal: formattedToday, jumlah: "" });
-                }}
+                onClick={handleSimpanKembali}
+                disabled={saving}
                 className="px-8 py-2.5 bg-[#ff8a00] text-white rounded-md hover:bg-[#e07b00] transition-colors font-medium text-[15px] shadow-sm"
               >
                 Simpan

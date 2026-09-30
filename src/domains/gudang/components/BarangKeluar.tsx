@@ -1,75 +1,127 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Search, Calendar, Plus, AlertCircle } from 'lucide-react';
+import { createOutbound, listOutbound } from '@/domains/gudang/api';
+import type { OutboundRow, RecipientType, WarehouseType } from '@/domains/gudang/types';
+import { listItems } from '@/domains/inventory/api';
+import type { Item } from '@/domains/inventory/types';
+import { ApiError } from '@/shared/lib/api-client';
+
+const pad = (n: number | string) => String(n).padStart(2, '0');
+const todayIso = () => new Date().toISOString().slice(0, 10);
+const displayDate = (iso: string) => iso.slice(0, 10).split('-').reverse().join('-');
+
+// Turn the Tgl/Bulan/Tahun selects into the API's startDate/endDate range.
+function toDateRange(day: string, month: string, year: string) {
+  if (!day && !month && !year) return {};
+  const y = year || String(new Date().getFullYear());
+  if (!month) return { startDate: `${y}-01-01`, endDate: `${y}-12-31` };
+  const m = pad(month);
+  if (day) return { startDate: `${y}-${m}-${pad(day)}`, endDate: `${y}-${m}-${pad(day)}` };
+  const last = new Date(Number(y), Number(m), 0).getDate();
+  return { startDate: `${y}-${m}-01`, endDate: `${y}-${m}-${pad(last)}` };
+}
+
+const emptyLine = { itemId: "", qty: "", pic: "" };
+const emptyForm = {
+  namaClient: "",
+  spk: "",
+  namaItem: "",
+  tanggal: todayIso(),
+  warehouseType: "" as WarehouseType | "",
+  recipientType: "" as RecipientType | "",
+};
 
 export default function BarangKeluarGudang() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterDay, setFilterDay] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
   const [filterYear, setFilterYear] = useState("");
+
+  const [rows, setRows] = useState<OutboundRow[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [items, setItems] = useState<Item[]>([]);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalData, setModalData] = useState({ namaClient: "", spk: "", namaItem: "", tanggal: "" });
+  const [modalData, setModalData] = useState(emptyForm);
+  const [lines, setLines] = useState([emptyLine, emptyLine, emptyLine]);
+  const [saving, setSaving] = useState(false);
+  const [modalError, setModalError] = useState("");
 
-  const dataBarangKeluar = [
-    {
-      no: "1.",
-      kodeBarang: "BB-18-LBR-001-A04",
-      namaClient: "Hermina Banyumanik",
-      spk: "01/RSHB/III/2026",
-      tanggal: "12-04-2026",
-      namaItem: "Credensa Kulkas",
-      namaBarang: "BB 18 mm",
-      jumlah: "2"
-    },
-    {
-      no: "2",
-      kodeBarang: "H-5555-LBR-002-C01",
-      namaClient: "Hermina Banyumanik",
-      spk: "01/RSHB/III/2026",
-      tanggal: "12-04-2026",
-      namaItem: "Credensa Kulkas",
-      namaBarang: "HPL 5555",
-      jumlah: "4"
-    },
-    // Empty rows based on the screenshot
-    { no: "", kodeBarang: "", namaClient: "", spk: "", tanggal: "", namaItem: "", namaBarang: "", jumlah: "" },
-    { no: "", kodeBarang: "", namaClient: "", spk: "", tanggal: "", namaItem: "", namaBarang: "", jumlah: "" },
-    { no: "", kodeBarang: "", namaClient: "", spk: "", tanggal: "", namaItem: "", namaBarang: "", jumlah: "" },
-    { no: "", kodeBarang: "", namaClient: "", spk: "", tanggal: "", namaItem: "", namaBarang: "", jumlah: "" },
-    { no: "", kodeBarang: "", namaClient: "", spk: "", tanggal: "", namaItem: "", namaBarang: "", jumlah: "" },
-  ];
-
-  const filteredData = dataBarangKeluar.filter(item => {
-    // If all filters are empty, show everything (including placeholder rows)
-    if (searchQuery === "" && filterDay === "" && filterMonth === "" && filterYear === "") return true;
-    
-    // If filtering, skip empty rows
-    if (!item.tanggal && !item.no) return false;
-
-    // Date filtering logic
-    let matchesDate = true;
-    if (item.tanggal) {
-      const [d, m, y] = item.tanggal.split("-");
-      const matchesDay = filterDay === "" || d === filterDay.padStart(2, '0');
-      const matchesMonth = filterMonth === "" || m === filterMonth;
-      const matchesYear = filterYear === "" || y === filterYear;
-      matchesDate = matchesDay && matchesMonth && matchesYear;
-    } else {
-      // If row has no date but we are filtering by date, exclude it
-      if (filterDay !== "" || filterMonth !== "" || filterYear !== "") matchesDate = false;
+  // ponytail: loads first 100 transactions only, add real pagination when the list outgrows it
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await listOutbound({
+        pageSize: 100,
+        search: searchQuery || undefined,
+        ...toDateRange(filterDay, filterMonth, filterYear),
+      });
+      setRows(res.rows);
+      setTotal(res.total);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Gagal memuat data barang keluar.");
+    } finally {
+      setLoading(false);
     }
-    
-    const searches = searchQuery.toLowerCase();
-    const matchesSearch = searchQuery === "" || 
-      item.namaClient.toLowerCase().includes(searches) ||
-      item.kodeBarang.toLowerCase().includes(searches) ||
-      item.spk.toLowerCase().includes(searches) ||
-      item.namaBarang.toLowerCase().includes(searches) ||
-      item.namaItem.toLowerCase().includes(searches);
+  }, [searchQuery, filterDay, filterMonth, filterYear]);
 
-    return matchesDate && matchesSearch;
-  });
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    listItems({ pageSize: 100 }).then((res) => setItems(res.rows)).catch(() => {});
+  }, []);
+
+  // The table shows one row per item line, the API returns one row per transaction.
+  const tableRows = rows.flatMap((trx) => trx.lines.map((line) => ({ trx, line })));
+
+  const openModal = () => {
+    setModalData({ ...emptyForm, tanggal: todayIso() });
+    setLines([emptyLine, emptyLine, emptyLine]);
+    setModalError("");
+    setIsModalOpen(true);
+  };
+
+  const updateLine = (index: number, patch: Partial<typeof emptyLine>) =>
+    setLines((prev) => prev.map((l, i) => (i === index ? { ...l, ...patch } : l)));
+
+  const handleSimpan = async () => {
+    const filled = lines.filter((l) => l.itemId || l.qty || l.pic);
+    const { namaClient, spk, namaItem, tanggal, warehouseType, recipientType } = modalData;
+    if (!namaClient || !spk || !namaItem || !tanggal || !warehouseType || !recipientType) {
+      setModalError("Lengkapi data client, SPK, item, tanggal, asal gudang, dan penerima.");
+      return;
+    }
+    if (filled.length === 0 || filled.some((l) => !l.itemId || !l.qty || !l.pic)) {
+      setModalError("Isi barang, jumlah, dan PIC di setiap baris yang dipakai.");
+      return;
+    }
+    setSaving(true);
+    setModalError("");
+    try {
+      await createOutbound({
+        date: tanggal,
+        clientName: namaClient,
+        spk,
+        itemName: namaItem,
+        warehouseType,
+        recipientType,
+        lines: filled.map((l) => ({ itemId: Number(l.itemId), qty: Number(l.qty), pic: l.pic })),
+      });
+      setIsModalOpen(false);
+      await loadData();
+    } catch (err) {
+      setModalError(err instanceof ApiError ? err.message : "Gagal menyimpan barang keluar.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -161,7 +213,7 @@ export default function BarangKeluarGudang() {
           </div>
 
           <button 
-            onClick={() => setIsModalOpen(true)}
+            onClick={openModal}
             className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0 w-full lg:w-auto"
           >
             <Plus className="w-4 h-4" />
@@ -183,40 +235,46 @@ export default function BarangKeluarGudang() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {filteredData.map((item, index) => (
-                <tr key={index} className="hover:bg-[#FF8A00]/5 transition-colors group">
-                  <td className="px-6 py-4 text-gray-500 text-center">{item.no}</td>
-                  
+              {loading && (
+                <tr><td colSpan={6} className="px-6 py-10 text-center text-gray-400">Memuat data...</td></tr>
+              )}
+              {!loading && error && (
+                <tr><td colSpan={6} className="px-6 py-10 text-center text-red-500">{error}</td></tr>
+              )}
+              {!loading && !error && tableRows.map(({ trx, line }, index) => (
+                <tr key={`${trx.id}-${index}`} className="hover:bg-[#FF8A00]/5 transition-colors group">
+                  <td className="px-6 py-4 text-gray-500 text-center">{index + 1}.</td>
+
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
-                      <span className="font-bold text-gray-900">{item.namaBarang}</span>
-                      <span className="text-xs font-mono text-gray-500 mt-0.5">{item.kodeBarang}</span>
+                      <span className="font-bold text-gray-900">{line.itemName}</span>
+                      <span className="text-xs font-mono text-gray-500 mt-0.5">{line.itemCode ?? '-'}</span>
                     </div>
                   </td>
-                  
+
                   <td className="px-6 py-4 text-gray-600">
                     <div className="flex flex-col">
-                       <span className="font-semibold text-gray-800">{item.namaClient}</span>
-                       <span className="text-[11px] text-gray-400">{item.namaItem}</span>
+                       <span className="font-semibold text-gray-800">{trx.clientName}</span>
+                       <span className="text-[11px] text-gray-400">{trx.itemName}</span>
                     </div>
                   </td>
 
                   <td className="px-6 py-4 text-center text-gray-600 font-medium">
-                    {item.spk}
+                    {trx.spk}
                   </td>
 
                   <td className="px-6 py-4 text-center text-gray-500">
-                    {item.tanggal}
+                    {displayDate(trx.date)}
                   </td>
 
                   <td className="px-6 py-4 text-center">
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-bold bg-orange-50 text-orange-700 border border-orange-100">
-                      {item.jumlah}
+                      {line.qty}
                     </span>
                   </td>
                 </tr>
               ))}
-              {filteredData.length === 0 && (
+              {!loading && !error && tableRows.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-6 py-10 text-center text-gray-400 italic">
                     Data tidak ditemukan untuk filter tersebut.
@@ -230,7 +288,7 @@ export default function BarangKeluarGudang() {
         {/* Pagination Footer */}
         <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
           <div>
-            Menampilkan <span className="font-semibold text-gray-900">1</span> sampai <span className="font-semibold text-gray-900">{filteredData.filter(i=>i.no).length}</span> dari <span className="font-semibold text-gray-900">{filteredData.filter(i=>i.no).length}</span> data
+            Menampilkan <span className="font-semibold text-gray-900">{rows.length}</span> dari <span className="font-semibold text-gray-900">{total}</span> transaksi
           </div>
           <div className="flex gap-1">
             <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-400 cursor-not-allowed">Sec</button>
@@ -305,8 +363,7 @@ export default function BarangKeluarGudang() {
                   <label className="text-[15px] font-medium text-gray-900">Tanggal</label>
                   <div className="relative">
                     <input 
-                      type="text"
-                      placeholder="Pilih Tanggal"
+                      type="date"
                       value={modalData.tanggal}
                       onChange={(e) => setModalData({...modalData, tanggal: e.target.value})}
                       className="w-full border border-gray-200 bg-gray-50/50 rounded-lg py-3 pl-4 pr-10 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 text-sm text-gray-700 placeholder-gray-400 transition-all duration-200"
@@ -315,6 +372,35 @@ export default function BarangKeluarGudang() {
                       <Calendar className="h-4 w-4 text-gray-800" strokeWidth={2} />
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* Row 3 */}
+              <div className="flex flex-col sm:flex-row gap-6">
+                <div className="flex-1 flex flex-col gap-2">
+                  <label className="text-[15px] font-medium text-gray-900">Asal Gudang</label>
+                  <select
+                    value={modalData.warehouseType}
+                    onChange={(e) => setModalData({...modalData, warehouseType: e.target.value as WarehouseType})}
+                    className="w-full border border-gray-200 bg-gray-50/50 rounded-lg py-3 px-4 text-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white transition-all duration-200"
+                  >
+                    <option value="" disabled>Pilih asal gudang</option>
+                    <option value="BAHAN_BAKU">Gudang Bahan Baku</option>
+                    <option value="WIP">Gudang WIP</option>
+                    <option value="BARANG_JADI">Gudang Barang Jadi</option>
+                  </select>
+                </div>
+                <div className="flex-1 flex flex-col gap-2">
+                  <label className="text-[15px] font-medium text-gray-900">Tujuan / Penerima</label>
+                  <select
+                    value={modalData.recipientType}
+                    onChange={(e) => setModalData({...modalData, recipientType: e.target.value as RecipientType})}
+                    className="w-full border border-gray-200 bg-gray-50/50 rounded-lg py-3 px-4 text-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white transition-all duration-200"
+                  >
+                    <option value="" disabled>Pilih penerima</option>
+                    <option value="PRODUKSI">Tukang / Produksi</option>
+                    <option value="KLIEN">Klien</option>
+                  </select>
                 </div>
               </div>
             </div>
@@ -332,23 +418,51 @@ export default function BarangKeluarGudang() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {[1, 2, 3].map((row, i) => (
+                  {lines.map((line, i) => (
                     <tr key={i} className="bg-white hover:bg-orange-50/30 transition-colors duration-150">
-                      <td className="border-r border-gray-200 h-[45px]"></td>
-                      <td className="border-r border-gray-200"></td>
-                      <td className="border-r border-gray-200"></td>
-                      <td className="border-r border-gray-200"></td>
-                      <td className=""></td>
+                      <td className="border-r border-gray-200 h-[45px] text-center text-gray-500">{i + 1}</td>
+                      <td className="border-r border-gray-200 px-2 text-center font-mono text-xs text-gray-500">
+                        {items.find((it) => String(it.id) === line.itemId)?.code ?? ''}
+                      </td>
+                      <td className="border-r border-gray-200">
+                        <select
+                          value={line.itemId}
+                          onChange={(e) => updateLine(i, { itemId: e.target.value })}
+                          className="w-full h-full px-2 py-2 bg-transparent text-sm text-gray-700 focus:outline-none"
+                        >
+                          <option value="">Pilih barang</option>
+                          {items.map((it) => <option key={it.id} value={it.id}>{it.name}</option>)}
+                        </select>
+                      </td>
+                      <td className="border-r border-gray-200">
+                        <input
+                          type="number"
+                          min={1}
+                          value={line.qty}
+                          onChange={(e) => updateLine(i, { qty: e.target.value })}
+                          className="w-full h-full px-2 py-2 bg-transparent text-center text-sm text-gray-700 focus:outline-none"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="text"
+                          value={line.pic}
+                          onChange={(e) => updateLine(i, { pic: e.target.value })}
+                          className="w-full h-full px-2 py-2 bg-transparent text-center text-sm text-gray-700 focus:outline-none"
+                        />
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
 
+            {modalError && <p className="text-sm text-red-500 text-right">{modalError}</p>}
+
             {/* Bottom Section */}
             <div className="flex flex-wrap items-center justify-between gap-4 mt-8">
               <div className="flex items-center gap-3">
-                <button className="flex items-center justify-center w-[36px] h-[36px] rounded-lg border-2 border-[#ff8a00] text-[#ff8a00] hover:bg-orange-50 hover:shadow-sm hover:-translate-y-0.5 transition-all bg-white z-10">
+                <button type="button" onClick={() => setLines((prev) => [...prev, emptyLine])} className="flex items-center justify-center w-[36px] h-[36px] rounded-lg border-2 border-[#ff8a00] text-[#ff8a00] hover:bg-orange-50 hover:shadow-sm hover:-translate-y-0.5 transition-all bg-white z-10">
                   <Plus className="w-5 h-5" strokeWidth={2.5} />
                 </button>
                 <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 rounded-xl shadow-sm border border-amber-100 text-amber-800">
@@ -358,10 +472,8 @@ export default function BarangKeluarGudang() {
               </div>
 
               <button 
-                onClick={() => {
-                  setIsModalOpen(false);
-                  setModalData({ namaClient: "", spk: "", namaItem: "", tanggal: "" });
-                }}
+                onClick={handleSimpan}
+                disabled={saving}
                 className="px-8 py-2.5 bg-[#ff8a00] text-white rounded-lg shadow-sm hover:shadow-md hover:bg-[#f08000] hover:-translate-y-0.5 transition-all duration-200 font-semibold text-[15px] ml-auto"
               >
                 Simpan
