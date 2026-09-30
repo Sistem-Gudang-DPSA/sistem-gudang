@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Search, Eye, Download, FileUp } from 'lucide-react';
+import { Search, Eye, Download, FileUp, Loader2, AlertCircle } from 'lucide-react';
 import { exportInboundReport, getInboundReport } from '@/domains/gudang/api';
 import type { InboundReport, InboundRow, InboundSource } from '@/domains/gudang/types';
 import { ApiError } from '@/shared/lib/api-client';
@@ -107,7 +107,7 @@ export default function LaporanBarangMasuk() {
         </div>
 
         <div className="flex flex-wrap justify-between items-center bg-white p-4 border border-gray-200 rounded-lg shadow-sm gap-4 mt-5">
-            <div className="flex flex-wrap gap-3 items-center">
+            <div className="flex flex-wrap gap-3 items-center print:hidden">
             <div>
                 <label className="block text-xs text-black mb-1">Sumber Inbound</label>
                 <select
@@ -166,17 +166,19 @@ export default function LaporanBarangMasuk() {
               <button
                 onClick={handleExport}
                 disabled={exporting}
-                className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0 disabled:opacity-60"
+                className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-60"
+                title="Export Data ke Excel"
               >
-                <FileUp className='h-4 w-4'></FileUp>
-                <span>{exporting ? 'Mengekspor...' : 'Export Excel'}</span>
+                <FileUp className="w-4 h-4" />
+                <span className="hidden sm:inline">{exporting ? 'Mengekspor...' : 'Export'}</span>
               </button>
               <button
                 onClick={() => window.print()}
-                className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0"
+                className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                title="Print Data ke PDF"
               >
-                <Download className='h-4 w-4'></Download>
-                <span>Cetak PDF</span>
+                <Download className="w-4 h-4" />
+                <span className="hidden sm:inline">Print PDF</span>
               </button>
             </div>
         </div>
@@ -189,21 +191,32 @@ export default function LaporanBarangMasuk() {
               <th className="px-4 py-3 text-left">Sumber / Pemasok</th>
               <th className="px-4 py-3 text-right">Total Volume Item (Qty)</th>
               <th className="px-4 py-3 text-center">Status QC</th>
-              <th className="px-4 py-3 text-center">Aksi</th>
+              <th className="px-4 py-3 text-center">Lokasi</th>
+              <th className="px-4 py-3 text-center print:hidden">Aksi</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
             {loading ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-400">Memuat data...</td>
+                <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                  <div className="flex items-center justify-center gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                    <span>Memuat data laporan barang masuk...</span>
+                  </div>
+                </td>
               </tr>
             ) : error ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-red-500">{error}</td>
+                <td colSpan={8} className="px-4 py-8 text-center text-red-500">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <AlertCircle className="w-6 h-6 text-red-500" />
+                    <span className="font-semibold">{error}</span>
+                  </div>
+                </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
                   Tidak ada data penerimaan barang masuk ditemukan.
                 </td>
               </tr>
@@ -241,9 +254,12 @@ export default function LaporanBarangMasuk() {
                     {item.statusQc === null && <span className="text-gray-400">-</span>}
                   </td>
                   <td className="px-4 py-3 text-center">
+                    <span className="font-medium text-gray-900">{item.locationCode ?? '-'}</span>
+                  </td>
+                  <td className="px-4 py-3 text-center print:hidden">
                     <button
                       onClick={() => setSelectedDetail(item)}
-                      className="flex-1 lg:flex-none flex items-center justify-center gap-2 text-blue-600 hover:text-blue-800 font-medium text-xs bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded border border-blue-200 transition-colors print:hidden"
+                      className="flex-1 lg:flex-none flex items-center justify-center gap-2 text-blue-600 hover:text-blue-800 font-medium text-xs bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded border border-blue-200 transition-colors"
                     >
                       <Eye className='h-4 w-4'></Eye>
                       <span>View Detail</span>
