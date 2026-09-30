@@ -210,3 +210,49 @@ export interface ApprovalListParams {
   startDate?: string;
   endDate?: string;
 }
+
+export type MaterialRequestStatus = "PENDING" | "PROSES" | "SELESAI";
+
+export interface MaterialRequestRow {
+  id: number;
+  requestDate: string;
+  spk: string;
+  clientName: string;
+  productionItem: string;
+  toolGroup: string;
+  status: MaterialRequestStatus;
+  notes: string | null;
+  createdBy: number;
+  createdAt: string;
+  updatedAt: string;
+  lineCount: number;
+}
+
+export interface MaterialRequestLine {
+  itemId: number;
+  itemCode: string | null;
+  itemName: string;
+  unit: string;
+  locationCode: string | null;
+  qty: number;
+}
+
+export interface MaterialRequestDetail extends Omit<MaterialRequestRow, "lineCount"> {
+  lines: MaterialRequestLine[];
+}
+
+export interface RequestReportParams {
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  status?: MaterialRequestStatus;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface RequestReport {
+  rows: MaterialRequestRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
