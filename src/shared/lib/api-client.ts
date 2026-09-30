@@ -73,6 +73,30 @@ async function request<T>(path: string, options: RequestInit = {}, retryOn401 = 
   return body.data;
 }
 
+// Fetches a binary file (e.g. xlsx export) and saves it via a temporary link.
+export async function downloadFile(path: string, fallbackName: string, retryOn401 = true): Promise<void> {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    credentials: "include",
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+  });
+
+  if (!res.ok) {
+    if (res.status === 401 && retryOn401 && (await refreshAccessToken())) {
+      return downloadFile(path, fallbackName, false);
+    }
+    const body = await res.json().catch(() => null);
+    throw new ApiError(body?.message ?? "Gagal mengunduh file.", res.status, body?.errors);
+  }
+
+  const name = /filename="?([^";]+)"?/.exec(res.headers.get("Content-Disposition") ?? "")?.[1] ?? fallbackName;
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export const apiClient = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, data?: unknown) =>
