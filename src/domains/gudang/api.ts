@@ -1,6 +1,6 @@
 import { apiClient, downloadFile, toQuery } from "@/shared/lib/api-client";
 import type { PaginatedResult } from "@/domains/inventory/types";
-import type { CreateOutboundInput, OutboundListParams, OutboundRow, CreateInboundInput, InboundReport, InboundReportParams, CreateInboundReturnInput, InboundListParams, InboundRow } from "./types";
+import type { CreateOutboundInput, OutboundReport, OutboundReportParams, OutboundListParams, OutboundRow, CreateInboundInput, InboundReport, InboundReportParams, CreateInboundReturnInput, InboundListParams, InboundRow } from "./types";
 
 export function listInbound(params?: InboundListParams) {
   return apiClient.get<PaginatedResult<InboundRow>>(`/api/v1/inbound${toQuery(params)}`);
@@ -33,4 +33,12 @@ export function listOutbound(params?: OutboundListParams) {
 
 export function createOutbound(input: CreateOutboundInput) {
   return apiClient.post<OutboundRow>("/api/v1/outbound", input);
+}
+
+export function getOutboundReport(params?: OutboundReportParams) {
+  return apiClient.get<OutboundReport>(`/api/v1/reports/outbound${toQuery(params)}`);
+}
+
+export function exportOutboundReport(params?: Omit<OutboundReportParams, "page" | "pageSize">) {
+  return downloadFile(`/api/v1/reports/outbound/export${toQuery(params)}`, "rekap-barang-keluar.xlsx");
 }
