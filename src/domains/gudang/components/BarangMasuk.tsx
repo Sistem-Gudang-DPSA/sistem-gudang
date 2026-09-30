@@ -1,13 +1,26 @@
 "use client";
 
 import React, { useState } from 'react';
+import type { Item, Location } from '@/domains/inventory/types';
+import { listSuppliers } from '@/domains/purchasing/api';
+import type { Supplier } from '@/domains/purchasing/types';
 import { Search, Calendar, Plus, Download } from 'lucide-react';
 
 export default function BarangMasukGudang() {
+  
+
+  const supplierName = (id: number) => suppliers.find((s) => s.id === id)?.name ?? '-';
+  const locationCode = (id: number | null) => (id === null ? '-' : locations.find((loc) => loc.id === id)?.code ?? `#${id}`);
+
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [dataBarang, setDataBarang] = useState<Item[]>([]);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [filterDay, setFilterDay] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
   const [filterYear, setFilterYear] = useState("");
+  const [loading, setLoading] = useState(true);
   const today = new Date();
   const formattedToday = `${today.getDate().toString().padStart(2, '0')}-${(today.getMonth() + 1).toString().padStart(2, '0')}-${today.getFullYear()}`;
 
@@ -16,35 +29,17 @@ export default function BarangMasukGudang() {
   const [isModalKembaliOpen, setIsModalKembaliOpen] = useState(false);
   const [modalKembaliData, setModalKembaliData] = useState({ nama: "", tanggal: formattedToday, jumlah: "" });
 
-  const dataBarangMasuk = [
-    {
-      no: "1.",
-      tanggal: "11-04-2026",
-      kodeBarang: "T3-LBR-002-A04",
-      namaBarang: "Triplex 3mm",
-      supplier: "Sumber Jaya",
-      jumlahKedatangan: "12",
-      jumlahRekap: "12"
-    },
-    // Empty rows based on the screenshot
-    { no: "", tanggal: "", kodeBarang: "", namaBarang: "", supplier: "", jumlahKedatangan: "", jumlahRekap: "" },
-    { no: "", tanggal: "", kodeBarang: "", namaBarang: "", supplier: "", jumlahKedatangan: "", jumlahRekap: "" },
-    { no: "", tanggal: "", kodeBarang: "", namaBarang: "", supplier: "", jumlahKedatangan: "", jumlahRekap: "" },
-    { no: "", tanggal: "", kodeBarang: "", namaBarang: "", supplier: "", jumlahKedatangan: "", jumlahRekap: "" },
-    { no: "", tanggal: "", kodeBarang: "", namaBarang: "", supplier: "", jumlahKedatangan: "", jumlahRekap: "" },
-  ];
-
-  const filteredData = dataBarangMasuk.filter(item => {
+  const filteredData = dataBarang.filter((item, index) => {
     // If all filters are empty, show everything (including placeholder rows)
     if (searchQuery === "" && filterDay === "" && filterMonth === "" && filterYear === "") return true;
     
     // If filtering, skip empty rows
-    if (!item.tanggal && !item.no) return false;
+    if (!item.updatedAt && !index) return false;
 
     // Date filtering logic
     let matchesDate = true;
-    if (item.tanggal) {
-      const [d, m, y] = item.tanggal.split("-");
+    if (item.updatedAt) {
+      const [d, m, y] = item.updatedAt.split("-");
       const matchesDay = filterDay === "" || d === filterDay.padStart(2, '0');
       const matchesMonth = filterMonth === "" || m === filterMonth;
       const matchesYear = filterYear === "" || y === filterYear;
@@ -56,12 +51,29 @@ export default function BarangMasukGudang() {
     
     const searches = searchQuery.toLowerCase();
     const matchesSearch = searchQuery === "" || 
-      item.namaBarang.toLowerCase().includes(searches) ||
-      item.kodeBarang.toLowerCase().includes(searches) ||
-      item.supplier.toLowerCase().includes(searches);
+      item.name.toLowerCase().includes(searches) ||
+      item.code?.toLowerCase().includes(searches) ||
+      String(item.supplierId).toLowerCase().includes(searches);
 
     return matchesDate && matchesSearch;
   });
+
+  const handleExportExcel = () => {
+    const headers = ['No,Kode Barang,Nama Barang,Supplier,Jumlah Stok,Satuan,Kategori,Lokasi'];
+    const csvData = dataBarang.map((item, index) =>
+      `${index + 1},${item.updatedAt},"${item.name}","${supplierName(item.supplierId)}",${item.stock},${item.unit},${item.category},${locationCode(item.locationId)}`
+    );
+    const csvString = [...headers, ...csvData].join('\n');
+
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'Data_Barang_Gudang.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -184,43 +196,42 @@ export default function BarangMasukGudang() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {filteredData.map((item, index) => (
+              {loading && (
+                <tr><td colSpan={7} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
+              )}
+              {!loading && dataBarang.length === 0 && (
+                <tr><td colSpan={7} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
+              )}
+              {dataBarang.map((item, index) => (
                 <tr key={index} className="hover:bg-[#FF8A00]/5 transition-colors group">
-                  <td className="px-6 py-4 text-gray-500 text-center">{item.no}</td>
-                  <td className="px-6 py-4 text-gray-500">{item.tanggal}</td>
+                  <td className="px-6 py-4 text-gray-500 text-center">{index + 1}</td>
+                  <td className="px-6 py-4 text-gray-500">{item.updatedAt}</td>
                   
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
-                      <span className="font-bold text-gray-900">{item.namaBarang}</span>
-                      <span className="text-xs font-mono text-gray-500 mt-0.5">{item.kodeBarang}</span>
+                      <span className="font-bold text-gray-900">{item.name}</span>
+                      <span className="text-xs font-mono text-gray-500 mt-0.5">{item.code}</span>
                     </div>
                   </td>
                   
                   <td className="px-6 py-4 text-gray-600">
                     <div className="flex items-center gap-2">
                       <div className="w-6 h-6 rounded-md bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">
-                        {item.supplier ? item.supplier.charAt(0) : '-'}
+                        {item.supplierId ?? '-'}
                       </div>
-                      <span>{item.supplier}</span>
+                      <span>{item.supplierId}</span>
                     </div>
                   </td>
 
                   <td className="px-6 py-4 text-center font-bold text-gray-800">
-                    {item.jumlahKedatangan}
+                    {item.unit}
                   </td>
 
                   <td className="px-6 py-4 text-center font-bold text-[#FF8A00]">
-                    {item.jumlahRekap}
+                    {item.unit}
                   </td>
                 </tr>
               ))}
-              {filteredData.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-gray-400 italic">
-                    Data tidak ditemukan untuk filter tersebut.
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
@@ -228,7 +239,7 @@ export default function BarangMasukGudang() {
         {/* Pagination Footer */}
         <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
           <div>
-            Menampilkan <span className="font-semibold text-gray-900">1</span> sampai <span className="font-semibold text-gray-900">{filteredData.filter(i=>i.no).length}</span> dari <span className="font-semibold text-gray-900">{filteredData.filter(i=>i.no).length}</span> data
+            Menampilkan <span className="font-semibold text-gray-900">{filteredData.length > 0 ? 1 : 0}</span> sampai <span className="font-semibold text-gray-900">{filteredData.length}</span> dari <span className="font-semibold text-gray-900">{filteredData.length}</span> data
           </div>
           <div className="flex gap-1">
             <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-400 cursor-not-allowed">Sec</button>
@@ -242,9 +253,13 @@ export default function BarangMasukGudang() {
 
       {/* Simpan/Download Button Outside */}
       <div className="flex justify-end mt-6">
-        <button className="flex items-center gap-2 px-8 py-2.5 bg-[#FF8A00] text-white font-bold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm tracking-wide">
+        <button
+          onClick={handleExportExcel}
+          className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+          title="Export Data ke CSV"
+        >
           <Download className="w-4 h-4" />
-          Download
+          <span className="hidden sm:inline">Export</span>
         </button>
       </div>
 
