@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { visibleNav } from "./nav";
+import { canAccess, visibleNav } from "./nav";
 import type { AuthUser } from "./types";
 
 const user = (permissions: string[], isSuperadmin = false): AuthUser => ({
@@ -29,5 +29,30 @@ describe("visibleNav", () => {
 
   it("shows no division to a user without permissions", () => {
     expect(labels(user([]))).toEqual([]);
+  });
+});
+
+describe("canAccess", () => {
+  const inventory = user(["inbound.view", "report.view", "item.view", "location.view"]);
+
+  it("allows the overview and pages of the user's own division", () => {
+    expect(canAccess(inventory, "/dashboard")).toBe(true);
+    expect(canAccess(inventory, "/dashboard/gudang")).toBe(true);
+    expect(canAccess(inventory, "/dashboard/gudang/transaksi/barang-masuk")).toBe(true);
+  });
+
+  it("denies pages that need a permission the user lacks, including sub-pages", () => {
+    expect(canAccess(inventory, "/dashboard/gudang/transaksi/stock-opname")).toBe(false);
+    expect(canAccess(inventory, "/dashboard/gudang/transaksi/stock-opname/tambah")).toBe(false);
+  });
+
+  it("denies other divisions and superadmin pages", () => {
+    expect(canAccess(inventory, "/dashboard/ppic/master/data-barang")).toBe(false);
+    expect(canAccess(inventory, "/dashboard/superadmin/users")).toBe(false);
+    expect(canAccess(user([], true), "/dashboard/superadmin/users")).toBe(true);
+  });
+
+  it("lets unknown paths through so Next.js can answer 404", () => {
+    expect(canAccess(inventory, "/dashboard/tidak-ada")).toBe(true);
   });
 });

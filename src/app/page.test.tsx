@@ -17,6 +17,7 @@ vi.mock("@/domains/auth/api", () => ({
   login: vi.fn(),
   dashboardPathFor: (user: { isSuperadmin: boolean; roleName: string }) =>
     user.isSuperadmin ? "/dashboard/superadmin" : `/dashboard/${user.roleName.toLowerCase()}`,
+  safeNextPath: (next: string | null) => (next && next.startsWith("/dashboard") ? next : null),
 }));
 
 describe("LoginPage", () => {
@@ -36,6 +37,16 @@ describe("LoginPage", () => {
 
     await waitFor(() => expect(replaceMock).toHaveBeenCalledWith("/dashboard/gudang"));
     expect(screen.queryByPlaceholderText("Email")).toBeNull();
+  });
+
+  it("sends an active session back to the page it was redirected from", async () => {
+    window.history.pushState({}, "", "/?next=%2Fdashboard%2Fgudang%2Flaporan%2Fbarang-masuk");
+    refreshSessionMock.mockResolvedValue({ isSuperadmin: false, roleName: "gudang" });
+
+    render(<LoginPage />);
+
+    await waitFor(() => expect(replaceMock).toHaveBeenCalledWith("/dashboard/gudang/laporan/barang-masuk"));
+    window.history.pushState({}, "", "/");
   });
 
   it("shows the login form when there is no active session", async () => {
