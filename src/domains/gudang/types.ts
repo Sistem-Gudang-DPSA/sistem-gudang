@@ -113,3 +113,15 @@ export interface CreateOutboundInput {
   notes?: string;
   lines: { itemId: number; qty: number; pic: string }[];
 }
+
+export interface OutboundReportParams extends Omit<OutboundListParams, "search"> {
+  q?: string;
+}
+
+export interface OutboundReport {
+  rows: OutboundRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  summary: { bahanBaku: number; wip: number; barangJadi: number };
+}
