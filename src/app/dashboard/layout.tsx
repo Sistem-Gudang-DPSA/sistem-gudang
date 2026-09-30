@@ -146,7 +146,7 @@ export default function DashboardLayout({
                       <Link href="/dashboard/gudang/laporan/barang-keluar" className={`block text-sm py-2 px-3 rounded-lg transition-all ${pathname === "/dashboard/gudang/laporan/barang-keluar" ? "bg-orange-500 text-white font-medium shadow-sm" : "text-gray-500 hover:text-orange-600 hover:bg-orange-50"}`}>Rekap Data Barang Keluar</Link>
                       <Link href="/dashboard/gudang/laporan/stock-opname" className={`block text-sm py-2 px-3 rounded-lg transition-all ${pathname === "/dashboard/gudang/laporan/stock-opname" ? "bg-orange-500 text-white font-medium shadow-sm" : "text-gray-500 hover:text-orange-600 hover:bg-orange-50"}`}>Rekap Stock Opname</Link>
                       <Link href="/dashboard/gudang/laporan/dokubah" className={`block text-sm py-2 px-3 rounded-lg transition-all ${pathname === "/dashboard/gudang/laporan/dokubah" ? "bg-orange-500 text-white font-medium shadow-sm" : "text-gray-500 hover:text-orange-600 hover:bg-orange-50"}`}>Rekap Dokubah</Link>
-                      <Link href="/dashboard/gudang/laporan/pembelian" className={`block text-sm py-2 px-3 rounded-lg transition-all ${pathname === "/dashboard/gudang/laporan/pembelian" ? "bg-orange-500 text-white font-medium shadow-sm" : "text-gray-500 hover:text-orange-600 hover:bg-orange-50"}`}>Rekap Pembelian</Link>
+                      <Link href="/dashboard/gudang/laporan/rekap-permintaan" className={`block text-sm py-2 px-3 rounded-lg transition-all ${pathname === "/dashboard/gudang/laporan/rekap-permintaan" ? "bg-orange-500 text-white font-medium shadow-sm" : "text-gray-500 hover:text-orange-600 hover:bg-orange-50"}`}>Rekap Permintaan</Link>
                     </div>
                   </details>
                 </div>
