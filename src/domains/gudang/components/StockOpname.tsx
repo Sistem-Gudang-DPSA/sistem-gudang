@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Search, Calendar, Plus, Eye } from 'lucide-react';
 import Link from 'next/link';
 import { getStockOpname, listStockOpname } from '@/domains/gudang/api';
-import type { StockOpnameDetail, StockOpnameRow } from '@/domains/gudang/types';
+import type { StockOpnameDetail } from '@/domains/gudang/types';
 import { ApiError } from '@/shared/lib/api-client';
+import { useApiData } from '@/shared/lib/use-api-data';
 
 const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 const periodeLabel = (month: number, year: number) => `Stok Opname ${BULAN[month - 1]} ${year}`;
@@ -16,43 +17,26 @@ export default function StockOpnameMasterGudang() {
   const [filterMonth, setFilterMonth] = useState("");
   const [filterYear, setFilterYear] = useState("");
 
-  const [rows, setRows] = useState<StockOpnameRow[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [detail, setDetail] = useState<StockOpnameDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState("");
 
   // ponytail: loads first 100 rows only, add real pagination when the list outgrows it
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await listStockOpname({
-        pageSize: 100,
-        search: searchQuery || undefined,
-        month: filterMonth ? Number(filterMonth) : undefined,
-        year: filterYear ? Number(filterYear) : undefined,
-      });
-      setRows(res.rows);
-      setTotal(res.total);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Gagal memuat data stok opname.");
-    } finally {
-      setLoading(false);
-    }
-  }, [searchQuery, filterMonth, filterYear]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  const { data: result, loading, error } = useApiData(
+    () => listStockOpname({ pageSize: 100, search: searchQuery || undefined, month: filterMonth ? Number(filterMonth) : undefined, year: filterYear ? Number(filterYear) : undefined }),
+    JSON.stringify([searchQuery, filterMonth, filterYear]),
+    'Gagal memuat data stok opname.',
+  );
+  const rows = result?.rows ?? [];
+  const total = result?.total ?? 0;
 
   const openDetail = async (id: number) => {
     setDetailLoading(true);
+    setDetailError("");
     try {
       setDetail(await getStockOpname(id));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Gagal memuat detail stok opname.");
+      setDetailError(err instanceof ApiError ? err.message : "Gagal memuat detail stok opname.");
     } finally {
       setDetailLoading(false);
     }
@@ -138,6 +122,8 @@ export default function StockOpnameMasterGudang() {
             </button>
           </Link>
         </div>
+
+        {detailError && <p className="px-6 pt-3 text-sm text-red-500">{detailError}</p>}
 
         {/* Table Container */}
         <div className="overflow-x-auto">

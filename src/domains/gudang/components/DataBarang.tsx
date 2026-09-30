@@ -7,6 +7,7 @@ import type { Item, Location } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
 import type { Supplier } from '@/domains/purchasing/types';
 import { ApiError } from '@/shared/lib/api-client';
+import { useApiData } from '@/shared/lib/use-api-data';
 
 export default function DataBarangGudang() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -18,9 +19,6 @@ export default function DataBarangGudang() {
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState("");
 
-  const [dataBarang, setDataBarang] = useState<Item[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
   const [isStockModalOpen, setIsStockModalOpen] = useState(false);
   const [stockItem, setStockItem] = useState<Item | null>(null);
@@ -29,21 +27,12 @@ export default function DataBarangGudang() {
   const [stockSaving, setStockSaving] = useState(false);
   const [stockError, setStockError] = useState("");
 
-  const loadBarang = async (search: string) => {
-    setLoading(true);
-    try {
-      const result = await listItems({ search: search || undefined });
-      setDataBarang(result.rows);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Gagal memuat data barang.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadBarang(searchQuery);
-  }, [searchQuery]);
+  const { data: loaded, loading, error, reload } = useApiData(
+    () => listItems({ search: searchQuery || undefined }),
+    searchQuery,
+    "Gagal memuat data barang.",
+  );
+  const dataBarang = loaded?.rows ?? [];
 
   useEffect(() => {
     listLocations().then((res) => setLocations(res.rows)).catch(() => {});
@@ -79,11 +68,11 @@ export default function DataBarangGudang() {
     setSaving(true);
     setModalError("");
     try {
-      const updated = await assignItemLocation(activeItem.id, {
+      await assignItemLocation(activeItem.id, {
         code: modalData.code,
         locationId: Number(modalData.locationId),
       });
-      setDataBarang((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
+      reload();
       setIsModalOpen(false);
     } catch (err) {
       setModalError(err instanceof ApiError ? err.message : "Gagal menyimpan lokasi barang.");
@@ -109,8 +98,8 @@ export default function DataBarangGudang() {
     setStockSaving(true);
     setStockError("");
     try {
-      const updated = await adjustItemStock(stockItem.id, { delta, reason: stockReason });
-      setDataBarang((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
+      await adjustItemStock(stockItem.id, { delta, reason: stockReason });
+      reload();
       setIsStockModalOpen(false);
     } catch (err) {
       setStockError(err instanceof ApiError ? err.message : "Gagal menyesuaikan stok.");

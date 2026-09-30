@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Search, FileUp, Download, Eye, Loader2, AlertCircle } from 'lucide-react';
 import { exportOutboundReport, getOutboundReport } from '@/domains/gudang/api';
-import type { OutboundReport, OutboundRow, RecipientType, WarehouseType } from '@/domains/gudang/types';
+import type { OutboundRow, RecipientType, WarehouseType } from '@/domains/gudang/types';
 import { ApiError } from '@/shared/lib/api-client';
+import { useApiData } from '@/shared/lib/use-api-data';
 
 const GUDANG_LABEL: Record<WarehouseType, string> = {
     BAHAN_BAKU: 'Gudang Bahan Baku',
@@ -34,49 +35,31 @@ export default function LaporanBarangKeluar(){
     const [endDate, setEndDate] = useState<string>(new Date().toISOString().slice(0, 10));
     const [selectedDetail, setSelectedDetail] = useState<OutboundRow | null>(null);
 
-    const [report, setReport] = useState<OutboundReport | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
+    const [actionError, setActionError] = useState('');
     const [exporting, setExporting] = useState(false);
 
     const filters = {
-        q: searchQuery || undefined,
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-        warehouseType: filterGudang === 'ALL' ? undefined : filterGudang,
-        recipientType: filterPenerima === 'ALL' ? undefined : filterPenerima,
+      q: searchQuery || undefined,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+      warehouseType: filterGudang === 'ALL' ? undefined : filterGudang,
+      recipientType: filterPenerima === 'ALL' ? undefined : filterPenerima,
     };
 
-    // ponytail: loads first 100 transactions only, add real pagination when the list outgrows it
-    const loadReport = useCallback(async () => {
-        setLoading(true);
-        setError('');
-        try {
-            setReport(await getOutboundReport({
-                pageSize: 100,
-                q: searchQuery || undefined,
-                startDate: startDate || undefined,
-                endDate: endDate || undefined,
-                warehouseType: filterGudang === 'ALL' ? undefined : filterGudang,
-                recipientType: filterPenerima === 'ALL' ? undefined : filterPenerima,
-            }));
-        } catch (err) {
-            setError(err instanceof ApiError ? err.message : 'Gagal memuat laporan barang keluar.');
-        } finally {
-            setLoading(false);
-        }
-    }, [searchQuery, startDate, endDate, filterGudang, filterPenerima]);
-
-    useEffect(() => {
-        loadReport();
-    }, [loadReport]);
+    // ponytail: loads first 100 rows only, add real pagination when the list outgrows it
+    const { data: report, loading, error } = useApiData(
+      () => getOutboundReport({ ...filters, pageSize: 100 }),
+      JSON.stringify(filters),
+      'Gagal memuat laporan barang keluar.',
+    );
 
     const handleExport = async () => {
         setExporting(true);
+        setActionError('');
         try {
             await exportOutboundReport(filters);
         } catch (err) {
-            setError(err instanceof ApiError ? err.message : 'Gagal mengekspor laporan.');
+            setActionError(err instanceof ApiError ? err.message : 'Gagal mengekspor laporan.');
         } finally {
             setExporting(false);
         }
@@ -196,7 +179,8 @@ export default function LaporanBarangKeluar(){
                     </button>
                     </div>
                 </div>
-                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                {actionError && <p className="px-4 pb-2 text-sm text-red-500">{actionError}</p>}
+        <table className="min-w-full divide-y divide-gray-200 text-sm">
                 <thead className="bg-gray-100 font-semibold text-gray-700">
                     <tr>
                         <th className="px-4 py-3 text-center w-12">No</th>
