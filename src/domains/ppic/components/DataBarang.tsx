@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Search, Plus, Download, Edit2, Trash2, Filter, MoreHorizontal } from 'lucide-react';
 import { listItems, createItem, deleteItem, listLocations, updateItem } from '@/domains/inventory/api';
-import type { Item, Location } from '@/domains/inventory/types';
+import type { ItemListRow, Location } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
 import type { Supplier } from '@/domains/purchasing/types';
 import { ApiError } from '@/shared/lib/api-client';
@@ -11,7 +11,7 @@ import { ApiError } from '@/shared/lib/api-client';
 const emptyForm = { name: '', unit: '', category: '', price: '', supplierId: '' };
 
 export default function DataBarangPPIC() {
-  const [dataBarang, setDataBarang] = useState<Item[]>([]);
+  const [dataBarang, setDataBarang] = useState<ItemListRow[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,24 +54,23 @@ export default function DataBarangPPIC() {
     setModalError("");
     try {
       if (editingId) {
-        const updated = await updateItem(editingId, {
+        await updateItem(editingId, {
           name: formData.name,
           unit: formData.unit,
           category: formData.category,
           price: Number(formData.price),
           supplierId: Number(formData.supplierId),
         });
-        setDataBarang((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
       } else {
-        const created = await createItem({
+        await createItem({
           name: formData.name,
           unit: formData.unit,
           category: formData.category,
           price: Number(formData.price),
           supplierId: Number(formData.supplierId),
         });
-        setDataBarang((prev) => [created, ...prev]);
       }
+      await loadBarang(searchTerm);
       setIsModalOpen(false);
       setEditingId(null);
       setFormData(emptyForm);
@@ -89,7 +88,7 @@ export default function DataBarangPPIC() {
     setIsModalOpen(true);
   };
 
-  const handleEdit = (item: Item) => {
+  const handleEdit = (item: ItemListRow) => {
     setEditingId(item.id);
     setFormData({
       name: item.name,

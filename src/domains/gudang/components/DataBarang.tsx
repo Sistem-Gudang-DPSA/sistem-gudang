@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Search, Plus, Download, Filter, PackageSearch } from 'lucide-react';
 import { adjustItemStock, assignItemLocation, listItems, listLocations, suggestItemCode } from '@/domains/inventory/api';
-import type { Item, Location } from '@/domains/inventory/types';
+import type { ItemListRow, Location } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
 import type { Supplier } from '@/domains/purchasing/types';
 import { ApiError } from '@/shared/lib/api-client';
@@ -12,7 +12,7 @@ import { useApiData } from '@/shared/lib/use-api-data';
 export default function DataBarangGudang() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [activeItem, setActiveItem] = useState<Item | null>(null);
+  const [activeItem, setActiveItem] = useState<ItemListRow | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [modalData, setModalData] = useState({ locationId: "", code: "" });
@@ -21,7 +21,7 @@ export default function DataBarangGudang() {
 
 
   const [isStockModalOpen, setIsStockModalOpen] = useState(false);
-  const [stockItem, setStockItem] = useState<Item | null>(null);
+  const [stockItem, setStockItem] = useState<ItemListRow | null>(null);
   const [stockDelta, setStockDelta] = useState("");
   const [stockReason, setStockReason] = useState("");
   const [stockSaving, setStockSaving] = useState(false);
@@ -42,7 +42,7 @@ export default function DataBarangGudang() {
   const supplierName = (id: number) => suppliers.find((s) => s.id === id)?.name ?? '-';
   const locationCode = (id: number | null) => (id === null ? '-' : locations.find((loc) => loc.id === id)?.code ?? `#${id}`);
 
-  const openAssignModal = (item: Item) => {
+  const openAssignModal = (item: ItemListRow) => {
     setActiveItem(item);
     setModalData({ locationId: "", code: "" });
     setModalError("");
@@ -81,7 +81,7 @@ export default function DataBarangGudang() {
     }
   };
 
-  const openStockModal = (item: Item) => {
+  const openStockModal = (item: ItemListRow) => {
     setStockItem(item);
     setStockDelta("");
     setStockReason("");
