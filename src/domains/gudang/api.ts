@@ -1,6 +1,6 @@
 import { apiClient, downloadFile, toQuery } from "@/shared/lib/api-client";
 import type { PaginatedResult } from "@/domains/inventory/types";
-import type { CreateOutboundInput, OutboundReport, OutboundReportParams, OutboundListParams, OutboundRow, CreateInboundInput, InboundReport, InboundReportParams, CreateInboundReturnInput, InboundListParams, InboundRow } from "./types";
+import type { ApprovalListParams, ApprovalRequest, PurchaseRequestPayload, CreateStockOpnameInput, StockOpnameDetail, StockOpnameListParams, StockOpnameRow, CreateOutboundInput, OutboundReport, OutboundReportParams, OutboundListParams, OutboundRow, CreateInboundInput, InboundReport, InboundReportParams, CreateInboundReturnInput, InboundListParams, InboundRow } from "./types";
 
 export function listInbound(params?: InboundListParams) {
   return apiClient.get<PaginatedResult<InboundRow>>(`/api/v1/inbound${toQuery(params)}`);
@@ -41,4 +41,24 @@ export function getOutboundReport(params?: OutboundReportParams) {
 
 export function exportOutboundReport(params?: Omit<OutboundReportParams, "page" | "pageSize">) {
   return downloadFile(`/api/v1/reports/outbound/export${toQuery(params)}`, "rekap-barang-keluar.xlsx");
+}
+
+export function listStockOpname(params?: StockOpnameListParams) {
+  return apiClient.get<PaginatedResult<StockOpnameRow>>(`/api/v1/stock-opname${toQuery(params)}`);
+}
+
+export function getStockOpname(id: number) {
+  return apiClient.get<StockOpnameDetail>(`/api/v1/stock-opname/${id}`);
+}
+
+export function createStockOpname(input: CreateStockOpnameInput) {
+  return apiClient.post<StockOpnameDetail>("/api/v1/stock-opname", input);
+}
+
+export function listApprovals(params?: ApprovalListParams) {
+  return apiClient.get<PaginatedResult<ApprovalRequest>>(`/api/v1/approvals${toQuery(params)}`);
+}
+
+export function createPurchaseRequest(payload: PurchaseRequestPayload) {
+  return apiClient.post<ApprovalRequest>("/api/v1/approvals", { type: "purchase-request", payload });
 }

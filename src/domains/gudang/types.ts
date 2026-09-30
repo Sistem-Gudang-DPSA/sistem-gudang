@@ -125,3 +125,88 @@ export interface OutboundReport {
   pageSize: number;
   summary: { bahanBaku: number; wip: number; barangJadi: number };
 }
+
+export interface StockOpnameRow {
+  id: number;
+  month: number;
+  year: number;
+  notes: string | null;
+  createdBy: number;
+  createdAt: string;
+  lineCount: number;
+}
+
+export interface StockOpnameLine {
+  itemId: number;
+  itemCode: string | null;
+  itemName: string;
+  category: string;
+  unit: string;
+  systemQty: number;
+  physicalQty: number;
+  difference: number;
+  systemPrice: number;
+  physicalPrice: number;
+  note: string | null;
+}
+
+export interface StockOpnameDetail extends Omit<StockOpnameRow, "lineCount"> {
+  lines: StockOpnameLine[];
+}
+
+export interface StockOpnameListParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  month?: number;
+  year?: number;
+}
+
+export interface CreateStockOpnameInput {
+  month: number;
+  year: number;
+  notes?: string;
+  lines: { itemId: number; physicalQty: number; note?: string }[];
+}
+
+export type ApprovalStatus = "pending" | "approved" | "rejected" | "revision_requested";
+
+export interface PurchaseRequestItem {
+  namaBarang: string;
+  qty: number;
+  satuan: string;
+  proyek: string;
+  noSpk: string;
+}
+
+export interface PurchaseRequestPayload {
+  bagian: string;
+  namaPemohon: string;
+  jabatan: string;
+  tanggalPengajuan: string;
+  items: PurchaseRequestItem[];
+  notes?: string;
+}
+
+export interface ApprovalRequest {
+  id: number;
+  type: string;
+  requestedBy: number;
+  requestedByDomainId: number;
+  payload: PurchaseRequestPayload | null;
+  currentStepOrder: number;
+  cycle: number;
+  status: ApprovalStatus;
+  createdAt: string;
+}
+
+export interface ApprovalListParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: ApprovalStatus;
+  type?: string;
+  domainId?: number;
+  startDate?: string;
+  endDate?: string;
+}
