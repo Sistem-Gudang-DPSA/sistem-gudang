@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Search, Eye, Download, FileUp, Loader2, AlertCircle } from 'lucide-react';
 import { exportInboundReport, getInboundReport } from '@/domains/gudang/api';
-import type { InboundReport, InboundRow, InboundSource } from '@/domains/gudang/types';
+import type { InboundRow, InboundSource } from '@/domains/gudang/types';
 import { ApiError } from '@/shared/lib/api-client';
+import { useApiData } from '@/shared/lib/use-api-data';
 
 const SUMBER_LABEL: Record<InboundSource, string> = {
   SUPPLIER: 'Supplier External',
@@ -31,9 +32,7 @@ export default function LaporanBarangMasuk() {
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [selectedDetail, setSelectedDetail] = useState<InboundRow | null>(null);
 
-    const [report, setReport] = useState<InboundReport | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
+    const [actionError, setActionError] = useState('');
     const [exporting, setExporting] = useState(false);
 
     const filters = {
@@ -44,34 +43,19 @@ export default function LaporanBarangMasuk() {
     };
 
     // ponytail: loads first 100 rows only, add real pagination when the list outgrows it
-    const loadReport = useCallback(async () => {
-      setLoading(true);
-      setError('');
-      try {
-        setReport(await getInboundReport({
-          pageSize: 100,
-          q: searchQuery || undefined,
-          startDate: startDate || undefined,
-          endDate: endDate || undefined,
-          source: filterSumber === 'ALL' ? undefined : filterSumber,
-        }));
-      } catch (err) {
-        setError(err instanceof ApiError ? err.message : 'Gagal memuat laporan barang masuk.');
-      } finally {
-        setLoading(false);
-      }
-    }, [searchQuery, startDate, endDate, filterSumber]);
-
-    useEffect(() => {
-      loadReport();
-    }, [loadReport]);
+    const { data: report, loading, error } = useApiData(
+      () => getInboundReport({ ...filters, pageSize: 100 }),
+      JSON.stringify(filters),
+      'Gagal memuat laporan barang masuk.',
+    );
 
     const handleExport = async () => {
       setExporting(true);
+      setActionError('');
       try {
         await exportInboundReport(filters);
       } catch (err) {
-        setError(err instanceof ApiError ? err.message : 'Gagal mengekspor laporan.');
+        setActionError(err instanceof ApiError ? err.message : 'Gagal mengekspor laporan.');
       } finally {
         setExporting(false);
       }
@@ -182,6 +166,7 @@ export default function LaporanBarangMasuk() {
               </button>
             </div>
         </div>
+        {actionError && <p className="px-4 pb-2 text-sm text-red-500">{actionError}</p>}
         <table className="min-w-full divide-y divide-gray-200 text-sm">
           <thead className="bg-gray-100 font-semibold text-gray-700">
             <tr>

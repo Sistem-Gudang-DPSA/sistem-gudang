@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Search, Plus, Calendar, Eye } from 'lucide-react';
 import Link from 'next/link';
 import { listApprovals } from '@/domains/gudang/api';
 import { displayDate, toDateRange } from '@/domains/gudang/date';
 import type { ApprovalRequest, ApprovalStatus } from '@/domains/gudang/types';
-import { ApiError } from '@/shared/lib/api-client';
+import { useApiData } from '@/shared/lib/use-api-data';
 
 const STATUS_LABEL: Record<ApprovalStatus, { label: string; cls: string }> = {
   pending: { label: 'Menunggu', cls: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
@@ -28,34 +28,18 @@ export default function PermintaanPembelianGudang() {
   const [filterMonth, setFilterMonth] = useState("");
   const [filterYear, setFilterYear] = useState("");
 
-  const [rows, setRows] = useState<ApprovalRequest[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [detail, setDetail] = useState<ApprovalRequest | null>(null);
 
-  // ponytail: loads first 100 rows only, add real pagination when the list outgrows it
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await listApprovals({
-        pageSize: 100,
-        type: 'purchase-request',
-        ...toDateRange(filterDay, filterMonth, filterYear),
-      });
-      setRows(res.rows);
-      setTotal(res.total);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Gagal memuat permintaan pembelian.");
-    } finally {
-      setLoading(false);
-    }
-  }, [filterDay, filterMonth, filterYear]);
+  const dateRange = toDateRange(filterDay, filterMonth, filterYear);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  // ponytail: loads first 100 rows only, add real pagination when the list outgrows it
+  const { data: result, loading, error } = useApiData(
+    () => listApprovals({ pageSize: 100, type: 'purchase-request', ...dateRange }),
+    JSON.stringify(dateRange),
+    'Gagal memuat permintaan pembelian.',
+  );
+  const rows = result?.rows ?? [];
+  const total = result?.total ?? 0;
 
   // ponytail: the approvals API has no working text search yet, so filter the loaded rows here
   const filteredData = rows.filter((req) => summarize(req).toLowerCase().includes(searchQuery.toLowerCase()));

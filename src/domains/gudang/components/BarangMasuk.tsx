@@ -1,15 +1,16 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Search, Calendar, Plus, Download } from 'lucide-react';
 import { createInbound, createInboundReturn, listInbound } from '@/domains/gudang/api';
-import type { InboundRow, StatusQc } from '@/domains/gudang/types';
+import type { StatusQc } from '@/domains/gudang/types';
 import { listItems } from '@/domains/inventory/api';
 import type { Item } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
 import type { Supplier } from '@/domains/purchasing/types';
 import { displayDate, todayIso, toDateRange } from '@/domains/gudang/date';
 import { ApiError } from '@/shared/lib/api-client';
+import { useApiData } from '@/shared/lib/use-api-data';
 
 const emptyBaru = { itemId: "", supplierId: "", tanggal: todayIso(), jumlahKedatangan: "", jumlahRekap: "", statusQc: "PASS" as StatusQc };
 const emptyKembali = { itemId: "", tanggal: todayIso(), jumlah: "", clientName: "", spk: "" };
@@ -20,10 +21,6 @@ export default function BarangMasukGudang() {
   const [filterMonth, setFilterMonth] = useState("");
   const [filterYear, setFilterYear] = useState("");
 
-  const [rows, setRows] = useState<InboundRow[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [items, setItems] = useState<Item[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
@@ -34,28 +31,16 @@ export default function BarangMasukGudang() {
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState("");
 
-  // ponytail: loads first 100 rows only, add real pagination when the list outgrows it
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await listInbound({
-        pageSize: 100,
-        search: searchQuery || undefined,
-        ...toDateRange(filterDay, filterMonth, filterYear),
-      });
-      setRows(res.rows);
-      setTotal(res.total);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Gagal memuat data barang masuk.");
-    } finally {
-      setLoading(false);
-    }
-  }, [searchQuery, filterDay, filterMonth, filterYear]);
+  const dateRange = toDateRange(filterDay, filterMonth, filterYear);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  // ponytail: loads first 100 rows only, add real pagination when the list outgrows it
+  const { data: result, loading, error, reload } = useApiData(
+    () => listInbound({ pageSize: 100, search: searchQuery || undefined, ...dateRange }),
+    JSON.stringify([searchQuery, dateRange]),
+    'Gagal memuat data barang masuk.',
+  );
+  const rows = result?.rows ?? [];
+  const total = result?.total ?? 0;
 
   useEffect(() => {
     listItems({ pageSize: 100 }).then((res) => setItems(res.rows)).catch(() => {});
@@ -83,7 +68,7 @@ export default function BarangMasukGudang() {
         statusQc,
       });
       setIsModalOpen(false);
-      await loadData();
+      reload();
     } catch (err) {
       setModalError(err instanceof ApiError ? err.message : "Gagal menyimpan barang masuk.");
     } finally {
@@ -108,7 +93,7 @@ export default function BarangMasukGudang() {
         spk: spk || undefined,
       });
       setIsModalKembaliOpen(false);
-      await loadData();
+      reload();
     } catch (err) {
       setModalError(err instanceof ApiError ? err.message : "Gagal menyimpan barang kembali.");
     } finally {
