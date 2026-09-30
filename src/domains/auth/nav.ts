@@ -119,3 +119,21 @@ export function visibleNav(user: AuthUser): NavDivision[] {
     }))
     .filter((d) => d.groups.length > 0);
 }
+
+// Route guard for /dashboard/*: false means "show the access-denied page".
+// Paths that are not part of any division fall through so Next.js can answer 404.
+export function canAccess(user: AuthUser, pathname: string): boolean {
+  if (user.isSuperadmin) return true;
+  const path = pathname.replace(/\/+$/, "") || "/";
+  if (path === "/dashboard") return true;
+  if (path === "/dashboard/superadmin" || path.startsWith("/dashboard/superadmin/")) return false;
+
+  const division = NAV_DIVISIONS.find((d) => path === `/dashboard/${d.key}` || path.startsWith(`/dashboard/${d.key}/`));
+  if (!division) return true;
+  if (!can(user, division.anyOf)) return false;
+
+  const item = division.groups
+    .flatMap((g) => g.items)
+    .find((i) => path === i.href || path.startsWith(`${i.href}/`));
+  return item ? can(user, item.anyOf) : true;
+}

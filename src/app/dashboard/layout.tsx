@@ -6,6 +6,8 @@ import { Package, LogOut, Menu, X } from 'lucide-react';
 import { refreshSession, logout } from '@/domains/auth/api';
 import type { AuthUser } from '@/domains/auth/types';
 import SidebarNav from '@/domains/auth/components/SidebarNav';
+import AccessDenied from '@/domains/auth/components/AccessDenied';
+import { canAccess } from '@/domains/auth/nav';
 
 export default function DashboardLayout({
   children,
@@ -21,7 +23,7 @@ export default function DashboardLayout({
   useEffect(() => {
     refreshSession()
       .then(setUser)
-      .catch(() => router.push("/"))
+      .catch(() => router.replace(`/?next=${encodeURIComponent(window.location.pathname)}`))
       .finally(() => setIsMounted(true));
   }, [router]);
 
@@ -135,7 +137,7 @@ export default function DashboardLayout({
 
         {/* Page Content */}
         <div className="flex-1 p-6 md:p-8 overflow-y-auto">
-          {children}
+          {canAccess(user, pathname) ? children : <AccessDenied user={user} />}
         </div>
       </main>
     </div>
