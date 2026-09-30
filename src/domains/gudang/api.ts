@@ -1,6 +1,6 @@
 import { apiClient, downloadFile, toQuery } from "@/shared/lib/api-client";
 import type { PaginatedResult } from "@/domains/inventory/types";
-import type { ApprovalListParams, ApprovalRequest, PurchaseRequestPayload, CreateStockOpnameInput, StockOpnameDetail, StockOpnameListParams, StockOpnameRow, CreateOutboundInput, OutboundReport, OutboundReportParams, OutboundListParams, OutboundRow, CreateInboundInput, InboundReport, InboundReportParams, CreateInboundReturnInput, InboundListParams, InboundRow } from "./types";
+import type { MaterialRequestDetail, RequestReport, RequestReportParams, ApprovalListParams, ApprovalRequest, PurchaseRequestPayload, CreateStockOpnameInput, StockOpnameDetail, StockOpnameListParams, StockOpnameRow, CreateOutboundInput, OutboundReport, OutboundReportParams, OutboundListParams, OutboundRow, CreateInboundInput, InboundReport, InboundReportParams, CreateInboundReturnInput, InboundListParams, InboundRow } from "./types";
 
 export function listInbound(params?: InboundListParams) {
   return apiClient.get<PaginatedResult<InboundRow>>(`/api/v1/inbound${toQuery(params)}`);
@@ -61,4 +61,17 @@ export function listApprovals(params?: ApprovalListParams) {
 
 export function createPurchaseRequest(payload: PurchaseRequestPayload) {
   return apiClient.post<ApprovalRequest>("/api/v1/approvals", { type: "purchase-request", payload });
+}
+
+export function getRequestsReport(params?: RequestReportParams) {
+  return apiClient.get<RequestReport>(`/api/v1/reports/requests${toQuery(params)}`);
+}
+
+export function getMaterialRequest(id: number) {
+  return apiClient.get<MaterialRequestDetail>(`/api/v1/material-requests/${id}`);
+}
+
+// `ids` (selected rows) makes the backend ignore every other filter.
+export function exportRequestsReport(params: Omit<RequestReportParams, "page" | "pageSize"> & { ids?: number[] }) {
+  return downloadFile(`/api/v1/reports/requests/export${toQuery(params)}`, "rekap-permintaan.xlsx");
 }
