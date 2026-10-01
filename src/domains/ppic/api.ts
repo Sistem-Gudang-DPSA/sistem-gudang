@@ -2,7 +2,7 @@ import { apiClient, toQuery } from "@/shared/lib/api-client";
 import type { PaginatedResult } from "@/domains/inventory/types";
 import type { BahanDokubah, DokubahItem, StatusDokubah } from "./data/dokubah";
 import type { SpkInternal } from "./data/spk-internal";
-import type { CreateDokubahInput, CreateSpkInternalInput, SpkInternalListParams, TrackingSpk, DokubahApiDetail, DokubahApiRow, DokubahApiStatus, DokubahListParams } from "./types";
+import type { CreateDokubahInput, CreateSpkInternalInput, SpkInternalListParams, TrackingSpk, TrackingPic, MutationListParams, MutationRow, StockOpnameSummary, DokubahApiDetail, DokubahApiRow, DokubahApiStatus, DokubahListParams } from "./types";
 
 // The screens use title-case statuses, the API uses UPPER_SNAKE.
 export const STATUS_TO_UI: Record<DokubahApiStatus, StatusDokubah> = {
@@ -61,10 +61,18 @@ export const rejectDokubah = (id: number) => apiClient.post<DokubahApiDetail>(`/
 export const listSpkInternal = (params?: SpkInternalListParams) =>
   apiClient.get<PaginatedResult<SpkInternal>>(`/api/v1/spk-internal${toQuery(params)}`);
 
-// noSpk comes from tracking; the server starts totalBisaPakai at the item's current stock.
-// No screen calls this yet (the "Buat SPK Internal" button has no form).
-export const createSpkInternal = (input: CreateSpkInternalInput) => apiClient.post<SpkInternal>("/api/v1/spk-internal", input);
+// Creates the whole document; the server numbers it and starts each line's totalBisaPakai at alokasiStokBebas.
+export const createSpkInternal = (input: CreateSpkInternalInput) => apiClient.post<{ id: number; noSpk: string }>("/api/v1/spk-internal", input);
 
 // Rejected with 400 unless jumlah is an integer > 0 and <= totalBisaPakai; 0 left means LOCKED.
 export const allocateSpkInternal = (id: number, jumlah: number) =>
   apiClient.post<SpkInternal>(`/api/v1/spk-internal/${id}/allocate`, { jumlah });
+
+export const listTrackingPic = () => apiClient.get<TrackingPic[]>("/api/v1/tracking/pic");
+
+// Needs report.view. Mutations are derived from inbound (Masuk) and outbound (Keluar).
+export const listMutations = (params?: MutationListParams) =>
+  apiClient.get<PaginatedResult<MutationRow>>(`/api/v1/reports/mutations${toQuery(params)}`);
+
+export const getStockOpnameSummary = (params?: { month?: number; year?: number }) =>
+  apiClient.get<StockOpnameSummary>(`/api/v1/reports/stock-opname-summary${toQuery(params)}`);

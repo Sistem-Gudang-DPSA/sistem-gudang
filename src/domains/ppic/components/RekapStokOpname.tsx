@@ -2,11 +2,13 @@
 
 import React, { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { getStockOpnameSummary, listMutations } from '@/domains/ppic/api';
+import { useApiData } from '@/shared/lib/use-api-data';
 
 type TipeMutasi = 'Masuk' | 'Keluar';
 
 type MutasiBarang = {
-  id: number;
+  id: string; // "in-12" / "out-34"
   tanggal: string; // ISO, contoh: 2026-10-01T09:30
   noReferensiSpk: string;
   kodeBarang: string;
@@ -25,8 +27,11 @@ const checkboxClass = 'w-4 h-4 accent-[#FF8A00] cursor-pointer disabled:cursor-n
 const orangeButtonClass = 'px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed';
 
 const formatAngka = (n: number) => n.toLocaleString('id-ID');
+// The API only has the date (no time of day), so a date-only value is shown without a time
 const formatTanggalJam = (iso: string) =>
-  new Date(iso).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+  iso.length === 10
+    ? new Date(`${iso}T00:00:00`).toLocaleDateString('id-ID', { dateStyle: 'medium' })
+    : new Date(iso).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
 const escapeHtml = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -37,28 +42,27 @@ const formatPeriode = (periode: string) => {
 };
 
 export default function RekapStokOpnameMutasiStok() {
-  // Ringkasan stok opname (data contoh, nanti ganti dengan data/API)
-  const ringkasan = {
-    totalAudit: 10,          // kali selesai
-    totalItemSelisih: 10,    // item
-    totalAdjustmentNilai: -1250000, // negatif = kerugian, positif = keuntungan
-  };
-
-  // Data dummy mutasi, nanti ganti dengan data/API
-  const data: MutasiBarang[] = [
-    {
-      id: 1,
-      tanggal: '2026-10-01T09:30',
-      noReferensiSpk: 'SPK-001',
-      kodeBarang: 'BRG-001',
-      namaItem: 'Contoh Barang A',
-      tipe: 'Masuk',
-      qty: 100,
-    },
-  ];
-
+  // State periode dipindah ke atas karena ringkasan mengikutinya
   const [filterPeriode, setFilterPeriode] = useState('');
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
+  // ponytail: loads first 100 mutations and filters them here, move the filters to the API params when the list outgrows it
+  const { data: result, loading, error } = useApiData(
+    () => listMutations({ pageSize: 100 }),
+    'list',
+    'Gagal memuat rekap mutasi stok.',
+  );
+  const data: MutasiBarang[] = result?.rows ?? [];
+
+  // Ringkasan stok opname mengikuti periode yang dipilih (semua periode kalau kosong)
+  const summaryParams = filterPeriode ? { year: Number(filterPeriode.slice(0, 4)), month: Number(filterPeriode.slice(5, 7)) } : undefined;
+  const { data: summary } = useApiData(
+    () => getStockOpnameSummary(summaryParams),
+    filterPeriode || 'all',
+    'Gagal memuat ringkasan stok opname.',
+  );
+  const ringkasan = summary ?? { totalAudit: 0, totalItemSelisih: 0, totalAdjustmentNilai: 0 };
+
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Periode = bulan dari tanggal mutasi
   const periodeOptions = Array.from(new Set(data.map((d) => d.tanggal.slice(0, 7)))).sort();
@@ -81,7 +85,7 @@ export default function RekapStokOpnameMutasiStok() {
     });
   };
 
-  const toggleOne = (id: number) => {
+  const toggleOne = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -271,7 +275,7 @@ export default function RekapStokOpnameMutasiStok() {
               {filteredData.length === 0 && (
                 <tr>
                   <td colSpan={8} className={`${cellClass} px-6 py-10 text-center text-gray-400 italic`}>
-                    Data tidak ditemukan.
+                    {loading ? 'Memuat data...' : error || 'Data tidak ditemukan.'}
                   </td>
                 </tr>
               )}

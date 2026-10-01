@@ -1,9 +1,14 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, ChevronDown, Plus } from 'lucide-react';
 import { spk_internal_path } from '@/domains/ppic/data/spk-internal';
+import { createSpkInternal, listTrackingPic, listTrackingSpk } from '@/domains/ppic/api';
+import { listItems } from '@/domains/inventory/api';
+import { ApiError } from '@/shared/lib/api-client';
+import { useApiData } from '@/shared/lib/use-api-data';
 
 type BarangRow = { id: number; kodeSku: string; namaBarang: string; totalQty: string; alokasiSpkKlien: string; alokasiStokBebas: string };
 type BarangField = Exclude<keyof BarangRow, 'id'>;
@@ -30,12 +35,13 @@ function Field({ id, label, children }: { id: string; label: string; children: R
   );
 }
 
-// Pilihan dropdown masih kosong, nanti diisi dari API
-function SelectField({ id, value, onChange, placeholder }: { id: string; value: string; onChange: (value: string) => void; placeholder: string }) {
+// Opsi dropdown datang dari API lewat prop `options`
+function SelectField({ id, value, onChange, placeholder, options = [] }: { id: string; value: string; onChange: (value: string) => void; placeholder: string; options?: string[] }) {
   return (
     <div className="relative">
       <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={`${fieldClass} appearance-none pr-9 cursor-pointer`}>
         <option value="">{placeholder}</option>
+        {options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
       </select>
       <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
     </div>
@@ -43,13 +49,77 @@ function SelectField({ id, value, onChange, placeholder }: { id: string; value: 
 }
 
 export default function BuatSpkInternalPPIC() {
+  const router = useRouter();
   const [form, setForm] = useState(emptyForm);
+  const [formError, setFormError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const { data: spkList } = useApiData(() => listTrackingSpk(), 'spk', 'Gagal memuat daftar SPK.');
+  const { data: picList } = useApiData(() => listTrackingPic(), 'pic', 'Gagal memuat daftar penanggung jawab.');
+  // ponytail: the SKU suggestions are the first 100 items
+  const { data: itemResult } = useApiData(() => listItems({ pageSize: 100 }), 'items', 'Gagal memuat daftar barang.');
+  const items = itemResult?.rows ?? [];
   const [rows, setRows] = useState<BarangRow[]>(() => Array.from({ length: JUMLAH_BARIS_AWAL }, (_, i) => createRow(i + 1)));
 
   const setField = (field: keyof typeof emptyForm, value: string) => setForm((prev) => ({ ...prev, [field]: value }));
 
   const handleRowChange = (id: number, field: BarangField, value: string) => {
-    setRows((prev) => prev.map((row) => (row.id === id ? { ...row, [field]: value } : row)));
+    setRows((prev) =>
+      prev.map((row) => {
+        if (row.id !== id) return row;
+        const next = { ...row, [field]: value };
+        // Picking a known SKU fills the item name
+        if (field === 'kodeSku') {
+          const item = items.find((it) => it.code === value);
+          if (item) next.namaBarang = item.name;
+        }
+        return next;
+      }),
+    );
+  };
+
+  const handleSimpan = async () => {
+    const { tanggalTerbit, tujuanProduksi, spkKlienInduk, penanggungJawab, targetSelesai, catatan } = form;
+    if (!tanggalTerbit || !tujuanProduksi || !spkKlienInduk || !penanggungJawab || !targetSelesai) {
+      setFormError('Tanggal Terbit, Target Selesai, Tujuan Produksi, SPK Klien Induk, dan Penanggung Jawab wajib diisi.');
+      return;
+    }
+    if (targetSelesai < tanggalTerbit) {
+      setFormError('Target Selesai tidak boleh sebelum Tanggal Terbit.');
+      return;
+    }
+    const filled = rows.filter((row) => Object.entries(row).some(([key, value]) => key !== 'id' && String(value).trim() !== ''));
+    if (filled.length === 0) {
+      setFormError('Isi minimal satu barang.');
+      return;
+    }
+    const lines = [];
+    for (const row of filled) {
+      const item = items.find((it) => it.code === row.kodeSku.trim());
+      const [total, klien, bebas] = [row.totalQty, row.alokasiSpkKlien, row.alokasiStokBebas].map(Number);
+      if (!item) {
+        setFormError(`Kode SKU "${row.kodeSku}" tidak ditemukan di daftar barang.`);
+        return;
+      }
+      if (![total, klien, bebas].every((n) => Number.isInteger(n) && n >= 0) || total <= 0) {
+        setFormError(`Total Qty, Alokasi SPK Klien, dan Alokasi Stok Bebas untuk ${row.kodeSku} wajib angka bulat (Total Qty lebih dari 0).`);
+        return;
+      }
+      if (klien + bebas !== total) {
+        setFormError(`Alokasi SPK Klien + Alokasi Stok Bebas harus sama dengan Total Qty (${row.kodeSku}).`);
+        return;
+      }
+      lines.push({ itemId: item.id, totalQty: total, alokasiSpkKlien: klien, alokasiStokBebas: bebas });
+    }
+    setSaving(true);
+    setFormError('');
+    try {
+      await createSpkInternal({ tanggalTerbit, tujuanProduksi, spkKlienInduk, penanggungJawab, targetSelesai, catatan: catatan.trim() || undefined, lines });
+      router.replace(spk_internal_path);
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : 'Gagal menyimpan SPK Internal.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const tambahBaris = () => {
@@ -74,7 +144,7 @@ export default function BuatSpkInternalPPIC() {
             <input id="spk-internal-nomor" type="text" readOnly value="" placeholder="auto" className={readOnlyFieldClass} />
           </Field>
           <Field id="spk-internal-pj" label="Penanggung Jawab">
-            <SelectField id="spk-internal-pj" value={form.penanggungJawab} onChange={(v) => setField('penanggungJawab', v)} placeholder="Pilih Penanggung Jawab" />
+            <SelectField id="spk-internal-pj" value={form.penanggungJawab} onChange={(v) => setField('penanggungJawab', v)} placeholder="Pilih Penanggung Jawab" options={(picList ?? []).map((p) => p.nama)} />
           </Field>
 
           <Field id="spk-internal-terbit" label="Tanggal Terbit">
@@ -97,11 +167,14 @@ export default function BuatSpkInternalPPIC() {
           <div className="hidden lg:block" />
 
           <Field id="spk-internal-klien" label="SPK Klien Induk">
-            <SelectField id="spk-internal-klien" value={form.spkKlienInduk} onChange={(v) => setField('spkKlienInduk', v)} placeholder="Pilih SPK Klien Induk" />
+            <SelectField id="spk-internal-klien" value={form.spkKlienInduk} onChange={(v) => setField('spkKlienInduk', v)} placeholder="Pilih SPK Klien Induk" options={(spkList ?? []).map((spk) => spk.noSpk)} />
           </Field>
         </div>
 
         {/* Tabel barang */}
+        <datalist id="spk-internal-sku">
+          {items.map((it) => <option key={it.id} value={it.code ?? ''}>{it.name}</option>)}
+        </datalist>
         <h2 className="text-base font-bold text-gray-900 mb-4">Tabel Barang</h2>
         <div className="overflow-x-auto border-t border-l border-gray-300 rounded-sm">
           <table className="w-full text-left text-sm whitespace-nowrap border-collapse">
@@ -127,6 +200,7 @@ export default function BuatSpkInternalPPIC() {
                         type="text"
                         value={row.kodeSku}
                         onChange={(e) => handleRowChange(row.id, 'kodeSku', e.target.value)}
+                        list="spk-internal-sku"
                         aria-label={`Kode SKU baris ${nomor}`}
                         className={`${cellInputClass} min-w-36`}
                       />
@@ -212,12 +286,14 @@ export default function BuatSpkInternalPPIC() {
           className={`${fieldClass} max-w-4xl resize-y`}
         />
 
-        {/* Simpan Draft & Simpan belum punya aksi: logika simpan menyusul */}
+        {formError && <p className="mt-6 p-3 bg-red-50 text-red-600 text-sm rounded-lg max-w-4xl">{formError}</p>}
+
+        {/* Simpan Draft belum punya aksi: API SPK Internal tidak punya status draft */}
         <div className="flex flex-wrap items-center justify-between gap-4 mt-10">
           <Link href={spk_internal_path} className={orangeButtonClass}>Batal</Link>
           <div className="flex gap-4">
             <button type="button" className={orangeButtonClass}>Simpan Draft</button>
-            <button type="button" className={orangeButtonClass}>Simpan</button>
+            <button type="button" onClick={handleSimpan} disabled={saving} className={`${orangeButtonClass} disabled:opacity-60`}>Simpan</button>
           </div>
         </div>
       </div>
