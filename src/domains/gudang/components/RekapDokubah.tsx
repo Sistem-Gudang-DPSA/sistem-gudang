@@ -29,7 +29,7 @@ export default function RekapDokubah() {
         "Gagal memuat rekap dokubah.",
     );
     const filteredData = result?.rows ?? [];
-    const realisasiOf = (item: { totalRealisasiNilai?: number }) => item.totalRealisasiNilai ?? 0;
+    const realisasiOf = (item: { totalRealisasiNilai: number }) => item.totalRealisasiNilai;
     const isAllSelected = filteredData.length > 0 && selectedIds.size === filteredData.length;
 
     const handleSelectAll = () => {

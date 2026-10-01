@@ -24,8 +24,8 @@ export interface DokubahApiRow {
   updatedAt: string;
   totalKuota: number;
   totalRealisasi: number;
-  // Rupiah value of the realisation (sum of realisasi * hargaSatuan). Requested from BE, not in the contract yet.
-  totalRealisasiNilai?: number;
+  // Rupiah value of the realisation: sum of realisasi * hargaSatuan.
+  totalRealisasiNilai: number;
 }
 
 export interface DokubahApiDetail extends DokubahApiRow {
