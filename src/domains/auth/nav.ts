@@ -84,7 +84,14 @@ export const NAV_DIVISIONS: NavDivision[] = [
       },
       {
         title: "Transaksi",
-        items: [{ href: "/dashboard/ppic/transaksi/dokubah", label: "Dokubah" }],
+        items: [
+          { href: "/dashboard/ppic/transaksi/dokubah", label: "Dokubah" },
+          { href: "/dashboard/ppic/transaksi/spk-mutasi-internal", label: "SPK Internal & Mutasi Stok" },
+        ],
+      },
+      {
+        title: "Laporan",
+        items: [{ href: "/dashboard/ppic/laporan/rekap-dokubah", label: "Rekap Dokubah" }],
       },
     ],
   },
