@@ -12,14 +12,14 @@ describe("visibleNav", () => {
     expect(labels(user([], true))).toEqual(["gudang", "ppic", "purchasing"]);
   });
 
-  it("shows only gudang to an inventory user, without pages that do not exist", () => {
+  it("shows only gudang to an inventory user, without pages outside their permissions", () => {
     const inventory = user(["inbound.view", "report.view", "item.view", "location.view", "supplier.view"]);
     const nav = visibleNav(inventory);
     expect(nav.map((d) => d.key)).toEqual(["gudang"]);
     const hrefs = nav[0].groups.flatMap((g) => g.items.map((i) => i.href));
     expect(hrefs).toContain("/dashboard/gudang/laporan/rekap-permintaan");
     expect(hrefs).not.toContain("/dashboard/gudang/transaksi/barang-keluar");
-    expect(hrefs).not.toContain("/dashboard/gudang/laporan/dokubah");
+    expect(hrefs).toContain("/dashboard/gudang/laporan/dokubah");
   });
 
   it("maps ppic and purchasing users to their own division", () => {

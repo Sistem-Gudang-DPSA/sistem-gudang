@@ -165,17 +165,17 @@ export default function LaporanBarangKeluar(){
                     <button
                         onClick={handleExport}
                         disabled={exporting}
-                        className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0 disabled:opacity-60"
+                        className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-60"
                     >
-                        <FileUp className='h-4 w-4'></FileUp>
-                        <span>{exporting ? 'Mengekspor...' : 'Export Excel'}</span>
+                        <FileUp className="w-4 h-4" />
+                        <span className="hidden sm:inline">{exporting ? 'Mengekspor...' : 'Export'}</span>
                     </button>
                     <button
                         onClick={() => window.print()}
-                        className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0"
+                        className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-60"
                     >
-                        <Download className='h-4 w-4'></Download>
-                        <span>Cetak PDF</span>
+                        <Download className="w-4 h-4" />
+                        <span className="hidden sm:inline">Print PDF</span>
                     </button>
                     </div>
                 </div>
