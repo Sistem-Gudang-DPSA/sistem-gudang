@@ -3,13 +3,14 @@ import type {
   CreateItemInput,
   CreateLocationInput,
   Item,
+  ItemListRow,
   ListParams,
   Location,
   PaginatedResult,
 } from "./types";
 
 export function listItems(params?: ListParams) {
-  return apiClient.get<PaginatedResult<Item>>(`/api/v1/items${toQuery(params)}`);
+  return apiClient.get<PaginatedResult<ItemListRow>>(`/api/v1/items${toQuery(params)}`);
 }
 
 export function getItem(id: number) {

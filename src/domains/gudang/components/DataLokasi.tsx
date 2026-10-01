@@ -1,43 +1,33 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Search, Plus } from 'lucide-react';
 import { createLocation, listLocations } from '@/domains/inventory/api';
-import type { Location } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
+import { useApiData } from '@/shared/lib/use-api-data';
 
 export default function DataLokasiGudang() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalData, setModalData] = useState({ namaRak: "", nomerRak: "" });
-  const [dataLokasi, setDataLokasi] = useState<Location[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const loadLokasi = async (search: string) => {
-    setLoading(true);
-    try {
-      const result = await listLocations({ search: search || undefined });
-      setDataLokasi(result.rows);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Gagal memuat data lokasi.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadLokasi(searchQuery);
-  }, [searchQuery]);
+  const { data: loaded, loading, error: loadError, reload } = useApiData(
+    () => listLocations({ search: searchQuery || undefined }),
+    searchQuery,
+    "Gagal memuat data lokasi.",
+  );
+  const dataLokasi = loaded?.rows ?? [];
+  const error = formError || loadError;
 
   const handleSimpan = async () => {
     if (!modalData.namaRak || !modalData.nomerRak) {
-      setError("Lengkapi nama rak dan nomer rak.");
+      setFormError("Lengkapi nama rak dan nomer rak.");
       return;
     }
     setSaving(true);
-    setError("");
+    setFormError("");
     try {
       await createLocation({
         code: `${modalData.namaRak}${modalData.nomerRak}`,
@@ -46,9 +36,9 @@ export default function DataLokasiGudang() {
       });
       setIsModalOpen(false);
       setModalData({ namaRak: "", nomerRak: "" });
-      await loadLokasi(searchQuery);
+      reload();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Gagal menyimpan lokasi.");
+      setFormError(err instanceof ApiError ? err.message : "Gagal menyimpan lokasi.");
     } finally {
       setSaving(false);
     }
@@ -128,7 +118,7 @@ export default function DataLokasiGudang() {
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-[550px] p-8 border border-white/20 relative animate-in zoom-in-95 duration-200">
             {/* Close Button at top-right */}
             <button
-              onClick={() => { setIsModalOpen(false); setError(""); }}
+              onClick={() => { setIsModalOpen(false); setFormError(""); }}
               className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>

@@ -3,8 +3,11 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Package, Lock, Mail, ArrowRight, Loader2 } from "lucide-react";
-import { login, dashboardPathFor, refreshSession } from "@/domains/auth/api";
+import { login, dashboardPathFor, refreshSession, safeNextPath } from "@/domains/auth/api";
 import { ApiError } from "@/shared/lib/api-client";
+
+// Page the user was sent away from (set by the dashboard layout), if it is a safe dashboard path.
+const nextPath = () => safeNextPath(new URLSearchParams(window.location.search).get("next"));
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,7 +23,7 @@ export default function LoginPage() {
         // Sesi dari tab/kunjungan sebelumnya masih valid, jangan tampilkan form
         // login lagi. Login ulang di sini akan merotasi refresh token backend
         // dan mencabut sesi yang sedang aktif itu.
-        router.replace(dashboardPathFor(user));
+        router.replace(nextPath() ?? dashboardPathFor(user));
       })
       .catch(() => setCheckingSession(false));
   }, [router]);
@@ -32,7 +35,7 @@ export default function LoginPage() {
 
     try {
       const user = await login(email, password);
-      router.push(dashboardPathFor(user));
+      router.push(nextPath() ?? dashboardPathFor(user));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Tidak bisa menghubungi server.");
       setLoading(false);

@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Link from "next/link";
 import { 
-  Package, UserCog, ShoppingCart, ShieldCheck, 
-  Plus, Users, ArrowRight, UserPlus, Trash2, Edit2,
-  CheckCircle2, AlertCircle
+  Package, UserCog, ShoppingCart, 
+  Users, ArrowRight, UserPlus
 } from "lucide-react";
+import { listUsers } from "../api";
+import { useApiData } from "@/shared/lib/use-api-data";
 
 const divisions = [
   { 
@@ -35,23 +36,13 @@ const divisions = [
   },
 ];
 
-const mockMembers = [
-  { id: 1, name: "Andi Saputra", role: "gudang", email: "andi@dpsa.com", status: "Active" },
-  { id: 2, name: "Budi Santoso", role: "ppic", email: "budi@dpsa.com", status: "Active" },
-  { id: 3, name: "Citra Lestari", role: "purchasing", email: "citra@dpsa.com", status: "Active" },
-];
-
 export default function SuperAdminDashboard() {
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newMember, setNewMember] = useState({ name: "", role: "gudang", password: "" });
-
-  const handleAddMember = (e: React.FormEvent) => {
-    e.preventDefault();
-    // In a real app, this would be an API call
-    alert(`Member ${newMember.name} added as ${newMember.role}!`);
-    setShowAddModal(false);
-    setNewMember({ name: "", role: "gudang", password: "" });
-  };
+  const { data: users, loading, error } = useApiData(
+    () => listUsers({ pageSize: 10 }),
+    "dashboard-users",
+    "Gagal memuat daftar user.",
+  );
+  const members = users?.rows ?? [];
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -103,12 +94,14 @@ export default function SuperAdminDashboard() {
             <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
               <Users className="w-5 h-5" />
             </div>
-            <h2 className="text-lg font-bold text-gray-800">Daftar Member Aktif</h2>
+            <h2 className="text-lg font-bold text-gray-800">Daftar User</h2>
           </div>
-          <div className="flex gap-2">
-            <button className="px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 rounded-lg transition-colors">Export CSV</button>
-            <button className="px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">Lihat Semua</button>
-          </div>
+          <Link
+            href="/dashboard/superadmin/users"
+            className="px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+          >
+            Lihat Semua ({users?.total ?? 0})
+          </Link>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
@@ -117,123 +110,40 @@ export default function SuperAdminDashboard() {
                 <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Nama</th>
                 <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Role</th>
                 <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Email</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {mockMembers.map((member) => (
+              {loading && (
+                <tr><td colSpan={3} className="px-6 py-8 text-center text-gray-400">Memuat data...</td></tr>
+              )}
+              {!loading && error && (
+                <tr><td colSpan={3} className="px-6 py-8 text-center text-red-500">{error}</td></tr>
+              )}
+              {!loading && !error && members.map((member) => (
                 <tr key={member.id} className="hover:bg-gray-50/50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold">
-                        {member.name.charAt(0)}
+                        {member.username.charAt(0).toUpperCase()}
                       </div>
-                      <span className="font-semibold text-gray-700">{member.name}</span>
+                      <span className="font-semibold text-gray-700">{member.username}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold capitalize ${
-                      member.role === 'gudang' ? 'bg-orange-100 text-orange-600' :
-                      member.role === 'ppic' ? 'bg-purple-100 text-purple-600' :
-                      'bg-teal-100 text-teal-600'
-                    }`}>
-                      {member.role}
+                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-600">
+                      {member.roleName}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-gray-500 text-sm">{member.email}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-1.5 text-emerald-600 font-medium text-sm">
-                      <CheckCircle2 className="w-4 h-4" />
-                      {member.status}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-2">
-                      <button className="p-2 text-gray-400 hover:text-blue-600 transition-colors">
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button className="p-2 text-gray-400 hover:text-red-600 transition-colors">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
                 </tr>
               ))}
+              {!loading && !error && members.length === 0 && (
+                <tr><td colSpan={3} className="px-6 py-8 text-center text-gray-400 italic">Belum ada user.</td></tr>
+              )}
             </tbody>
           </table>
         </div>
       </div>
-
-      {/* Add Member Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowAddModal(false)}></div>
-          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in duration-300">
-            <div className="p-8">
-              <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-100 text-blue-600 rounded-xl">
-                    <UserPlus className="w-6 h-6" />
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-800">Tambah Member</h3>
-                </div>
-                <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
-                  <Plus className="w-6 h-6 rotate-45" />
-                </button>
-              </div>
-
-              <form onSubmit={handleAddMember} className="space-y-5">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Nama Lengkap</label>
-                  <input 
-                    type="text" 
-                    required
-                    placeholder="Masukkan nama..."
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all"
-                    value={newMember.name}
-                    onChange={(e) => setNewMember({...newMember, name: e.target.value})}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Role Akses</label>
-                  <select 
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all appearance-none"
-                    value={newMember.role}
-                    onChange={(e) => setNewMember({...newMember, role: e.target.value})}
-                  >
-                    <option value="gudang">Gudang</option>
-                    <option value="ppic">PPIC</option>
-                    <option value="purchasing">Purchasing</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Password Default</label>
-                  <input 
-                    type="password" 
-                    required
-                    placeholder="Minimal 6 karakter..."
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all"
-                    value={newMember.password}
-                    onChange={(e) => setNewMember({...newMember, password: e.target.value})}
-                  />
-                </div>
-
-                <div className="pt-4">
-                  <button 
-                    type="submit"
-                    className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 active:scale-95 transition-all"
-                  >
-                    Simpan Member
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

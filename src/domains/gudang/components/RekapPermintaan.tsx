@@ -1,15 +1,82 @@
 "use client";
 
 import React, { useState } from 'react';
-import Link from 'next/link';
+import { Search, FileUp, Download, Eye, Loader2, AlertCircle } from 'lucide-react';
+import { exportRequestsReport, getMaterialRequest, getRequestsReport } from '@/domains/gudang/api';
+import { displayDate } from '@/domains/gudang/date';
+import type { MaterialRequestDetail, MaterialRequestStatus } from '@/domains/gudang/types';
+import { ApiError } from '@/shared/lib/api-client';
+import { useApiData } from '@/shared/lib/use-api-data';
 
-import { Search, FileUp, Download, Eye, Square } from 'lucide-react';
+const STATUS_LABEL: Record<MaterialRequestStatus, { label: string; cls: string }> = {
+    PENDING: { label: 'Menunggu PPIC', cls: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+    PROSES: { label: 'Menunggu Proses', cls: 'bg-blue-100 text-blue-800 border-blue-200' },
+    SELESAI: { label: 'Selesai', cls: 'bg-green-100 text-green-800 border-green-200' },
+};
+
+const monthStart = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+};
 
 export default function RekapPermintaan(){
     const [searchQuery, setSearchQuery] = useState<string>('');
-    const [filterSumber, setFilterSumber] = useState<string>('ALL');
-    const [startDate, setStartDate] = useState<string>('2026-09-01');
-    const [endDate, setEndDate] = useState<string>('2026-09-26');
+    const [filterStatus, setFilterStatus] = useState<'ALL' | MaterialRequestStatus>('ALL');
+    const [startDate, setStartDate] = useState<string>(monthStart());
+    const [endDate, setEndDate] = useState<string>(new Date().toISOString().slice(0, 10));
+    const [selected, setSelected] = useState<Set<number>>(new Set());
+    const [detail, setDetail] = useState<MaterialRequestDetail | null>(null);
+    const [actionError, setActionError] = useState('');
+    const [exporting, setExporting] = useState(false);
+
+    const filters = {
+        q: searchQuery || undefined,
+        status: filterStatus === 'ALL' ? undefined : filterStatus,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+    };
+
+    // ponytail: loads first 100 rows only, add real pagination when the list outgrows it
+    const { data: report, loading, error } = useApiData(
+        () => getRequestsReport({ ...filters, pageSize: 100 }),
+        JSON.stringify(filters),
+        'Gagal memuat rekap permintaan.',
+    );
+
+    const rows = report?.rows ?? [];
+    const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
+    const anySelected = selected.size > 0;
+
+    const toggleRow = (id: number) =>
+        setSelected((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+        });
+
+    const toggleAll = () => setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.id)));
+
+    const openDetail = async (id: number) => {
+        setActionError('');
+        try {
+            setDetail(await getMaterialRequest(id));
+        } catch (err) {
+            setActionError(err instanceof ApiError ? err.message : 'Gagal memuat detail permintaan.');
+        }
+    };
+
+    // Rows ticked -> export only those; nothing ticked -> export everything matching the filters.
+    const handleExport = async () => {
+        setExporting(true);
+        setActionError('');
+        try {
+            await exportRequestsReport(anySelected ? { ids: [...selected] } : filters);
+        } catch (err) {
+            setActionError(err instanceof ApiError ? err.message : 'Gagal mengekspor rekap permintaan.');
+        } finally {
+            setExporting(false);
+        }
+    };
 
     return(
         <div className='animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10'>
@@ -18,29 +85,29 @@ export default function RekapPermintaan(){
                 <p className="text-gray-500 text-sm">Kelola pengajuan permintaan pengeluaran bahan & barang dari gudang.</p>
             </div>
 
-            <div className="flex flex-wrap justify-between items-center bg-white p-4 border border-gray-200 rounded-lg shadow-sm gap-4 mt-5">
+            <div className="flex flex-wrap justify-between items-center bg-white p-4 border border-gray-200 rounded-lg shadow-sm gap-4 mt-5 print:hidden">
                 <div className="flex flex-wrap gap-3 items-center">
                     <div>
                         <label className="block text-xs text-black mb-1">Cari Permintaan</label>
                         <span className="relative flex items-center w-100">
                             <input
                             type="text"
-                            placeholder="Cari SPK, Proyek, Tukang" 
+                            placeholder="Cari SPK, Proyek, Tukang"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="border border-gray-300 rounded-md pl-3 pr-10 py-1.5 text-sm w-full bg-white text-black placeholder:text-gray focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                             <button className="absolute right-2 flex items-center justify-center">
-                            <Search className="text-black w-4 h-4" />
+                                <Search className="text-black w-4 h-4" />
                             </button>
                         </span>
-                    </div> 
+                    </div>
 
                     <div>
                         <label className="block text-xs text-black mb-1">Status Permintaan</label>
                         <select
-                        value={filterSumber}
-                        onChange={(e) => setFilterSumber(e.target.value)}
+                        value={filterStatus}
+                        onChange={(e) => setFilterStatus(e.target.value as 'ALL' | MaterialRequestStatus)}
                         className="border border-gray-300 rounded-md px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500c text-black"
                         >
                         <option value="ALL" className='text-black'>Semua Status</option>
@@ -74,23 +141,31 @@ export default function RekapPermintaan(){
             <div className="overflow-x-auto border border-gray-200 rounded-lg bg-white shadow-sm mt-5">
                 <div className="flex gap-2 items-end justify-between">
                     <div className="flex gap-2 items-end m-2">
-                        <p className="text-xs font-semibold text-gray-500 uppercase m-2">Tabel Rekap Permintaan Barang</p>
+                        <p className="text-xs font-semibold text-gray-500 uppercase m-2">
+                            Tabel Rekap Permintaan Barang{anySelected ? ` (${selected.size} dipilih)` : ''}
+                        </p>
                     </div>
-                    <div className="flex gap-2 items-end m-2">
-                        <button 
-                        className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0"
+                    <div className="flex gap-2 items-end m-2 print:hidden">
+                        <button
+                        onClick={handleExport}
+                        disabled={exporting}
+                        title="Export Data ke CSV"
+                        className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-60"
                         >
-                        <FileUp className='h-4 w-4'></FileUp>
-                        <span>Export Excel</span>
+                        <FileUp className="w-4 h-4" />
+                        <span className="hidden sm:inline">{exporting ? 'Mengekspor...' : 'Export'}</span>
                         </button>
-                        <button 
-                        className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0"
+                        <button
+                        onClick={() => window.print()}
+                        title="Print Data ke PDF"
+                        className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-60"
                         >
-                        <Download className='h-4 w-4'></Download>
-                        <span>Cetak PDF</span>
+                        <Download className="w-4 h-4" />
+                        <span className="hidden sm:inline">Print PDF</span>
                         </button>
                     </div>
                 </div>
+                {actionError && <p className="px-4 pb-2 text-sm text-red-500">{actionError}</p>}
                 <table className="min-w-full divide-y divide-gray-200 text-sm">
                     <thead className="bg-gray-100 font-semibold text-gray-700">
                         <tr>
@@ -100,17 +175,150 @@ export default function RekapPermintaan(){
                         <th className="px-4 py-3 text-left">Nama Klien</th>
                         <th className="px-4 py-3 text-right">Item Produksi</th>
                         <th className="px-4 py-3 text-center">Group Tukang</th>
-                        <th className="px-4 py-3 text-center">Aksi</th>
-                        <th className="flex px-4 py-3 text-center">
-                            Pilih<Square className='h-5 w-5 ml-2 mt-auto'></Square>
-                        </th>                        
+                        <th className="px-4 py-3 text-center">Status</th>
+                        <th className="px-4 py-3 text-center print:hidden">Aksi</th>
+                        <th className="flex px-4 py-3 text-center print:hidden">
+                            <div className="flex items-center justify-center">Check
+                                <input type="checkbox" checked={allSelected} onChange={toggleAll} className="ml-2 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" />
+                            </div>
+                        </th>
                         </tr>
                     </thead>
-                    <tbody>
-                        
+                    <tbody className="divide-y divide-gray-200">
+                        {loading ? (
+                        <tr>
+                            <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
+                            <div className="flex items-center justify-center gap-2">
+                                <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                                <span>Memuat data rekap permintaan...</span>
+                            </div>
+                            </td>
+                        </tr>
+                        ) : error ? (
+                        <tr>
+                            <td colSpan={9} className="px-4 py-8 text-center text-red-500">
+                            <div className="flex flex-col items-center justify-center gap-2">
+                                <AlertCircle className="w-6 h-6 text-red-500" />
+                                <span className="font-semibold">{error}</span>
+                            </div>
+                            </td>
+                        </tr>
+                        ) : rows.length === 0 ? (
+                        <tr>
+                            <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
+                            Tidak ada data permintaan ditemukan.
+                            </td>
+                        </tr>
+                        ) : (
+                        rows.map((item, index) => (
+                            <tr
+                                key={item.id}
+                                className={`hover:bg-gray-50 transition-colors ${anySelected && !selected.has(item.id) ? 'print:hidden' : ''}`}
+                            >
+                            <td className="px-4 py-3 text-center text-gray-500">{index + 1}</td>
+                            <td className="px-4 py-3 text-gray-700 font-medium">{displayDate(item.requestDate)}</td>
+                            <td className="px-4 py-3 font-mono font-semibold text-blue-600">{item.spk}</td>
+                            <td className="px-4 py-3 text-gray-900">{item.clientName}</td>
+                            <td className="px-4 py-3 text-right text-gray-700">
+                                {item.productionItem}
+                                <span className="block text-xs text-gray-400">{item.lineCount} barang</span>
+                            </td>
+                            <td className="px-4 py-3 text-center text-gray-700">{item.toolGroup}</td>
+                            <td className="px-4 py-3 text-center">
+                                <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border ${STATUS_LABEL[item.status].cls}`}>
+                                    {STATUS_LABEL[item.status].label}
+                                </span>
+                            </td>
+                            <td className="px-4 py-3 text-center print:hidden">
+                                <button
+                                onClick={() => openDetail(item.id)}
+                                className="flex-1 lg:flex-none flex items-center justify-center gap-2 text-blue-600 hover:text-blue-800 font-medium text-xs bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded border border-blue-200 transition-colors"
+                                >
+                                <Eye className='h-4 w-4'></Eye>
+                                <span>View Detail</span>
+                                </button>
+                            </td>
+                            <td className="px-4 py-3 text-center print:hidden">
+                                <input
+                                    type="checkbox"
+                                    checked={selected.has(item.id)}
+                                    onChange={() => toggleRow(item.id)}
+                                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                />
+                            </td>
+                            </tr>
+                        ))
+                        )}
                     </tbody>
                 </table>
+
+                <div className="p-4 border-t border-gray-100 bg-gray-50/50 text-sm text-gray-500 print:hidden">
+                    Menampilkan <span className="font-semibold text-gray-900">{rows.length}</span> dari <span className="font-semibold text-gray-900">{report?.total ?? 0}</span> permintaan
+                </div>
             </div>
+
+            {detail && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+                    <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 border border-gray-100">
+                        <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-100">
+                            <h3 className="text-lg font-bold text-gray-900">Detail Permintaan</h3>
+                            <button
+                                onClick={() => setDetail(null)}
+                                className="text-gray-400 hover:text-gray-600 font-bold text-xl px-2"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <div className="space-y-3 text-sm">
+                            <div className="flex justify-between py-1 border-b border-gray-50">
+                                <span className="text-gray-500">SPK</span>
+                                <span className="font-mono font-bold text-blue-600">{detail.spk}</span>
+                            </div>
+                            <div className="flex justify-between py-1 border-b border-gray-50">
+                                <span className="text-gray-500">Tgl Permintaan</span>
+                                <span className="font-medium text-gray-800">{displayDate(detail.requestDate)}</span>
+                            </div>
+                            <div className="flex justify-between py-1 border-b border-gray-50">
+                                <span className="text-gray-500">Klien / Item Produksi</span>
+                                <span className="font-medium text-gray-800">{detail.clientName} / {detail.productionItem}</span>
+                            </div>
+                            <div className="flex justify-between py-1 border-b border-gray-50">
+                                <span className="text-gray-500">Group Tukang</span>
+                                <span className="font-medium text-gray-800">{detail.toolGroup}</span>
+                            </div>
+                            <div className="flex justify-between py-1 border-b border-gray-50">
+                                <span className="text-gray-500">Status</span>
+                                <span className="font-semibold text-gray-800">{STATUS_LABEL[detail.status].label}</span>
+                            </div>
+                            <div className="py-1">
+                                <span className="text-gray-500 block mb-1">Barang diminta:</span>
+                                <ul className="bg-gray-50 p-2.5 rounded border border-gray-100 text-xs text-gray-700 space-y-1">
+                                    {detail.lines.map((line) => (
+                                        <li key={line.itemId} className="flex justify-between gap-2">
+                                            <span>{line.itemCode ? `${line.itemCode} - ` : ''}{line.itemName}{line.locationCode ? ` (${line.locationCode})` : ''}</span>
+                                            <span className="font-semibold whitespace-nowrap">{line.qty} {line.unit}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                            {detail.notes && (
+                                <div className="py-1">
+                                    <span className="text-gray-500 block mb-1">Catatan:</span>
+                                    <p className="bg-gray-50 p-2.5 rounded border border-gray-100 text-xs text-gray-700">{detail.notes}</p>
+                                </div>
+                            )}
+                        </div>
+                        <div className="mt-6 text-right">
+                            <button
+                                onClick={() => setDetail(null)}
+                                className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                            >
+                                Tutup
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

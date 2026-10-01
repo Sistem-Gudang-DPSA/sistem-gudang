@@ -1,45 +1,46 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Search, Calendar, Plus } from 'lucide-react';
+import { Search, Calendar, Plus, Eye } from 'lucide-react';
 import Link from 'next/link';
+import { getStockOpname, listStockOpname } from '@/domains/gudang/api';
+import type { StockOpnameDetail } from '@/domains/gudang/types';
+import { ApiError } from '@/shared/lib/api-client';
+import { useApiData } from '@/shared/lib/use-api-data';
+
+const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+const periodeLabel = (month: number, year: number) => `Stok Opname ${BULAN[month - 1]} ${year}`;
+const rupiah = (n: number) => n.toLocaleString('id-ID');
 
 export default function StockOpnameMasterGudang() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
   const [filterYear, setFilterYear] = useState("");
 
-  const dataStockOpname = [
-    {
-      no: "1.",
-      nama: "Stok Opname Maret 2026",
-    },
-    { no: "", nama: "" },
-    { no: "", nama: "" },
-    { no: "", nama: "" },
-    { no: "", nama: "" },
-    { no: "", nama: "" },
-    { no: "", nama: "" },
-  ];
+  const [detail, setDetail] = useState<StockOpnameDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState("");
 
-  const filteredData = dataStockOpname.filter(item => {
-    if (searchQuery === "" && filterMonth === "" && filterYear === "") return true;
-    if (!item.nama && !item.no) return false;
-    if (!item.nama) return false;
+  // ponytail: loads first 100 rows only, add real pagination when the list outgrows it
+  const { data: result, loading, error } = useApiData(
+    () => listStockOpname({ pageSize: 100, search: searchQuery || undefined, month: filterMonth ? Number(filterMonth) : undefined, year: filterYear ? Number(filterYear) : undefined }),
+    JSON.stringify([searchQuery, filterMonth, filterYear]),
+    'Gagal memuat data stok opname.',
+  );
+  const rows = result?.rows ?? [];
+  const total = result?.total ?? 0;
 
-    const searches = searchQuery.toLowerCase();
-    const matchesSearch = searchQuery === "" || item.nama.toLowerCase().includes(searches);
-
-    const monthLabels: { [key: string]: string } = {
-      '01': 'Januari', '02': 'Februari', '03': 'Maret', '04': 'April',
-      '05': 'Mei', '06': 'Juni', '07': 'Juli', '08': 'Agustus',
-      '09': 'September', '10': 'Oktober', '11': 'November', '12': 'Desember'
-    };
-    const matchesMonth = filterMonth === "" || item.nama.includes(monthLabels[filterMonth]);
-    const matchesYear = filterYear === "" || item.nama.includes(filterYear);
-
-    return matchesSearch && matchesMonth && matchesYear;
-  });
+  const openDetail = async (id: number) => {
+    setDetailLoading(true);
+    setDetailError("");
+    try {
+      setDetail(await getStockOpname(id));
+    } catch (err) {
+      setDetailError(err instanceof ApiError ? err.message : "Gagal memuat detail stok opname.");
+    } finally {
+      setDetailLoading(false);
+    }
+  };
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -122,6 +123,8 @@ export default function StockOpnameMasterGudang() {
           </Link>
         </div>
 
+        {detailError && <p className="px-6 pt-3 text-sm text-red-500">{detailError}</p>}
+
         {/* Table Container */}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
@@ -133,25 +136,39 @@ export default function StockOpnameMasterGudang() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {filteredData.map((item, index) => (
-                <tr key={index} className="hover:bg-[#FF8A00]/5 transition-colors group">
-                  <td className="px-6 py-4 text-gray-500 text-center">{item.no}</td>
-                  <td className="px-6 py-4 font-bold text-gray-900">{item.nama}</td>
+              {loading && (
+                <tr><td colSpan={3} className="px-6 py-10 text-center text-gray-400">Memuat data...</td></tr>
+              )}
+              {!loading && error && (
+                <tr><td colSpan={3} className="px-6 py-10 text-center text-red-500">{error}</td></tr>
+              )}
+              {!loading && !error && rows.map((item, index) => (
+                <tr key={item.id} className="hover:bg-[#FF8A00]/5 transition-colors group">
+                  <td className="px-6 py-4 text-gray-500 text-center">{index + 1}.</td>
+                  <td className="px-6 py-4 font-bold text-gray-900">
+                    {periodeLabel(item.month, item.year)}
+                  </td>
                   <td className="px-6 py-4 text-center">
-                    {item.nama && (
-                      <div className="flex items-center justify-center gap-2">
-                        <button className="px-4 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] font-bold rounded-lg text-xs hover:bg-[#FF8A00]/20 transition-all">
-                          Edit
-                        </button>
-                        <button className="px-4 py-1.5 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs hover:bg-blue-100 transition-all">
-                          Download
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex items-center justify-center gap-2">
+                      <button className="px-4 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] font-bold rounded-lg text-xs hover:bg-[#FF8A00]/20 transition-all">
+                        Edit
+                      </button>
+                      <button className="px-4 py-1.5 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs hover:bg-blue-100 transition-all">
+                        Download
+                      </button>
+                      <button
+                        onClick={() => openDetail(item.id)}
+                        disabled={detailLoading}
+                        className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs hover:bg-blue-100 transition-all disabled:opacity-60"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        Detail
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
-              {filteredData.length === 0 && (
+              {!loading && !error && rows.length === 0 && (
                 <tr>
                   <td colSpan={3} className="px-6 py-10 text-center text-gray-400 italic">
                     Data tidak ditemukan untuk filter tersebut.
@@ -165,7 +182,7 @@ export default function StockOpnameMasterGudang() {
         {/* Pagination Footer */}
         <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
           <div>
-            Menampilkan <span className="font-semibold text-gray-900">1</span> sampai <span className="font-semibold text-gray-900">{filteredData.filter(i=>i.no).length}</span> dari <span className="font-semibold text-gray-900">{filteredData.filter(i=>i.no).length}</span> data
+            Menampilkan <span className="font-semibold text-gray-900">1</span> sampai <span className="font-semibold text-gray-900">{rows.length}</span> dari <span className="font-semibold text-gray-900">{total}</span> data
           </div>
           <div className="flex gap-1">
             <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-400 cursor-not-allowed">Sec</button>
@@ -176,6 +193,55 @@ export default function StockOpnameMasterGudang() {
           </div>
         </div>
       </div>
+      {detail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[900px] max-h-[90vh] overflow-y-auto p-8 relative">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-[20px] font-extrabold text-gray-900 uppercase">{periodeLabel(detail.month, detail.year)}</h2>
+              <button onClick={() => setDetail(null)} className="text-gray-400 hover:text-gray-600 font-bold text-xl px-2">✕</button>
+            </div>
+            {detail.notes && <p className="text-sm text-gray-600 mb-4">{detail.notes}</p>}
+            <div className="overflow-x-auto border border-gray-200 rounded-lg">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-gray-50 text-gray-600 font-semibold">
+                  <tr>
+                    <th className="px-4 py-3">Barang</th>
+                    <th className="px-4 py-3">Satuan</th>
+                    <th className="px-4 py-3">Kategori</th>
+                    <th className="px-4 py-3 text-center">Sistem</th>
+                    <th className="px-4 py-3 text-center">Fisik</th>
+                    <th className="px-4 py-3 text-center">Selisih</th>
+                    <th className="px-4 py-3 text-right">Harga</th>
+                    <th className="px-4 py-3">Keterangan</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {detail.lines.map((line) => (
+                    <tr key={line.itemId}>
+                      <td className="px-4 py-3">
+                        <span className="font-medium text-gray-900">{line.itemName}</span>
+                        <span className="block text-xs font-mono text-gray-500">{line.itemCode ?? '-'}</span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">{line.unit}</td>
+                      <td className="px-4 py-3 text-gray-600">{line.category}</td>
+                      <td className="px-4 py-3 text-center">{line.systemQty}</td>
+                      <td className="px-4 py-3 text-center font-bold">{line.physicalQty}</td>
+                      <td className={`px-4 py-3 text-center font-bold ${line.difference < 0 ? 'text-red-600' : line.difference > 0 ? 'text-green-600' : 'text-gray-500'}`}>
+                        {line.difference > 0 ? `+${line.difference}` : line.difference}
+                      </td>
+                      <td className="px-4 py-3 text-right">{rupiah(line.physicalPrice)}</td>
+                      <td className="px-4 py-3 text-gray-600">{line.note ?? '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-6 text-right">
+              <button onClick={() => setDetail(null)} className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-md text-sm font-medium">Tutup</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

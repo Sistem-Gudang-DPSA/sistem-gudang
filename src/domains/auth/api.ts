@@ -1,4 +1,5 @@
 import { apiClient, setAccessToken } from "@/shared/lib/api-client";
+import { visibleNav } from "./nav";
 import type { AuthUser, LoginResult } from "./types";
 
 export async function login(email: string, password: string): Promise<AuthUser> {
@@ -21,7 +22,14 @@ export async function logout(): Promise<void> {
   }
 }
 
+// First division the user may see; the role name is not a route (e.g. "Koor Inventory").
 export function dashboardPathFor(user: AuthUser): string {
   if (user.isSuperadmin) return "/dashboard/superadmin";
-  return `/dashboard/${user.roleName.toLowerCase()}`;
+  const first = visibleNav(user)[0];
+  return first ? `/dashboard/${first.key}` : "/dashboard";
+}
+
+// Only same-site dashboard paths are accepted from ?next=, so it cannot redirect elsewhere.
+export function safeNextPath(next: string | null): string | null {
+  return next && /^\/dashboard(\/|$)/.test(next) && !next.includes("//") ? next : null;
 }

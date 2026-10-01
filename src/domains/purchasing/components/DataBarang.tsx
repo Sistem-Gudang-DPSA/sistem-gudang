@@ -3,13 +3,13 @@
 import React, { useEffect, useState } from 'react';
 import { Search, Plus, Download, Filter } from 'lucide-react';
 import { listItems, listLocations, updateItem } from '@/domains/inventory/api';
-import type { Item, Location } from '@/domains/inventory/types';
+import type { ItemListRow, Location } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
 import type { Supplier } from '@/domains/purchasing/types';
 import { ApiError } from '@/shared/lib/api-client';
 
 export default function DataBarangPurchasing() {
-  const [dataBarang, setDataBarang] = useState<Item[]>([]);
+  const [dataBarang, setDataBarang] = useState<ItemListRow[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,7 +44,7 @@ export default function DataBarangPurchasing() {
     listLocations().then((res) => setLocations(res.rows)).catch(() => {});
   }, []);
 
-  const handleEdit = (item: Item) => {
+  const handleEdit = (item: ItemListRow) => {
     setEditingId(item.id);
     setFormData({ supplierId: String(item.supplierId), price: String(item.price) });
     setModalError("");
@@ -59,11 +59,11 @@ export default function DataBarangPurchasing() {
     setSaving(true);
     setModalError("");
     try {
-      const updated = await updateItem(editingId, {
+      await updateItem(editingId, {
         price: Number(formData.price),
         supplierId: Number(formData.supplierId),
       });
-      setDataBarang((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+      await loadBarang(searchTerm);
       setIsModalOpen(false);
       setEditingId(null);
     } catch (err) {
