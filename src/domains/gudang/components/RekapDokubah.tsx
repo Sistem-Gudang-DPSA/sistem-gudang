@@ -14,8 +14,8 @@ const DUMMY_DOKUBAH: RekapDokubahItems[] = [
 
 export default function RekapDokubah() {
     const [searchQuery, setSearchQuery] = useState("");
-    const [startDate, setStartDate] = useState("01-01-2026"); 
-    const [endDate, setEndDate] = useState("31-12-2026");
+    const [startDate, setStartDate] = useState("2026-01-01"); 
+    const [endDate, setEndDate] = useState("2026-12-31");
     const [filterSumber, setFilterSumber] = useState("ALL");
     const [data, setData] = useState<RekapDokubahItems[]>(DUMMY_DOKUBAH);
     const [isLoading, setIsLoading] = useState(false);
@@ -58,6 +58,8 @@ export default function RekapDokubah() {
           const worksheet = XLSX.utils.json_to_sheet(exportData);
           const workbook = XLSX.utils.book_new();
           XLSX.utils.book_append_sheet(workbook, worksheet, 'Rekap Dokubah');
+
+          XLSX.writeFile(workbook, `Rekap_Dokubah_${startDate}_to_${endDate}.xlsx`);
         };
     
         const handlePrintPDF = () => {

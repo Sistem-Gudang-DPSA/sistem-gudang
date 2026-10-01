@@ -268,3 +268,25 @@ export interface RekapDokubahItems {
   startDate: string;
   endDate: string;
 }
+
+export interface RekapPermintaan {
+  id: string | number;
+  tanggal: string;
+  noSPK: string;
+  namaKlien: string;
+  itemProduksi: string;
+  grupTukang: string; 
+}
+
+export interface RekapPermintaanItems { 
+  id: string | number;
+  noSPK: string;
+  tanggalMulai: string;
+  tanggalSelesai: string;
+  namaKlien: string;
+  itemProduksi: string;
+  grupTukang: string;
+  ItemBahan: string;
+  jumlahPermintaan: number;
+  kuotaDokubah: number;
+}
