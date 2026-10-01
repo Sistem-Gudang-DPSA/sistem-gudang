@@ -26,7 +26,6 @@ export interface NavDivision {
 }
 
 // Links whose pages do not exist yet are left out on purpose (they used to 404):
-// gudang: laporan/stock-opname, laporan/dokubah
 // ppic: laporan/barang-masuk, barang-keluar, barang-dikembalikan, stok-opname
 // purchasing: laporan/barang-masuk, barang-keluar, stok-opname, pembelian
 export const NAV_DIVISIONS: NavDivision[] = [
@@ -63,6 +62,8 @@ export const NAV_DIVISIONS: NavDivision[] = [
           { href: "/dashboard/gudang/laporan/barang-masuk", label: "Rekap Data Barang Masuk", anyOf: ["report.view"] },
           { href: "/dashboard/gudang/laporan/barang-keluar", label: "Rekap Data Barang Keluar", anyOf: ["report.view"] },
           { href: "/dashboard/gudang/laporan/rekap-permintaan", label: "Rekap Permintaan", anyOf: ["report.view"] },
+          { href: "/dashboard/gudang/laporan/stock-opname", label: "Rekap Stok Opname", anyOf: ["report.view"] },
+          { href: "/dashboard/gudang/laporan/dokubah", label: "Rekap Dokubah", anyOf: ["report.view"] },
         ],
       },
     ],

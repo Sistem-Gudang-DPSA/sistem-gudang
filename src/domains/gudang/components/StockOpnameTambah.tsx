@@ -115,10 +115,16 @@ export default function TambahStockOpnameGudang() {
                     <th rowSpan={2} className="border-r border-b border-gray-200 px-6 py-4 align-top whitespace-nowrap">Nama Barang</th>
                     <th rowSpan={2} className="border-r border-b border-gray-200 px-6 py-4 align-top whitespace-nowrap">Satuan</th>
                     <th rowSpan={2} className="border-r border-b border-gray-200 px-6 py-4 align-top whitespace-nowrap">Kategori</th>
+                    <th colSpan={2} className="border-r border-b border-gray-200 px-6 py-2.5 text-center whitespace-nowrap">Administrasi</th>
                     <th colSpan={2} className="border-r border-b border-gray-200 px-6 py-2.5 text-center whitespace-nowrap">Fisik</th>
+                    <th colSpan={2} className="border-r border-b border-gray-200 px-6 py-2.5 text-center whitespace-nowrap">Selisih</th>
                     <th rowSpan={2} className="border-b border-gray-200 px-6 py-4 align-top whitespace-nowrap">Keterangan</th>
                   </tr>
                   <tr>
+                    <th className="border-r border-b border-gray-200 px-6 py-2.5 font-semibold whitespace-nowrap text-center">Jumlah</th>
+                    <th className="border-r border-b border-gray-200 px-6 py-2.5 font-semibold whitespace-nowrap text-center">Harga</th>
+                    <th className="border-r border-b border-gray-200 px-6 py-2.5 font-semibold whitespace-nowrap text-center">Jumlah</th>
+                    <th className="border-r border-b border-gray-200 px-6 py-2.5 font-semibold whitespace-nowrap text-center">Harga</th>
                     <th className="border-r border-b border-gray-200 px-6 py-2.5 font-semibold whitespace-nowrap text-center">Jumlah</th>
                     <th className="border-r border-b border-gray-200 px-6 py-2.5 font-semibold whitespace-nowrap text-center">Harga</th>
                   </tr>
@@ -126,6 +132,10 @@ export default function TambahStockOpnameGudang() {
                 <tbody className="divide-y divide-gray-100">
                   {data.map((row, index) => {
                     const item = findItem(row.itemId);
+                    // Administrasi = system stock; Fisik harga and Selisih are derived (the API only takes physical qty).
+                    const adm = item ? { qty: item.stock, harga: item.stock * item.price } : null;
+                    const fsk = item && row.jumlah !== "" ? { qty: Number(row.jumlah), harga: Number(row.jumlah) * item.price } : null;
+                    const fmt = (n?: number) => (n === undefined ? '' : n.toLocaleString('id-ID'));
                     return (
                       <tr key={index} className="bg-white hover:bg-orange-50/10 transition-colors duration-150">
                         <td className="border-r border-b border-gray-100/50 h-[48px] text-gray-400 font-medium text-center text-xs">{index + 1}</td>
@@ -142,12 +152,14 @@ export default function TambahStockOpnameGudang() {
                         </td>
                         <td className="border-r border-b border-gray-100/50 px-4 py-2 w-24 text-center text-gray-600">{item?.unit ?? ''}</td>
                         <td className="border-r border-b border-gray-100/50 px-4 py-2 w-32 text-center text-gray-600">{item?.category ?? ''}</td>
+                        <td className="border-r border-b border-gray-100/50 px-4 py-2 w-28 text-center text-gray-600">{fmt(adm?.qty)}</td>
+                        <td className="border-r border-b border-gray-100/50 px-4 py-2 w-36 text-center text-gray-600">{fmt(adm?.harga)}</td>
                         <td className="border-r border-b border-gray-100/50 p-0 w-28">
                           <input type="number" min={0} value={row.jumlah} placeholder="0" onChange={(e) => handleChange(index, { jumlah: e.target.value })} className="w-full h-full min-h-[48px] px-4 py-2 bg-transparent text-center focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 text-gray-700 text-sm transition-all placeholder-gray-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                         </td>
-                        <td className="border-r border-b border-gray-100/50 px-4 py-2 w-36 text-center text-gray-600">
-                          {item ? item.price.toLocaleString('id-ID') : ''}
-                        </td>
+                        <td className="border-r border-b border-gray-100/50 px-4 py-2 w-36 text-center text-gray-600">{fmt(fsk?.harga)}</td>
+                        <td className="border-r border-b border-gray-100/50 px-4 py-2 w-28 text-center text-gray-600 font-bold bg-gray-50/50">{fsk && adm ? fmt(fsk.qty - adm.qty) : ''}</td>
+                        <td className="border-r border-b border-gray-100/50 px-4 py-2 w-36 text-center text-gray-600 font-bold bg-gray-50/50">{fsk && adm ? fmt(fsk.harga - adm.harga) : ''}</td>
                         <td className="border-b border-gray-100/50 p-0">
                           <input type="text" value={row.keterangan} placeholder="Tambahkan catatan..." onChange={(e) => handleChange(index, { keterangan: e.target.value })} className="w-full h-full min-h-[48px] px-6 py-2 bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 text-gray-700 text-sm transition-all placeholder-gray-300 italic" />
                         </td>
