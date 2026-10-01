@@ -44,3 +44,24 @@ export interface RekapStokOpname {
   tanggal: string;
   auditor: string;
 }
+
+export interface RekapDokubahItems {
+  id: string | number;
+  nomorSPK: string;
+  namaProyek: string;
+  anggaran: number;
+  statusSPK: 'AKTIF' | 'SELESAI' | 'BATAL';
+  totalPenggunaanMaterial: number;
+  totalOverbudget: number;
+  tanggalMulai: string;
+  tanggalSelesai: string;
+}
+
+export interface RekapPermintaanItems {
+  id: string | number;
+  tanggal: string;
+  noSPK: string;
+  namaKlien: string;
+  itemProduksi: string;
+  grupTukang: string; 
+}

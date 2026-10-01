@@ -1,15 +1,63 @@
 "use client";
 
 import React, { useState } from 'react';
+import * as XLSX from 'xlsx';
 import Link from 'next/link';
+import type { RekapPermintaanItems } from '../types';
 
-import { Search, FileUp, Download, Eye, Square } from 'lucide-react';
+import { Search, FileUp, Download, Eye, Square, Loader2, AlertCircle } from 'lucide-react';
 
 export default function RekapPermintaan(){
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [filterSumber, setFilterSumber] = useState<string>('ALL');
     const [startDate, setStartDate] = useState<string>('2026-09-01');
     const [endDate, setEndDate] = useState<string>('2026-09-26');
+    const [data, setData] = useState<RekapPermintaanItems[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [selectedIds, setSelectedIds] = useState<Set<string | number>>(new Set());
+
+    const filteredData = data;
+    const isAllSelected = filteredData.length > 0 && selectedIds.size === filteredData.length;
+
+    const handleSelectAll = () => {
+        if (isAllSelected) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(filteredData.map((item) => item.id)));
+        }
+    };
+
+    const handleSelectRow = (id: string | number) => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
+            return next;
+        });
+    };
+
+    const handleExportCSV = () => {
+              const exportData = filteredData.map((item, index) => ({
+                'No': index + 1,
+                'Nomor SPK': item.noSPK,
+                'Nama Proyek / Klien': item.namaKlien,
+                'Tanggal': item.tanggal,
+                'Group Tukang': item.grupTukang,
+                'Item Produksi': item.itemProduksi
+              }));
+        
+              const worksheet = XLSX.utils.json_to_sheet(exportData);
+              const workbook = XLSX.utils.book_new();
+              XLSX.utils.book_append_sheet(workbook, worksheet, 'Rekap Dokubah');
+            };
+        
+    const handlePrintPDF = () => {
+        window.print();
+    };
 
     return(
         <div className='animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10'>
@@ -76,18 +124,22 @@ export default function RekapPermintaan(){
                     <div className="flex gap-2 items-end m-2">
                         <p className="text-xs font-semibold text-gray-500 uppercase m-2">Tabel Rekap Permintaan Barang</p>
                     </div>
-                    <div className="flex gap-2 items-end m-2">
-                        <button 
-                        className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0"
+                    <div className="flex gap-2 items-end m-2 print:hidden">
+                        <button
+                            onClick={handleExportCSV}
+                            className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                            title="Export Data ke CSV"
                         >
-                        <FileUp className='h-4 w-4'></FileUp>
-                        <span>Export Excel</span>
+                            <FileUp className="w-4 h-4" />
+                            <span className="hidden sm:inline">Export</span>
                         </button>
-                        <button 
-                        className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0"
+                        <button
+                            onClick={handlePrintPDF}
+                            className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                            title="Print Data ke PDF"
                         >
-                        <Download className='h-4 w-4'></Download>
-                        <span>Cetak PDF</span>
+                            <Download className="w-4 h-4" />
+                            <span className="hidden sm:inline">Print PDF</span>
                         </button>
                     </div>
                 </div>
@@ -102,12 +154,65 @@ export default function RekapPermintaan(){
                         <th className="px-4 py-3 text-center">Group Tukang</th>
                         <th className="px-4 py-3 text-center">Aksi</th>
                         <th className="flex px-4 py-3 text-center">
-                            Pilih<Square className='h-5 w-5 ml-2 mt-auto'></Square>
+                            <div className="flex items-center justify-center">Check
+                                <input 
+                                    type="checkbox" 
+                                    className="ml-2 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                    checked={isAllSelected}
+                                    onChange={handleSelectAll}
+                                />
+                            </div>
                         </th>                        
                         </tr>
                     </thead>
                     <tbody>
-                        
+                        {
+                            isLoading ? (
+                                <tr>
+                                    <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                                    <div className="flex items-center justify-center gap-2">
+                                        <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                                        <span>Memuat data laporan barang masuk...</span>
+                                    </div>
+                                    </td>
+                                </tr>
+                            ) : errorMessage ? (
+                                <tr>
+                                    <td colSpan={8} className="px-4 py-8 text-center text-red-500">
+                                    <div className="flex flex-col items-center justify-center gap-2">
+                                        <AlertCircle className="w-6 h-6 text-red-500" />
+                                        <span className="font-semibold">{errorMessage}</span>
+                                        <span className="text-xs text-gray-400">Pastikan server backend sudah menyala dan endpoint laporan sudah tersedia.</span>
+                                    </div>
+                                    </td>
+                                </tr>
+                            ) : filteredData.length === 0 ? (
+                                <tr>
+                                    <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                                    Tidak ada data penerimaan barang masuk ditemukan.
+                                    </td>
+                                </tr>
+                            ) : (
+                                filteredData.map((item, index)=> (
+                                    <tr key={item.id} className="hover:bg-gray-50 transition-colors">
+                                        <td className="px-4 py-3 text-center text-gray-500">{index + 1}</td>
+                                        <td className="px-4 py-3 text-center text-gray-500">{item.tanggal}</td>
+                                        <td className="px-4 py-3 text-center text-gray-500">{item.noSPK}</td>
+                                        <td className="px-4 py-3 text-center text-gray-500">{item.namaKlien}</td>
+                                        <td className="px-4 py-3 text-center text-gray-500">{item.itemProduksi}</td>
+                                        <td className="px-4 py-3 text-center text-gray-500">{item.grupTukang}</td>
+                                        <td className="px-4 py-3 text-center text-gray-500">
+                                            <input 
+                                                type="checkbox" 
+                                                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" 
+                                                checked={selectedIds.has(item.id)}
+                                                onChange={() => handleSelectRow(item.id)}
+                                            />
+                                        </td>
+                                    </tr>
+                                ))  
+                            )
+                        }
                     </tbody>
                 </table>
             </div>
