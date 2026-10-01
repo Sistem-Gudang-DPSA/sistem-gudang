@@ -9,6 +9,8 @@ Satu dokumen membahas satu pekerjaan atau satu keputusan besar. Lihat
 | [01-Integrasi-Auth.md](01-Integrasi-Auth.md) | Login, refresh, dan logout frontend disambungkan ke backend, menggantikan akun palsu di localStorage. |
 | [02-Integrasi-Inventory-Item-Lokasi.md](02-Integrasi-Inventory-Item-Lokasi.md) | Data Barang dan Data Lokasi di Gudang, PPIC, dan Purchasing disambungkan ke endpoint Item dan Location. |
 | [03-Integrasi-Data-Supplier.md](03-Integrasi-Data-Supplier.md) | Data Supplier di Purchasing disambungkan ke endpoint Supplier, termasuk tombol Edit dan Hapus yang sebelumnya tidak berfungsi. |
-| [04-Rencana-Selanjutnya.md](04-Rencana-Selanjutnya.md) | Status pekerjaan dan urutan modul yang belum digarap: alur approval PPIC, dokubah, rekap gudang tambahan, penawaran harga. |
+| [04-Rencana-Selanjutnya.md](04-Rencana-Selanjutnya.md) | Status pekerjaan dan urutan yang belum digarap: uji manual, alur approval, keputusan PPIC dan Gudang, serta penawaran harga. |
 | [05-Struktur-Routing-dan-Domain.md](05-Struktur-Routing-dan-Domain.md) | Konvensi pemisahan routing di `src/app` dan logic fitur di `src/domains`, serta perbaikan folder `app/` root lama di branch `dev`. |
 | [06-Integrasi-Modul-Gudang.md](06-Integrasi-Modul-Gudang.md) | Transaksi dan laporan divisi Gudang disambungkan ke backend: barang masuk/keluar, stock opname, permintaan pembelian, rekap, dan export xlsx. |
+| [07-Integrasi-PPIC-Dokubah-dan-SPK-Internal.md](07-Integrasi-PPIC-Dokubah-dan-SPK-Internal.md) | Layar PPIC buatan imel disambungkan ke backend: Dokubah, SPK Internal, rekap mutasi, stok opname, dan pilihan dari tracking. |
+| [08-Tampilan-Gudang-dan-Detail-Rekap-Permintaan.md](08-Tampilan-Gudang-dan-Detail-Rekap-Permintaan.md) | Tampilan Gudang diselaraskan dengan Cal, dan Detail Rekap Permintaan membaca sisa kuota serta tanggal dari Dokubah. |

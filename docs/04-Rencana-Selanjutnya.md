@@ -10,43 +10,61 @@ lanjutannya tidak dimulai dari nol menyusun ulang prioritas.
 Selesai dan tersambung ke API asli:
 
 - Auth: login, refresh, logout (`01-Integrasi-Auth.md`).
-- Superadmin: list role, kelola user penuh (list, tambah, edit, hapus).
+- Superadmin: list role, kelola user penuh, yaitu list, tambah, edit, dan
+  hapus.
 - Item, Location, dan Supplier (`02-Integrasi-Inventory-Item-Lokasi.md`,
   `03-Integrasi-Data-Supplier.md`).
 - Divisi Gudang: barang masuk, barang keluar, stock opname, permintaan
   pembelian, laporan barang masuk, laporan barang keluar, dan rekap
   permintaan (`06-Integrasi-Modul-Gudang.md`).
+- Tampilan Gudang dari Cal, Rekap Stok Opname dan Rekap Dokubah di menu
+  Laporan Gudang, serta Detail Rekap Permintaan dengan sisa kuota dari
+  Dokubah (`08-Tampilan-Gudang-dan-Detail-Rekap-Permintaan.md`).
+- PPIC: Dokubah, SPK Internal, Rekap Dokubah, Rekap Mutasi Barang, dan
+  Rekap Stok Opname PPIC, termasuk pilihan SPK dan Penanggung Jawab dari
+  tracking (`07-Integrasi-PPIC-Dokubah-dan-SPK-Internal.md`).
 
-Belum disentuh:
+Belum disentuh atau belum selesai:
 
-- Dokubah (PPIC). Belum ada endpoint, dan istilah "Dokubah" belum
-  didefinisikan di dokumen mana pun.
-- Rekap Stock Opname dan Rekap Dokubah di menu Laporan Gudang. Menunya
-  ada, halamannya belum. Endpoint sengaja ditunda backend sampai
-  halamannya ada.
-- Alur approval di sisi PPIC (approve, reject, minta revisi, resubmit).
-  Endpoint sudah ada di `docs/api-1.json`.
-- Penawaran harga (PPIC) dan histori harga bulanan per supplier
-  (Purchasing). Belum punya endpoint maupun rancangan skema.
+- Alur approval. Endpoint `/approvals` sudah ada di `docs/api-1.json`
+  untuk approve, reject, minta revisi, dan resubmit, dan Dokubah punya
+  endpoint `submit`, `approve`, dan `reject` sendiri. Belum ada layar
+  untuk keduanya, dan halaman Approval PPIC masih kosong.
+- Penawaran harga PPIC dan histori harga bulanan per supplier di
+  Purchasing. Layar Penawaran Harga PPIC masih memakai data contoh,
+  tombolnya belum berfungsi, dan backend belum punya endpoint maupun
+  rancangan skema.
+- Tampilan semua halaman belum pernah diuji di browser. Pengujian
+  sejauh ini sampai lapisan API.
 
 ## Urutan yang Disarankan
 
-1. **Alur approval di PPIC.** `POST /approvals/{id}/approve`, `/reject`,
-   `/request-revision`, dan `/resubmit` serta `GET /approvals/{id}/actions`
-   sudah tersedia. Frontend gudang saat ini hanya membuat dan melihat
-   permintaan, belum ada layar untuk menyetujui atau merevisi.
-2. **Dokubah (PPIC).** Tentukan dulu arti dan field yang dibutuhkan
-   bersama tim PPIC, lalu minta endpoint ke backend.
-3. **Rekap Stock Opname dan Rekap Dokubah di Gudang.** Buat halamannya,
-   lalu minta endpoint laporan sesuai kebutuhan tampilannya.
-4. **Penawaran harga (PPIC) dan histori harga per supplier
-   (Purchasing).** Fitur baru yang butuh rancangan skema.
-5. **Perapian.** Ganti pola pemuatan data di PPIC, Purchasing, dan
-   Superadmin dengan `useApiData`, periksa dampak `globals.css` shadcn
-   di semua halaman, dan tambahkan paginasi.
+1. **Uji manual di browser.** Mulai dari alur Dokubah, SPK Internal, dan
+   halaman Gudang yang elemennya diubah. Pastikan juga menu PPIC muncul
+   untuk role PPIC, karena divisi itu bergantung pada permission
+   `material-request.create` atau `purchase-request.create`.
+2. **Alur approval.** Rancang bersama backend untuk tiga kebutuhan:
+   persetujuan permintaan pembelian, persetujuan atau penolakan Dokubah
+   oleh Koor Inventory, dan persetujuan permintaan material yang
+   kuotanya habis dengan status `Perlu Approval`. Dokumen ini dibuat
+   setelah semua domain selesai.
+3. **Rapikan sisa keputusan PPIC dan Gudang.** Pilihan Tujuan Produksi
+   selain `STOCK`, konfirmasi asumsi `totalBisaPakai`, tombol Simpan
+   Draft di Buat SPK Internal, tujuan tombol Edit di Detail Rekap
+   Permintaan, dan apakah View Detail di Rekap Permintaan mengarah ke
+   halaman detail yang baru.
+4. **Penghubung backend yang masih tiruan.** Backend memakai data tiruan
+   untuk tracking, dan realisasi Dokubah belum terhubung ke barang
+   keluar sehingga nilainya selalu 0 kecuali di data seed.
+5. **Penawaran harga PPIC dan histori harga per supplier.** Fitur yang
+   butuh rancangan skema.
+6. **Perapian.** Ganti pola pemuatan data di PPIC `DataBarang`,
+   Purchasing, dan Superadmin dengan `useApiData`, periksa dampak
+   `globals.css` shadcn di semua halaman, dan tambahkan paginasi di
+   semua daftar yang sekarang memuat 100 baris pertama.
 
 ## Status dan Langkah Berikutnya
 
-Modul Gudang selesai. Lanjutkan dari poin 1 di atas. Dokumen integrasi
-berikutnya beri nomor `07-Integrasi-<Nama-Modul>.md` sesuai konvensi di
-`00-Template-Docs.md`.
+Divisi Gudang dan PPIC selesai tersambung, kecuali alur approval dan
+Penawaran Harga. Lanjutkan dari poin 1 di atas. Dokumen berikutnya beri
+nomor `09-<Judul-Singkat>.md` sesuai konvensi di `00-Template-Docs.md`.
