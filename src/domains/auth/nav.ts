@@ -91,7 +91,11 @@ export const NAV_DIVISIONS: NavDivision[] = [
       },
       {
         title: "Laporan",
-        items: [{ href: "/dashboard/ppic/laporan/rekap-dokubah", label: "Rekap Dokubah" }],
+        items: [
+          { href: "/dashboard/ppic/laporan/rekap-dokubah", label: "Rekap Dokubah" },
+          { href: "/dashboard/ppic/laporan/rekap-mutasi", label: "Rekap Mutasi Barang" },
+          { href: "/dashboard/ppic/laporan/rekap-stock", label: "Rekap Stok Opname & Mutasi Stok" },
+        ],
       },
     ],
   },

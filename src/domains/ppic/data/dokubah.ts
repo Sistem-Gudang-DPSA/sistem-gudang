@@ -17,6 +17,7 @@ export interface DokubahItem {
   tanggalMulai: string; // YYYY-MM-DD
   tanggalSelesai: string; // YYYY-MM-DD
   status: StatusDokubah;
+  penanggungJawab?: string;
   fileDokubah?: string;
   totalAnggaran: number;
   bahan: BahanDokubah[];
@@ -30,6 +31,10 @@ export const viewDokubahPath = (id: number | string) => `${dokubah_path}/view-do
 
 export const editMaterialPath = (id: number | string) => `${dokubah_path}/edit-material/${id}`;
 
+export const rekap_dokubah_path = '/dashboard/ppic/laporan/rekap-dokubah';
+
+export const detailRekapDokubahPath = (id: number | string) => `${rekap_dokubah_path}/detail-rekap-dokubah/${id}`;
+
 // Belum ada API: daftar disimpan di memori modul supaya halaman list dan View memakai data yang sama.
 // Data kembali ke awal saat halaman di-refresh.
 let dokubahList: DokubahItem[] = [
@@ -40,6 +45,7 @@ let dokubahList: DokubahItem[] = [
     tanggalMulai: '2026-09-01',
     tanggalSelesai: '2026-09-15',
     status: 'Approved',
+    penanggungJawab: 'Budi Santoso',
     fileDokubah: 'dokubah-spk-001.pdf',
     totalAnggaran: 150_000_000,
     bahan: [
@@ -56,6 +62,7 @@ let dokubahList: DokubahItem[] = [
     tanggalMulai: '2026-09-10',
     tanggalSelesai: '2026-09-30',
     status: 'Pending',
+    penanggungJawab: 'Siti Rahmawati',
     totalAnggaran: 85_000_000,
     bahan: [
       { kodeBarang: 'BRG-005', namaBahan: 'Pipa Hitam SCH40 2" - 6m', satuan: 'batang', hargaSatuan: 780_000, kuota: 30, realisasi: 0, keterangan: '' },
@@ -70,6 +77,7 @@ let dokubahList: DokubahItem[] = [
     tanggalMulai: '2026-09-18',
     tanggalSelesai: '2026-10-05',
     status: 'Rejected',
+    penanggungJawab: 'Andi Wijaya',
     totalAnggaran: 42_000_000,
     bahan: [
       { kodeBarang: 'BRG-007', namaBahan: "Plat Aluminium 3mm x 4' x 8'", satuan: 'lembar', hargaSatuan: 1_400_000, kuota: 20, realisasi: 0, keterangan: '' },
