@@ -6,11 +6,13 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import {
   dokubah_path,
-  getDokubahList,
-  updateBahanDokubah,
   viewDokubahPath,
   type BahanDokubah,
+  type DokubahItem,
 } from '@/domains/ppic/data/dokubah';
+import { getDokubah, replaceDokubahMaterials } from '@/domains/ppic/api';
+import { ApiError } from '@/shared/lib/api-client';
+import { useApiData } from '@/shared/lib/use-api-data';
 
 // Angka disimpan sebagai teks selama diedit supaya kolomnya boleh dikosongkan dulu
 type BahanDraft = Omit<BahanDokubah, 'kuota' | 'hargaSatuan'> & { kuota: string; hargaSatuan: string };
@@ -25,12 +27,18 @@ const cellInputClass = 'w-full px-4 py-3 bg-transparent text-gray-800 placeholde
 const readOnlyFieldClass = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 bg-gray-50 cursor-default focus:outline-none';
 const orangeButtonClass = 'px-8 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm text-center';
 
+// Loads the dokubah, then mounts the form keyed by id so the draft starts from the loaded materials.
 export default function EditMaterialPPIC() {
   const { id } = useParams<{ id: string }>();
+  const { data, loading, error } = useApiData(() => getDokubah(Number(id)), id, 'Gagal memuat Dokubah.');
+  return <EditMaterialForm key={data?.id ?? 'loading'} dokubah={data} message={loading ? 'Memuat data...' : error || 'Dokubah tidak ditemukan.'} />;
+}
+
+function EditMaterialForm({ dokubah, message }: { dokubah?: DokubahItem; message: string }) {
   const router = useRouter();
-  const dokubah = getDokubahList().find((item) => String(item.id) === id);
   const [draft, setDraft] = useState<BahanDraft[]>(() => dokubah?.bahan.map(toDraft) ?? []);
   const [showError, setShowError] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const backHref = dokubah ? viewDokubahPath(dokubah.id) : dokubah_path;
 
@@ -48,7 +56,7 @@ export default function EditMaterialPPIC() {
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
         {header}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-6 py-10 text-center text-gray-400 italic">
-          Dokubah tidak ditemukan.
+          {message}
         </div>
       </div>
     );
@@ -65,17 +73,33 @@ export default function EditMaterialPPIC() {
     setDraft((prev) => prev.filter((b) => b.kodeBarang !== kodeBarang));
   };
 
-  const handleSimpan = (e: React.FormEvent) => {
+  const handleSimpan = async (e: React.FormEvent) => {
     e.preventDefault();
     if (hasInvalid) {
       setShowError(true);
       return;
     }
-    updateBahanDokubah(
-      dokubah.id,
-      draft.map((b) => ({ ...b, kuota: Number(b.kuota), hargaSatuan: Number(b.hargaSatuan), keterangan: b.keterangan.trim() })),
-    );
-    router.replace(viewDokubahPath(dokubah.id));
+    if (draft.length === 0) {
+      setSaveError('Dokubah harus punya minimal satu bahan.');
+      return;
+    }
+    setSaveError('');
+    try {
+      await replaceDokubahMaterials(
+        dokubah.id,
+        draft.map((b) => ({
+          kodeBarang: b.kodeBarang,
+          namaBahan: b.namaBahan,
+          satuan: b.satuan,
+          kuota: Number(b.kuota),
+          hargaSatuan: Number(b.hargaSatuan),
+          keterangan: b.keterangan.trim(),
+        })),
+      );
+      router.replace(viewDokubahPath(dokubah.id));
+    } catch (err) {
+      setSaveError(err instanceof ApiError ? err.message : 'Gagal menyimpan material.');
+    }
   };
 
   return (
@@ -183,6 +207,8 @@ export default function EditMaterialPPIC() {
             Kuota Alokasi dan Estimasi Harga Bahan wajib diisi dengan angka 0 atau lebih.
           </p>
         )}
+
+        {saveError && <p className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{saveError}</p>}
 
         <div className="flex justify-end gap-4 mt-10">
           <Link href={backHref} replace className={orangeButtonClass}>Batal</Link>

@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, ChevronDown } from 'lucide-react';
-import { getDokubahList } from '@/domains/ppic/data/dokubah';
+import { listDokubah } from '@/domains/ppic/api';
+import { useApiData } from '@/shared/lib/use-api-data';
 import { alokasikanStock, getSpkInternalList, spk_internal_path } from '@/domains/ppic/data/spk-internal';
 
 const fieldClass = 'w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors';
@@ -25,6 +26,8 @@ export default function AlokasiBarangPPIC() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const spk = getSpkInternalList().find((item) => String(item.id) === id);
+  // ponytail: the SPK picker lists the first 100 dokubah only
+  const { data: dokubahResult } = useApiData(() => listDokubah({ pageSize: 100 }), 'list', 'Gagal memuat daftar SPK Klien.');
   const [spkKlien, setSpkKlien] = useState('');
   const [jumlah, setJumlah] = useState('');
   const [catatan, setCatatan] = useState('');
@@ -90,7 +93,7 @@ export default function AlokasiBarangPPIC() {
                 className={`${fieldClass} appearance-none pr-9 cursor-pointer`}
               >
                 <option value="" disabled>Pilih SPK Klien</option>
-                {getDokubahList().map((item) => (
+                {(dokubahResult?.rows ?? []).map((item) => (
                   <option key={item.id} value={item.noSpk}>{item.noSpk} - {item.client}</option>
                 ))}
               </select>

@@ -4,7 +4,9 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Plus } from 'lucide-react';
-import { addDokubah, dokubah_path, formatAngka, getDokubahList, type StatusDokubah } from '@/domains/ppic/data/dokubah';
+import { dokubah_path, formatAngka, type StatusDokubah } from '@/domains/ppic/data/dokubah';
+import { createDokubah } from '@/domains/ppic/api';
+import { ApiError } from '@/shared/lib/api-client';
 
 // Kuota disimpan sebagai teks selama diisi supaya kolomnya boleh dikosongkan dulu
 type BahanRow = { kodeBarang: string; namaBahan: string; kuota: string; satuan: string };
@@ -68,33 +70,35 @@ export default function BuatDokubahPPIC() {
   };
 
   // Simpan Draft -> status Draft, Rilis -> status Pending (menunggu approval)
-  const handleSimpan = (status: StatusDokubah) => {
+  const handleSimpan = async (status: StatusDokubah) => {
     const rowsTerisi = rows.filter((row) => !isRowKosong(row));
     const error = validasi(status, rowsTerisi);
     if (error) {
       setFormError(error);
       return;
     }
-    const nextId = getDokubahList().reduce((max, item) => Math.max(max, item.id), 0) + 1;
-    addDokubah({
-      id: nextId,
-      noSpk: form.noSpk.trim(),
-      client: form.client.trim(),
-      tanggalMulai: form.tanggalMulai,
-      tanggalSelesai: form.tanggalSelesai,
-      status,
-      totalAnggaran: 0,
-      bahan: rowsTerisi.map((row) => ({
-        kodeBarang: row.kodeBarang.trim(),
-        namaBahan: row.namaBahan.trim(),
-        satuan: row.satuan.trim(),
-        hargaSatuan: 0,
-        kuota: Number(row.kuota),
-        realisasi: 0,
-        keterangan: '',
-      })),
-    });
-    router.replace(dokubah_path);
+    setFormError('');
+    try {
+      await createDokubah({
+        noSpk: form.noSpk.trim(),
+        client: form.client.trim(),
+        tanggalMulai: form.tanggalMulai,
+        tanggalSelesai: form.tanggalSelesai,
+        status: status === 'Pending' ? 'PENDING' : 'DRAFT',
+        // totalAnggaran is computed by the server from kuota * hargaSatuan
+        bahan: rowsTerisi.map((row) => ({
+          kodeBarang: row.kodeBarang.trim(),
+          namaBahan: row.namaBahan.trim(),
+          satuan: row.satuan.trim(),
+          hargaSatuan: 0,
+          kuota: Number(row.kuota),
+          keterangan: '',
+        })),
+      });
+      router.replace(dokubah_path);
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : 'Gagal menyimpan Dokubah.');
+    }
   };
 
   return (
