@@ -1,14 +1,74 @@
 "use client";
 
 import React, { useState } from 'react';
-import Link from 'next/link';
+import { Search, FileUp, Download, Eye, Loader2, AlertCircle } from 'lucide-react';
+import { exportOutboundReport, getOutboundReport } from '@/domains/gudang/api';
+import type { OutboundRow, RecipientType, WarehouseType } from '@/domains/gudang/types';
+import { ApiError } from '@/shared/lib/api-client';
+import { useApiData } from '@/shared/lib/use-api-data';
 
-import { Search, FileUp, Download, Eye } from 'lucide-react';
+const GUDANG_LABEL: Record<WarehouseType, string> = {
+    BAHAN_BAKU: 'Gudang Bahan Baku',
+    WIP: 'Gudang WIP',
+    BARANG_JADI: 'Gudang Barang Jadi',
+};
+
+const RECIPIENT_LABEL: Record<RecipientType, string> = {
+    PRODUKSI: 'Tukang / Produksi',
+    KLIEN: 'Klien',
+};
+
+const displayDate = (iso: string) => iso.slice(0, 10).split('-').reverse().join('-');
+
+const monthStart = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+};
+
+const emptySummary = { bahanBaku: 0, wip: 0, barangJadi: 0 };
 
 export default function LaporanBarangKeluar(){
     const [searchQuery, setSearchQuery] = useState<string>('');
-    const [filterSumber, setFilterSumber] = useState<string>('ALL');
-    const [filterDate, setFilterDate] = useState<string>('2026-09-01');
+    const [filterGudang, setFilterGudang] = useState<'ALL' | WarehouseType>('ALL');
+    const [filterPenerima, setFilterPenerima] = useState<'ALL' | RecipientType>('ALL');
+    const [startDate, setStartDate] = useState<string>(monthStart());
+    const [endDate, setEndDate] = useState<string>(new Date().toISOString().slice(0, 10));
+    const [selectedDetail, setSelectedDetail] = useState<OutboundRow | null>(null);
+
+    const [actionError, setActionError] = useState('');
+    const [exporting, setExporting] = useState(false);
+
+    const filters = {
+      q: searchQuery || undefined,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+      warehouseType: filterGudang === 'ALL' ? undefined : filterGudang,
+      recipientType: filterPenerima === 'ALL' ? undefined : filterPenerima,
+    };
+
+    // ponytail: loads first 100 rows only, add real pagination when the list outgrows it
+    const { data: report, loading, error } = useApiData(
+      () => getOutboundReport({ ...filters, pageSize: 100 }),
+      JSON.stringify(filters),
+      'Gagal memuat laporan barang keluar.',
+    );
+
+    const handleExport = async () => {
+        setExporting(true);
+        setActionError('');
+        try {
+            await exportOutboundReport(filters);
+        } catch (err) {
+            setActionError(err instanceof ApiError ? err.message : 'Gagal mengekspor laporan.');
+        } finally {
+            setExporting(false);
+        }
+    };
+
+    const rows = report?.rows ?? [];
+    const summary = report?.summary ?? emptySummary;
+    // The table shows one row per item line, the API returns one row per transaction.
+    const tableRows = rows.flatMap((trx) => trx.lines.map((line) => ({ trx, line })));
 
     return(
         <div className='animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10'>
@@ -20,32 +80,26 @@ export default function LaporanBarangKeluar(){
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
                     <p className="text-xs font-semibold text-gray-500 uppercase">Total Bahan Baku Keluar</p>
-                    {/* <p className="text-2xl font-bold text-gray-900 mt-1">
-                        {totalInboundUnit.toLocaleString('id-ID')} Qty / {filteredData.length} Transaksi
-                    </p> */}
+                    <p className="text-2xl font-bold text-gray-900 mt-1">{summary.bahanBaku.toLocaleString('id-ID')} Transaksi</p>
                 </div>
                 <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
                     <p className="text-xs font-semibold text-gray-500 uppercase">Total Pengeluaran Item WIP</p>
-                    {/* <p className="text-2xl font-bold text-blue-600 mt-1">
-                        {totalSupplierUnit.toLocaleString('id-ID')} Qty ({filteredData.filter((d) => d.sumberInbound === 'SUPPLIER').length} Transaksi)
-                    </p> */}
+                    <p className="text-2xl font-bold text-blue-600 mt-1">{summary.wip.toLocaleString('id-ID')} Transaksi</p>
                 </div>
                 <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
                     <p className="text-xs font-semibold text-gray-500 uppercase">Total Barang Jadi Keluar</p>
-                    {/* <p className="text-2xl font-bold text-green-600 mt-1">
-                        {totalProduksiUnit.toLocaleString('id-ID')} Qty ({filteredData.filter((d) => d.sumberInbound === 'PRODUKSI').length} Transaksi)
-                    </p> */}
+                    <p className="text-2xl font-bold text-green-600 mt-1">{summary.barangJadi.toLocaleString('id-ID')} Transaksi</p>
                 </div>
             </div>
-            
-            <div className='flex flex-wrap justify-between items-center bg-white p-4 border border-gray-200 rounded-lg shadow-sm gap-4 mt-5'>
+
+            <div className='flex flex-wrap justify-between items-center bg-white p-4 border border-gray-200 rounded-lg shadow-sm gap-4 mt-5 print:hidden'>
                 <div className="flex flex-wrap gap-3 items-center">
                     <div>
                         <label className="block text-xs text-black mb-1">Pencarian</label>
                         <span className="relative flex items-center w-60">
                         <input
                             type="text"
-                            placeholder="Cari Client, SPK, Item, atau Penerima" 
+                            placeholder="Cari Client, SPK, Item, atau Penerima"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="border border-gray-300 rounded-md pl-3 pr-10 py-1.5 text-sm w-full bg-white text-black placeholder:text-gray focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -59,27 +113,27 @@ export default function LaporanBarangKeluar(){
                     <div>
                         <label className="block text-xs text-black mb-1">Asal Gudang</label>
                         <select
-                        value={filterSumber}
-                        onChange={(e) => setFilterSumber(e.target.value)}
+                        value={filterGudang}
+                        onChange={(e) => setFilterGudang(e.target.value as 'ALL' | WarehouseType)}
                         className="border border-gray-300 rounded-md px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500c text-black"
                         >
                         <option value="ALL" className='text-black'>Semua Jenis Gudang</option>
-                        <option value="BahanBaku" className='text-black'>Gudang Bahan Baku</option>
+                        <option value="BAHAN_BAKU" className='text-black'>Gudang Bahan Baku</option>
                         <option value="WIP" className='text-black'>Gudang WIP</option>
-                        <option value="BarangJadi" className='text-black'>Gudang Barang Jadi</option>
+                        <option value="BARANG_JADI" className='text-black'>Gudang Barang Jadi</option>
                         </select>
                     </div>
 
                     <div>
                         <label className="block text-xs text-black mb-1">Tujuan / Penerima</label>
                         <select
-                        value={filterSumber}
-                        onChange={(e) => setFilterSumber(e.target.value)}
+                        value={filterPenerima}
+                        onChange={(e) => setFilterPenerima(e.target.value as 'ALL' | RecipientType)}
                         className="border border-gray-300 rounded-md px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500c text-black"
                         >
                         <option value="ALL" className='text-black'>Semua Penerima</option>
-                        <option value="Produksi" className='text-black'>Tukang / Produksi</option>
-                        <option value="Klien" className='text-black'>Klien</option>
+                        <option value="PRODUKSI" className='text-black'>Tukang / Produksi</option>
+                        <option value="KLIEN" className='text-black'>Klien</option>
                         </select>
                     </div>
 
@@ -88,13 +142,20 @@ export default function LaporanBarangKeluar(){
                         <div className="flex gap-2 items-center">
                         <input
                             type="date"
-                            value={filterDate}
-                            onChange={(e) => setFilterDate(e.target.value)}
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            className="border border-gray-300 rounded-md px-2 py-1 text-sm bg-white text-black"
+                        />
+                        <span className="text-xs text-black font-medium">s/d</span>
+                        <input
+                            type="date"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
                             className="border border-gray-300 rounded-md px-2 py-1 text-sm bg-white text-black"
                         />
                         </div>
                     </div>
-                </div>   
+                </div>
             </div>
 
             <div className="overflow-x-auto border border-gray-200 rounded-lg bg-white shadow-sm mt-5">
@@ -102,22 +163,28 @@ export default function LaporanBarangKeluar(){
                     <div className="flex gap-2 items-end m-2">
                         <p className="text-xs font-semibold text-gray-500 uppercase m-2">Tabel Rekap Barang Keluar</p>
                     </div>
-                    <div className="flex gap-2 items-end m-2">
-                    <button 
-                        className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0"
+                    <div className="flex gap-2 items-end m-2 print:hidden">
+                    <button
+                        onClick={handleExport}
+                        disabled={exporting}
+                        title="Export Data ke CSV"
+                        className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-60"
                     >
-                        <FileUp className='h-4 w-4'></FileUp>
-                        <span>Export Excel</span>
+                        <FileUp className="w-4 h-4" />
+                        <span className="hidden sm:inline">{exporting ? 'Mengekspor...' : 'Export'}</span>
                     </button>
-                    <button 
-                        className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0"
+                    <button
+                        onClick={() => window.print()}
+                        title="Print Data ke PDF"
+                        className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-60"
                     >
-                        <Download className='h-4 w-4'></Download>
-                        <span>Cetak PDF</span>
+                        <Download className="w-4 h-4" />
+                        <span className="hidden sm:inline">Print PDF</span>
                     </button>
                     </div>
                 </div>
-                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                {actionError && <p className="px-4 pb-2 text-sm text-red-500">{actionError}</p>}
+        <table className="min-w-full divide-y divide-gray-200 text-sm">
                 <thead className="bg-gray-100 font-semibold text-gray-700">
                     <tr>
                         <th className="px-4 py-3 text-center w-12">No</th>
@@ -127,53 +194,55 @@ export default function LaporanBarangKeluar(){
                         <th className="px-4 py-3 text-right">SPK</th>
                         <th className="px-4 py-3 text-center">Tanggal</th>
                         <th className="px-4 py-3 text-center">Jumlah</th>
-                        <th className="px-4 py-3 text-center">Aksi</th>
+                        <th className="px-4 py-3 text-center print:hidden">Aksi</th>
                     </tr>
                 </thead>
-                    {/* <tbody className="divide-y divide-gray-200">
-                        {filteredData.length === 0 ? (
+                    <tbody className="divide-y divide-gray-200">
+                        {loading ? (
                         <tr>
-                            <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                            Tidak ada data penerimaan barang masuk ditemukan.
+                            <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                            <div className="flex items-center justify-center gap-2">
+                                <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                                <span>Memuat data laporan barang keluar...</span>
+                            </div>
+                            </td>
+                        </tr>
+                        ) : error ? (
+                        <tr>
+                            <td colSpan={8} className="px-4 py-8 text-center text-red-500">
+                            <div className="flex flex-col items-center justify-center gap-2">
+                                <AlertCircle className="w-6 h-6 text-red-500" />
+                                <span className="font-semibold">{error}</span>
+                            </div>
+                            </td>
+                        </tr>
+                        ) : tableRows.length === 0 ? (
+                        <tr>
+                            <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                            Tidak ada data barang keluar ditemukan.
                             </td>
                         </tr>
                         ) : (
-                        filteredData.map((item, index) => (
-                            <tr key={item.id} className="hover:bg-gray-50 transition-colors">
+                        tableRows.map(({ trx, line }, index) => (
+                            <tr key={`${trx.id}-${index}`} className="hover:bg-gray-50 transition-colors">
                             <td className="px-4 py-3 text-center text-gray-500">{index + 1}</td>
-                            <td className="px-4 py-3 text-gray-700 font-medium">{item.tanggalJam}</td>
-                            <td className="px-4 py-3 font-mono font-semibold text-blue-600">
-                                {item.noReferensi}
-                                {item.noSuratJalanSupplier && (
-                                <span className="block text-xs font-normal text-gray-500">
-                                    (SJ: {item.noSuratJalanSupplier})
-                                </span>
-                                )}
-                            </td>
                             <td className="px-4 py-3">
-                                <span className="font-medium text-gray-900">{item.namaPemasok}</span>
-                                <span className="block text-xs text-gray-500">
-                                ({item.sumberInbound === 'SUPPLIER' ? 'Supplier External' : 'Produksi Internal'})
+                                <span className="font-medium text-gray-900">{line.itemName}</span>
+                                <span className="block text-xs font-mono text-gray-500">
+                                    {line.itemCode ?? '-'}{line.locationCode ? ` (${line.locationCode})` : ''}
                                 </span>
                             </td>
-                            <td className="px-4 py-3 text-right font-bold text-gray-800">
-                                {item.totalVolumeQty} {item.satuan}
+                            <td className="px-4 py-3 text-gray-700">{GUDANG_LABEL[trx.warehouseType]}</td>
+                            <td className="px-4 py-3">
+                                <span className="font-medium text-gray-900">{RECIPIENT_LABEL[trx.recipientType]}</span>
+                                <span className="block text-xs text-gray-500">{trx.clientName}{line.pic ? ` - PIC ${line.pic}` : ''}</span>
                             </td>
-                            <td className="px-4 py-3 text-center">
-                                {item.statusQc === 'PASS' && (
-                                <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800 border border-green-200">
-                                    Pass (IPM) 
-                                </span>
-                                )}
-                                {item.statusQc === 'PARTIAL_RETUR' && (
-                                <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800 border border-yellow-200">
-                                    Part (Retur)
-                                </span>
-                                )}
-                            </td>
-                            <td className="px-4 py-3 text-center">
+                            <td className="px-4 py-3 text-right font-mono font-semibold text-blue-600">{trx.spk}</td>
+                            <td className="px-4 py-3 text-center text-gray-700">{displayDate(trx.date)}</td>
+                            <td className="px-4 py-3 text-center font-bold text-gray-800">{line.qty}</td>
+                            <td className="px-4 py-3 text-center print:hidden">
                                 <button
-                                onClick={() => setSelectedDetail(item)}
+                                onClick={() => setSelectedDetail(trx)}
                                 className="flex-1 lg:flex-none flex items-center justify-center gap-2 text-blue-600 hover:text-blue-800 font-medium text-xs bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded border border-blue-200 transition-colors"
                                 >
                                 <Eye className='h-4 w-4'></Eye>
@@ -183,13 +252,10 @@ export default function LaporanBarangKeluar(){
                             </tr>
                         ))
                         )}
-                    </tbody> */}
+                    </tbody>
                 </table>
 
                 <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
-                    {/* <div>
-                      Menampilkan <span className="font-semibold text-gray-900">1</span> sampai <span className="font-semibold text-gray-900">{filteredData.filter(i=>i.no).length}</span> dari <span className="font-semibold text-gray-900">{filteredData.filter(i=>i.no).length}</span> data
-                    </div> */}
                     <div className="flex gap-1">
                       <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-400 cursor-not-allowed">Sec</button>
                       <button className="px-3 py-1 bg-[#FF8A00] text-white rounded-md font-medium shadow-sm shadow-orange-500/20">1</button>
@@ -199,6 +265,69 @@ export default function LaporanBarangKeluar(){
                     </div>
                 </div>
             </div>
+
+            {selectedDetail && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
+                    <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 border border-gray-100">
+                        <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-100">
+                            <h3 className="text-lg font-bold text-gray-900">Detail Pengeluaran Barang</h3>
+                            <button
+                                onClick={() => setSelectedDetail(null)}
+                                className="text-gray-400 hover:text-gray-600 font-bold text-xl px-2"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <div className="space-y-3 text-sm">
+                            <div className="flex justify-between py-1 border-b border-gray-50">
+                                <span className="text-gray-500">SPK</span>
+                                <span className="font-mono font-bold text-blue-600">{selectedDetail.spk}</span>
+                            </div>
+                            <div className="flex justify-between py-1 border-b border-gray-50">
+                                <span className="text-gray-500">Tanggal</span>
+                                <span className="font-medium text-gray-800">{displayDate(selectedDetail.date)}</span>
+                            </div>
+                            <div className="flex justify-between py-1 border-b border-gray-50">
+                                <span className="text-gray-500">Client / Item</span>
+                                <span className="font-medium text-gray-800">{selectedDetail.clientName} / {selectedDetail.itemName}</span>
+                            </div>
+                            <div className="flex justify-between py-1 border-b border-gray-50">
+                                <span className="text-gray-500">Asal Gudang</span>
+                                <span className="font-medium text-gray-800">{GUDANG_LABEL[selectedDetail.warehouseType]}</span>
+                            </div>
+                            <div className="flex justify-between py-1 border-b border-gray-50">
+                                <span className="text-gray-500">Tujuan / Penerima</span>
+                                <span className="font-medium text-gray-800">{RECIPIENT_LABEL[selectedDetail.recipientType]}</span>
+                            </div>
+                            <div className="py-1">
+                                <span className="text-gray-500 block mb-1">Barang:</span>
+                                <ul className="bg-gray-50 p-2.5 rounded border border-gray-100 text-xs text-gray-700 space-y-1">
+                                    {selectedDetail.lines.map((line, i) => (
+                                        <li key={i} className="flex justify-between gap-2">
+                                            <span>{line.itemCode ? `${line.itemCode} - ` : ''}{line.itemName}{line.locationCode ? ` (${line.locationCode})` : ''}</span>
+                                            <span className="font-semibold whitespace-nowrap">{line.qty} - PIC {line.pic}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                            {selectedDetail.notes && (
+                                <div className="py-1">
+                                    <span className="text-gray-500 block mb-1">Catatan:</span>
+                                    <p className="bg-gray-50 p-2.5 rounded border border-gray-100 text-xs text-gray-700">{selectedDetail.notes}</p>
+                                </div>
+                            )}
+                        </div>
+                        <div className="mt-6 text-right">
+                            <button
+                                onClick={() => setSelectedDetail(null)}
+                                className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                            >
+                                Tutup
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
         </div>
     )

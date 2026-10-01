@@ -1,8 +1,26 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Search, Plus, Calendar } from 'lucide-react';
+import { Search, Plus, Calendar, Eye } from 'lucide-react';
 import Link from 'next/link';
+import { listApprovals } from '@/domains/gudang/api';
+import { displayDate, toDateRange } from '@/domains/gudang/date';
+import type { ApprovalRequest, ApprovalStatus } from '@/domains/gudang/types';
+import { useApiData } from '@/shared/lib/use-api-data';
+
+const STATUS_LABEL: Record<ApprovalStatus, { label: string; cls: string }> = {
+  pending: { label: 'Menunggu', cls: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+  approved: { label: 'Disetujui', cls: 'bg-green-100 text-green-800 border-green-200' },
+  rejected: { label: 'Ditolak', cls: 'bg-red-100 text-red-800 border-red-200' },
+  revision_requested: { label: 'Perlu Revisi', cls: 'bg-orange-100 text-orange-800 border-orange-200' },
+};
+
+const summarize = (req: ApprovalRequest) => {
+  const p = req.payload;
+  if (!p) return '-';
+  const names = p.items.map((it) => it.namaBarang).join(', ');
+  return `${p.bagian} - ${p.items.length} barang (${names})`;
+};
 
 export default function PermintaanPembelianGudang() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -10,39 +28,21 @@ export default function PermintaanPembelianGudang() {
   const [filterMonth, setFilterMonth] = useState("");
   const [filterYear, setFilterYear] = useState("");
 
-  const dataPermintaan = [
-    { no: "1.", tanggal: "01/02/2026", permintaan: "Permintaan hari jumat" },
-    { no: "",  tanggal: "", permintaan: "" },
-    { no: "",  tanggal: "", permintaan: "" },
-    { no: "",  tanggal: "", permintaan: "" },
-    { no: "",  tanggal: "", permintaan: "" },
-    { no: "",  tanggal: "", permintaan: "" },
-    { no: "",  tanggal: "", permintaan: "" },
-    { no: "",  tanggal: "", permintaan: "" },
-  ];
+  const [detail, setDetail] = useState<ApprovalRequest | null>(null);
 
-  const filteredData = dataPermintaan.filter(item => {
-    if (searchQuery === "" && filterDay === "" && filterMonth === "" && filterYear === "") return true;
-    if (!item.tanggal && !item.no) return false;
+  const dateRange = toDateRange(filterDay, filterMonth, filterYear);
 
-    // Date filtering logic (Data uses DD/MM/YYYY)
-    let matchesDate = true;
-    if (item.tanggal) {
-      const [d, m, y] = item.tanggal.split("/");
-      const matchesDay = filterDay === "" || d === filterDay.padStart(2, '0');
-      const matchesMonth = filterMonth === "" || m === filterMonth;
-      const matchesYear = filterYear === "" || y === filterYear;
-      matchesDate = matchesDay && matchesMonth && matchesYear;
-    } else {
-      if (filterDay !== "" || filterMonth !== "" || filterYear !== "") matchesDate = false;
-    }
-    
-    const searches = searchQuery.toLowerCase();
-    const matchesSearch = searchQuery === "" || 
-      item.permintaan.toLowerCase().includes(searches);
+  // ponytail: loads first 100 rows only, add real pagination when the list outgrows it
+  const { data: result, loading, error } = useApiData(
+    () => listApprovals({ pageSize: 100, type: 'purchase-request', ...dateRange }),
+    JSON.stringify(dateRange),
+    'Gagal memuat permintaan pembelian.',
+  );
+  const rows = result?.rows ?? [];
+  const total = result?.total ?? 0;
 
-    return matchesDate && matchesSearch;
-  });
+  // ponytail: the approvals API has no working text search yet, so filter the loaded rows here
+  const filteredData = rows.filter((req) => summarize(req).toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -153,26 +153,37 @@ export default function PermintaanPembelianGudang() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {filteredData.map((item, index) => (
-                <tr key={index} className="hover:bg-[#FF8A00]/5 transition-colors group">
-                  <td className="px-6 py-4 text-gray-500 text-center font-medium">{item.no}</td>
-                  <td className="px-6 py-4 text-gray-500 font-bold">{item.tanggal}</td>
-                  <td className="px-6 py-4 text-gray-700 italic">"{item.permintaan}"</td>
+              {loading && (
+                <tr><td colSpan={4} className="px-6 py-10 text-center text-gray-400">Memuat data...</td></tr>
+              )}
+              {!loading && error && (
+                <tr><td colSpan={4} className="px-6 py-10 text-center text-red-500">{error}</td></tr>
+              )}
+              {!loading && !error && filteredData.map((item, index) => (
+                <tr key={item.id} className="hover:bg-[#FF8A00]/5 transition-colors group">
+                  <td className="px-6 py-4 text-gray-500 text-center font-medium">{index + 1}.</td>
+                  <td className="px-6 py-4 text-gray-500 font-bold">{displayDate(item.payload?.tanggalPengajuan ?? item.createdAt)}</td>
+                  <td className="px-6 py-4 text-gray-700 italic max-w-md truncate">{summarize(item)}</td>
                   <td className="px-6 py-4 text-center">
-                    {item.tanggal && (
-                      <div className="flex items-center justify-center gap-2">
-                        <button className="px-4 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] font-bold rounded-lg text-xs hover:bg-[#FF8A00]/20 transition-all">
-                          Edit
-                        </button>
-                        <button className="px-4 py-1.5 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs hover:bg-blue-100 transition-all">
-                          Tambah
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex items-center justify-center gap-2">
+                      <button className="px-4 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] font-bold rounded-lg text-xs hover:bg-[#FF8A00]/20 transition-all">
+                        Edit
+                      </button>
+                      <button className="px-4 py-1.5 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs hover:bg-blue-100 transition-all">
+                        Tambah
+                      </button>
+                      <button
+                        onClick={() => setDetail(item)}
+                        className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs hover:bg-blue-100 transition-all"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        Detail
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
-              {filteredData.length === 0 && (
+              {!loading && !error && filteredData.length === 0 && (
                 <tr>
                   <td colSpan={4} className="px-6 py-10 text-center text-gray-400 italic">
                     Data tidak ditemukan untuk filter tersebut.
@@ -186,7 +197,7 @@ export default function PermintaanPembelianGudang() {
         {/* Pagination Footer */}
         <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
           <div>
-            Menampilkan <span className="font-semibold text-gray-900">1</span> sampai <span className="font-semibold text-gray-900">{filteredData.filter(i=>i.no).length}</span> dari <span className="font-semibold text-gray-900">{filteredData.filter(i=>i.no).length}</span> data
+            Menampilkan <span className="font-semibold text-gray-900">1</span> sampai <span className="font-semibold text-gray-900">{filteredData.length}</span> dari <span className="font-semibold text-gray-900">{total}</span> data
           </div>
           <div className="flex gap-1">
             <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-400 cursor-not-allowed">Sec</button>
@@ -197,6 +208,51 @@ export default function PermintaanPembelianGudang() {
           </div>
         </div>
       </div>
+      {detail && detail.payload && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[800px] max-h-[90vh] overflow-y-auto p-8">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-[20px] font-extrabold text-gray-900 uppercase">Permintaan Pembelian</h2>
+              <button onClick={() => setDetail(null)} className="text-gray-400 hover:text-gray-600 font-bold text-xl px-2">✕</button>
+            </div>
+            <div className="space-y-2 text-sm mb-6">
+              <p><span className="text-gray-500 inline-block w-40">Bagian</span>{detail.payload.bagian}</p>
+              <p><span className="text-gray-500 inline-block w-40">Nama</span>{detail.payload.namaPemohon}</p>
+              <p><span className="text-gray-500 inline-block w-40">Jabatan</span>{detail.payload.jabatan}</p>
+              <p><span className="text-gray-500 inline-block w-40">Tanggal Pengajuan</span>{displayDate(detail.payload.tanggalPengajuan)}</p>
+              <p><span className="text-gray-500 inline-block w-40">Status</span>{STATUS_LABEL[detail.status].label}</p>
+              {detail.payload.notes && <p><span className="text-gray-500 inline-block w-40">Catatan</span>{detail.payload.notes}</p>}
+            </div>
+            <div className="overflow-x-auto border border-gray-200 rounded-lg">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-gray-50 text-gray-600 font-semibold">
+                  <tr>
+                    <th className="px-4 py-3">Nama Barang</th>
+                    <th className="px-4 py-3 text-center">QTY</th>
+                    <th className="px-4 py-3 text-center">Satuan</th>
+                    <th className="px-4 py-3">Proyek</th>
+                    <th className="px-4 py-3">No SPK</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {detail.payload.items.map((it, i) => (
+                    <tr key={i}>
+                      <td className="px-4 py-3 font-medium text-gray-900">{it.namaBarang}</td>
+                      <td className="px-4 py-3 text-center">{it.qty}</td>
+                      <td className="px-4 py-3 text-center">{it.satuan}</td>
+                      <td className="px-4 py-3">{it.proyek}</td>
+                      <td className="px-4 py-3">{it.noSpk}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-6 text-right">
+              <button onClick={() => setDetail(null)} className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-md text-sm font-medium">Tutup</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

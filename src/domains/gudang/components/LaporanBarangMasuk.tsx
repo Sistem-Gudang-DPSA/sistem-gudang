@@ -1,120 +1,107 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Search, Eye, Download, FileUp } from 'lucide-react';
+import { Search, Eye, Download, FileUp, Loader2, AlertCircle } from 'lucide-react';
+import { exportInboundReport, getInboundReport } from '@/domains/gudang/api';
+import type { InboundRow, InboundSource } from '@/domains/gudang/types';
+import { ApiError } from '@/shared/lib/api-client';
+import { useApiData } from '@/shared/lib/use-api-data';
 
-interface BarangMasukItem {
-  id: string;
-  tanggalJam: string;
-  noReferensi: string;
-  noSuratJalanSupplier?: string;
-  namaPemasok: string;
-  sumberInbound: 'SUPPLIER' | 'PRODUKSI';
-  totalVolumeQty: number;
-  satuan: string; 
-  statusQc: 'PASS' | 'PARTIAL_RETUR';
-  catatan?: string;
-}
+const SUMBER_LABEL: Record<InboundSource, string> = {
+  SUPPLIER: 'Supplier External',
+  PRODUKSI: 'Produksi Internal',
+  KLIEN: 'Barang Kembali (Klien)',
+};
 
-const mockDataBarangMasuk: BarangMasukItem[] = [
-  {
-    id: '1',
-    tanggalJam: '2026-09-25 09:15',
-    noReferensi: 'PO-2026-09-001',
-    noSuratJalanSupplier: 'SJ-SUP-8821',
-    namaPemasok: 'PT Sumber Jaya Steel',
-    sumberInbound: 'SUPPLIER',
-    totalVolumeQty: 500,
-    satuan: 'Pcs',
-    statusQc: 'PASS',
-    catatan: 'Penerimaan bahan baku plat besi',
-  },
-  {
-    id: '2',
-    tanggalJam: '2026-09-24 14:30',
-    noReferensi: 'PROD-2026-09-042',
-    namaPemasok: 'Divisi Produksi A',
-    sumberInbound: 'PRODUKSI',
-    totalVolumeQty: 250,
-    satuan: 'Unit',
-    statusQc: 'PASS',
-    catatan: 'Hasil rakitan unit komplit QC Pass',
-  },
-  {
-    id: '3',
-    tanggalJam: '2026-09-22 11:00',
-    noReferensi: 'PO-2026-09-005',
-    noSuratJalanSupplier: 'SJ-AB-1029',
-    namaPemasok: 'CV Anugrah Baut',
-    sumberInbound: 'SUPPLIER',
-    totalVolumeQty: 1000,
-    satuan: 'Pcs',
-    statusQc: 'PARTIAL_RETUR',
-    catatan: '50 pcs retur karena ulir rusak',
-  },
-];
+const displayDateTime = (iso: string) => {
+  const [d, t] = iso.slice(0, 16).split(/[T ]/);
+  return `${d.split('-').reverse().join('-')}${t ? ` ${t}` : ''}`;
+};
+
+const monthStart = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+};
+
+const emptySummary = { total: 0, supplier: 0, produksi: 0, klien: 0 };
 
 export default function LaporanBarangMasuk() {
-    const [filterSumber, setFilterSumber] = useState<string>('ALL');
-    const [startDate, setStartDate] = useState<string>('2026-09-01');
-    const [endDate, setEndDate] = useState<string>('2026-09-26');
+    const [filterSumber, setFilterSumber] = useState<'ALL' | InboundSource>('ALL');
+    const [startDate, setStartDate] = useState<string>(monthStart());
+    const [endDate, setEndDate] = useState<string>(new Date().toISOString().slice(0, 10));
     const [searchQuery, setSearchQuery] = useState<string>('');
-    const [selectedDetail, setSelectedDetail] = useState<BarangMasukItem | null>(null);
+    const [selectedDetail, setSelectedDetail] = useState<InboundRow | null>(null);
 
-    const data = mockDataBarangMasuk;
+    const [actionError, setActionError] = useState('');
+    const [exporting, setExporting] = useState(false);
 
-    const filteredData = data.filter((item) => {
-        const matchSumber = filterSumber === 'ALL' || item.sumberInbound === filterSumber;
-        const matchSearch =
-        item.noReferensi.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.namaPemasok.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (item.noSuratJalanSupplier && item.noSuratJalanSupplier.toLowerCase().includes(searchQuery.toLowerCase()));
-        return matchSumber && matchSearch;
-    });
+    const filters = {
+      q: searchQuery || undefined,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+      source: filterSumber === 'ALL' ? undefined : filterSumber,
+    };
 
-    const totalInboundUnit = filteredData.reduce((acc, curr) => acc + curr.totalVolumeQty, 0);
-    const totalSupplierUnit = filteredData
-      .filter((d) => d.sumberInbound === 'SUPPLIER')
-      .reduce((acc, curr) => acc + curr.totalVolumeQty, 0);
-    const totalProduksiUnit = filteredData
-      .filter((d) => d.sumberInbound === 'PRODUKSI')
-      .reduce((acc, curr) => acc + curr.totalVolumeQty, 0);
-    
+    // ponytail: loads first 100 rows only, add real pagination when the list outgrows it
+    const { data: report, loading, error } = useApiData(
+      () => getInboundReport({ ...filters, pageSize: 100 }),
+      JSON.stringify(filters),
+      'Gagal memuat laporan barang masuk.',
+    );
+
+    const handleExport = async () => {
+      setExporting(true);
+      setActionError('');
+      try {
+        await exportInboundReport(filters);
+      } catch (err) {
+        setActionError(err instanceof ApiError ? err.message : 'Gagal mengekspor laporan.');
+      } finally {
+        setExporting(false);
+      }
+    };
+
+    const rows = report?.rows ?? [];
+    const summary = report?.summary ?? emptySummary;
+    // ponytail: Qty is summed from the loaded rows (max 100), transaction counts come from the API summary
+    const qtyBySource = (source: InboundSource) => rows.filter((r) => r.source === source).reduce((acc, r) => acc + r.qtyArrived, 0);
+    const totalQty = rows.reduce((acc, r) => acc + r.qtyArrived, 0);
+
     return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
         <div className="flex flex-col justify-start mb-8 gap-2">
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1 uppercase">REKAP BARANG MASUK</h1>
             <p className="text-gray-500 text-sm">Arsip pencatatan riwayat penerimaan fisik barang dari supplier dan hasil produksi.</p>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
             <p className="text-xs font-semibold text-gray-500 uppercase">Total Inbound Bulan Ini</p>
             <p className="text-2xl font-bold text-gray-900 mt-1">
-                {totalInboundUnit.toLocaleString('id-ID')} Qty / {filteredData.length} Transaksi
+                {totalQty.toLocaleString('id-ID')} Qty / {summary.total.toLocaleString('id-ID')} Transaksi
             </p>
             </div>
             <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
             <p className="text-xs font-semibold text-gray-500 uppercase">Penerimaan Supplier (PO)</p>
             <p className="text-2xl font-bold text-blue-600 mt-1">
-                {totalSupplierUnit.toLocaleString('id-ID')} Qty ({filteredData.filter((d) => d.sumberInbound === 'SUPPLIER').length} Transaksi)
+                {qtyBySource('SUPPLIER').toLocaleString('id-ID')} Qty ({summary.supplier.toLocaleString('id-ID')} Transaksi)
             </p>
             </div>
             <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
             <p className="text-xs font-semibold text-gray-500 uppercase">Barang Jadi Produksi (QC Pass)</p>
             <p className="text-2xl font-bold text-green-600 mt-1">
-                {totalProduksiUnit.toLocaleString('id-ID')} Qty ({filteredData.filter((d) => d.sumberInbound === 'PRODUKSI').length} Transaksi)
+                {qtyBySource('PRODUKSI').toLocaleString('id-ID')} Qty ({summary.produksi.toLocaleString('id-ID')} Transaksi)
             </p>
             </div>
         </div>
 
         <div className="flex flex-wrap justify-between items-center bg-white p-4 border border-gray-200 rounded-lg shadow-sm gap-4 mt-5">
-            <div className="flex flex-wrap gap-3 items-center">
+            <div className="flex flex-wrap gap-3 items-center print:hidden">
             <div>
                 <label className="block text-xs text-black mb-1">Sumber Inbound</label>
                 <select
                 value={filterSumber}
-                onChange={(e) => setFilterSumber(e.target.value)}
+                onChange={(e) => setFilterSumber(e.target.value as 'ALL' | InboundSource)}
                 className="border border-gray-300 rounded-md px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500c text-black"
                 >
                 <option value="ALL" className='text-black'>Semua Sumber (Supplier / Produksi)</option>
@@ -148,7 +135,7 @@ export default function LaporanBarangMasuk() {
                 <span className="relative flex items-center w-60">
                   <input
                     type="text"
-                    placeholder="Cari No. PO / SJ / SKU..." 
+                    placeholder="Cari No. PO / SJ / SKU..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="border border-gray-300 rounded-md pl-3 pr-10 py-1.5 text-sm w-full bg-white text-black placeholder:text-gray focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -157,7 +144,7 @@ export default function LaporanBarangMasuk() {
                     <Search className="text-black w-4 h-4" />
                   </button>
                 </span>
-            </div>         
+            </div>
         </div>
       </div>
 
@@ -166,21 +153,27 @@ export default function LaporanBarangMasuk() {
             <div className="flex gap-2 items-end m-2">
                 <p className="text-xs font-semibold text-gray-500 uppercase m-2">Tabel Rekap Barang Masuk</p>
             </div>
-            <div className="flex gap-2 items-end m-2">
-              <button 
-                className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0"
+            <div className="flex gap-2 items-end m-2 print:hidden">
+              <button
+                onClick={handleExport}
+                disabled={exporting}
+                className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-60"
+                title="Export Data ke CSV"
               >
-                <FileUp className='h-4 w-4'></FileUp>
-                <span>Export Excel</span>
+                <FileUp className="w-4 h-4" />
+                <span className="hidden sm:inline">{exporting ? 'Mengekspor...' : 'Export'}</span>
               </button>
-              <button 
-                className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0"
+              <button
+                onClick={() => window.print()}
+                className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                title="Print Data ke PDF"
               >
-                <Download className='h-4 w-4'></Download>
-                <span>Cetak PDF</span>
+                <Download className="w-4 h-4" />
+                <span className="hidden sm:inline">Print PDF</span>
               </button>
             </div>
         </div>
+        {actionError && <p className="px-4 pb-2 text-sm text-red-500">{actionError}</p>}
         <table className="min-w-full divide-y divide-gray-200 text-sm">
           <thead className="bg-gray-100 font-semibold text-gray-700">
             <tr>
@@ -190,42 +183,59 @@ export default function LaporanBarangMasuk() {
               <th className="px-4 py-3 text-left">Sumber / Pemasok</th>
               <th className="px-4 py-3 text-right">Total Volume Item (Qty)</th>
               <th className="px-4 py-3 text-center">Status QC</th>
-              <th className="px-4 py-3 text-center">Aksi</th>
+              <th className="px-4 py-3 text-center">Lokasi</th>
+              <th className="px-4 py-3 text-center print:hidden">Aksi</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {filteredData.length === 0 ? (
+            {loading ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                  <div className="flex items-center justify-center gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                    <span>Memuat data laporan barang masuk...</span>
+                  </div>
+                </td>
+              </tr>
+            ) : error ? (
+              <tr>
+                <td colSpan={8} className="px-4 py-8 text-center text-red-500">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <AlertCircle className="w-6 h-6 text-red-500" />
+                    <span className="font-semibold">{error}</span>
+                  </div>
+                </td>
+              </tr>
+            ) : rows.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
                   Tidak ada data penerimaan barang masuk ditemukan.
                 </td>
               </tr>
             ) : (
-              filteredData.map((item, index) => (
+              rows.map((item, index) => (
                 <tr key={item.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 text-center text-gray-500">{index + 1}</td>
-                  <td className="px-4 py-3 text-gray-700 font-medium">{item.tanggalJam}</td>
+                  <td className="px-4 py-3 text-gray-700 font-medium">{displayDateTime(item.date)}</td>
                   <td className="px-4 py-3 font-mono font-semibold text-blue-600">
-                    {item.noReferensi}
-                    {item.noSuratJalanSupplier && (
+                    {item.referenceNo ?? '-'}
+                    {item.supplierDeliveryNo && (
                       <span className="block text-xs font-normal text-gray-500">
-                        (SJ: {item.noSuratJalanSupplier})
+                        (SJ: {item.supplierDeliveryNo})
                       </span>
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <span className="font-medium text-gray-900">{item.namaPemasok}</span>
-                    <span className="block text-xs text-gray-500">
-                      ({item.sumberInbound === 'SUPPLIER' ? 'Supplier External' : 'Produksi Internal'})
-                    </span>
+                    <span className="font-medium text-gray-900">{item.supplierName ?? item.clientName ?? '-'}</span>
+                    <span className="block text-xs text-gray-500">({SUMBER_LABEL[item.source]})</span>
                   </td>
                   <td className="px-4 py-3 text-right font-bold text-gray-800">
-                    {item.totalVolumeQty} {item.satuan}
+                    {item.qtyArrived}
                   </td>
                   <td className="px-4 py-3 text-center">
                     {item.statusQc === 'PASS' && (
                       <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800 border border-green-200">
-                        Pass (IPM) 
+                        Pass (IPM)
                       </span>
                     )}
                     {item.statusQc === 'PARTIAL_RETUR' && (
@@ -233,8 +243,12 @@ export default function LaporanBarangMasuk() {
                         Part (Retur)
                       </span>
                     )}
+                    {item.statusQc === null && <span className="text-gray-400">-</span>}
                   </td>
                   <td className="px-4 py-3 text-center">
+                    <span className="font-medium text-gray-900">{item.locationCode ?? '-'}</span>
+                  </td>
+                  <td className="px-4 py-3 text-center print:hidden">
                     <button
                       onClick={() => setSelectedDetail(item)}
                       className="flex-1 lg:flex-none flex items-center justify-center gap-2 text-blue-600 hover:text-blue-800 font-medium text-xs bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded border border-blue-200 transition-colors"
@@ -250,9 +264,6 @@ export default function LaporanBarangMasuk() {
         </table>
 
         <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
-            {/* <div>
-              Menampilkan <span className="font-semibold text-gray-900">1</span> sampai <span className="font-semibold text-gray-900">{filteredData.filter(i=>i.no).length}</span> dari <span className="font-semibold text-gray-900">{filteredData.filter(i=>i.no).length}</span> data
-            </div> */}
             <div className="flex gap-1">
               <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-400 cursor-not-allowed">Sec</button>
               <button className="px-3 py-1 bg-[#FF8A00] text-white rounded-md font-medium shadow-sm shadow-orange-500/20">1</button>
@@ -262,8 +273,6 @@ export default function LaporanBarangMasuk() {
             </div>
         </div>
       </div>
-
-      
 
       {selectedDetail && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
@@ -280,34 +289,52 @@ export default function LaporanBarangMasuk() {
             <div className="space-y-3 text-sm">
               <div className="flex justify-between py-1 border-b border-gray-50">
                 <span className="text-gray-500">No. Referensi / PO</span>
-                <span className="font-mono font-bold text-blue-600">{selectedDetail.noReferensi}</span>
+                <span className="font-mono font-bold text-blue-600">{selectedDetail.referenceNo ?? '-'}</span>
               </div>
-              {selectedDetail.noSuratJalanSupplier && (
+              {selectedDetail.supplierDeliveryNo && (
                 <div className="flex justify-between py-1 border-b border-gray-50">
                   <span className="text-gray-500">No. Surat Jalan</span>
-                  <span className="font-mono font-medium text-gray-800">{selectedDetail.noSuratJalanSupplier}</span>
+                  <span className="font-mono font-medium text-gray-800">{selectedDetail.supplierDeliveryNo}</span>
                 </div>
               )}
               <div className="flex justify-between py-1 border-b border-gray-50">
                 <span className="text-gray-500">Tgl & Jam</span>
-                <span className="font-medium text-gray-800">{selectedDetail.tanggalJam}</span>
+                <span className="font-medium text-gray-800">{displayDateTime(selectedDetail.date)}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-50">
+                <span className="text-gray-500">Barang</span>
+                <span className="font-medium text-gray-800">
+                  {selectedDetail.itemCode ? `${selectedDetail.itemCode} - ` : ''}{selectedDetail.itemName}
+                </span>
               </div>
               <div className="flex justify-between py-1 border-b border-gray-50">
                 <span className="text-gray-500">Sumber / Pemasok</span>
-                <span className="font-medium text-gray-800">{selectedDetail.namaPemasok}</span>
+                <span className="font-medium text-gray-800">{selectedDetail.supplierName ?? selectedDetail.clientName ?? '-'}</span>
               </div>
+              {selectedDetail.spk && (
+                <div className="flex justify-between py-1 border-b border-gray-50">
+                  <span className="text-gray-500">SPK</span>
+                  <span className="font-medium text-gray-800">{selectedDetail.spk}</span>
+                </div>
+              )}
               <div className="flex justify-between py-1 border-b border-gray-50">
-                <span className="text-gray-500">Total Volume</span>
-                <span className="font-bold text-gray-900">{selectedDetail.totalVolumeQty} {selectedDetail.satuan}</span>
+                <span className="text-gray-500">Jumlah Kedatangan</span>
+                <span className="font-bold text-gray-900">{selectedDetail.qtyArrived}</span>
               </div>
+              {selectedDetail.qtyPurchased !== null && (
+                <div className="flex justify-between py-1 border-b border-gray-50">
+                  <span className="text-gray-500">Jumlah Rekap Pembelian</span>
+                  <span className="font-bold text-gray-900">{selectedDetail.qtyPurchased}</span>
+                </div>
+              )}
               <div className="flex justify-between py-1 border-b border-gray-50">
                 <span className="text-gray-500">Status QC</span>
-                <span className="font-semibold text-gray-800">{selectedDetail.statusQc}</span>
+                <span className="font-semibold text-gray-800">{selectedDetail.statusQc ?? '-'}</span>
               </div>
-              {selectedDetail.catatan && (
+              {selectedDetail.notes && (
                 <div className="py-1">
                   <span className="text-gray-500 block mb-1">Catatan:</span>
-                  <p className="bg-gray-50 p-2.5 rounded border border-gray-100 text-xs text-gray-700">{selectedDetail.catatan}</p>
+                  <p className="bg-gray-50 p-2.5 rounded border border-gray-100 text-xs text-gray-700">{selectedDetail.notes}</p>
                 </div>
               )}
             </div>

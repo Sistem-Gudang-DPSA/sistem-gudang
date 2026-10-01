@@ -7,7 +7,7 @@ export default function DashboardOverview() {
     <div className="relative animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight text-gray-900 mb-2">Welcome back, Admin! 👋</h1>
-        <p className="text-gray-500">Here's an overview of the DPSA integrated system today.</p>
+        <p className="text-gray-500">Here&apos;s an overview of the DPSA integrated system today.</p>
       </div>
 
       {/* Grid Quick Stats */}

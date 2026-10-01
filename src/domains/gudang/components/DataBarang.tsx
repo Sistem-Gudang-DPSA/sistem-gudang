@@ -3,47 +3,36 @@
 import React, { useEffect, useState } from 'react';
 import { Search, Plus, Download, Filter, PackageSearch } from 'lucide-react';
 import { adjustItemStock, assignItemLocation, listItems, listLocations, suggestItemCode } from '@/domains/inventory/api';
-import type { Item, Location } from '@/domains/inventory/types';
+import type { ItemListRow, Location } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
 import type { Supplier } from '@/domains/purchasing/types';
 import { ApiError } from '@/shared/lib/api-client';
+import { useApiData } from '@/shared/lib/use-api-data';
 
 export default function DataBarangGudang() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [activeItem, setActiveItem] = useState<Item | null>(null);
+  const [activeItem, setActiveItem] = useState<ItemListRow | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [modalData, setModalData] = useState({ locationId: "", code: "" });
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState("");
 
-  const [dataBarang, setDataBarang] = useState<Item[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
   const [isStockModalOpen, setIsStockModalOpen] = useState(false);
-  const [stockItem, setStockItem] = useState<Item | null>(null);
+  const [stockItem, setStockItem] = useState<ItemListRow | null>(null);
   const [stockDelta, setStockDelta] = useState("");
   const [stockReason, setStockReason] = useState("");
   const [stockSaving, setStockSaving] = useState(false);
   const [stockError, setStockError] = useState("");
 
-  const loadBarang = async (search: string) => {
-    setLoading(true);
-    try {
-      const result = await listItems({ search: search || undefined });
-      setDataBarang(result.rows);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Gagal memuat data barang.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadBarang(searchQuery);
-  }, [searchQuery]);
+  const { data: loaded, loading, error, reload } = useApiData(
+    () => listItems({ search: searchQuery || undefined }),
+    searchQuery,
+    "Gagal memuat data barang.",
+  );
+  const dataBarang = loaded?.rows ?? [];
 
   useEffect(() => {
     listLocations().then((res) => setLocations(res.rows)).catch(() => {});
@@ -53,7 +42,7 @@ export default function DataBarangGudang() {
   const supplierName = (id: number) => suppliers.find((s) => s.id === id)?.name ?? '-';
   const locationCode = (id: number | null) => (id === null ? '-' : locations.find((loc) => loc.id === id)?.code ?? `#${id}`);
 
-  const openAssignModal = (item: Item) => {
+  const openAssignModal = (item: ItemListRow) => {
     setActiveItem(item);
     setModalData({ locationId: "", code: "" });
     setModalError("");
@@ -79,11 +68,11 @@ export default function DataBarangGudang() {
     setSaving(true);
     setModalError("");
     try {
-      const updated = await assignItemLocation(activeItem.id, {
+      await assignItemLocation(activeItem.id, {
         code: modalData.code,
         locationId: Number(modalData.locationId),
       });
-      setDataBarang((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
+      reload();
       setIsModalOpen(false);
     } catch (err) {
       setModalError(err instanceof ApiError ? err.message : "Gagal menyimpan lokasi barang.");
@@ -92,7 +81,7 @@ export default function DataBarangGudang() {
     }
   };
 
-  const openStockModal = (item: Item) => {
+  const openStockModal = (item: ItemListRow) => {
     setStockItem(item);
     setStockDelta("");
     setStockReason("");
@@ -109,8 +98,8 @@ export default function DataBarangGudang() {
     setStockSaving(true);
     setStockError("");
     try {
-      const updated = await adjustItemStock(stockItem.id, { delta, reason: stockReason });
-      setDataBarang((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
+      await adjustItemStock(stockItem.id, { delta, reason: stockReason });
+      reload();
       setIsStockModalOpen(false);
     } catch (err) {
       setStockError(err instanceof ApiError ? err.message : "Gagal menyesuaikan stok.");
@@ -131,7 +120,7 @@ export default function DataBarangGudang() {
     }
   };
 
-  const handleExportCSV = () => {
+  const handleExportExcel = () => {
     const headers = ['No,Kode Barang,Nama Barang,Supplier,Jumlah Stok,Satuan,Kategori,Lokasi'];
     const csvData = dataBarang.map((item, index) =>
       `${index + 1},${item.code ?? '-'},"${item.name}","${supplierName(item.supplierId)}",${item.stock},${item.unit},${item.category},${locationCode(item.locationId)}`
@@ -174,9 +163,9 @@ export default function DataBarangGudang() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={handleExportCSV}
+              onClick={handleExportExcel}
               className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
-              title="Export Data ke CSV"
+              title="Export Data ke Excel"
             >
               <Download className="w-4 h-4" />
               <span className="hidden sm:inline">Export</span>
@@ -249,7 +238,7 @@ export default function DataBarangGudang() {
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getCategoryColor(item.category)}`}>
                       {item.category || '-'}
-                    </span>
+                    </span> 
                   </td>
 
                   {/* Lokasi */}
