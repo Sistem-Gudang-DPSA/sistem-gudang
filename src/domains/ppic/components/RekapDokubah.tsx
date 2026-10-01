@@ -1,287 +1,319 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Search, Plus, Edit2, Trash2, CheckCircle, XCircle, Clock, Download, Calendar } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { Search, ChevronDown } from 'lucide-react';
+import { getStatusBadge, STATUS_OPTIONS } from '@/domains/ppic/components/Dokubah';
+import { detailRekapDokubahPath, escapeHtml, formatRupiah, type StatusDokubah } from '@/domains/ppic/data/dokubah';
+import { listDokubahRows, STATUS_TO_UI } from '@/domains/ppic/api';
+import { useApiData } from '@/shared/lib/use-api-data';
+
+const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+const cellClass = 'px-4 py-3 border-b border-r border-gray-300';
+const cardClass = 'bg-white rounded-sm border border-gray-100 shadow-md p-6 min-h-32';
+const labelClass = 'shrink-0 text-sm font-medium text-gray-800';
+const fieldClass = 'w-full pl-3 pr-9 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors';
+const checkboxClass = 'w-4 h-4 accent-[#FF8A00] cursor-pointer disabled:cursor-not-allowed';
+const orangeButtonClass = 'px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed';
+
+// YYYY-MM -> "September 2026"
+const formatPeriode = (periode: string) => {
+  const [y, m] = periode.split('-');
+  return `${BULAN[Number(m) - 1]} ${y}`;
+};
 
 export default function RekapDokubah() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterMonth, setFilterMonth] = useState("");
-  const [filterYear, setFilterYear] = useState("");
+  const router = useRouter();
+  // ponytail: loads first 100 rows only; the API list rows already carry the rupiah realisation, so no per-row detail calls
+  const { data: result, loading, error } = useApiData(
+    () => listDokubahRows({ pageSize: 100 }),
+    'list',
+    'Gagal memuat rekap Dokubah.',
+  );
+  const data = (result?.rows ?? []).map((row) => ({
+    ...row,
+    status: STATUS_TO_UI[row.status],
+    realisasi: row.totalRealisasiNilai,
+    sisa: row.totalAnggaran - row.totalRealisasiNilai,
+  }));
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState<StatusDokubah | ''>('');
+  const [filterPeriode, setFilterPeriode] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
-  const dataDokubah = [
-    { id: 1, client: 'PT Bintang Raya', spk: 'SPK-2026-001', noRekap: 'RKP/04/001', approval: 'Approved' },
-    { id: 2, client: 'CV Indo Makmur', spk: 'SPK-2026-002', noRekap: 'RKP/04/002', approval: 'Pending' },
-    { id: 3, client: 'Global Mas', spk: 'SPK-2026-003', noRekap: 'RKP/04/003', approval: 'Rejected' },
-  ];
+  // Ringkasan dihitung dari seluruh SPK, tidak ikut filter
+  const totalSpkAktif = data.filter((item) => item.status === 'Approved').length;
+  const totalSpkOverbudget = data.filter((item) => item.sisa < 0).length;
+  // Satuan bahan berbeda-beda, jadi pemakaian material dibandingkan dalam nilai rupiah
+  // totalAnggaran is computed by the server as the sum of kuota * hargaSatuan
+  const nilaiKuota = data.reduce((sum, item) => sum + item.totalAnggaran, 0);
+  const nilaiRealisasi = data.reduce((sum, item) => sum + item.realisasi, 0);
+  const persenMaterial = nilaiKuota === 0 ? 0 : Math.round((nilaiRealisasi / nilaiKuota) * 100);
 
-  const filteredData = dataDokubah.filter(item => {
-    if (searchQuery === "" && filterMonth === "" && filterYear === "") return true;
+  // Periode = bulan tanggal mulai SPK
+  const periodeOptions = Array.from(new Set(data.map((item) => item.tanggalMulai.slice(0, 7)))).sort();
 
-    const searches = searchQuery.toLowerCase();
-    const matchesSearch = searchQuery === "" ||
-      item.client.toLowerCase().includes(searches) ||
-      item.spk.toLowerCase().includes(searches) ||
-      item.noRekap.toLowerCase().includes(searches);
-
-    // Scan Month in noRekap (format RKP/04/001)
-    const matchesMonth = filterMonth === "" || item.noRekap.split('/')[1] === filterMonth;
-
-    // Scan Year in spk (format SPK-2026-001)
-    const matchesYear = filterYear === "" || item.spk.includes(filterYear);
-
-    return matchesSearch && matchesMonth && matchesYear;
+  const filteredData = data.filter((item) => {
+    const q = searchQuery.trim().toLowerCase();
+    const matchesSearch = q === '' ||
+      item.noSpk.toLowerCase().includes(q) ||
+      item.client.toLowerCase().includes(q);
+    const matchesStatus = filterStatus === '' || item.status === filterStatus;
+    const matchesPeriode = filterPeriode === '' || item.tanggalMulai.startsWith(filterPeriode);
+    return matchesSearch && matchesStatus && matchesPeriode;
   });
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const checkedRows = filteredData.filter((item) => selectedIds.has(item.id));
+  const allChecked = filteredData.length > 0 && checkedRows.length === filteredData.length;
 
-  const getApprovalBadge = (status: string) => {
-    switch (status) {
-      case 'Approved':
-        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 border border-green-200"><CheckCircle className="w-3 h-3" /> Approved</span>;
-      case 'Rejected':
-        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-200"><XCircle className="w-3 h-3" /> Rejected</span>;
-      default:
-        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700 border border-amber-200"><Clock className="w-3 h-3" /> Pending</span>;
+  // Export & cetak pakai baris yang dicentang; kalau tidak ada yang dicentang, semua baris hasil filter
+  const rowsToExport = checkedRows.length > 0 ? checkedRows : filteredData;
+
+  const toggleAll = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      filteredData.forEach((item) => (allChecked ? next.delete(item.id) : next.add(item.id)));
+      return next;
+    });
+  };
+
+  const toggleOne = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleExportExcel = async () => {
+    const XLSX = await import('xlsx');
+    const rows = rowsToExport.map((item, index) => ({
+      'No.': index + 1,
+      'No. SPK': item.noSpk,
+      'Klien & Proyek': item.client,
+      'Anggaran': item.totalAnggaran,
+      'Realisasi': item.realisasi,
+      'Sisa Anggaran': item.sisa,
+      'Status': item.status,
+    }));
+    const sheet = XLSX.utils.json_to_sheet(rows);
+    const book = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(book, sheet, 'Rekap Dokubah');
+    XLSX.writeFile(book, 'Rekap_Dokubah_PPIC.xlsx');
+  };
+
+  // Buka jendela berisi tabel saja lalu panggil dialog print (pilih "Save as PDF")
+  const handleCetakPdf = () => {
+    const win = window.open('', '_blank');
+    if (!win) {
+      alert('Pop-up diblokir browser. Izinkan pop-up untuk mencetak PDF.');
+      return;
     }
+    const bodyRows = rowsToExport.map((item, index) => `
+      <tr>
+        <td class="center">${index + 1}</td>
+        <td>${escapeHtml(item.noSpk)}</td>
+        <td>${escapeHtml(item.client)}</td>
+        <td class="right">${formatRupiah(item.totalAnggaran)}</td>
+        <td class="right">${formatRupiah(item.realisasi)}</td>
+        <td class="right">${formatRupiah(item.sisa)}</td>
+        <td>${item.status}</td>
+      </tr>`).join('');
+    win.document.write(`<!doctype html>
+      <html>
+        <head>
+          <title>Rekap Dokubah PPIC</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 24px; color: #111; }
+            h1 { font-size: 18px; margin: 0 0 16px; }
+            table { width: 100%; border-collapse: collapse; font-size: 12px; }
+            th, td { border: 1px solid #999; padding: 6px 8px; text-align: left; }
+            th { background: #eee; }
+            .center { text-align: center; }
+            .right { text-align: right; }
+          </style>
+        </head>
+        <body>
+          <h1>Rekapitulasi Dokubah per SPK</h1>
+          <table>
+            <thead>
+              <tr><th class="center">No.</th><th>No. SPK</th><th>Klien &amp; Proyek</th><th>Anggaran</th><th>Realisasi</th><th>Sisa Anggaran</th><th>Status</th></tr>
+            </thead>
+            <tbody>${bodyRows}</tbody>
+          </table>
+        </body>
+      </html>`);
+    win.document.close();
+    win.focus();
+    win.print();
   };
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
-      <div className="flex flex-col justify-start mb-8 gap-2">
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1 uppercase">REKAP DOKUBAH</h1>
-        <p className="text-gray-500 text-sm">Manajemen rekap dokumen perubahan (Dokubah) PPIC.</p>
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <h1 className="text-[18px] font-extrabold text-black tracking-wide">Rekap Dokubah</h1>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
-        {/* Table Toolbar */}
-        <div className="p-5 border-b border-gray-100 bg-gray-50/50 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
-            <div className="relative w-full max-w-xs">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-4 w-4 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] sm:text-sm transition-all shadow-sm"
-                placeholder="Cari client, spk, atau rekap..."
-              />
-            </div>
+      {/* Kontainer konten */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        {/* Ringkasan */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+          <div className={cardClass}>
+            <h2 className="text-lg font-bold text-gray-900 mb-3">Total SPK Aktif</h2>
+            <p className="text-base font-bold text-gray-900">{totalSpkAktif} Proyek</p>
+          </div>
+          <div className={cardClass}>
+            <h2 className="text-lg font-bold text-gray-900 mb-3">Penggunaan Material Total</h2>
+            <p className="text-base font-bold text-gray-900">{persenMaterial} % dari total material</p>
+          </div>
+          <div className={cardClass}>
+            <h2 className="text-lg font-bold text-gray-900 mb-3">Peringatan SPK Overbudget</h2>
+            <p className={`text-base font-bold ${totalSpkOverbudget > 0 ? 'text-red-600' : 'text-gray-900'}`}>{totalSpkOverbudget} Proyek</p>
+          </div>
+        </div>
 
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <select
-                  value={filterMonth}
-                  onChange={(e) => setFilterMonth(e.target.value)}
-                  className="appearance-none w-[110px] border border-gray-200 rounded-xl py-2.5 pl-3 pr-8 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-orange-500 text-sm text-gray-700 bg-white transition-all duration-200 cursor-pointer"
-                >
-                  <option value="">Bulan</option>
-                  {[
-                    { v: '01', l: 'Januari' }, { v: '02', l: 'Februari' }, { v: '03', l: 'Maret' },
-                    { v: '04', l: 'April' }, { v: '05', l: 'Mei' }, { v: '06', l: 'Juni' },
-                    { v: '07', l: 'Juli' }, { v: '08', l: 'Agustus' }, { v: '09', l: 'September' },
-                    { v: '10', l: 'Oktober' }, { v: '11', l: 'November' }, { v: '12', l: 'Desember' }
-                  ].map(m => (
-                    <option key={m.v} value={m.v}>{m.l}</option>
-                  ))}
-                </select>
-                <div className="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
-                  <Calendar className="h-4 w-4 text-gray-400" />
-                </div>
-              </div>
-
-              <div className="relative">
-                <select
-                  value={filterYear}
-                  onChange={(e) => setFilterYear(e.target.value)}
-                  className="appearance-none w-[90px] border border-gray-200 rounded-xl py-2.5 pl-3 pr-8 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-orange-500 text-sm text-gray-700 bg-white transition-all duration-200 cursor-pointer"
-                >
-                  <option value="">Tahun</option>
-                  {["2024", "2025", "2026"].map(y => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
-                <div className="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
-                  <Calendar className="h-4 w-4 text-gray-400" />
-                </div>
-              </div>
-
-              {(filterMonth || filterYear) && (
-                <button
-                  onClick={() => { setFilterMonth(""); setFilterYear(""); }}
-                  className="text-xs text-orange-600 font-bold hover:underline ml-1"
-                >
-                  Reset
-                </button>
-              )}
+        {/* Pencarian & filter */}
+        <h2 className="text-base font-bold text-gray-900 mb-3">Cari Proyek</h2>
+        <div className="grid grid-cols-1 md:grid-cols-[auto_auto] md:justify-start gap-x-16 gap-y-3 mb-8">
+          <div className="flex items-center gap-2">
+            <label htmlFor="rekap-status" className={`${labelClass} w-20`}>Status SPK</label>
+            <span className="text-gray-800">:</span>
+            <div className="relative w-56">
+              <select
+                id="rekap-status"
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value as StatusDokubah | '')}
+                className={`${fieldClass} appearance-none cursor-pointer`}
+              >
+                <option value="">Semua Status</option>
+                {STATUS_OPTIONS.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
             </div>
           </div>
 
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0 w-full lg:w-auto"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Tambah Data</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <label htmlFor="rekap-periode" className={labelClass}>Periode</label>
+            <span className="text-gray-800">:</span>
+            <div className="relative w-56">
+              <select
+                id="rekap-periode"
+                value={filterPeriode}
+                onChange={(e) => setFilterPeriode(e.target.value)}
+                className={`${fieldClass} appearance-none cursor-pointer`}
+              >
+                <option value="">Semua Periode</option>
+                {periodeOptions.map((p) => (
+                  <option key={p} value={p}>{formatPeriode(p)}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label htmlFor="rekap-cari" className={`${labelClass} w-20`}>Cari Data</label>
+            <span className="text-gray-800">:</span>
+            <div className="relative w-56">
+              <input
+                id="rekap-cari"
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="No. SPK atau klien"
+                className={fieldClass}
+              />
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-800 pointer-events-none" />
+            </div>
+          </div>
         </div>
 
-        {/* Table Container */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
+        {/* Tabel rekapitulasi */}
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+          <h2 className="text-base font-bold text-gray-900">Tabel Rekapitulasi Dokubah per SPK</h2>
+          <div className="flex flex-wrap gap-4">
+            <button type="button" onClick={handleExportExcel} disabled={rowsToExport.length === 0} className={orangeButtonClass}>
+              Export Excel
+            </button>
+            <button type="button" onClick={handleCetakPdf} disabled={rowsToExport.length === 0} className={orangeButtonClass}>
+              Cetak PDF
+            </button>
+          </div>
+        </div>
+        <div className="overflow-x-auto border-t border-l border-gray-300 rounded-sm">
+          <table className="w-full text-left text-sm whitespace-nowrap border-collapse">
+            <thead className="bg-gray-100 text-gray-800 font-semibold text-xs">
               <tr>
-                <th scope="col" className="px-6 py-4 w-16 text-center">No</th>
-                <th scope="col" className="px-6 py-4">Client</th>
-                <th scope="col" className="px-6 py-4">SPK</th>
-                <th scope="col" className="px-6 py-4">No. Rekap</th>
-                <th scope="col" className="px-6 py-4 text-center">Approval</th>
-                <th scope="col" className="px-6 py-4 text-center">Aksi</th>
+                <th scope="col" className={`${cellClass} w-14`}>No.</th>
+                <th scope="col" className={cellClass}>No. SPK</th>
+                <th scope="col" className={cellClass}>Klien &amp; Proyek</th>
+                <th scope="col" className={cellClass}>Anggaran</th>
+                <th scope="col" className={cellClass}>Realisasi</th>
+                <th scope="col" className={cellClass}>Sisa Anggaran</th>
+                <th scope="col" className={cellClass}>Status</th>
+                <th scope="col" className={`${cellClass} w-24`}>
+                  <label className="flex items-center justify-between gap-2 cursor-pointer">
+                    <span>Check</span>
+                    <input
+                      type="checkbox"
+                      checked={allChecked}
+                      onChange={toggleAll}
+                      disabled={filteredData.length === 0}
+                      aria-label="Centang semua"
+                      className={checkboxClass}
+                    />
+                  </label>
+                </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50 text-gray-600">
+            <tbody className="text-gray-600">
               {filteredData.map((item, index) => (
-                <tr key={item.id} className="hover:bg-orange-50/20 transition-colors group">
-                  <td className="px-6 py-3.5 text-gray-700 border-r border-gray-200 text-center">{index + 1}</td>
-
-                  <td className="px-6 py-3.5 border-r border-gray-200">
-                    <span className="font-semibold text-gray-900">{item.client}</span>
+                <tr
+                  key={item.id}
+                  onClick={() => router.push(detailRekapDokubahPath(item.id))}
+                  className={`cursor-pointer transition-colors ${selectedIds.has(item.id) ? 'bg-orange-50/60' : 'hover:bg-orange-50/20'}`}
+                >
+                  <td className={cellClass}>{index + 1}</td>
+                  <td className={`${cellClass} font-semibold text-gray-900`}>
+                    {/* Link supaya baris tetap bisa dibuka lewat keyboard; klik di sel lain ditangani onClick baris */}
+                    <Link href={detailRekapDokubahPath(item.id)} onClick={(e) => e.stopPropagation()} className="hover:underline">
+                      {item.noSpk}
+                    </Link>
                   </td>
-
-                  <td className="px-6 py-3.5 border-r border-gray-200 text-gray-600">
-                    {item.spk}
-                  </td>
-
-                  <td className="px-6 py-3.5 border-r border-gray-200 text-gray-600">
-                    {item.noRekap}
-                  </td>
-
-                  <td className="px-6 py-3.5 border-r border-gray-200 text-center">
-                    {getApprovalBadge(item.approval)}
-                  </td>
-
-                  <td className="px-6 py-3.5 text-center">
-                    <div className="flex items-center justify-center gap-2 opacity-50 hover:opacity-100 transition-opacity">
-                      <button className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors" title="Edit Data">
-                         <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors" title="Hapus Data">
-                         <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+                  <td className={cellClass}>{item.client}</td>
+                  <td className={cellClass}>{formatRupiah(item.totalAnggaran)}</td>
+                  <td className={cellClass}>{formatRupiah(item.realisasi)}</td>
+                  <td className={`${cellClass} ${item.sisa < 0 ? 'text-red-600 font-semibold' : ''}`}>{formatRupiah(item.sisa)}</td>
+                  <td className={cellClass}>{getStatusBadge(item.status)}</td>
+                  {/* Sel centang tidak ikut membuka halaman detail */}
+                  <td className={`${cellClass} text-right cursor-default`} onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(item.id)}
+                      onChange={() => toggleOne(item.id)}
+                      aria-label={`Centang ${item.noSpk}`}
+                      className={`${checkboxClass} align-middle`}
+                    />
                   </td>
                 </tr>
               ))}
               {filteredData.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-gray-400 italic">
-                    Data tidak ditemukan untuk filter tersebut.
+                  <td colSpan={8} className={`${cellClass} px-6 py-10 text-center text-gray-400 italic`}>
+                    {loading ? 'Memuat data...' : error || 'Data tidak ditemukan.'}
                   </td>
                 </tr>
               )}
-
-              {/* Extra empty rows to simulate the wireframe empty box lines */}
-              {[...Array(5)].map((_, i) => (
-                 <tr key={`empty-${i}`} className="h-12 border-b border-gray-200 last:border-b-0">
-                   <td className="px-6 border-r border-gray-200"></td>
-                   <td className="px-6 border-r border-gray-200"></td>
-                   <td className="px-6 border-r border-gray-200"></td>
-                   <td className="px-6 border-r border-gray-200"></td>
-                   <td className="px-6 border-r border-gray-200"></td>
-                   <td className="px-6 flex justify-center py-2 h-12"></td>
-                 </tr>
-              ))}
             </tbody>
           </table>
         </div>
       </div>
-
-      {/* Simpan Button at Bottom Right */}
-      <div className="flex justify-end mt-6">
-        <button className="flex items-center gap-2 px-8 py-2.5 bg-[#FF8A00] text-white font-bold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm tracking-wide uppercase">
-          Simpan Data
-        </button>
-      </div>
-
-      {/* Modal / Popup Tambah Data */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 transition-opacity">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="p-8">
-              <h2 className="text-xl font-bold text-gray-900 mb-6 font-sans">Rekap Dokubah</h2>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 row-gap-6 col-gap-8 gap-y-6 gap-x-8 mb-10">
-                {/* Client */}
-                <div>
-                  <label className="block text-[15px] font-medium text-gray-800 mb-2 font-sans">Client</label>
-                  <input
-                    type="text"
-                    placeholder="Masukkan nama client"
-                    className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors font-sans"
-                  />
-                </div>
-
-                {/* SPK */}
-                <div>
-                  <label className="block text-[15px] font-medium text-gray-800 mb-2 font-sans">SPK</label>
-                  <input
-                    type="text"
-                    placeholder="Masukkan nama spk"
-                    className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors font-sans"
-                  />
-                </div>
-
-                {/* Upload File Dokubah */}
-                <div>
-                  <label className="block text-[15px] font-medium text-gray-800 mb-2 font-sans">Upload File Dokubah</label>
-                  <div className="relative">
-                    <input type="file" id="file-dokubah" className="hidden" />
-                    <label
-                      htmlFor="file-dokubah"
-                      className="flex items-center w-full pl-4 pr-3 py-2.5 bg-white border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors font-sans"
-                    >
-                      <span className="text-gray-400 flex-1 truncate text-left">Upload file dokubah</span>
-                      <Download className="w-5 h-5 text-gray-600 flex-shrink-0" />
-                    </label>
-                  </div>
-                </div>
-
-                {/* Upload File Rekap */}
-                <div>
-                  <label className="block text-[15px] font-medium text-gray-800 mb-2 font-sans">Upload File Rekap</label>
-                  <div className="relative">
-                    <input type="file" id="file-rekap" className="hidden" />
-                    <label
-                      htmlFor="file-rekap"
-                      className="flex items-center w-full pl-4 pr-3 py-2.5 bg-white border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors font-sans"
-                    >
-                      <span className="text-gray-400 flex-1 truncate text-left">Upload file rekap</span>
-                      <Download className="w-5 h-5 text-gray-600 flex-shrink-0" />
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex justify-end gap-4 mt-2">
-                <button
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-8 py-2.5 border-2 border-[#FF8A00] text-[#FF8A00] font-semibold rounded-lg hover:bg-orange-50 transition-colors font-sans"
-                >
-                  Batal
-                </button>
-                <button
-                  className="px-8 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-lg hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-colors font-sans"
-                >
-                  Simpan
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 }

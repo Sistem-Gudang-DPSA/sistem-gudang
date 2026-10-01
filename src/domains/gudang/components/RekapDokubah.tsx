@@ -3,26 +3,33 @@
 import React, { useState } from "react";
 import { Search, FileUp, Download, Loader2, AlertCircle  } from "lucide-react";
 import * as XLSX from 'xlsx';
-import type { RekapDokubahItems } from "../types";
-
-// ponytail: dummy data, no backend endpoint yet (BE confirmed none planned). Swap for useApiData once /reports/dokubah exists.
-const DUMMY_DOKUBAH: RekapDokubahItems[] = [
-    { id: 1, spk: "SPK-2026-001", projectName: "PT Bintang Raya", budget: 50000000, status: "AKTIF", totalMaterialUsage: 32000000, totalOverbudget: 0, startDate: "2026-08-01", endDate: "2026-10-30" },
-    { id: 2, spk: "SPK-2026-002", projectName: "CV Indo Makmur", budget: 30000000, status: "AKTIF", totalMaterialUsage: 34500000, totalOverbudget: 4500000, startDate: "2026-08-15", endDate: "2026-11-15" },
-    { id: 3, spk: "SPK-2026-003", projectName: "Global Mas", budget: 75000000, status: "SELESAI", totalMaterialUsage: 71200000, totalOverbudget: 0, startDate: "2026-06-01", endDate: "2026-09-20" },
-]; 
+import { listDokubahRows } from "@/domains/ppic/api";
+import { formatAngka } from "@/domains/ppic/data/dokubah";
+import type { DokubahApiStatus } from "@/domains/ppic/types";
+import { useApiData } from "@/shared/lib/use-api-data";
 
 export default function RekapDokubah() {
     const [searchQuery, setSearchQuery] = useState("");
-    const [startDate, setStartDate] = useState("01-01-2026"); 
-    const [endDate, setEndDate] = useState("31-12-2026");
-    const [filterSumber, setFilterSumber] = useState("ALL");
-    const [data, setData] = useState<RekapDokubahItems[]>(DUMMY_DOKUBAH);
-    const [isLoading, setIsLoading] = useState(false);
-    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
+    const [filterSumber, setFilterSumber] = useState<"ALL" | DokubahApiStatus>("ALL");
     const [selectedIds, setSelectedIds] = useState<Set<string | number>>(new Set());
 
-    const filteredData = data;
+    const filters = {
+        search: searchQuery || undefined,
+        status: filterSumber === "ALL" ? undefined : filterSumber,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+    };
+
+    // ponytail: loads first 100 rows only, add real pagination when the list outgrows it
+    const { data: result, loading: isLoading, error: errorMessage } = useApiData(
+        () => listDokubahRows({ ...filters, pageSize: 100 }),
+        JSON.stringify(filters),
+        "Gagal memuat rekap dokubah.",
+    );
+    const filteredData = result?.rows ?? [];
+    const realisasiOf = (item: { totalRealisasiNilai: number }) => item.totalRealisasiNilai;
     const isAllSelected = filteredData.length > 0 && selectedIds.size === filteredData.length;
 
     const handleSelectAll = () => {
@@ -49,15 +56,17 @@ export default function RekapDokubah() {
     const handleExportCSV = () => {
           const exportData = filteredData.map((item, index) => ({
             'No': index + 1,
-            'Nomor SPK': item.spk,
-            'Nama Proyek / Klien': item.projectName,
-            'Anggaran': item.budget,
-            'Status SPK': item.status,
+            'Nomor SPK': item.noSpk,
+            'Nama Proyek / Klien': item.client,
+            'Anggaran': item.totalAnggaran,
+            'Realisasi': realisasiOf(item),
+            'Status': item.status,
           }));
     
           const worksheet = XLSX.utils.json_to_sheet(exportData);
           const workbook = XLSX.utils.book_new();
           XLSX.utils.book_append_sheet(workbook, worksheet, 'Rekap Dokubah');
+          XLSX.writeFile(workbook, 'Rekap_Dokubah.xlsx');
         };
     
         const handlePrintPDF = () => {
@@ -126,13 +135,14 @@ export default function RekapDokubah() {
                         <label className="block text-xs text-black mb-1">Status SPK</label>
                         <select
                         value={filterSumber}
-                        onChange={(e) => setFilterSumber(e.target.value)}
+                        onChange={(e) => setFilterSumber(e.target.value as "ALL" | DokubahApiStatus)}
                         className="border border-gray-300 rounded-md px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500c text-black"
                         >
                         <option value="ALL" className='text-black'>Semua Status</option>
-                        <option value="AKTIF" className='text-black'>AKTIF</option>
-                        <option value="SELESAI" className='text-black'>SELESAI</option>
-                        <option value="BATAL" className='text-black'>BATAL</option>
+                        <option value="DRAFT" className='text-black'>DRAFT</option>
+                        <option value="PENDING" className='text-black'>PENDING</option>
+                        <option value="APPROVED" className='text-black'>APPROVED</option>
+                        <option value="REJECTED" className='text-black'>REJECTED</option>
                         </select>
                     </div>
                 </div>
@@ -215,16 +225,16 @@ export default function RekapDokubah() {
                             filteredData.map((item, index) => (
                                 <tr key={item.id} className="hover:bg-gray-50 transition-colors">
                                 <td className="px-4 py-3 text-center text-gray-500">{index + 1}</td>
-                                <td className="px-4 py-3 text-gray-700 font-medium">{item.spk}</td>
-                                <td className="px-4 py-3 font-mono font-semibold text-blue-600">{item.projectName}</td>
+                                <td className="px-4 py-3 text-gray-700 font-medium">{item.noSpk}</td>
+                                <td className="px-4 py-3 font-mono font-semibold text-blue-600">{item.client}</td>
                                 <td className="px-4 py-3">
-                                    <span className="font-medium text-gray-900">{item.budget}</span>
+                                    <span className="font-medium text-gray-900">{formatAngka(item.totalAnggaran)}</span>
                                 </td>
                                 <td className="px-4 py-3 text-right font-bold text-gray-800">
-                                    {item.totalMaterialUsage}
+                                    {formatAngka(realisasiOf(item))}
                                 </td>
                                 <td className="px-4 py-3 text-center">
-                                    
+                                    {formatAngka(item.totalAnggaran - realisasiOf(item))}
                                 </td>
                                 <td className="px-4 py-3 text-center">
                                     <span className="font-medium text-gray-900">{item.status}</span>
