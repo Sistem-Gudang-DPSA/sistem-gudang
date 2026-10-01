@@ -1,7 +1,7 @@
 import { apiClient, toQuery } from "@/shared/lib/api-client";
 import type { PaginatedResult } from "@/domains/inventory/types";
 import type { BahanDokubah, DokubahItem, StatusDokubah } from "./data/dokubah";
-import type { CreateDokubahInput, DokubahApiDetail, DokubahApiRow, DokubahApiStatus, DokubahListParams } from "./types";
+import type { CreateDokubahInput, TrackingSpk, DokubahApiDetail, DokubahApiRow, DokubahApiStatus, DokubahListParams } from "./types";
 
 // The screens use title-case statuses, the API uses UPPER_SNAKE.
 const STATUS_TO_UI: Record<DokubahApiStatus, StatusDokubah> = {
@@ -34,6 +34,9 @@ export async function listDokubah(params?: DokubahListParams): Promise<Paginated
 // Raw rows (with totalKuota / totalRealisasi) for the Gudang recap.
 export const listDokubahRows = (params?: DokubahListParams) =>
   apiClient.get<PaginatedResult<DokubahApiRow>>(`/api/v1/dokubah${toQuery(params)}`);
+
+// SPK numbers and client names from the tracking system, used to pick the SPK of a new dokubah.
+export const listTrackingSpk = (search?: string) => apiClient.get<TrackingSpk[]>(`/api/v1/tracking/spk${toQuery({ search })}`);
 
 export async function getDokubah(id: number) {
   return toItem(await apiClient.get<DokubahApiDetail>(`/api/v1/dokubah/${id}`));
