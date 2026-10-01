@@ -259,12 +259,12 @@ export interface RequestReport {
 
 export interface RekapDokubahItems {
   id: string | number;
-  nomorSPK: string;
-  namaProyek: string;
-  anggaran: number;
-  statusSPK: 'AKTIF' | 'SELESAI' | 'BATAL';
-  totalPenggunaanMaterial: number;
+  spk: string;
+  projectName: string;
+  budget: number;
+  status: 'AKTIF' | 'SELESAI' | 'BATAL';
+  totalMaterialUsage: number;
   totalOverbudget: number;
-  tanggalMulai: string;
-  tanggalSelesai: string;
+  startDate: string;
+  endDate: string;
 }

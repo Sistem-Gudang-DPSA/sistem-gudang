@@ -5,12 +5,19 @@ import { Search, FileUp, Download, Loader2, AlertCircle  } from "lucide-react";
 import * as XLSX from 'xlsx';
 import type { RekapDokubahItems } from "../types";
 
+// ponytail: dummy data, no backend endpoint yet (BE confirmed none planned). Swap for useApiData once /reports/dokubah exists.
+const DUMMY_DOKUBAH: RekapDokubahItems[] = [
+    { id: 1, spk: "SPK-2026-001", projectName: "PT Bintang Raya", budget: 50000000, status: "AKTIF", totalMaterialUsage: 32000000, totalOverbudget: 0, startDate: "2026-08-01", endDate: "2026-10-30" },
+    { id: 2, spk: "SPK-2026-002", projectName: "CV Indo Makmur", budget: 30000000, status: "AKTIF", totalMaterialUsage: 34500000, totalOverbudget: 4500000, startDate: "2026-08-15", endDate: "2026-11-15" },
+    { id: 3, spk: "SPK-2026-003", projectName: "Global Mas", budget: 75000000, status: "SELESAI", totalMaterialUsage: 71200000, totalOverbudget: 0, startDate: "2026-06-01", endDate: "2026-09-20" },
+]; 
+
 export default function RekapDokubah() {
     const [searchQuery, setSearchQuery] = useState("");
     const [startDate, setStartDate] = useState("01-01-2026"); 
     const [endDate, setEndDate] = useState("31-12-2026");
     const [filterSumber, setFilterSumber] = useState("ALL");
-    const [data, setData] = useState<RekapDokubahItems[]>([]);
+    const [data, setData] = useState<RekapDokubahItems[]>(DUMMY_DOKUBAH);
     const [isLoading, setIsLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [selectedIds, setSelectedIds] = useState<Set<string | number>>(new Set());
@@ -42,10 +49,10 @@ export default function RekapDokubah() {
     const handleExportCSV = () => {
           const exportData = filteredData.map((item, index) => ({
             'No': index + 1,
-            'Nomor SPK': item.nomorSPK,
-            'Nama Proyek / Klien': item.namaProyek,
-            'Anggaran': item.anggaran,
-            'Status SPK': item.statusSPK,
+            'Nomor SPK': item.spk,
+            'Nama Proyek / Klien': item.projectName,
+            'Anggaran': item.budget,
+            'Status SPK': item.status,
           }));
     
           const worksheet = XLSX.utils.json_to_sheet(exportData);
@@ -201,26 +208,26 @@ export default function RekapDokubah() {
                             ) : filteredData.length === 0 ? (
                             <tr>
                                 <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
-                                Tidak ada data dokubah (endpoint backend belum tersedia) ditemukan.
+                                Tidak ada data dokubah ditemukan.
                                 </td>
                             </tr>
                             ) : (
                             filteredData.map((item, index) => (
                                 <tr key={item.id} className="hover:bg-gray-50 transition-colors">
                                 <td className="px-4 py-3 text-center text-gray-500">{index + 1}</td>
-                                <td className="px-4 py-3 text-gray-700 font-medium">{item.nomorSPK}</td>
-                                <td className="px-4 py-3 font-mono font-semibold text-blue-600">{item.namaProyek}</td>
+                                <td className="px-4 py-3 text-gray-700 font-medium">{item.spk}</td>
+                                <td className="px-4 py-3 font-mono font-semibold text-blue-600">{item.projectName}</td>
                                 <td className="px-4 py-3">
-                                    <span className="font-medium text-gray-900">{item.anggaran}</span>
+                                    <span className="font-medium text-gray-900">{item.budget}</span>
                                 </td>
                                 <td className="px-4 py-3 text-right font-bold text-gray-800">
-                                    {item.totalPenggunaanMaterial}
+                                    {item.totalMaterialUsage}
                                 </td>
                                 <td className="px-4 py-3 text-center">
                                     
                                 </td>
                                 <td className="px-4 py-3 text-center">
-                                    <span className="font-medium text-gray-900">{item.statusSPK}</span>
+                                    <span className="font-medium text-gray-900">{item.status}</span>
                                 </td>
                                 <td className="px-4 py-3 text-center print:hidden">
                                     <input 

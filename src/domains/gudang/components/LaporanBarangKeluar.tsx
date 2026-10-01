@@ -99,12 +99,14 @@ export default function LaporanBarangKeluar(){
                         <span className="relative flex items-center w-60">
                         <input
                             type="text"
-                            placeholder="Cari Client, SPK, atau Item"
+                            placeholder="Cari Client, SPK, Item, atau Penerima"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="border border-gray-300 rounded-md pl-3 pr-10 py-1.5 text-sm w-full bg-white text-black placeholder:text-gray focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
-                        <Search className="absolute right-3 text-black w-4 h-4" />
+                        <button className="absolute right-2 flex items-center justify-center">
+                            <Search className="text-black w-4 h-4" />
+                        </button>
                         </span>
                     </div>
 
@@ -165,6 +167,7 @@ export default function LaporanBarangKeluar(){
                     <button
                         onClick={handleExport}
                         disabled={exporting}
+                        title="Export Data ke CSV"
                         className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-60"
                     >
                         <FileUp className="w-4 h-4" />
@@ -172,6 +175,7 @@ export default function LaporanBarangKeluar(){
                     </button>
                     <button
                         onClick={() => window.print()}
+                        title="Print Data ke PDF"
                         className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-60"
                     >
                         <Download className="w-4 h-4" />
@@ -251,8 +255,14 @@ export default function LaporanBarangKeluar(){
                     </tbody>
                 </table>
 
-                <div className="p-4 border-t border-gray-100 bg-gray-50/50 text-sm text-gray-500">
-                    Menampilkan <span className="font-semibold text-gray-900">{rows.length}</span> dari <span className="font-semibold text-gray-900">{report?.total ?? 0}</span> transaksi
+                <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
+                    <div className="flex gap-1">
+                      <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-400 cursor-not-allowed">Sec</button>
+                      <button className="px-3 py-1 bg-[#FF8A00] text-white rounded-md font-medium shadow-sm shadow-orange-500/20">1</button>
+                      <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-600 hover:text-[#FF8A00] font-medium transition-colors">2</button>
+                      <span className="px-2 py-1 text-gray-400">...</span>
+                      <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-600 hover:text-[#FF8A00] font-medium transition-colors">Selanjutnya</button>
+                    </div>
                 </div>
             </div>
 

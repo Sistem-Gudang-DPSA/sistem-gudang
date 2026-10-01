@@ -12,8 +12,8 @@ import { displayDate, todayIso, toDateRange } from '@/domains/gudang/date';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 
-const emptyBaru = { itemId: "", supplierId: "", tanggal: todayIso(), jumlahKedatangan: "", jumlahRekap: "", statusQc: "PASS" as StatusQc };
-const emptyKembali = { itemId: "", tanggal: todayIso(), jumlah: "", clientName: "", spk: "" };
+const emptyBaru = { itemId: "", itemName: "", supplierId: "", tanggal: todayIso(), jumlahKedatangan: "", jumlahRekap: "", statusQc: "PASS" as StatusQc };
+const emptyKembali = { itemId: "", itemName: "", tanggal: todayIso(), jumlah: "", clientName: "", spk: "" };
 
 export default function BarangMasukGudang() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -46,6 +46,20 @@ export default function BarangMasukGudang() {
     listItems({ pageSize: 100 }).then((res) => setItems(res.rows)).catch(() => {});
     listSuppliers({ pageSize: 100 }).then((res) => setSuppliers(res.rows)).catch(() => {});
   }, []);
+
+  // Exports the rows currently loaded in the table.
+  const handleExportCsv = () => {
+    const header = 'No,Tanggal,Kode Barang,Nama Barang,Supplier,Jumlah Kedatangan,Jumlah Rekap';
+    const lines = rows.map((r, i) =>
+      [i + 1, displayDate(r.date), r.itemCode ?? '', `"${r.itemName}"`, `"${r.supplierName ?? r.clientName ?? ''}"`, r.qtyArrived, r.qtyPurchased ?? ''].join(','),
+    );
+    const url = URL.createObjectURL(new Blob([[header, ...lines].join('\n')], { type: 'text/csv;charset=utf-8;' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'Data_Barang_Masuk.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   const openModal = () => { setModalData({ ...emptyBaru, tanggal: todayIso() }); setModalError(""); setIsModalOpen(true); };
   const openModalKembali = () => { setModalKembaliData({ ...emptyKembali, tanggal: todayIso() }); setModalError(""); setIsModalKembaliOpen(true); };
@@ -273,7 +287,7 @@ export default function BarangMasukGudang() {
         {/* Pagination Footer */}
         <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
           <div>
-            Menampilkan <span className="font-semibold text-gray-900">{rows.length}</span> dari <span className="font-semibold text-gray-900">{total}</span> data
+            Menampilkan <span className="font-semibold text-gray-900">{rows.length > 0 ? 1 : 0}</span> sampai <span className="font-semibold text-gray-900">{rows.length}</span> dari <span className="font-semibold text-gray-900">{total}</span> data
           </div>
           <div className="flex gap-1">
             <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-400 cursor-not-allowed">Sec</button>
@@ -287,11 +301,19 @@ export default function BarangMasukGudang() {
 
       {/* Simpan/Download Button Outside */}
       <div className="flex justify-end mt-6">
-        <button className="flex items-center gap-2 px-8 py-2.5 bg-[#FF8A00] text-white font-bold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm tracking-wide">
+        <button
+          onClick={handleExportCsv}
+          className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+          title="Export Data ke CSV"
+        >
           <Download className="w-4 h-4" />
-          Download
+          <span className="hidden sm:inline">Export</span>
         </button>
       </div>
+
+      <datalist id="barang-masuk-items">
+        {items.map((it) => <option key={it.id} value={it.name} />)}
+      </datalist>
 
       {/* Modal Form Barang Masuk */}
       {isModalOpen && (
@@ -325,14 +347,19 @@ export default function BarangMasukGudang() {
                 </div>
                 <div className="flex-1 flex flex-col gap-2">
                   <label className="text-[15px] font-medium text-gray-900">Nama Barang</label>
-                  <select
-                    value={modalData.itemId}
-                    onChange={(e) => setModalData({...modalData, itemId: e.target.value})}
-                    className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white text-sm"
-                  >
-                    <option value="" disabled>Pilih barang</option>
-                    {items.map((it) => <option key={it.id} value={it.id}>{it.name}</option>)}
-                  </select>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      list="barang-masuk-items"
+                      placeholder="Isi Nama Barang"
+                      value={modalData.itemName}
+                      onChange={(e) => setModalData({...modalData, itemName: e.target.value, itemId: String(items.find((it) => it.name === e.target.value)?.id ?? "")})}
+                      className="w-full border border-gray-300 rounded-md py-3 pl-4 pr-10 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 placeholder-gray-400 text-sm"
+                    />
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      <Search className="h-4 w-4 text-gray-800" strokeWidth={2.5} />
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -450,14 +477,19 @@ export default function BarangMasukGudang() {
                 </div>
                 <div className="flex-1 flex flex-col gap-2">
                   <label className="text-[15px] font-medium text-gray-900">Nama Barang</label>
-                  <select
-                    value={modalKembaliData.itemId}
-                    onChange={(e) => setModalKembaliData({...modalKembaliData, itemId: e.target.value})}
-                    className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white text-sm"
-                  >
-                    <option value="" disabled>Pilih barang</option>
-                    {items.map((it) => <option key={it.id} value={it.id}>{it.name}</option>)}
-                  </select>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      list="barang-masuk-items"
+                      placeholder="Isi Nama Barang"
+                      value={modalKembaliData.itemName}
+                      onChange={(e) => setModalKembaliData({...modalKembaliData, itemName: e.target.value, itemId: String(items.find((it) => it.name === e.target.value)?.id ?? "")})}
+                      className="w-full border border-gray-300 rounded-md py-3 pl-4 pr-10 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 placeholder-gray-400 text-sm"
+                    />
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      <Search className="h-4 w-4 text-gray-800" strokeWidth={2.5} />
+                    </div>
+                  </div>
                 </div>
               </div>
 

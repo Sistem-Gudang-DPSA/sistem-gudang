@@ -259,7 +259,7 @@ export default function BarangKeluarGudang() {
         {/* Pagination Footer */}
         <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
           <div>
-            Menampilkan <span className="font-semibold text-gray-900">{rows.length}</span> dari <span className="font-semibold text-gray-900">{total}</span> transaksi
+            Menampilkan <span className="font-semibold text-gray-900">{rows.length > 0 ? 1 : 0}</span> sampai <span className="font-semibold text-gray-900">{rows.length}</span> dari <span className="font-semibold text-gray-900">{total}</span> data
           </div>
           <div className="flex gap-1">
             <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-400 cursor-not-allowed">Sec</button>
