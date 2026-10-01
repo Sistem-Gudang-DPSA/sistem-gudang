@@ -256,15 +256,3 @@ export interface RequestReport {
   page: number;
   pageSize: number;
 }
-
-export interface RekapDokubahItems {
-  id: string | number;
-  spk: string;
-  projectName: string;
-  budget: number;
-  status: 'AKTIF' | 'SELESAI' | 'BATAL';
-  totalMaterialUsage: number;
-  totalOverbudget: number;
-  startDate: string;
-  endDate: string;
-}
