@@ -97,7 +97,9 @@ export default function RekapPermintaan(){
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="border border-gray-300 rounded-md pl-3 pr-10 py-1.5 text-sm w-full bg-white text-black placeholder:text-gray focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
-                            <Search className="absolute right-3 text-black w-4 h-4" />
+                            <button className="absolute right-2 flex items-center justify-center">
+                                <Search className="text-black w-4 h-4" />
+                            </button>
                         </span>
                     </div>
 
@@ -147,6 +149,7 @@ export default function RekapPermintaan(){
                         <button
                         onClick={handleExport}
                         disabled={exporting}
+                        title="Export Data ke CSV"
                         className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-60"
                         >
                         <FileUp className="w-4 h-4" />
@@ -154,6 +157,7 @@ export default function RekapPermintaan(){
                         </button>
                         <button
                         onClick={() => window.print()}
+                        title="Print Data ke PDF"
                         className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-60"
                         >
                         <Download className="w-4 h-4" />
@@ -174,10 +178,9 @@ export default function RekapPermintaan(){
                         <th className="px-4 py-3 text-center">Status</th>
                         <th className="px-4 py-3 text-center print:hidden">Aksi</th>
                         <th className="flex px-4 py-3 text-center print:hidden">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                Check
-                                <input type="checkbox" checked={allSelected} onChange={toggleAll} className="h-4 w-4 accent-[#FF8A00]" />
-                            </label>
+                            <div className="flex items-center justify-center">Check
+                                <input type="checkbox" checked={allSelected} onChange={toggleAll} className="ml-2 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" />
+                            </div>
                         </th>
                         </tr>
                     </thead>
@@ -240,7 +243,7 @@ export default function RekapPermintaan(){
                                     type="checkbox"
                                     checked={selected.has(item.id)}
                                     onChange={() => toggleRow(item.id)}
-                                    className="h-4 w-4 accent-[#FF8A00]"
+                                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                                 />
                             </td>
                             </tr>

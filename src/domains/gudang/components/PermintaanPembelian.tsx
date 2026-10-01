@@ -64,7 +64,7 @@ export default function PermintaanPembelianGudang() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] sm:text-sm transition-all shadow-sm"
-                placeholder="Cari bagian atau nama barang..." 
+                placeholder="Cari rincian permintaan..." 
               />
             </div>
 
@@ -149,16 +149,15 @@ export default function PermintaanPembelianGudang() {
                 <th scope="col" className="px-6 py-4 w-16 text-center">No</th>
                 <th scope="col" className="px-6 py-4">Tanggal</th>
                 <th scope="col" className="px-6 py-4 text-center">Rincian Permintaan</th>
-                <th scope="col" className="px-6 py-4 text-center">Status</th>
                 <th scope="col" className="px-6 py-4 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading && (
-                <tr><td colSpan={5} className="px-6 py-10 text-center text-gray-400">Memuat data...</td></tr>
+                <tr><td colSpan={4} className="px-6 py-10 text-center text-gray-400">Memuat data...</td></tr>
               )}
               {!loading && error && (
-                <tr><td colSpan={5} className="px-6 py-10 text-center text-red-500">{error}</td></tr>
+                <tr><td colSpan={4} className="px-6 py-10 text-center text-red-500">{error}</td></tr>
               )}
               {!loading && !error && filteredData.map((item, index) => (
                 <tr key={item.id} className="hover:bg-[#FF8A00]/5 transition-colors group">
@@ -166,24 +165,27 @@ export default function PermintaanPembelianGudang() {
                   <td className="px-6 py-4 text-gray-500 font-bold">{displayDate(item.payload?.tanggalPengajuan ?? item.createdAt)}</td>
                   <td className="px-6 py-4 text-gray-700 italic max-w-md truncate">{summarize(item)}</td>
                   <td className="px-6 py-4 text-center">
-                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border ${STATUS_LABEL[item.status].cls}`}>
-                      {STATUS_LABEL[item.status].label}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <button
-                      onClick={() => setDetail(item)}
-                      className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs hover:bg-blue-100 transition-all"
-                    >
-                      <Eye className="h-3.5 w-3.5" />
-                      Detail
-                    </button>
+                    <div className="flex items-center justify-center gap-2">
+                      <button className="px-4 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] font-bold rounded-lg text-xs hover:bg-[#FF8A00]/20 transition-all">
+                        Edit
+                      </button>
+                      <button className="px-4 py-1.5 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs hover:bg-blue-100 transition-all">
+                        Tambah
+                      </button>
+                      <button
+                        onClick={() => setDetail(item)}
+                        className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs hover:bg-blue-100 transition-all"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        Detail
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
               {!loading && !error && filteredData.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-gray-400 italic">
+                  <td colSpan={4} className="px-6 py-10 text-center text-gray-400 italic">
                     Data tidak ditemukan untuk filter tersebut.
                   </td>
                 </tr>
@@ -192,9 +194,18 @@ export default function PermintaanPembelianGudang() {
           </table>
         </div>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-gray-100 bg-gray-50/50 text-sm text-gray-500">
-          Menampilkan <span className="font-semibold text-gray-900">{filteredData.length}</span> dari <span className="font-semibold text-gray-900">{total}</span> data
+        {/* Pagination Footer */}
+        <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
+          <div>
+            Menampilkan <span className="font-semibold text-gray-900">1</span> sampai <span className="font-semibold text-gray-900">{filteredData.length}</span> dari <span className="font-semibold text-gray-900">{total}</span> data
+          </div>
+          <div className="flex gap-1">
+            <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-400 cursor-not-allowed">Sec</button>
+            <button className="px-3 py-1 bg-[#FF8A00] text-white rounded-md font-medium shadow-sm shadow-orange-500/20">1</button>
+            <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-600 hover:text-[#FF8A00] font-medium transition-colors">2</button>
+            <span className="px-2 py-1 text-gray-400">...</span>
+            <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-600 hover:text-[#FF8A00] font-medium transition-colors">Selanjutnya</button>
+          </div>
         </div>
       </div>
       {detail && detail.payload && (

@@ -9,7 +9,7 @@ import type { ItemListRow } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
 
 const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-const emptyRow = { itemId: "", jumlah: "", keterangan: "" };
+const emptyRow = { itemId: "", itemName: "", jumlah: "", keterangan: "" };
 
 export default function TambahStockOpnameGudang() {
   const router = useRouter();
@@ -39,7 +39,7 @@ export default function TambahStockOpnameGudang() {
   const findItem = (itemId: string) => items.find((it) => String(it.id) === itemId);
 
   const handleSimpan = async () => {
-    const filled = data.filter((row) => row.itemId || row.jumlah || row.keterangan);
+    const filled = data.filter((row) => row.itemId || row.itemName || row.jumlah || row.keterangan);
     if (filled.length === 0 || filled.some((row) => !row.itemId || row.jumlah === "")) {
       setError("Pilih barang dan isi jumlah fisik di setiap baris yang dipakai.");
       return;
@@ -104,6 +104,10 @@ export default function TambahStockOpnameGudang() {
           </select>
         </div>
 
+        <datalist id="stock-opname-items">
+          {items.map((it) => <option key={it.id} value={it.name} />)}
+        </datalist>
+
         <div className="relative">
           {/* Table Wrapper */}
           <div className="overflow-hidden w-full bg-white rounded-xl shadow-sm border border-gray-200/80">
@@ -140,18 +144,21 @@ export default function TambahStockOpnameGudang() {
                       <tr key={index} className="bg-white hover:bg-orange-50/10 transition-colors duration-150">
                         <td className="border-r border-b border-gray-100/50 h-[48px] text-gray-400 font-medium text-center text-xs">{index + 1}</td>
                         <td className="border-r border-b border-gray-100/50 p-0">
-                          <select
-                            value={row.itemId}
-                            onChange={(e) => handleChange(index, { itemId: e.target.value })}
-                            className="w-full h-full min-h-[48px] px-6 py-2 bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 text-gray-700 text-sm"
-                          >
-                            <option value="">Pilih barang</option>
-                            {items.map((it) => <option key={it.id} value={it.id}>{it.name}</option>)}
-                          </select>
-                          {item && <span className="block px-6 pb-1 text-[11px] text-gray-400">Stok sistem: {item.stock}</span>}
+                          <input
+                            type="text"
+                            list="stock-opname-items"
+                            value={row.itemName}
+                            placeholder="Masukkan nama barang"
+                            onChange={(e) => handleChange(index, { itemName: e.target.value, itemId: String(items.find((it) => it.name === e.target.value)?.id ?? "") })}
+                            className="w-full h-full min-h-[48px] px-6 py-2 bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 text-gray-700 text-sm transition-all placeholder-gray-300"
+                          />
                         </td>
-                        <td className="border-r border-b border-gray-100/50 px-4 py-2 w-24 text-center text-gray-600">{item?.unit ?? ''}</td>
-                        <td className="border-r border-b border-gray-100/50 px-4 py-2 w-32 text-center text-gray-600">{item?.category ?? ''}</td>
+                        <td className="border-r border-b border-gray-100/50 p-0 w-24">
+                          <input type="text" readOnly value={item?.unit ?? ''} placeholder="Unit" className="w-full h-full min-h-[48px] px-4 py-2 bg-transparent text-center text-gray-700 text-sm placeholder-gray-300 focus:outline-none" />
+                        </td>
+                        <td className="border-r border-b border-gray-100/50 p-0 w-32">
+                          <input type="text" readOnly value={item?.category ?? ''} placeholder="Kategori" className="w-full h-full min-h-[48px] px-4 py-2 bg-transparent text-center text-gray-700 text-sm placeholder-gray-300 focus:outline-none" />
+                        </td>
                         <td className="border-r border-b border-gray-100/50 px-4 py-2 w-28 text-center text-gray-600">{fmt(adm?.qty)}</td>
                         <td className="border-r border-b border-gray-100/50 px-4 py-2 w-36 text-center text-gray-600">{fmt(adm?.harga)}</td>
                         <td className="border-r border-b border-gray-100/50 p-0 w-28">

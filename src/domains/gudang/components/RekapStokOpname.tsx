@@ -55,7 +55,7 @@ export default function RekapStokOpname() {
                         <span className="relative flex items-center w-60">
                         <input
                             type="text"
-                            placeholder="Cari catatan stok opname" 
+                            placeholder="Cari Auditor, Nama" 
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="border border-gray-300 rounded-md pl-3 pr-10 py-1.5 text-sm w-full bg-white text-black placeholder:text-gray focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -91,8 +91,8 @@ export default function RekapStokOpname() {
                             <tr>
                                 <th className="px-4 py-3 text-center w-12">No</th>
                                 <th className="px-4 py-3 text-left">Stock Opname</th>
-                                <th className="px-4 py-3 text-center">Dibuat</th>
-                                <th className="px-4 py-3 text-center">Jumlah Barang</th>
+                                <th className="px-4 py-3 text-center">Tanggal</th>
+                                <th className="px-4 py-3 text-center">Auditor</th>
                                 <th className="px-4 py-3 text-center">Aksi</th>
                             </tr>
                         </thead>
@@ -130,7 +130,7 @@ export default function RekapStokOpname() {
                                 {displayDate(item.createdAt)}
                             </td>
                             <td className="px-4 py-3">
-                                <span className="font-medium text-gray-900">{item.lineCount}</span>
+                                <span className="font-medium text-gray-900">User #{item.createdBy}</span>
                             </td>
                             <td className="px-4 py-3 text-center">
                                 <button

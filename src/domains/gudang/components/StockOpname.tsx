@@ -147,17 +147,24 @@ export default function StockOpnameMasterGudang() {
                   <td className="px-6 py-4 text-gray-500 text-center">{index + 1}.</td>
                   <td className="px-6 py-4 font-bold text-gray-900">
                     {periodeLabel(item.month, item.year)}
-                    <span className="block text-xs font-normal text-gray-400">{item.lineCount} barang{item.notes ? ` - ${item.notes}` : ''}</span>
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <button
-                      onClick={() => openDetail(item.id)}
-                      disabled={detailLoading}
-                      className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs hover:bg-blue-100 transition-all disabled:opacity-60"
-                    >
-                      <Eye className="h-3.5 w-3.5" />
-                      Detail
-                    </button>
+                    <div className="flex items-center justify-center gap-2">
+                      <button className="px-4 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] font-bold rounded-lg text-xs hover:bg-[#FF8A00]/20 transition-all">
+                        Edit
+                      </button>
+                      <button className="px-4 py-1.5 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs hover:bg-blue-100 transition-all">
+                        Download
+                      </button>
+                      <button
+                        onClick={() => openDetail(item.id)}
+                        disabled={detailLoading}
+                        className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs hover:bg-blue-100 transition-all disabled:opacity-60"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        Detail
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -172,9 +179,18 @@ export default function StockOpnameMasterGudang() {
           </table>
         </div>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-gray-100 bg-gray-50/50 text-sm text-gray-500">
-          Menampilkan <span className="font-semibold text-gray-900">{rows.length}</span> dari <span className="font-semibold text-gray-900">{total}</span> data
+        {/* Pagination Footer */}
+        <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
+          <div>
+            Menampilkan <span className="font-semibold text-gray-900">1</span> sampai <span className="font-semibold text-gray-900">{rows.length}</span> dari <span className="font-semibold text-gray-900">{total}</span> data
+          </div>
+          <div className="flex gap-1">
+            <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-400 cursor-not-allowed">Sec</button>
+            <button className="px-3 py-1 bg-[#FF8A00] text-white rounded-md font-medium shadow-sm shadow-orange-500/20">1</button>
+            <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-600 hover:text-[#FF8A00] font-medium transition-colors">2</button>
+            <span className="px-2 py-1 text-gray-400">...</span>
+            <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-600 hover:text-[#FF8A00] font-medium transition-colors">Selanjutnya</button>
+          </div>
         </div>
       </div>
       {detail && (
