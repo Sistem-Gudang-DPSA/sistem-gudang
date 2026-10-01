@@ -7,10 +7,11 @@ import {
   buat_dokubah_path,
   escapeHtml,
   formatTanggal,
-  getDokubahList,
   type StatusDokubah,
   viewDokubahPath,
 } from '@/domains/ppic/data/dokubah';
+import { listDokubah } from '@/domains/ppic/api';
+import { useApiData } from '@/shared/lib/use-api-data';
 
 const STATUS_OPTIONS: StatusDokubah[] = ['Draft', 'Pending', 'Approved', 'Rejected'];
 
@@ -34,7 +35,13 @@ const orangeButtonClass = 'flex items-center justify-center gap-2 px-5 py-2.5 bg
 const filterInputClass = 'border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00]';
 
 export default function DokubahPPIC() {
-  const data = getDokubahList();
+  // ponytail: loads first 100 rows and filters them here, move the filters to the API params when the list outgrows it
+  const { data: result, loading, error } = useApiData(
+    () => listDokubah({ pageSize: 100 }),
+    'list',
+    'Gagal memuat daftar Dokubah.',
+  );
+  const data = result?.rows ?? [];
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilter, setShowFilter] = useState(false);
   const [filterStatus, setFilterStatus] = useState<StatusDokubah | ''>('');
@@ -302,7 +309,7 @@ export default function DokubahPPIC() {
               {filteredData.length === 0 && (
                 <tr>
                   <td colSpan={8} className="px-6 py-10 text-center text-gray-400 italic border-b border-gray-200">
-                    Data tidak ditemukan.
+                    {loading ? 'Memuat data...' : error || 'Data tidak ditemukan.'}
                   </td>
                 </tr>
               )}
