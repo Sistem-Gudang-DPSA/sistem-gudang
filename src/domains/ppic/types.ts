@@ -41,9 +41,16 @@ export interface DokubahListParams {
   endDate?: string;
 }
 
-export interface CreateDokubahInput {
+// SPK and client names come from the tracking system (dummy on the BE for now).
+export interface TrackingSpk {
   noSpk: string;
   client: string;
+}
+
+export interface CreateDokubahInput {
+  noSpk: string;
+  // Optional and ignored by the API, which fills the client from tracking.
+  client?: string;
   tanggalMulai: string;
   tanggalSelesai: string;
   fileDokubah?: string;
