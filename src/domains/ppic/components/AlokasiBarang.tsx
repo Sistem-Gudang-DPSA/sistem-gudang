@@ -4,9 +4,10 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, ChevronDown } from 'lucide-react';
-import { listDokubah } from '@/domains/ppic/api';
+import { allocateSpkInternal, listDokubah, listSpkInternal } from '@/domains/ppic/api';
+import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
-import { alokasikanStock, getSpkInternalList, spk_internal_path } from '@/domains/ppic/data/spk-internal';
+import { spk_internal_path } from '@/domains/ppic/data/spk-internal';
 
 const fieldClass = 'w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors';
 const readOnlyFieldClass = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 bg-gray-50 cursor-default focus:outline-none';
@@ -25,7 +26,9 @@ function Field({ id, label, children }: { id: string; label: string; children: R
 export default function AlokasiBarangPPIC() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const spk = getSpkInternalList().find((item) => String(item.id) === id);
+  // ponytail: the API has no GET by id, so the row is picked from the first 100 SPK Internal
+  const { data: spkResult, loading, error } = useApiData(() => listSpkInternal({ pageSize: 100 }), 'list', 'Gagal memuat SPK Internal.');
+  const spk = spkResult?.rows.find((item) => String(item.id) === id);
   // ponytail: the SPK picker lists the first 100 dokubah only
   const { data: dokubahResult } = useApiData(() => listDokubah({ pageSize: 100 }), 'list', 'Gagal memuat daftar SPK Klien.');
   const [spkKlien, setSpkKlien] = useState('');
@@ -47,7 +50,7 @@ export default function AlokasiBarangPPIC() {
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
         {header}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-6 py-10 text-center text-gray-400 italic">
-          SPK Internal tidak ditemukan.
+          {loading ? 'Memuat data...' : error || 'SPK Internal tidak ditemukan.'}
         </div>
       </div>
     );
@@ -56,7 +59,7 @@ export default function AlokasiBarangPPIC() {
   // Stock bebas = stok yang belum dikaitkan ke SPK klien mana pun
   const stockBebas = spk.totalBisaPakai;
 
-  const handleKaitkan = (e: React.SubmitEvent<HTMLFormElement>) => {
+  const handleKaitkan = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     const jumlahMutasi = Number(jumlah);
     if (!spkKlien) {
@@ -71,8 +74,14 @@ export default function AlokasiBarangPPIC() {
       setFormError(`Jumlah Mutasi tidak boleh melebihi stock bebas (${stockBebas} pcs).`);
       return;
     }
-    alokasikanStock(spk.id, jumlahMutasi);
-    router.replace(spk_internal_path);
+    setFormError('');
+    try {
+      // the API only takes jumlah; SPK Klien and catatan are not stored yet
+      await allocateSpkInternal(spk.id, jumlahMutasi);
+      router.replace(spk_internal_path);
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : 'Gagal mengaitkan stock.');
+    }
   };
 
   return (
