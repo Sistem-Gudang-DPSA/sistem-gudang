@@ -5,8 +5,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Plus } from 'lucide-react';
 import { dokubah_path, formatAngka, type StatusDokubah } from '@/domains/ppic/data/dokubah';
-import { createDokubah } from '@/domains/ppic/api';
+import { createDokubah, listTrackingSpk } from '@/domains/ppic/api';
 import { ApiError } from '@/shared/lib/api-client';
+import { useApiData } from '@/shared/lib/use-api-data';
 
 // Kuota disimpan sebagai teks selama diisi supaya kolomnya boleh dikosongkan dulu
 type BahanRow = { kodeBarang: string; namaBahan: string; kuota: string; satuan: string };
@@ -41,6 +42,7 @@ export default function BuatDokubahPPIC() {
   const [form, setForm] = useState(emptyForm);
   const [rows, setRows] = useState<BahanRow[]>(() => Array.from({ length: JUMLAH_BARIS_AWAL }, () => ({ ...emptyRow })));
   const [formError, setFormError] = useState('');
+  const { data: spkList, error: spkError } = useApiData(() => listTrackingSpk(), 'spk', 'Gagal memuat daftar SPK.');
 
   const handleRowChange = (index: number, field: keyof BahanRow, value: string) => {
     setRows((prev) => prev.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
@@ -50,8 +52,8 @@ export default function BuatDokubahPPIC() {
 
   // Baris yang dibiarkan kosong tidak ikut disimpan
   const validasi = (status: StatusDokubah, rowsTerisi: BahanRow[]) => {
-    if (!form.noSpk.trim() || !form.client.trim() || !form.tanggalMulai || !form.tanggalSelesai) {
-      return 'No. SPK / Proyek, Nama Client, Tanggal Mulai, dan Tanggal Selesai wajib diisi.';
+    if (!form.noSpk || !form.tanggalMulai || !form.tanggalSelesai) {
+      return 'SPK / Proyek, Tanggal Mulai, dan Tanggal Selesai wajib diisi.';
     }
     if (form.tanggalSelesai < form.tanggalMulai) {
       return 'Tanggal Selesai tidak boleh sebelum Tanggal Mulai.';
@@ -80,8 +82,7 @@ export default function BuatDokubahPPIC() {
     setFormError('');
     try {
       await createDokubah({
-        noSpk: form.noSpk.trim(),
-        client: form.client.trim(),
+        noSpk: form.noSpk,
         tanggalMulai: form.tanggalMulai,
         tanggalSelesai: form.tanggalSelesai,
         status: status === 'Pending' ? 'PENDING' : 'DRAFT',
@@ -114,14 +115,17 @@ export default function BuatDokubahPPIC() {
         {/* Info SPK */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-3 max-w-4xl mb-8">
           <Field id="buat-dokubah-spk" label="Pilih SPK / Proyek">
-            <input
+            <select
               id="buat-dokubah-spk"
-              type="text"
               value={form.noSpk}
-              onChange={(e) => setForm({ ...form, noSpk: e.target.value })}
-              placeholder="No. SPK / Nama Proyek"
-              className={fieldClass}
-            />
+              onChange={(e) => setForm({ ...form, noSpk: e.target.value, client: spkList?.find((spk) => spk.noSpk === e.target.value)?.client ?? '' })}
+              className={`${fieldClass} cursor-pointer`}
+            >
+              <option value="" disabled>{spkError || 'No. SPK / Nama Proyek'}</option>
+              {(spkList ?? []).map((spk) => (
+                <option key={spk.noSpk} value={spk.noSpk}>{spk.noSpk}</option>
+              ))}
+            </select>
           </Field>
           <Field id="buat-dokubah-mulai" label="Tanggal Mulai">
             <input
@@ -134,14 +138,7 @@ export default function BuatDokubahPPIC() {
           </Field>
 
           <Field id="buat-dokubah-client" label="Nama Client">
-            <input
-              id="buat-dokubah-client"
-              type="text"
-              value={form.client}
-              onChange={(e) => setForm({ ...form, client: e.target.value })}
-              placeholder="Nama Client"
-              className={fieldClass}
-            />
+            <input id="buat-dokubah-client" type="text" readOnly value={form.client} placeholder="Nama Client" className={readOnlyFieldClass} />
           </Field>
           <Field id="buat-dokubah-selesai" label="Tanggal Selesai">
             <input
