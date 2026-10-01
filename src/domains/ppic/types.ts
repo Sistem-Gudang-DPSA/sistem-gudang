@@ -65,7 +65,9 @@ export interface SpkInternalListParams {
   status?: "LOCKED" | "BUFFER";
 }
 
+// noSpk must be one of GET /tracking/spk; the row key is noSpk + item + period (409 on a repeat).
 export interface CreateSpkInternalInput {
+  noSpk: string;
   itemId: number;
   month: number;
   year: number;

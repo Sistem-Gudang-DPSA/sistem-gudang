@@ -60,7 +60,7 @@ export const rejectDokubah = (id: number) => apiClient.post<DokubahApiDetail>(`/
 export const listSpkInternal = (params?: SpkInternalListParams) =>
   apiClient.get<PaginatedResult<SpkInternal>>(`/api/v1/spk-internal${toQuery(params)}`);
 
-// The server numbers the SPK and starts totalBisaPakai at the item's current stock.
+// noSpk comes from tracking; the server starts totalBisaPakai at the item's current stock.
 // No screen calls this yet (the "Buat SPK Internal" button has no form).
 export const createSpkInternal = (input: CreateSpkInternalInput) => apiClient.post<SpkInternal>("/api/v1/spk-internal", input);
 
