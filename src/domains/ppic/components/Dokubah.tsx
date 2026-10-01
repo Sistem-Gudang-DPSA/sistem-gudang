@@ -12,9 +12,9 @@ import {
   viewDokubahPath,
 } from '@/domains/ppic/data/dokubah';
 
-const STATUS_OPTIONS: StatusDokubah[] = ['Draft', 'Pending', 'Approved', 'Rejected'];
+export const STATUS_OPTIONS: StatusDokubah[] = ['Draft', 'Pending', 'Approved', 'Rejected'];
 
-const getStatusBadge = (status: StatusDokubah) => {
+export const getStatusBadge =(status: StatusDokubah) => {
   switch (status) {
     case 'Draft':
       return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200"><FilePen className="w-3 h-3" /> Draft</span>;

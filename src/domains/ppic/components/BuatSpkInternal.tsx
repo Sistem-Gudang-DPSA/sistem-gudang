@@ -1,0 +1,226 @@
+"use client";
+
+import React, { useState } from 'react';
+import Link from 'next/link';
+import { ArrowLeft, ChevronDown, Plus } from 'lucide-react';
+import { spk_internal_path } from '@/domains/ppic/data/spk-internal';
+
+type BarangRow = { id: number; kodeSku: string; namaBarang: string; totalQty: string; alokasiSpkKlien: string; alokasiStokBebas: string };
+type BarangField = Exclude<keyof BarangRow, 'id'>;
+
+const JUMLAH_BARIS_AWAL = 4;
+
+const emptyForm = { tanggalTerbit: '', tujuanProduksi: '', spkKlienInduk: '', penanggungJawab: '', targetSelesai: '', catatan: '' };
+const createRow = (id: number): BarangRow => ({ id, kodeSku: '', namaBarang: '', totalQty: '', alokasiSpkKlien: '', alokasiStokBebas: '' });
+
+const cellClass = 'px-4 py-3 border-b border-r border-gray-300';
+const inputCellClass = 'p-0 border-b border-r border-gray-300 bg-white';
+const cellInputClass = 'w-full px-4 py-3 bg-transparent text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-orange-500/50';
+const fieldClass = 'w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors';
+const readOnlyFieldClass = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 placeholder-gray-400 bg-gray-50 cursor-default focus:outline-none';
+const orangeButtonClass = 'min-w-24 px-6 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm text-center';
+
+function Field({ id, label, children }: { id: string; label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2">
+      <label htmlFor={id} className="w-36 shrink-0 text-sm font-medium text-gray-800">{label}</label>
+      <span className="text-gray-800">:</span>
+      <div className="flex-1 min-w-0">{children}</div>
+    </div>
+  );
+}
+
+// Pilihan dropdown masih kosong, nanti diisi dari API
+function SelectField({ id, value, onChange, placeholder }: { id: string; value: string; onChange: (value: string) => void; placeholder: string }) {
+  return (
+    <div className="relative">
+      <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={`${fieldClass} appearance-none pr-9 cursor-pointer`}>
+        <option value="">{placeholder}</option>
+      </select>
+      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+    </div>
+  );
+}
+
+export default function BuatSpkInternalPPIC() {
+  const [form, setForm] = useState(emptyForm);
+  const [rows, setRows] = useState<BarangRow[]>(() => Array.from({ length: JUMLAH_BARIS_AWAL }, (_, i) => createRow(i + 1)));
+
+  const setField = (field: keyof typeof emptyForm, value: string) => setForm((prev) => ({ ...prev, [field]: value }));
+
+  const handleRowChange = (id: number, field: BarangField, value: string) => {
+    setRows((prev) => prev.map((row) => (row.id === id ? { ...row, [field]: value } : row)));
+  };
+
+  const tambahBaris = () => {
+    setRows((prev) => [...prev, createRow(prev.reduce((max, row) => Math.max(max, row.id), 0) + 1)]);
+  };
+
+  const hapusBaris = (id: number) => setRows((prev) => prev.filter((row) => row.id !== id));
+
+  return (
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+      <div className="flex items-center gap-3 mb-6">
+        <Link href={spk_internal_path} aria-label="Kembali ke SPK Internal & Mutasi Stok" className="text-gray-800 hover:opacity-70 transition-opacity">
+          <ArrowLeft className="w-5 h-5" strokeWidth={2.5} />
+        </Link>
+        <h1 className="text-[18px] font-extrabold text-black tracking-wide">Buat SPK Internal</h1>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        {/* Info SPK Internal */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-3 max-w-4xl mb-8">
+          <Field id="spk-internal-nomor" label="No. SPK Internal">
+            <input id="spk-internal-nomor" type="text" readOnly value="" placeholder="auto" className={readOnlyFieldClass} />
+          </Field>
+          <Field id="spk-internal-pj" label="Penanggung Jawab">
+            <SelectField id="spk-internal-pj" value={form.penanggungJawab} onChange={(v) => setField('penanggungJawab', v)} placeholder="Pilih Penanggung Jawab" />
+          </Field>
+
+          <Field id="spk-internal-terbit" label="Tanggal Terbit">
+            <input id="spk-internal-terbit" type="date" value={form.tanggalTerbit} onChange={(e) => setField('tanggalTerbit', e.target.value)} className={fieldClass} />
+          </Field>
+          <Field id="spk-internal-target" label="Target Selesai">
+            <input
+              id="spk-internal-target"
+              type="date"
+              value={form.targetSelesai}
+              min={form.tanggalTerbit || undefined}
+              onChange={(e) => setField('targetSelesai', e.target.value)}
+              className={fieldClass}
+            />
+          </Field>
+
+          <Field id="spk-internal-tujuan" label="Tujuan Produksi">
+            <SelectField id="spk-internal-tujuan" value={form.tujuanProduksi} onChange={(v) => setField('tujuanProduksi', v)} placeholder="Pilih Tujuan Produksi" />
+          </Field>
+          <div className="hidden lg:block" />
+
+          <Field id="spk-internal-klien" label="SPK Klien Induk">
+            <SelectField id="spk-internal-klien" value={form.spkKlienInduk} onChange={(v) => setField('spkKlienInduk', v)} placeholder="Pilih SPK Klien Induk" />
+          </Field>
+        </div>
+
+        {/* Tabel barang */}
+        <h2 className="text-base font-bold text-gray-900 mb-4">Tabel Barang</h2>
+        <div className="overflow-x-auto border-t border-l border-gray-300 rounded-sm">
+          <table className="w-full text-left text-sm whitespace-nowrap border-collapse">
+            <thead className="bg-gray-100 text-gray-800 font-semibold text-xs">
+              <tr>
+                <th scope="col" className={`${cellClass} w-14`}>No.</th>
+                <th scope="col" className={cellClass}>Kode SKU</th>
+                <th scope="col" className={cellClass}>Nama Barang &amp; Spesifikasi</th>
+                <th scope="col" className={cellClass}>Total Qty Diproduksi</th>
+                <th scope="col" className={cellClass}>Alokasi SPK Klien</th>
+                <th scope="col" className={cellClass}>Alokasi Stok Bebas</th>
+                <th scope="col" className={cellClass}>Action</th>
+              </tr>
+            </thead>
+            <tbody className="text-gray-600">
+              {rows.map((row, index) => {
+                const nomor = index + 1;
+                return (
+                  <tr key={row.id}>
+                    <td className={`${cellClass} bg-gray-50/60 text-gray-700`}>{nomor}</td>
+                    <td className={inputCellClass}>
+                      <input
+                        type="text"
+                        value={row.kodeSku}
+                        onChange={(e) => handleRowChange(row.id, 'kodeSku', e.target.value)}
+                        aria-label={`Kode SKU baris ${nomor}`}
+                        className={`${cellInputClass} min-w-36`}
+                      />
+                    </td>
+                    <td className={inputCellClass}>
+                      <input
+                        type="text"
+                        value={row.namaBarang}
+                        onChange={(e) => handleRowChange(row.id, 'namaBarang', e.target.value)}
+                        aria-label={`Nama barang dan spesifikasi baris ${nomor}`}
+                        className={`${cellInputClass} min-w-56`}
+                      />
+                    </td>
+                    <td className={inputCellClass}>
+                      <input
+                        type="number"
+                        min={0}
+                        value={row.totalQty}
+                        onChange={(e) => handleRowChange(row.id, 'totalQty', e.target.value)}
+                        aria-label={`Total qty diproduksi baris ${nomor}`}
+                        className={`${cellInputClass} min-w-32`}
+                      />
+                    </td>
+                    <td className={inputCellClass}>
+                      <input
+                        type="number"
+                        min={0}
+                        value={row.alokasiSpkKlien}
+                        onChange={(e) => handleRowChange(row.id, 'alokasiSpkKlien', e.target.value)}
+                        aria-label={`Alokasi SPK klien baris ${nomor}`}
+                        className={`${cellInputClass} min-w-28`}
+                      />
+                    </td>
+                    <td className={inputCellClass}>
+                      <input
+                        type="number"
+                        min={0}
+                        value={row.alokasiStokBebas}
+                        onChange={(e) => handleRowChange(row.id, 'alokasiStokBebas', e.target.value)}
+                        aria-label={`Alokasi stok bebas baris ${nomor}`}
+                        className={`${cellInputClass} min-w-28`}
+                      />
+                    </td>
+                    <td className={cellClass}>
+                      <button
+                        type="button"
+                        onClick={() => hapusBaris(row.id)}
+                        aria-label={`Hapus baris ${nomor}`}
+                        className="text-xs font-semibold text-gray-800 hover:text-red-600 transition-colors"
+                      >
+                        HAPUS
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={7} className={`${cellClass} px-6 py-8 text-center text-gray-400 italic`}>
+                    Belum ada barang. Klik Tambah Baris untuk menambah.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <button
+          type="button"
+          onClick={tambahBaris}
+          className="inline-flex items-center gap-2 mt-3 px-3 py-1 bg-[#FF8A00] text-white text-sm font-semibold rounded-lg hover:bg-orange-600 transition-colors"
+        >
+          Tambah Baris
+          <Plus className="w-4 h-4" />
+        </button>
+
+        <label htmlFor="spk-internal-catatan" className="block text-sm font-medium text-gray-800 mt-6 mb-2">Catatan :</label>
+        <textarea
+          id="spk-internal-catatan"
+          rows={5}
+          value={form.catatan}
+          onChange={(e) => setField('catatan', e.target.value)}
+          className={`${fieldClass} max-w-4xl resize-y`}
+        />
+
+        {/* Simpan Draft & Simpan belum punya aksi: logika simpan menyusul */}
+        <div className="flex flex-wrap items-center justify-between gap-4 mt-10">
+          <Link href={spk_internal_path} className={orangeButtonClass}>Batal</Link>
+          <div className="flex gap-4">
+            <button type="button" className={orangeButtonClass}>Simpan Draft</button>
+            <button type="button" className={orangeButtonClass}>Simpan</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

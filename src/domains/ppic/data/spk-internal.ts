@@ -13,6 +13,8 @@ export type SpkInternal = {
 
 export const spk_internal_path = '/dashboard/ppic/transaksi/spk-mutasi-internal';
 
+export const buat_spk_internal_path = `${spk_internal_path}/buat-spk`;
+
 export const alokasiBarangPath = (id: number | string) => `${spk_internal_path}/alokasi-barang/${id}`;
 
 // Data dummy sementara (belum terhubung ke API), disimpan di memori modul supaya halaman list dan
