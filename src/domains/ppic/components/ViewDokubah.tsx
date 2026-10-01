@@ -11,9 +11,10 @@ import {
   formatAngka,
   formatRupiah,
   formatTanggal,
-  getDokubahList,
   viewDokubahPath,
 } from '@/domains/ppic/data/dokubah';
+import { getDokubah, listDokubah } from '@/domains/ppic/api';
+import { useApiData } from '@/shared/lib/use-api-data';
 
 const cellClass = 'px-4 py-3 border-b border-r border-gray-200';
 const fieldClass = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors';
@@ -33,8 +34,10 @@ function Field({ id, label, children }: { id: string; label: string; children: R
 export default function ViewDokubahPPIC() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const list = getDokubahList();
-  const dokubah = list.find((item) => String(item.id) === id);
+  // ponytail: the SPK picker lists the first 100 dokubah only
+  const { data: listResult } = useApiData(() => listDokubah({ pageSize: 100 }), 'list', 'Gagal memuat daftar Dokubah.');
+  const list = listResult?.rows ?? [];
+  const { data: dokubah, loading, error } = useApiData(() => getDokubah(Number(id)), id, 'Gagal memuat Dokubah.');
 
   const header = (
     <div className="flex items-center gap-3 mb-6">
@@ -50,7 +53,7 @@ export default function ViewDokubahPPIC() {
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
         {header}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-6 py-10 text-center text-gray-400 italic">
-          Dokubah tidak ditemukan.
+          {loading ? 'Memuat data...' : error || 'Dokubah tidak ditemukan.'}
         </div>
       </div>
     );

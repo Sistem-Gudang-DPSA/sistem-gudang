@@ -5,7 +5,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Search, ChevronDown } from 'lucide-react';
 import { getStatusBadge, STATUS_OPTIONS } from '@/domains/ppic/components/Dokubah';
-import { detailRekapDokubahPath, escapeHtml, formatRupiah, getDokubahList, type StatusDokubah } from '@/domains/ppic/data/dokubah';
+import { detailRekapDokubahPath, escapeHtml, formatRupiah, type StatusDokubah } from '@/domains/ppic/data/dokubah';
+import { listDokubahRows, STATUS_TO_UI } from '@/domains/ppic/api';
+import { useApiData } from '@/shared/lib/use-api-data';
 
 const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
@@ -24,10 +26,18 @@ const formatPeriode = (periode: string) => {
 
 export default function RekapDokubah() {
   const router = useRouter();
-  const data =getDokubahList().map((item) => {
-    const realisasi = item.bahan.reduce((sum, b) => sum + b.realisasi * b.hargaSatuan, 0);
-    return { ...item, realisasi, sisa: item.totalAnggaran - realisasi };
-  });
+  // ponytail: loads first 100 rows only; the API list rows already carry the rupiah realisation, so no per-row detail calls
+  const { data: result, loading, error } = useApiData(
+    () => listDokubahRows({ pageSize: 100 }),
+    'list',
+    'Gagal memuat rekap Dokubah.',
+  );
+  const data = (result?.rows ?? []).map((row) => ({
+    ...row,
+    status: STATUS_TO_UI[row.status],
+    realisasi: row.totalRealisasiNilai,
+    sisa: row.totalAnggaran - row.totalRealisasiNilai,
+  }));
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<StatusDokubah | ''>('');
   const [filterPeriode, setFilterPeriode] = useState('');
@@ -37,7 +47,8 @@ export default function RekapDokubah() {
   const totalSpkAktif = data.filter((item) => item.status === 'Approved').length;
   const totalSpkOverbudget = data.filter((item) => item.sisa < 0).length;
   // Satuan bahan berbeda-beda, jadi pemakaian material dibandingkan dalam nilai rupiah
-  const nilaiKuota = data.reduce((sum, item) => sum + item.bahan.reduce((s, b) => s + b.kuota * b.hargaSatuan, 0), 0);
+  // totalAnggaran is computed by the server as the sum of kuota * hargaSatuan
+  const nilaiKuota = data.reduce((sum, item) => sum + item.totalAnggaran, 0);
   const nilaiRealisasi = data.reduce((sum, item) => sum + item.realisasi, 0);
   const persenMaterial = nilaiKuota === 0 ? 0 : Math.round((nilaiRealisasi / nilaiKuota) * 100);
 
@@ -295,7 +306,7 @@ export default function RekapDokubah() {
               {filteredData.length === 0 && (
                 <tr>
                   <td colSpan={8} className={`${cellClass} px-6 py-10 text-center text-gray-400 italic`}>
-                    Data tidak ditemukan.
+                    {loading ? 'Memuat data...' : error || 'Data tidak ditemukan.'}
                   </td>
                 </tr>
               )}

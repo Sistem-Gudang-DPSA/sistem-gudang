@@ -63,7 +63,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
           { href: "/dashboard/gudang/laporan/barang-keluar", label: "Rekap Data Barang Keluar", anyOf: ["report.view"] },
           { href: "/dashboard/gudang/laporan/rekap-permintaan", label: "Rekap Permintaan", anyOf: ["report.view"] },
           { href: "/dashboard/gudang/laporan/stock-opname", label: "Rekap Stok Opname", anyOf: ["report.view"] },
-          { href: "/dashboard/gudang/laporan/dokubah", label: "Rekap Dokubah", anyOf: ["report.view"] },
+          { href: "/dashboard/gudang/laporan/dokubah", label: "Rekap Dokubah", anyOf: ["dokubah.view"] },
         ],
       },
     ],
@@ -85,14 +85,14 @@ export const NAV_DIVISIONS: NavDivision[] = [
       {
         title: "Transaksi",
         items: [
-          { href: "/dashboard/ppic/transaksi/dokubah", label: "Dokubah" },
-          { href: "/dashboard/ppic/transaksi/spk-mutasi-internal", label: "SPK Internal & Mutasi Stok" },
+          { href: "/dashboard/ppic/transaksi/dokubah", label: "Dokubah", anyOf: ["dokubah.view"] },
+          { href: "/dashboard/ppic/transaksi/spk-mutasi-internal", label: "SPK Internal & Mutasi Stok", anyOf: ["spk-internal.view"] },
         ],
       },
       {
         title: "Laporan",
         items: [
-          { href: "/dashboard/ppic/laporan/rekap-dokubah", label: "Rekap Dokubah" },
+          { href: "/dashboard/ppic/laporan/rekap-dokubah", label: "Rekap Dokubah", anyOf: ["dokubah.view"] },
           { href: "/dashboard/ppic/laporan/rekap-mutasi", label: "Rekap Mutasi Barang" },
           { href: "/dashboard/ppic/laporan/rekap-stock", label: "Rekap Stok Opname & Mutasi Stok" },
         ],

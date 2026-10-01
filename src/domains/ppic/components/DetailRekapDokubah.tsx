@@ -4,7 +4,9 @@ import React from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
-import { formatAngka, formatRupiah, getDokubahList, rekap_dokubah_path } from '@/domains/ppic/data/dokubah';
+import { formatAngka, formatRupiah, rekap_dokubah_path } from '@/domains/ppic/data/dokubah';
+import { getDokubah } from '@/domains/ppic/api';
+import { useApiData } from '@/shared/lib/use-api-data';
 
 type StatusMaterial = 'Aman' | 'Habis' | 'Overbudget';
 
@@ -36,7 +38,7 @@ function Field({ id, label, children }: { id: string; label: string; children: R
 
 export default function DetailRekapDokubahPPIC() {
   const { id } = useParams<{ id: string }>();
-  const dokubah = getDokubahList().find((item) => String(item.id) === id);
+  const { data: dokubah, loading, error } = useApiData(() => getDokubah(Number(id)), id, 'Gagal memuat Dokubah.');
 
   const header = (
     <div className="flex items-center gap-3 mb-6">
@@ -52,7 +54,7 @@ export default function DetailRekapDokubahPPIC() {
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
         {header}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-6 py-10 text-center text-gray-400 italic">
-          Rekap Dokubah tidak ditemukan.
+          {loading ? 'Memuat data...' : error || 'Rekap Dokubah tidak ditemukan.'}
         </div>
       </div>
     );
