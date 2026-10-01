@@ -50,3 +50,16 @@ export interface CreateDokubahInput {
   status?: "DRAFT" | "PENDING";
   bahan?: Pick<DokubahApiMaterial, "kodeBarang" | "namaBahan" | "satuan" | "hargaSatuan" | "keterangan" | "kuota">[];
 }
+
+export interface SpkInternalListParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: "LOCKED" | "BUFFER";
+}
+
+export interface CreateSpkInternalInput {
+  itemId: number;
+  month: number;
+  year: number;
+}

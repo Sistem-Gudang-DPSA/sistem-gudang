@@ -1,7 +1,8 @@
 import { apiClient, toQuery } from "@/shared/lib/api-client";
 import type { PaginatedResult } from "@/domains/inventory/types";
 import type { BahanDokubah, DokubahItem, StatusDokubah } from "./data/dokubah";
-import type { CreateDokubahInput, DokubahApiDetail, DokubahApiRow, DokubahApiStatus, DokubahListParams } from "./types";
+import type { SpkInternal } from "./data/spk-internal";
+import type { CreateDokubahInput, CreateSpkInternalInput, SpkInternalListParams, DokubahApiDetail, DokubahApiRow, DokubahApiStatus, DokubahListParams } from "./types";
 
 // The screens use title-case statuses, the API uses UPPER_SNAKE.
 const STATUS_TO_UI: Record<DokubahApiStatus, StatusDokubah> = {
@@ -52,3 +53,14 @@ export async function replaceDokubahMaterials(id: number, bahan: Pick<BahanDokub
 export const submitDokubah = (id: number) => apiClient.post<DokubahApiDetail>(`/api/v1/dokubah/${id}/submit`);
 export const approveDokubah = (id: number) => apiClient.post<DokubahApiDetail>(`/api/v1/dokubah/${id}/approve`);
 export const rejectDokubah = (id: number) => apiClient.post<DokubahApiDetail>(`/api/v1/dokubah/${id}/reject`);
+
+export const listSpkInternal = (params?: SpkInternalListParams) =>
+  apiClient.get<PaginatedResult<SpkInternal>>(`/api/v1/spk-internal${toQuery(params)}`);
+
+// The server numbers the SPK and starts totalBisaPakai at the item's current stock.
+// No screen calls this yet (the "Buat SPK Internal" button has no form).
+export const createSpkInternal = (input: CreateSpkInternalInput) => apiClient.post<SpkInternal>("/api/v1/spk-internal", input);
+
+// Rejected with 400 unless jumlah is an integer > 0 and <= totalBisaPakai; 0 left means LOCKED.
+export const allocateSpkInternal = (id: number, jumlah: number) =>
+  apiClient.post<SpkInternal>(`/api/v1/spk-internal/${id}/allocate`, { jumlah });
