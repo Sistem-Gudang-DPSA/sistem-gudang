@@ -13,7 +13,7 @@ describe("visibleNav", () => {
   });
 
   it("shows only gudang to an inventory user, without pages outside their permissions", () => {
-    const inventory = user(["inbound.view", "report.view", "item.view", "location.view", "supplier.view"]);
+    const inventory = user(["inbound.view", "report.view", "dokubah.view", "item.view", "location.view", "supplier.view"]);
     const nav = visibleNav(inventory);
     expect(nav.map((d) => d.key)).toEqual(["gudang"]);
     const hrefs = nav[0].groups.flatMap((g) => g.items.map((i) => i.href));
