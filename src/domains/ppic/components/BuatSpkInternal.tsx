@@ -15,6 +15,9 @@ type BarangField = Exclude<keyof BarangRow, 'id'>;
 
 const JUMLAH_BARIS_AWAL = 4;
 
+// Baru 'STOCK'; pilihan lain menyusul setelah dikonfirmasi (belum ada daftar dari API)
+const TUJUAN_PRODUKSI = ['STOCK'];
+
 const emptyForm = { tanggalTerbit: '', tujuanProduksi: '', spkKlienInduk: '', penanggungJawab: '', targetSelesai: '', catatan: '' };
 const createRow = (id: number): BarangRow => ({ id, kodeSku: '', namaBarang: '', totalQty: '', alokasiSpkKlien: '', alokasiStokBebas: '' });
 
@@ -162,7 +165,7 @@ export default function BuatSpkInternalPPIC() {
           </Field>
 
           <Field id="spk-internal-tujuan" label="Tujuan Produksi">
-            <SelectField id="spk-internal-tujuan" value={form.tujuanProduksi} onChange={(v) => setField('tujuanProduksi', v)} placeholder="Pilih Tujuan Produksi" />
+            <SelectField id="spk-internal-tujuan" value={form.tujuanProduksi} onChange={(v) => setField('tujuanProduksi', v)} placeholder="Pilih Tujuan Produksi" options={TUJUAN_PRODUKSI} />
           </Field>
           <div className="hidden lg:block" />
 
