@@ -37,3 +37,43 @@ export interface SupplierPriceChange {
   bulan: number;
   harga: number | null;
 }
+
+export interface PurchaseOrderLineInput {
+  kodeBarang: string;
+  namaBarang: string;
+  satuan: string;
+  jumlah: number;
+  hargaSatuan: number;
+  diskon: number;
+}
+
+// nomorPo and every total are computed by the backend, so they are not part of the input.
+export interface CreatePurchaseOrderInput {
+  approvalRequestId: number;
+  tanggalPo: string;
+  supplierId: number;
+  picSupplier: string;
+  barang: PurchaseOrderLineInput[];
+  persenPpn: number;
+  jasa: number;
+}
+
+export interface PurchaseOrder {
+  id: number;
+  nomorPo: string;
+  approvalRequestId: number;
+  tanggalPo: string;
+  supplierId: number;
+  supplierName: string;
+  picSupplier: string;
+  dppLain: number;
+  persenPpn: number;
+  jasa: number;
+  subtotal: number;
+  nilaiPpn: number;
+  grandTotal: number;
+  createdBy: number;
+  createdAt: string;
+  barang: PurchaseOrderLineInput[];
+}
+

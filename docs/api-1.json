@@ -7325,7 +7325,7 @@
           "Purchase order"
         ],
         "summary": "Create a purchase order",
-        "description": "nomorPo is generated (PO-001, PO-002, ...). The approval request must be a purchase-request in status approved, 409 otherwise. One request may have several POs. subtotal, nilaiPpn and grandTotal are computed by the server: subtotal = sum of (jumlah * hargaSatuan - diskon), dpp = subtotal + dppLain, nilaiPpn = dpp * persenPpn / 100 rounded, grandTotal = dpp + nilaiPpn + jasa. diskon is rupiah per line.",
+        "description": "nomorPo is generated (PO-001, PO-002, ...). The approval request must be a purchase-request in status approved, 409 otherwise. One request may have several POs. subtotal, dppLain, nilaiPpn and grandTotal are computed by the server and rounded to a rupiah: subtotal = sum of (jumlah * hargaSatuan - diskon), dppLain (DPP nilai lain) = subtotal * 11 / 12, nilaiPpn = dppLain * persenPpn / 100, grandTotal = subtotal + nilaiPpn + jasa. diskon is rupiah per line. Sending dppLain is a 400.",
         "security": [
           {
             "bearerAuth": []
@@ -7401,11 +7401,6 @@
                     },
                     "minItems": 1
                   },
-                  "dppLain": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "default": 0
-                  },
                   "persenPpn": {
                     "type": "number",
                     "minimum": 0,
@@ -7424,7 +7419,8 @@
                   "supplierId",
                   "picSupplier",
                   "barang"
-                ]
+                ],
+                "additionalProperties": false
               }
             }
           }
