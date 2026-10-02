@@ -2125,6 +2125,20 @@
           {
             "schema": {
               "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "description": "true keeps requests that already have a purchase order, false those without one. Combine with type=purchase-request and status=approved for requests still to be ordered"
+            },
+            "required": false,
+            "description": "true keeps requests that already have a purchase order, false those without one. Combine with type=purchase-request and status=approved for requests still to be ordered",
+            "name": "hasPurchaseOrder",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
               "format": "date",
               "description": "Inclusive, by created date"
             },
@@ -8211,13 +8225,31 @@
                         },
                         "pageSize": {
                           "type": "number"
+                        },
+                        "summary": {
+                          "type": "object",
+                          "properties": {
+                            "totalJenis": {
+                              "type": "number",
+                              "description": "Item kinds the search matches"
+                            },
+                            "totalStock": {
+                              "type": "number",
+                              "description": "Sum of stock over those items"
+                            }
+                          },
+                          "required": [
+                            "totalJenis",
+                            "totalStock"
+                          ]
                         }
                       },
                       "required": [
                         "rows",
                         "total",
                         "page",
-                        "pageSize"
+                        "pageSize",
+                        "summary"
                       ]
                     }
                   },

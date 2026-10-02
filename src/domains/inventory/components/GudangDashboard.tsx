@@ -14,7 +14,7 @@ const fmt = (n: number) => n.toLocaleString("id-ID");
 
 function TotalBarang() {
   const { data, error } = useApiData(() => listItems({ page: 1, pageSize: 1 }), "dash-items");
-  return <StatCard label="Total Barang" value={data && fmt(data.total)} error={error} icon={Layers} tone="orange" href="/dashboard/gudang/master/data-barang" />;
+  return <StatCard label="Total Barang" value={data && fmt(data.summary?.totalJenis ?? data.total)} hint={data?.summary ? `${fmt(data.summary.totalStock)} unit stok` : undefined} error={error} icon={Layers} tone="orange" href="/dashboard/gudang/master/data-barang" />;
 }
 
 function BarangMasukHariIni() {

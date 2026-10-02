@@ -33,15 +33,10 @@ function PendingCard() {
 }
 
 function BelumPoCard() {
-  // ponytail: reads the first 100 approved requests and first 100 POs; needs a backend count once either outgrows that.
-  const { data, error } = useApiData(async () => {
-    const [approvals, pos] = await Promise.all([
-      listApprovals({ type: "purchase-request", status: "approved", pageSize: 100 }),
-      listPurchaseOrders({ pageSize: 100 }),
-    ]);
-    const sudah = new Set(pos.rows.map((p) => p.approvalRequestId));
-    return approvals.rows.filter((a) => !sudah.has(a.id)).length;
-  }, "belum-po");
+  const { data, error } = useApiData(
+    () => listApprovals({ type: "purchase-request", status: "approved", hasPurchaseOrder: false, pageSize: 1 }).then((r) => r.total),
+    "belum-po",
+  );
   return <StatCard label="Disetujui, Belum Dibuat PO" value={data} error={error} icon={FileClock} tone="orange" href={REKAP} hint="Siap dibuatkan PO" />;
 }
 
@@ -144,7 +139,7 @@ export default function PurchasingDashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
         {canApprove && <PendingCard />}
-        {canApprove && canPo && <BelumPoCard />}
+        {canApprove && <BelumPoCard />}
         {canPo && <PoBulanIniCard />}
         {canSupplier && <SupplierCard />}
       </div>
