@@ -1,25 +1,3 @@
-export interface BarangPo {
-  kodeBarang: string;
-  namaBarang: string;
-  satuan: string;
-  jumlah: number;
-  hargaSatuan: number;
-  diskon: number;
-}
-
-export interface PemesananPembelian {
-  permintaanId: number;
-  nomorPo: string;
-  tanggalPo: string; // YYYY-MM-DD
-  supplierId: number;
-  picSupplier: string;
-  barang: BarangPo[];
-  dppLain: number;
-  persenPpn: number;
-  jasa: number;
-  grandTotal: number;
-}
-
 export const rekap_pembelian_path = '/dashboard/purchasing/laporan/rekap-pembelian';
 
 export const lihatPermintaanPath = (id: number | string) => `${rekap_pembelian_path}/permintaan-pembelian/${id}`;
@@ -32,13 +10,4 @@ export const PEMESAN = {
   npwp: '74.978.025.0.542.000',
   alamatPengiriman: 'Jl. Mataram No.88, Ringinsari, Maguwoharjo, Depok, Sleman, Yogyakarta',
   pic: 'Betty / 83104928042',
-};
-
-// Belum ada API PO: daftar disimpan di memori modul. Data kembali ke awal saat halaman di-refresh.
-let poList: PemesananPembelian[] = [];
-
-export const getPoList = () => poList;
-
-export const addPo = (po: PemesananPembelian) => {
-  poList = [...poList, po];
 };

@@ -167,6 +167,7 @@ export default function DokubahPPIC() {
               <input
                 type="text"
                 value={searchQuery}
+                maxLength={100}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="block w-full pl-4 pr-10 py-2.5 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] sm:text-sm transition-all shadow-sm"
                 placeholder="Cari No. SPK / Proyek atau nama client..."

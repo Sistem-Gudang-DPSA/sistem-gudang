@@ -10,6 +10,7 @@ import { displayDate, todayIso, toDateRange } from '@/domains/gudang/date';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
+import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 
 const emptyLine = { itemId: "", qty: "", pic: "" };
 const emptyForm = {
@@ -116,6 +117,7 @@ export default function BarangKeluarGudang() {
               <input 
                 type="text" 
                 value={searchQuery}
+                maxLength={100}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] sm:text-sm transition-all shadow-sm"
                 placeholder="Cari client, spk, atau barang..." 
@@ -289,6 +291,7 @@ export default function BarangKeluarGudang() {
                     type="text"
                     placeholder="Isi nama client"
                     value={modalData.namaClient}
+                    maxLength={191}
                     onChange={(e) => setModalData({...modalData, namaClient: e.target.value})}
                     className="w-full border border-gray-200 bg-gray-50/50 rounded-lg py-3 px-4 text-gray-700 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white transition-all duration-200"
                   />
@@ -299,6 +302,7 @@ export default function BarangKeluarGudang() {
                     type="text"
                     placeholder="Isi Nomor SPK"
                     value={modalData.spk}
+                    maxLength={100}
                     onChange={(e) => setModalData({...modalData, spk: e.target.value})}
                     className="w-full border border-gray-200 bg-gray-50/50 rounded-lg py-3 px-4 text-gray-700 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white transition-all duration-200"
                   />
@@ -314,6 +318,7 @@ export default function BarangKeluarGudang() {
                       type="text"
                       placeholder="Isi Nama Item"
                       value={modalData.namaItem}
+                      maxLength={191}
                       onChange={(e) => setModalData({...modalData, namaItem: e.target.value})}
                       className="w-full border border-gray-200 bg-gray-50/50 rounded-lg py-3 pl-4 pr-10 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 text-sm text-gray-700 placeholder-gray-400 transition-all duration-200"
                     />
@@ -399,10 +404,10 @@ export default function BarangKeluarGudang() {
                       </td>
                       <td className="border-r border-gray-200">
                         <input
-                          type="number"
-                          min={1}
+                          {...INTEGER_INPUT}
+                          maxLength={9}
                           value={line.qty}
-                          onChange={(e) => updateLine(i, { qty: e.target.value })}
+                          onChange={(e) => updateLine(i, { qty: digitsOnly(e.target.value) })}
                           className="w-full h-full px-2 py-2 bg-transparent text-center text-sm text-gray-700 focus:outline-none"
                         />
                       </td>
@@ -410,6 +415,7 @@ export default function BarangKeluarGudang() {
                         <input
                           type="text"
                           value={line.pic}
+                          maxLength={191}
                           onChange={(e) => updateLine(i, { pic: e.target.value })}
                           className="w-full h-full px-2 py-2 bg-transparent text-center text-sm text-gray-700 focus:outline-none"
                         />

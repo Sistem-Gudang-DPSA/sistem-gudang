@@ -156,6 +156,7 @@ export default function DataBarangGudang() {
             <input
               type="text"
               value={searchQuery}
+              maxLength={100}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] sm:text-sm transition-all"
               placeholder="Cari kode atau nama barang..."
@@ -317,6 +318,7 @@ export default function DataBarangGudang() {
                   placeholder="Kode akan disarankan otomatis"
                   className="w-full border border-gray-200 bg-gray-50/50 rounded-xl py-2.5 px-4 text-gray-700 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] focus:bg-white transition-all duration-200"
                   value={modalData.code}
+                  maxLength={191}
                   onChange={(e) => setModalData({ ...modalData, code: e.target.value })}
                 />
               </div>
@@ -365,11 +367,14 @@ export default function DataBarangGudang() {
               <div className="flex-1">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Perubahan Jumlah</label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  maxLength={10}
                   placeholder="Contoh: 10 atau -5"
                   className="w-full border border-gray-200 bg-gray-50/50 rounded-xl py-2.5 px-4 text-gray-700 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all duration-200"
                   value={stockDelta}
-                  onChange={(e) => setStockDelta(e.target.value)}
+                  onChange={(e) => setStockDelta(e.target.value.replace(/(?!^-)\D/g, ""))}
                 />
               </div>
               <div className="flex-1">
@@ -379,6 +384,7 @@ export default function DataBarangGudang() {
                   placeholder="Contoh: Penerimaan PO-2026-09-001"
                   className="w-full border border-gray-200 bg-gray-50/50 rounded-xl py-2.5 px-4 text-gray-700 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all duration-200"
                   value={stockReason}
+                  maxLength={255}
                   onChange={(e) => setStockReason(e.target.value)}
                 />
               </div>
