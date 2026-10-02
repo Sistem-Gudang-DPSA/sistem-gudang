@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Search, ChevronDown } from 'lucide-react';
+import { Search, ChevronDown, Plus } from 'lucide-react';
 import { alokasiBarangPath, buat_spk_internal_path, type StatusBarang } from '@/domains/ppic/data/spk-internal';
 import { listSpkInternal } from '@/domains/ppic/api';
 import { useApiData } from '@/shared/lib/use-api-data';
@@ -10,6 +10,7 @@ import { useApiData } from '@/shared/lib/use-api-data';
 const cellClass = 'px-4 py-3 border-b border-r border-gray-300';
 const cardClass = 'bg-white rounded-sm border border-gray-100 shadow-md p-6 min-h-32';
 const actionButtonClass = 'px-3 py-1 text-xs font-semibold rounded-lg border transition-colors';
+const orangeButtonClass = 'flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed';
 
 const statusButtonClass: Record<StatusBarang, string> = {
   LOCKED: 'border-red-300 text-red-700 bg-red-50 hover:bg-red-100',
@@ -91,12 +92,10 @@ export default function SpkInternalMutasiStokPPIC() {
             </div>
           </div>
 
-          <Link
-            href={buat_spk_internal_path}
-            className="px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm"
-          >
-            Buat SPK Internal
-          </Link>
+          <Link href={buat_spk_internal_path} className={orangeButtonClass}>
+                <Plus className="w-4 h-4" />
+                <span>Buat SPK Internal</span>
+              </Link>
         </div>
 
         {/* Tabel barang */}

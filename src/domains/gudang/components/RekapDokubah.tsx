@@ -8,12 +8,17 @@ import { formatAngka } from "@/domains/ppic/data/dokubah";
 import type { DokubahApiStatus } from "@/domains/ppic/types";
 import { useApiData } from "@/shared/lib/use-api-data";
 
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+
 export default function RekapDokubah() {
     const [searchQuery, setSearchQuery] = useState("");
     const [startDate, setStartDate] = useState("");
     const [endDate, setEndDate] = useState("");
     const [filterSumber, setFilterSumber] = useState<"ALL" | DokubahApiStatus>("ALL");
     const [selectedIds, setSelectedIds] = useState<Set<string | number>>(new Set());
+    const [exporting, setExporting] = useState(false);
 
     const filters = {
         search: searchQuery || undefined,
@@ -31,6 +36,11 @@ export default function RekapDokubah() {
     const filteredData = result?.rows ?? [];
     const realisasiOf = (item: { totalRealisasiNilai: number }) => item.totalRealisasiNilai;
     const isAllSelected = filteredData.length > 0 && selectedIds.size === filteredData.length;
+    const overbudgetCount = filteredData.filter((item) => realisasiOf(item) > item.totalAnggaran).length;
+
+    const totalRealisasi = filteredData.reduce((acc, item) => acc + realisasiOf(item), 0);
+    const totalAnggaran = filteredData.reduce((acc, item) => acc + item.totalAnggaran, 0);
+    const persenPenggunaan = totalAnggaran > 0 ? (totalRealisasi / totalAnggaran) * 100 : 0;
 
     const handleSelectAll = () => {
         if (isAllSelected) {
@@ -52,7 +62,6 @@ export default function RekapDokubah() {
         });
     };
 
-
     const handleExportCSV = () => {
           const exportData = filteredData.map((item, index) => ({
             'No': index + 1,
@@ -68,10 +77,76 @@ export default function RekapDokubah() {
           XLSX.utils.book_append_sheet(workbook, worksheet, 'Rekap Dokubah');
           XLSX.writeFile(workbook, 'Rekap_Dokubah.xlsx');
         };
-    
+
         const handlePrintPDF = () => {
-          window.print();
-        };
+            const win = window.open('', '_blank');
+            if (!win) {
+                alert('Pop-up diblokir browser. Izinkan pop-up untuk mencetak PDF.');
+                return;
+            }
+
+            const rowsToPrint = selectedIds.size > 0
+                ? filteredData.filter((item) => selectedIds.has(item.id))
+                : filteredData;
+            const statusText = filterSumber === 'ALL' ? 'Semua Status' : filterSumber;
+            const periodeText = startDate || endDate ? `${startDate || '-'} s/d ${endDate || '-'}` : 'Semua Periode';
+
+            const bodyRows = rowsToPrint.map((item, index) => `
+                <tr>
+                <td class="center">${index + 1}</td>
+                <td>${escapeHtml(String(item.noSpk))}</td>
+                <td>${escapeHtml(String(item.client))}</td>
+                <td class="right">${formatAngka(item.totalAnggaran)}</td>
+                <td class="right">${formatAngka(realisasiOf(item))}</td>
+                <td class="right">${formatAngka(item.totalAnggaran - realisasiOf(item))}</td>
+                <td class="center">${escapeHtml(String(item.status))}</td>
+                </tr>`).join('');
+
+            const emptyRow = `<tr><td colspan="7" class="center">Tidak ada data dokubah.</td></tr>`;
+
+            win.document.write(`<!doctype html>
+                <html>
+                <head>
+                    <title>Rekap Dokubah</title>
+                    <style>
+                    @page { size: A4 landscape; margin: 12mm; }
+                    body { font-family: Arial, sans-serif; color: #111; }
+                    h1 { font-size: 18px; margin: 0 0 4px; text-transform: uppercase; }
+                    .meta { font-size: 12px; margin: 0 0 12px; color: #444; }
+                    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+                    th, td { border: 1px solid #999; padding: 6px 8px; text-align: left; vertical-align: top; }
+                    th { background: #eee; }
+                    thead { display: table-header-group; }
+                    tr { page-break-inside: avoid; }
+                    .center { text-align: center; }
+                    .right { text-align: right; }
+                    </style>
+                </head>
+                <body>
+                    <h1>Rekap Dokubah</h1>
+                    <p class="meta">Periode: ${escapeHtml(periodeText)} &nbsp;|&nbsp; Status: ${escapeHtml(statusText)}${
+                    searchQuery ? ` &nbsp;|&nbsp; Pencarian: ${escapeHtml(searchQuery)}` : ''
+                    }${selectedIds.size > 0 ? ` &nbsp;|&nbsp; ${rowsToPrint.length} baris dipilih` : ''}</p>
+                    <table>
+                    <thead>
+                        <tr>
+                        <th class="center">No</th>
+                        <th>No. SPK</th>
+                        <th>Klien &amp; Proyek</th>
+                        <th class="right">Anggaran</th>
+                        <th class="right">Realisasi</th>
+                        <th class="right">Sisa Anggaran</th>
+                        <th class="center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rowsToPrint.length ? bodyRows : emptyRow}</tbody>
+                    </table>
+                </body>
+                </html>`);
+            win.document.close();
+            win.focus();
+            win.print();
+            };
 
     return(
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -83,12 +158,20 @@ export default function RekapDokubah() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
                     <p className="text-xs font-semibold text-gray-500 uppercase">Total SPK Aktif</p>
+                    <p className="text-2xl font-bold text-gray-900 mt-1">{filteredData.length} SPK</p>
                 </div>
                 <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
                     <p className="text-xs font-semibold text-gray-500 uppercase">Penggunaan Material Total</p>
+                    <p className="text-2xl font-bold text-blue-600 mt-1">Rp {formatAngka(totalRealisasi)}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                        {persenPenggunaan.toFixed(1)}% dari anggaran Rp {formatAngka(totalAnggaran)}
+                    </p>
                 </div>
                 <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
                     <p className="text-xs font-semibold text-gray-500 uppercase">Peringatan SPK Overbudget</p>
+                    <p className={`text-2xl font-bold mt-1 ${overbudgetCount > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        {overbudgetCount} SPK
+                    </p>
                 </div>
             </div>
 
@@ -157,6 +240,7 @@ export default function RekapDokubah() {
                         <div className="flex gap-2 items-end m-2 print:hidden">
                             <button
                                 onClick={handleExportCSV}
+                                disabled={ exporting || isLoading || filteredData.length === 0}
                                 className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
                                 title="Export Data ke CSV"
                             >
@@ -165,6 +249,7 @@ export default function RekapDokubah() {
                             </button>
                             <button
                                 onClick={handlePrintPDF}
+                                disabled={isLoading || filteredData.length === 0}
                                 className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
                                 title="Print Data ke PDF"
                             >
@@ -223,7 +308,10 @@ export default function RekapDokubah() {
                             </tr>
                             ) : (
                             filteredData.map((item, index) => (
-                                <tr key={item.id} className="hover:bg-gray-50 transition-colors">
+                                <tr
+                                    key={item.id}
+                                    className={`transition-colors ${realisasiOf(item) > item.totalAnggaran ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50'}`}
+                                >
                                 <td className="px-4 py-3 text-center text-gray-500">{index + 1}</td>
                                 <td className="px-4 py-3 text-gray-700 font-medium">{item.noSpk}</td>
                                 <td className="px-4 py-3 font-mono font-semibold text-blue-600">{item.client}</td>
