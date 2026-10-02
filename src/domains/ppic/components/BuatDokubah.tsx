@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useCan } from '@/domains/auth/user-context';
+import NoPermission from './NoPermission';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Plus } from 'lucide-react';
@@ -39,6 +41,7 @@ function Field({ id, label, children }: { id: string; label: string; children: R
 }
 
 export default function BuatDokubahPPIC() {
+  const canCreate = useCan('dokubah.create');
   const router = useRouter();
   const [form, setForm] = useState(emptyForm);
   const [rows, setRows] = useState<BahanRow[]>(() => Array.from({ length: JUMLAH_BARIS_AWAL }, () => ({ ...emptyRow })));
@@ -102,6 +105,8 @@ export default function BuatDokubahPPIC() {
       setFormError(err instanceof ApiError ? err.message : 'Gagal menyimpan Dokubah.');
     }
   };
+
+  if (!canCreate) return <NoPermission action="membuat Dokubah" />;
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">

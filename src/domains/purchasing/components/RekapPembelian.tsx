@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Search } from 'lucide-react';
+import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { formatTanggal } from '@/domains/ppic/data/dokubah';
 import { fetchPermintaanList } from '@/domains/ppic/data/pembelian';
@@ -11,17 +12,18 @@ import { lihatPermintaanPath } from '@/domains/purchasing/data/pembelian';
 const cellClass = 'px-4 py-3 border-b border-r border-gray-300';
 
 export default function RekapPembelianPurchasing() {
-  const { data: rows, loading, error } = useApiData(fetchPermintaanList, '', 'Gagal memuat rekap pembelian.');
-  const data = rows ?? [];
   const [searchQuery, setSearchQuery] = useState('');
-
-  const filteredData = data.filter((item) => {
-    const q = searchQuery.trim().toLowerCase();
-    return q === '' ||
-      item.permintaan.toLowerCase().includes(q) ||
-      item.status.toLowerCase().includes(q) ||
-      formatTanggal(item.tanggal).includes(q);
-  });
+  const filterKey = searchQuery.trim();
+  const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
+  const page = pageState.key === filterKey ? pageState.page : 1;
+  const setPage = (next: number) => setPageState({ key: filterKey, page: next });
+  const { data: result, loading, error } = useApiData(
+    () => fetchPermintaanList({ page, search: filterKey }),
+    `${filterKey}|${page}`,
+    'Gagal memuat rekap pembelian.',
+  );
+  const filteredData = result?.rows ?? [];
+  const total = result?.total ?? 0;
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -60,7 +62,7 @@ export default function RekapPembelianPurchasing() {
             <tbody className="text-gray-800">
               {filteredData.map((item, index) => (
                 <tr key={item.id} className="hover:bg-orange-50/20 transition-colors">
-                  <td className={cellClass}>{index + 1}.</td>
+                  <td className={cellClass}>{(page - 1) * 20 + index + 1}.</td>
                   <td className={cellClass}>{formatTanggal(item.tanggal)}</td>
                   <td className={cellClass}>{item.permintaan}</td>
                   <td className={`${cellClass} text-center font-bold text-gray-900`}>{item.status}</td>
@@ -91,6 +93,7 @@ export default function RekapPembelianPurchasing() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} pageSize={20} total={total} onPageChange={setPage} />
       </div>
     </div>
   );

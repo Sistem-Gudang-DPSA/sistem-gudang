@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useCan } from '@/domains/auth/user-context';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ArrowLeft, Plus } from 'lucide-react';
@@ -109,7 +110,11 @@ function FormEstimasi({ detail }: { detail: PenawaranDetail }) {
   const [formError, setFormError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
-  const locked = saved.status === 'PUBLISH';
+  const canUpdate = useCan('penawaran-harga.update');
+  // Publish saves first (PUT), so it needs the update permission as well
+  const canPublish = useCan('penawaran-harga.publish') && canUpdate;
+  const published = saved.status === 'PUBLISH';
+  const locked = published || !canUpdate;
 
   const subtotal = (rows: BarisBahan[]) => rows.reduce((sum, row) => sum + hitungTotal(row), 0);
   const grandTotal = form.bahan.reduce((sum, rows) => sum + subtotal(rows), 0);
@@ -167,9 +172,8 @@ function FormEstimasi({ detail }: { detail: PenawaranDetail }) {
 
   const handleSimpan = (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
-    void jalankan(async () => {
-      await simpan();
-    }, 'Penawaran harga tersimpan.');
+    // simpan() returns null when validation fails; `false` tells jalankan to skip the success notice.
+    void jalankan(async () => (await simpan()) !== null, 'Penawaran harga tersimpan.');
   };
 
   const handlePublish = () => {
@@ -203,7 +207,8 @@ function FormEstimasi({ detail }: { detail: PenawaranDetail }) {
         <h2 className="text-sm font-bold text-gray-900 text-center mb-2">Estimasi Penawaran Biaya</h2>
         <p className="text-xs text-gray-600 text-center mb-8">
           No Order {saved.noOrder} · <span className="font-semibold">{STATUS_UI[saved.status]}</span>
-          {locked && ' · sudah dipublish, tidak bisa diubah'}
+          {published && ' · sudah dipublish, tidak bisa diubah'}
+          {!published && !canUpdate && ' · Anda tidak punya izin untuk mengubah penawaran ini'}
         </p>
 
         <fieldset disabled={locked || busy} className="contents">
@@ -326,7 +331,7 @@ function FormEstimasi({ detail }: { detail: PenawaranDetail }) {
         <div className="flex justify-end gap-4 mt-10">
           {!locked && (
             <>
-              <button type="button" onClick={handlePublish} disabled={busy} className={`${orangeButtonClass} disabled:opacity-60`}>Publish</button>
+              {canPublish && <button type="button" onClick={handlePublish} disabled={busy} className={`${orangeButtonClass} disabled:opacity-60`}>Publish</button>}
               <button type="submit" disabled={busy} className={`${orangeButtonClass} disabled:opacity-60`}>{busy ? 'Menyimpan...' : 'Simpan'}</button>
             </>
           )}

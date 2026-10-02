@@ -1,5 +1,6 @@
 "use client";
 
+import { useCan } from '@/domains/auth/user-context';
 import React, { useState } from 'react';
 import { Search, Plus } from 'lucide-react';
 import { createLocation, listLocations } from '@/domains/inventory/api';
@@ -7,6 +8,7 @@ import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 
 export default function DataLokasiGudang() {
+  const canCreate = useCan('location.create');
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalData, setModalData] = useState({ namaRak: "", nomerRak: "" });
@@ -69,13 +71,13 @@ export default function DataLokasiGudang() {
               <Search className="h-4 w-4 text-gray-400" strokeWidth={2.5} />
             </div>
           </div>
-          <button
+          {canCreate && <button
             onClick={() => setIsModalOpen(true)}
             className="flex items-center gap-2 px-5 py-2.5 bg-[#ff8a00] text-white rounded-lg hover:bg-[#eb7d00] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm shadow-sm"
           >
             <Plus className="w-4 h-4" strokeWidth={2.5} />
             Tambah Data
-          </button>
+          </button>}
         </div>
 
         {error && !isModalOpen && (

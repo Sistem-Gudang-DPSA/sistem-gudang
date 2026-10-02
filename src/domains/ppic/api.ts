@@ -2,7 +2,7 @@ import { apiClient, toQuery } from "@/shared/lib/api-client";
 import type { ListParams, PaginatedResult } from "@/domains/inventory/types";
 import type { BahanDokubah, DokubahItem, StatusDokubah } from "./data/dokubah";
 import type { SpkInternal } from "./data/spk-internal";
-import type { PenawaranDetail, PenawaranHeaderInput, PenawaranRow, SavePenawaranInput, ApprovalAction, ApprovalListParams, ApprovalRequest, PurchaseRequestPayload, CreateDokubahInput, CreateSpkInternalInput, SpkInternalListParams, TrackingSpk, TrackingPic, MutationListParams, MutationRow, StockOpnameSummary, DokubahApiDetail, DokubahApiRow, DokubahApiStatus, DokubahListParams } from "./types";
+import type { PenawaranDetail, PenawaranHeaderInput, PenawaranRow, SavePenawaranInput, ApprovalAction, ApprovalListParams, ApprovalRequest, PurchaseRequestPayload, CreateDokubahInput, CreateSpkInternalInput, SpkInternalListParams, TrackingSpk, TrackingPic, MutationListParams, MutationRow, MutationSummary, SpkInternalSummary, StockOpnameSummary, DokubahApiDetail, DokubahApiRow, DokubahApiStatus, DokubahListParams, DokubahSummary } from "./types";
 
 // The screens use title-case statuses, the API uses UPPER_SNAKE.
 export const STATUS_TO_UI: Record<DokubahApiStatus, StatusDokubah> = {
@@ -28,14 +28,14 @@ const toItem = (row: DokubahApiRow | DokubahApiDetail): DokubahItem => ({
   bahan: "bahan" in row ? row.bahan : [],
 });
 
-export async function listDokubah(params?: DokubahListParams): Promise<PaginatedResult<DokubahItem>> {
-  const res = await apiClient.get<PaginatedResult<DokubahApiRow>>(`/api/v1/dokubah${toQuery(params)}`);
+export async function listDokubah(params?: DokubahListParams): Promise<PaginatedResult<DokubahItem> & { summary?: DokubahSummary }> {
+  const res = await apiClient.get<PaginatedResult<DokubahApiRow> & { summary?: DokubahSummary }>(`/api/v1/dokubah${toQuery(params)}`);
   return { ...res, rows: res.rows.map(toItem) };
 }
 
 // Raw rows (with totalKuota / totalRealisasi) for the Gudang recap.
 export const listDokubahRows = (params?: DokubahListParams) =>
-  apiClient.get<PaginatedResult<DokubahApiRow>>(`/api/v1/dokubah${toQuery(params)}`);
+  apiClient.get<PaginatedResult<DokubahApiRow> & { summary?: DokubahSummary }>(`/api/v1/dokubah${toQuery(params)}`);
 
 // SPK numbers and client names from the tracking system, used to pick the SPK of a new dokubah.
 export const listTrackingSpk = (search?: string) => apiClient.get<TrackingSpk[]>(`/api/v1/tracking/spk${toQuery({ search })}`);
@@ -59,7 +59,7 @@ export const approveDokubah = (id: number) => apiClient.post<DokubahApiDetail>(`
 export const rejectDokubah = (id: number) => apiClient.post<DokubahApiDetail>(`/api/v1/dokubah/${id}/reject`);
 
 export const listSpkInternal = (params?: SpkInternalListParams) =>
-  apiClient.get<PaginatedResult<SpkInternal>>(`/api/v1/spk-internal${toQuery(params)}`);
+  apiClient.get<PaginatedResult<SpkInternal> & { summary: SpkInternalSummary }>(`/api/v1/spk-internal${toQuery(params)}`);
 
 // Creates the whole document; the server numbers it and starts each line's totalBisaPakai at alokasiStokBebas.
 export const createSpkInternal = (input: CreateSpkInternalInput) => apiClient.post<{ id: number; noSpk: string }>("/api/v1/spk-internal", input);
@@ -72,7 +72,7 @@ export const listTrackingPic = () => apiClient.get<TrackingPic[]>("/api/v1/track
 
 // Needs report.view. Mutations are derived from inbound (Masuk) and outbound (Keluar).
 export const listMutations = (params?: MutationListParams) =>
-  apiClient.get<PaginatedResult<MutationRow>>(`/api/v1/reports/mutations${toQuery(params)}`);
+  apiClient.get<PaginatedResult<MutationRow> & { summary: MutationSummary }>(`/api/v1/reports/mutations${toQuery(params)}`);
 
 export const getStockOpnameSummary = (params?: { month?: number; year?: number }) =>
   apiClient.get<StockOpnameSummary>(`/api/v1/reports/stock-opname-summary${toQuery(params)}`);

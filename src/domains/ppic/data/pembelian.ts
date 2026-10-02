@@ -31,7 +31,7 @@ export const rekap_pembelian_path = '/dashboard/ppic/laporan/rekap-pembelian';
 
 export const lihatPermintaanPath = (id: number | string) => `${rekap_pembelian_path}/permintaan-pembelian/${id}`;
 
-const STATUS_LABEL: Record<ApprovalStatus, StatusPermintaan> = {
+export const STATUS_LABEL: Record<ApprovalStatus, StatusPermintaan> = {
   pending: 'Belum Disetujui',
   approved: 'Disetujui',
   revision_requested: 'Perlu Revisi',
@@ -56,9 +56,10 @@ const toPermintaan = (req: ApprovalRequest): PermintaanPembelian => {
   };
 };
 
-// ponytail: loads first 100 rows only, add real pagination when the list outgrows it
-export const fetchPermintaanList = async () =>
-  (await listApprovals({ pageSize: 100, type: 'purchase-request' })).rows.map(toPermintaan);
+export const fetchPermintaanList = async ({ page = 1, search = '' }: { page?: number; search?: string } = {}) => {
+  const res = await listApprovals({ page, pageSize: 20, type: 'purchase-request', search: search.trim() || undefined });
+  return { rows: res.rows.map(toPermintaan), total: res.total };
+};
 
 export const fetchPermintaan = async (id: string): Promise<PermintaanPembelian> => {
   const { request, actions } = await getApprovalDetail(id);

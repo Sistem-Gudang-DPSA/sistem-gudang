@@ -6,6 +6,7 @@ import PermintaanPembelianPPIC from '@/domains/ppic/components/PermintaanPembeli
 import { approveApproval, rejectApproval, requestApprovalRevision } from '@/domains/ppic/api';
 import type { PermintaanPembelian } from '@/domains/ppic/data/pembelian';
 import { buatPoPath, rekap_pembelian_path } from '@/domains/purchasing/data/pembelian';
+import { useCan } from '@/domains/auth/user-context';
 import { ApiError } from '@/shared/lib/api-client';
 
 const buttonClass = 'min-w-24 px-8 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm text-center disabled:opacity-50';
@@ -13,17 +14,20 @@ const ghostClass = 'min-w-24 px-8 py-2.5 border border-gray-300 text-gray-800 fo
 
 // Purchasing memutuskan permintaan yang masih menunggu. Setelah disetujui, tombol berganti menjadi Buat PO.
 function AksiPurchasing({ permintaan, reload }: { permintaan: PermintaanPembelian; reload: () => void }) {
+  const canApprove = useCan('purchase-request.approve');
+  const canCreatePo = useCan('purchase-order.create');
   const [mode, setMode] = useState<'revisi' | 'tolak' | null>(null);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
   if (permintaan.statusApi === 'approved') {
-    return <Link href={buatPoPath(permintaan.id)} className={buttonClass}>Buat PO</Link>;
+    return canCreatePo ? <Link href={buatPoPath(permintaan.id)} className={buttonClass}>Buat PO</Link> : null;
   }
   if (permintaan.statusApi !== 'pending') {
     return <p className="text-sm text-gray-600">Status permintaan: <span className="font-bold text-gray-900">{permintaan.status}</span></p>;
   }
+  if (!canApprove) return null;
 
   const jalankan = async (aksi: () => Promise<unknown>) => {
     setBusy(true);

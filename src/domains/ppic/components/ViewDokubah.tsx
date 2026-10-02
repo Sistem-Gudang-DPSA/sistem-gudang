@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { useCan } from '@/domains/auth/user-context';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Printer } from 'lucide-react';
@@ -32,6 +33,7 @@ function Field({ id, label, children }: { id: string; label: string; children: R
 }
 
 export default function ViewDokubahPPIC() {
+  const canUpdate = useCan('dokubah.update');
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   // ponytail: the SPK picker lists the first 100 dokubah only
@@ -197,12 +199,15 @@ export default function ViewDokubahPPIC() {
                     <td className={cellClass}>{formatAngka(b.realisasi)} {b.satuan}</td>
                     <td className={`${cellClass} ${sisa < 0 ? 'text-red-600 font-semibold' : ''}`}>{formatAngka(sisa)} {b.satuan}</td>
                     <td className={`${cellClass} text-center`}>
-                      <Link
-                        href={editMaterialPath(dokubah.id)}
-                        className="inline-block px-4 py-1.5 bg-[#FF8A00] text-white text-xs font-semibold rounded-lg hover:bg-orange-600 transition-colors"
-                      >
-                        Edit
-                      </Link>
+                      {/* The API answers 409 when replacing the materials of an APPROVED dokubah */}
+                      {canUpdate && dokubah.status !== 'Approved' && (
+                        <Link
+                          href={editMaterialPath(dokubah.id)}
+                          className="inline-block px-4 py-1.5 bg-[#FF8A00] text-white text-xs font-semibold rounded-lg hover:bg-orange-600 transition-colors"
+                        >
+                          Edit
+                        </Link>
+                      )}
                     </td>
                   </tr>
                 );

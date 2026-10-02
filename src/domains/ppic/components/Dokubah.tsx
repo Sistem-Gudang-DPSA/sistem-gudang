@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useCan } from '@/domains/auth/user-context';
 import Link from 'next/link';
-import { Search, Funnel, FileSpreadsheet, Printer, Plus, Eye, CircleCheck, CircleX, Clock, FilePen, FileUp, Download } from 'lucide-react';
+import { Search, Funnel, Plus, Eye, CircleCheck, CircleX, Clock, FilePen, FileUp, Download } from 'lucide-react';
 import {
   buat_dokubah_path,
   escapeHtml,
@@ -10,7 +11,8 @@ import {
   type StatusDokubah,
   viewDokubahPath,
 } from '@/domains/ppic/data/dokubah';
-import { listDokubah } from '@/domains/ppic/api';
+import { listDokubah, statusToApi } from '@/domains/ppic/api';
+import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
 
 export const STATUS_OPTIONS: StatusDokubah[] = ['Draft', 'Pending', 'Approved', 'Rejected'];
@@ -35,13 +37,7 @@ const orangeButtonClass = 'flex items-center justify-center gap-2 px-5 py-2.5 bg
 const filterInputClass = 'border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00]';
 
 export default function DokubahPPIC() {
-  // ponytail: loads first 100 rows and filters them here, move the filters to the API params when the list outgrows it
-  const { data: result, loading, error } = useApiData(
-    () => listDokubah({ pageSize: 100 }),
-    'list',
-    'Gagal memuat daftar Dokubah.',
-  );
-  const data = result?.rows ?? [];
+  const canCreate = useCan('dokubah.create');
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilter, setShowFilter] = useState(false);
   const [filterStatus, setFilterStatus] = useState<StatusDokubah | ''>('');
@@ -51,22 +47,28 @@ export default function DokubahPPIC() {
 
   const isFilterActive = filterStatus !== '' || filterDari !== '' || filterSampai !== '';
 
-  const filteredData = data.filter((item) => {
-    const q = searchQuery.trim().toLowerCase();
-    const matchesSearch = q === '' ||
-      item.noSpk.toLowerCase().includes(q) ||
-      item.client.toLowerCase().includes(q);
-    const matchesStatus = filterStatus === '' || item.status === filterStatus;
-    // Format YYYY-MM-DD bisa dibandingkan langsung sebagai string
-    const matchesDari = filterDari === '' || item.tanggalMulai >= filterDari;
-    const matchesSampai = filterSampai === '' || item.tanggalMulai <= filterSampai;
-    return matchesSearch && matchesStatus && matchesDari && matchesSampai;
-  });
+  const filters = {
+    search: searchQuery.trim() || undefined,
+    status: filterStatus ? statusToApi(filterStatus) : undefined,
+    startDate: filterDari || undefined,
+    endDate: filterSampai || undefined,
+  };
+  const filterKey = JSON.stringify(filters);
+  const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
+  const page = pageState.key === filterKey ? pageState.page : 1;
+  const setPage = (next: number) => setPageState({ key: filterKey, page: next });
+  const { data: result, loading, error } = useApiData(
+    () => listDokubah({ ...filters, page, pageSize: 20 }),
+    `${filterKey}|${page}`,
+    'Gagal memuat daftar Dokubah.',
+  );
+  const filteredData = result?.rows ?? [];
+  const total = result?.total ?? 0;
 
   const checkedRows = filteredData.filter((item) => selectedIds.has(item.id));
   const allChecked = filteredData.length > 0 && checkedRows.length === filteredData.length;
 
-  // Export & print pakai baris yang dicentang; kalau tidak ada yang dicentang, semua baris hasil filter
+  // Export & print pakai baris yang dicentang; kalau tidak ada yang dicentang, semua baris di halaman ini
   const rowsToExport = checkedRows.length > 0 ? checkedRows : filteredData;
 
   const resetFilter = () => {
@@ -117,7 +119,7 @@ export default function DokubahPPIC() {
     }
     const bodyRows = rowsToExport.map((item, index) => `
       <tr>
-        <td class="center">${index + 1}</td>
+        <td class="center">${(page - 1) * 20 + index + 1}</td>
         <td>${escapeHtml(item.noSpk)}</td>
         <td>${escapeHtml(item.client)}</td>
         <td>${formatTanggal(item.tanggalMulai)}</td>
@@ -248,10 +250,12 @@ export default function DokubahPPIC() {
                     <Download className="w-4 h-4" />
                     <span className="hidden sm:inline">Print PDF</span>
                 </button>
-                <Link href={buat_dokubah_path} className={orangeButtonClass}>
-                  <Plus className="w-4 h-4" />
-                  <span>Buat Dokubah</span>
-                </Link>
+                {canCreate && (
+                  <Link href={buat_dokubah_path} className={orangeButtonClass}>
+                    <Plus className="w-4 h-4" />
+                    <span>Buat Dokubah</span>
+                  </Link>
+                )}
             </div>
           </div>
         </div>
@@ -325,6 +329,7 @@ export default function DokubahPPIC() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} pageSize={20} total={total} onPageChange={setPage} />
       </div>
     </div>
   );

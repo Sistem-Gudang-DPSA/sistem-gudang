@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { formatAngka } from '@/domains/ppic/data/dokubah';
 import { getSupplierPrices, saveSupplierPrices } from '@/domains/purchasing/api';
 import type { SupplierPriceChange } from '@/domains/purchasing/types';
+import { useCan } from '@/domains/auth/user-context';
 import { ApiError } from '@/shared/lib/api-client';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 import { useApiData } from '@/shared/lib/use-api-data';
@@ -20,6 +21,7 @@ const cellKey = (itemId: number, bulan: number) => `${itemId}-${bulan}`;
 
 export default function DetailDataBarang() {
   const { id } = useParams<{ id: string }>();
+  const canUpdate = useCan('supplier.update');
   const [tahun, setTahun] = useState(tahunSekarang);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [editingCell, setEditingCell] = useState<string | null>(null);
@@ -194,17 +196,17 @@ export default function DetailDataBarang() {
                           />
                         ) : (
                           <div
-                            onClick={() => {
+                            onClick={canUpdate ? () => {
                               setEditingCell(key);
                               setInputHarga(nilai === null ? '' : String(nilai));
-                            }}
+                            } : undefined}
                             className="w-full h-full min-h-[48px] flex justify-center items-center px-1 font-bold text-gray-700 hover:bg-[#FF8A00]/10 transition-colors"
-                            title={`Klik untuk edit harga ${month}`}
+                            title={canUpdate ? `Klik untuk edit harga ${month}` : undefined}
                           >
                             {nilai !== null ? (
                               <span className="text-sm">{formatAngka(nilai)}</span>
                             ) : (
-                              <span className="text-gray-300 font-medium text-[10px] italic group-hover/cell:text-[#FF8A00]">+ Input</span>
+                              canUpdate ? <span className="text-gray-300 font-medium text-[10px] italic group-hover/cell:text-[#FF8A00]">+ Input</span> : <span className="text-gray-300">-</span>
                             )}
                           </div>
                         )}
@@ -237,13 +239,13 @@ export default function DetailDataBarang() {
         <Link href="/dashboard/purchasing/master/data-supplier" className="flex items-center justify-center px-8 py-2.5 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-all text-xs uppercase tracking-wider">
           Kembali
         </Link>
-        <button
+        {canUpdate && <button
           disabled={perubahan === 0}
           onClick={() => { setSaveError(''); setIsConfirmModalOpen(true); }}
           className="px-8 py-2.5 bg-[#FF8A00] text-white font-bold rounded-xl hover:bg-orange-600 transition-all text-xs uppercase tracking-wider shadow-sm shadow-orange-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Simpan Perubahan
-        </button>
+        </button>}
       </div>
 
       {isConfirmModalOpen && (

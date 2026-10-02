@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useCan } from '@/domains/auth/user-context';
+import NoPermission from './NoPermission';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
@@ -37,6 +39,7 @@ export default function EditMaterialPPIC() {
 
 function EditMaterialForm({ dokubah, message }: { dokubah?: DokubahItem; message: string }) {
   const router = useRouter();
+  const canUpdate = useCan('dokubah.update');
   const [draft, setDraft] = useState<BahanDraft[]>(() => dokubah?.bahan.map(toDraft) ?? []);
   const [showError, setShowError] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -51,6 +54,8 @@ function EditMaterialForm({ dokubah, message }: { dokubah?: DokubahItem; message
       <h1 className="text-[18px] font-extrabold text-black tracking-wide">Edit Material</h1>
     </div>
   );
+
+  if (!canUpdate) return <NoPermission action="mengubah material Dokubah" />;
 
   if (!dokubah) {
     return (

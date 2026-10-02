@@ -18,6 +18,7 @@ export interface FakeRequest {
   body: unknown;
 }
 
+// A handler is a payload or a function of the request. Annotate `(req: FakeRequest)` when using the function form.
 type Handler = unknown | ((req: FakeRequest) => unknown);
 
 export const paged = <T,>(rows: T[], extra: Record<string, unknown> = {}) => ({

@@ -41,18 +41,21 @@ Selesai dan tersambung ke API asli:
   (`13-Penawaran-Harga-SPH.md`).
 - Realisasi Dokubah di backend sekarang dihitung dari barang keluar, hanya
   untuk Dokubah yang sudah disetujui.
+- Test untuk seluruh bagian aplikasi, dashboard tiap divisi dengan data
+  asli, serta sidebar dan tombol yang mengikuti permission role
+  (`14-Test-Menyeluruh-Dashboard-dan-Ability.md`). Laporan memakai
+  ringkasan backend dan paginasi dari server.
 
 ## Posisi Branch
 
-- `dev` sudah memuat semua pekerjaan sampai nomor 12 dan sudah di-push.
-- Branch `feat/sph-wiring` memuat pembaruan Imel dan Cal serta wiring SPH,
-  dan belum di-merge. Branch itu menunggu uji di browser. Dua sisa
-  pengujian sementara di branch Imel, yaitu halaman pratinjau tanpa login
-  dan satu kelas CSS tes, sudah dibuang saat merge.
-- Backend sudah men-push workflow dua langkah, PO, histori harga, dan
-  realisasi Dokubah. Modul SPH di backend belum di-commit, dan permission
-  `penawaran-harga.*` belum ada di role PPIC pada database dev, sehingga
-  menu dan endpoint SPH belum bisa dipakai role PPIC.
+- `dev` memuat semua pekerjaan termasuk SPH, test menyeluruh, dashboard,
+  dan pembatasan ability. Branch `dev` di sisi lokal belum di-push untuk
+  gelombang terakhir.
+- Backend sudah menyediakan ringkasan laporan, pencarian approvals, dan
+  nama pelaku di riwayat. Perubahan itu masih berupa commit lokal di sisi
+  backend dan menunggu user backend mem-push-nya. Permission
+  `penawaran-harga.*` dan `purchase-order.*` sudah ada setelah database
+  di-seed ulang.
 
 ## Belum Selesai
 
@@ -67,12 +70,12 @@ Selesai dan tersambung ke API asli:
   punya layarnya.
 - Arti tombol Rekap di daftar Penawaran Harga. Edit, Detail, dan Rekap
   masih menuju halaman yang sama.
+- Halaman Detail Rekap Permintaan Gudang belum tertaut dari Rekap
+  Permintaan, menunggu keputusan tujuan tombol View Detail dan Edit.
 - Tombol Download PDF di Detail Data Barang supplier belum berfungsi.
-- Riwayat persetujuan belum menampilkan nama pelaku, karena backend hanya
-  mengirim `actorId`.
-- Tampilan layar baru, yaitu SPH dan cetak PDF dari Cal, belum diuji di
-  browser. Layar pembelian, PO, histori harga, paginasi, dan validasi
-  input sudah diuji.
+- Tampilan layar baru belum diuji di browser: SPH, cetak PDF dari Cal,
+  dashboard, paginasi laporan, dan tombol yang tersembunyi per permission.
+  Test otomatis sudah mencakupnya, tetapi uji manual tetap perlu.
 
 ## Urutan yang Disarankan
 
@@ -109,5 +112,5 @@ OpenAPI backend disalin ke `docs/api-1.json` setiap kali berubah.
 
 Semua domain tersambung ke backend, kecuali alur approval selain permintaan
 pembelian dan tracking asli. Lanjutkan dari poin 1 di atas. Dokumen
-berikutnya beri nomor `14-<Judul-Singkat>.md` sesuai konvensi di
+berikutnya beri nomor `15-<Judul-Singkat>.md` sesuai konvensi di
 `00-Template-Docs.md`.

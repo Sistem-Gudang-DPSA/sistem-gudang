@@ -8,6 +8,7 @@ import type { AuthUser } from '@/domains/auth/types';
 import SidebarNav from '@/domains/auth/components/SidebarNav';
 import AccessDenied from '@/domains/auth/components/AccessDenied';
 import { canAccess } from '@/domains/auth/nav';
+import { AuthUserProvider } from '@/domains/auth/user-context';
 
 export default function DashboardLayout({
   children,
@@ -137,7 +138,9 @@ export default function DashboardLayout({
 
         {/* Page Content */}
         <div className="flex-1 p-6 md:p-8 overflow-y-auto">
-          {canAccess(user, pathname) ? children : <AccessDenied user={user} />}
+          <AuthUserProvider user={user}>
+            {canAccess(user, pathname) ? children : <AccessDenied user={user} />}
+          </AuthUserProvider>
         </div>
       </main>
     </div>
