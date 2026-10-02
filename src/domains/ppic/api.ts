@@ -84,3 +84,14 @@ export function listApprovals(params?: ApprovalListParams) {
 export function createPurchaseRequest(payload: PurchaseRequestPayload) {
   return apiClient.post<ApprovalRequest>("/api/v1/approvals", { type: "purchase-request", payload });
 }
+
+// There is no GET /approvals/{id}, so `/actions` (request plus action history) serves as the detail.
+export function getApprovalDetail(id: number | string) {
+  return apiClient.get<{ request: ApprovalRequest; actions: unknown[] }>(`/api/v1/approvals/${id}/actions`);
+}
+
+export const approveApproval = (id: number, note?: string) => apiClient.post(`/api/v1/approvals/${id}/approve`, note ? { note } : {});
+export const rejectApproval = (id: number, note: string) => apiClient.post(`/api/v1/approvals/${id}/reject`, { note });
+export const requestApprovalRevision = (id: number, note: string) =>
+  apiClient.post(`/api/v1/approvals/${id}/request-revision`, { note });
+
