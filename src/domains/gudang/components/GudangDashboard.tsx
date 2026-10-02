@@ -1,5 +1,5 @@
 import React from 'react';
-import { Package, ArrowUpRight, ArrowDownRight, AlertTriangle, Layers } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, AlertTriangle, Layers } from 'lucide-react';
 
 export default function GudangDashboard() {
   return (

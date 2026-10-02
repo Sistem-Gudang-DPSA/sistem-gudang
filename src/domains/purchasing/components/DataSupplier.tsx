@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Search, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { createSupplier, deleteSupplier, listSuppliers, updateSupplier } from '@/domains/purchasing/api';
 import type { Supplier } from '@/domains/purchasing/types';
 import { ApiError } from '@/shared/lib/api-client';
+import { useApiData } from '@/shared/lib/use-api-data';
+import Pagination from '@/shared/components/Pagination';
 
 const emptyForm = { code: '', name: '', bank: '', npwp: '', phone: '', address: '' };
 
@@ -16,26 +18,17 @@ export default function DataSupplierPurchasing() {
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState("");
 
-  const [dataSupplier, setDataSupplier] = useState<Supplier[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
-  const loadSuppliers = async (search: string) => {
-    setLoading(true);
-    try {
-      const result = await listSuppliers({ search: search || undefined });
-      setDataSupplier(result.rows);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Gagal memuat data supplier.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadSuppliers(searchTerm);
-  }, [searchTerm]);
+  const [page, setPage] = useState(1);
+  const { data: loaded, loading, error: loadError, reload } = useApiData(
+    () => listSuppliers({ search: searchTerm || undefined, page, pageSize: 20 }),
+    `${searchTerm}|${page}`,
+    "Gagal memuat data supplier.",
+  );
+  const dataSupplier = loaded?.rows ?? [];
+  const error = actionError || loadError;
 
   const handleMulaiTambah = () => {
     setEditingId(null);
@@ -55,9 +48,9 @@ export default function DataSupplierPurchasing() {
     if (!window.confirm('Apakah Anda yakin ingin menghapus data ini?')) return;
     try {
       await deleteSupplier(id);
-      setDataSupplier((prev) => prev.filter((item) => item.id !== id));
+      reload();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Gagal menghapus supplier.");
+      setActionError(err instanceof ApiError ? err.message : "Gagal menghapus supplier.");
     }
   };
 
@@ -70,12 +63,11 @@ export default function DataSupplierPurchasing() {
     setModalError("");
     try {
       if (editingId) {
-        const updated = await updateSupplier(editingId, formData);
-        setDataSupplier((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+        await updateSupplier(editingId, formData);
       } else {
-        const created = await createSupplier(formData);
-        setDataSupplier((prev) => [created, ...prev]);
+        await createSupplier(formData);
       }
+      reload();
       setIsModalOpen(false);
       setEditingId(null);
       setFormData(emptyForm);
@@ -104,7 +96,7 @@ export default function DataSupplierPurchasing() {
               <input
                 type="text"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
                 className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] sm:text-sm transition-all shadow-sm"
                 placeholder="Cari supplier, npwp, atau kode..."
               />
@@ -171,6 +163,7 @@ export default function DataSupplierPurchasing() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} pageSize={20} total={loaded?.total ?? 0} onPageChange={setPage} activeClass="bg-teal-500 text-white border-teal-500" />
       </div>
 
       {/* Modal Tambah/Edit Data */}
