@@ -5,7 +5,7 @@ import { useCan } from '@/domains/auth/user-context';
 import { Search, Plus, Calendar, Eye } from 'lucide-react';
 import Link from 'next/link';
 import { listApprovals } from '@/domains/ppic/api';
-import { displayDate, toDateRange } from '@/domains/gudang/date';
+import { displayDate, toDateRange } from '@/domains/inventory/date';
 import type { ApprovalRequest, ApprovalStatus } from '@/domains/ppic/types';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';

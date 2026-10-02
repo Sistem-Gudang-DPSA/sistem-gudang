@@ -2,9 +2,9 @@
 
 import React, { useState } from "react";
 import { Search, Loader2, Eye, AlertCircle} from "lucide-react";
-import { getStockOpname, listStockOpname } from "@/domains/gudang/api";
-import { displayDate } from "@/domains/gudang/date";
-import type { StockOpnameDetail } from "@/domains/gudang/types";
+import { getStockOpname, listStockOpname } from "@/domains/inventory/api";
+import { displayDate } from "@/domains/inventory/date";
+import type { StockOpnameDetail } from "@/domains/inventory/types";
 import { ApiError } from "@/shared/lib/api-client";
 import { useApiData } from "@/shared/lib/use-api-data";
 

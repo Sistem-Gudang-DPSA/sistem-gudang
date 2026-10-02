@@ -25,7 +25,7 @@ Permintaan. Sebelumnya semua halaman ini memakai data dummy.
 
 ## Perubahan
 
-### `src/domains/gudang/api.ts`, `types.ts`, `date.ts`
+### `src/domains/inventory/api.ts`, `types.ts`, `date.ts`
 
 Fungsi dan tipe untuk `/inbound`, `/inbound/returns`, `/outbound`,
 `/stock-opname`, `/approvals` (purchase-request), `/reports/inbound`,

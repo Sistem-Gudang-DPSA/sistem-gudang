@@ -1,1 +1,1 @@
-export { default } from "@/domains/gudang/components/BarangMasuk";
+export { default } from "@/domains/inventory/components/BarangMasuk";

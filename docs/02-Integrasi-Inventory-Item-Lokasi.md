@@ -39,14 +39,14 @@ Berisi tipe `Item`, `Location`, `PaginatedResult`, dan fungsi
 `apiClient` dari `shared/lib/api-client.ts` (lihat
 `01-Integrasi-Auth.md` untuk detail wrapper itu).
 
-### `src/domains/gudang/components/DataBarang.tsx`
+### `src/domains/inventory/components/DataBarang.tsx`
 
 List barang sekarang dari `listItems()`. Tombol "Tambah" hanya tampil
 untuk barang dengan `locationId === null`. Modalnya memuat daftar lokasi
 asli lewat `listLocations()`, memanggil `suggestItemCode()` begitu user
 memilih lokasi, lalu `assignItemLocation()` saat disimpan.
 
-### `src/domains/gudang/components/DataLokasi.tsx`
+### `src/domains/inventory/components/DataLokasi.tsx`
 
 List dari `listLocations()`, form tambah memanggil `createLocation()`.
 Tidak ada tombol edit atau hapus karena desain aslinya juga tidak punya
@@ -101,7 +101,7 @@ dan field `createdAt`/`updatedAt` di response Item. Sudah disambungkan:
 
 - `src/domains/inventory/api.ts` — fungsi baru `adjustItemStock(id, { delta, reason })`.
 - `src/domains/inventory/types.ts` — `Item` sekarang punya `createdAt` dan `updatedAt`.
-- `src/domains/gudang/components/DataBarang.tsx` — tombol "Stok" baru di kolom Aksi, membuka modal untuk input perubahan jumlah dan alasan, lalu memanggil `adjustItemStock`.
+- `src/domains/inventory/components/DataBarang.tsx` — tombol "Stok" baru di kolom Aksi, membuka modal untuk input perubahan jumlah dan alasan, lalu memanggil `adjustItemStock`.
 
 Juga diperbaiki di ketiga halaman Data Barang (Gudang, PPIC, Purchasing):
 kolom Lokasi sebelumnya menampilkan `locationId` mentah (angka), sekarang
