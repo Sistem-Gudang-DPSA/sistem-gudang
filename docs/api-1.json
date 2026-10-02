@@ -5241,6 +5241,13 @@
                               },
                               "address": {
                                 "type": "string"
+                              },
+                              "pajak": {
+                                "type": "string",
+                                "enum": [
+                                  "PKP",
+                                  "NON_PKP"
+                                ]
                               }
                             },
                             "required": [
@@ -5250,7 +5257,8 @@
                               "bank",
                               "npwp",
                               "phone",
-                              "address"
+                              "address",
+                              "pajak"
                             ]
                           }
                         },
@@ -5464,6 +5472,14 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 255
+                  },
+                  "pajak": {
+                    "type": "string",
+                    "enum": [
+                      "PKP",
+                      "NON_PKP"
+                    ],
+                    "default": "NON_PKP"
                   }
                 },
                 "required": [
@@ -5518,6 +5534,13 @@
                         },
                         "address": {
                           "type": "string"
+                        },
+                        "pajak": {
+                          "type": "string",
+                          "enum": [
+                            "PKP",
+                            "NON_PKP"
+                          ]
                         }
                       },
                       "required": [
@@ -5527,7 +5550,8 @@
                         "bank",
                         "npwp",
                         "phone",
-                        "address"
+                        "address",
+                        "pajak"
                       ]
                     }
                   },
@@ -5741,6 +5765,13 @@
                         },
                         "address": {
                           "type": "string"
+                        },
+                        "pajak": {
+                          "type": "string",
+                          "enum": [
+                            "PKP",
+                            "NON_PKP"
+                          ]
                         }
                       },
                       "required": [
@@ -5750,7 +5781,8 @@
                         "bank",
                         "npwp",
                         "phone",
-                        "address"
+                        "address",
+                        "pajak"
                       ]
                     }
                   },
@@ -5957,6 +5989,14 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 255
+                  },
+                  "pajak": {
+                    "type": "string",
+                    "enum": [
+                      "PKP",
+                      "NON_PKP"
+                    ],
+                    "default": "NON_PKP"
                   }
                 }
               }
@@ -6003,6 +6043,13 @@
                         },
                         "address": {
                           "type": "string"
+                        },
+                        "pajak": {
+                          "type": "string",
+                          "enum": [
+                            "PKP",
+                            "NON_PKP"
+                          ]
                         }
                       },
                       "required": [
@@ -6012,7 +6059,8 @@
                         "bank",
                         "npwp",
                         "phone",
-                        "address"
+                        "address",
+                        "pajak"
                       ]
                     }
                   },
@@ -6203,6 +6251,1592 @@
                     },
                     "data": {
                       "nullable": true
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/suppliers/{id}/prices": {
+      "get": {
+        "tags": [
+          "Supplier"
+        ],
+        "summary": "Monthly price history of a supplier for one year",
+        "description": "One row per item: the supplier's own items plus any item already priced there that year. harga holds January to December in rupiah excluding PPN, null where no price is set. rataRata is the mean of the set months, null when none. tahun defaults to the current year.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 2000,
+              "maximum": 2100
+            },
+            "required": false,
+            "name": "tahun",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Supplier price grid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "supplierId": {
+                          "type": "number"
+                        },
+                        "supplierName": {
+                          "type": "string"
+                        },
+                        "pajak": {
+                          "type": "string",
+                          "enum": [
+                            "PKP",
+                            "NON_PKP"
+                          ]
+                        },
+                        "tahun": {
+                          "type": "number"
+                        },
+                        "rows": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "itemId": {
+                                "type": "number"
+                              },
+                              "kode": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "nama": {
+                                "type": "string"
+                              },
+                              "satuan": {
+                                "type": "string"
+                              },
+                              "kategori": {
+                                "type": "string"
+                              },
+                              "harga": {
+                                "type": "array",
+                                "items": {
+                                  "type": "number",
+                                  "nullable": true
+                                }
+                              },
+                              "rataRata": {
+                                "type": "number",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "itemId",
+                              "kode",
+                              "nama",
+                              "satuan",
+                              "kategori",
+                              "harga",
+                              "rataRata"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "supplierId",
+                        "supplierName",
+                        "pajak",
+                        "tahun",
+                        "rows"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Supplier"
+        ],
+        "summary": "Save supplier prices for one year",
+        "description": "Saves the changed cells in one call. harga null clears that month. items.price is not changed. Returns the same grid as GET.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tahun": {
+                    "type": "integer",
+                    "minimum": 2000,
+                    "maximum": 2100
+                  },
+                  "prices": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "itemId": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        },
+                        "bulan": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 12
+                        },
+                        "harga": {
+                          "type": "integer",
+                          "nullable": true,
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "itemId",
+                        "bulan",
+                        "harga"
+                      ]
+                    },
+                    "minItems": 1,
+                    "maxItems": 5000
+                  }
+                },
+                "required": [
+                  "tahun",
+                  "prices"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Supplier price grid after saving",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "supplierId": {
+                          "type": "number"
+                        },
+                        "supplierName": {
+                          "type": "string"
+                        },
+                        "pajak": {
+                          "type": "string",
+                          "enum": [
+                            "PKP",
+                            "NON_PKP"
+                          ]
+                        },
+                        "tahun": {
+                          "type": "number"
+                        },
+                        "rows": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "itemId": {
+                                "type": "number"
+                              },
+                              "kode": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "nama": {
+                                "type": "string"
+                              },
+                              "satuan": {
+                                "type": "string"
+                              },
+                              "kategori": {
+                                "type": "string"
+                              },
+                              "harga": {
+                                "type": "array",
+                                "items": {
+                                  "type": "number",
+                                  "nullable": true
+                                }
+                              },
+                              "rataRata": {
+                                "type": "number",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "itemId",
+                              "kode",
+                              "nama",
+                              "satuan",
+                              "kategori",
+                              "harga",
+                              "rataRata"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "supplierId",
+                        "supplierName",
+                        "pajak",
+                        "tahun",
+                        "rows"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/purchase-orders": {
+      "get": {
+        "tags": [
+          "Purchase order"
+        ],
+        "summary": "List purchase orders",
+        "description": "Newest tanggalPo first. search matches nomorPo and supplier name. startDate and endDate are inclusive.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "maximum": 100,
+              "default": 10
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": false,
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true
+            },
+            "required": false,
+            "name": "supplierId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true
+            },
+            "required": false,
+            "name": "approvalRequestId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false,
+            "name": "startDate",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false,
+            "name": "endDate",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Purchase order list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "rows": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "number"
+                              },
+                              "nomorPo": {
+                                "type": "string"
+                              },
+                              "approvalRequestId": {
+                                "type": "number"
+                              },
+                              "tanggalPo": {
+                                "type": "string"
+                              },
+                              "supplierId": {
+                                "type": "number"
+                              },
+                              "supplierName": {
+                                "type": "string"
+                              },
+                              "picSupplier": {
+                                "type": "string"
+                              },
+                              "dppLain": {
+                                "type": "number"
+                              },
+                              "persenPpn": {
+                                "type": "number"
+                              },
+                              "jasa": {
+                                "type": "number"
+                              },
+                              "subtotal": {
+                                "type": "number"
+                              },
+                              "nilaiPpn": {
+                                "type": "number"
+                              },
+                              "grandTotal": {
+                                "type": "number"
+                              },
+                              "createdBy": {
+                                "type": "number"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "nomorPo",
+                              "approvalRequestId",
+                              "tanggalPo",
+                              "supplierId",
+                              "supplierName",
+                              "picSupplier",
+                              "dppLain",
+                              "persenPpn",
+                              "jasa",
+                              "subtotal",
+                              "nilaiPpn",
+                              "grandTotal",
+                              "createdBy",
+                              "createdAt"
+                            ]
+                          }
+                        },
+                        "total": {
+                          "type": "number"
+                        },
+                        "page": {
+                          "type": "number"
+                        },
+                        "pageSize": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "rows",
+                        "total",
+                        "page",
+                        "pageSize"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Purchase order"
+        ],
+        "summary": "Create a purchase order",
+        "description": "nomorPo is generated (PO-001, PO-002, ...). The approval request must be a purchase-request in status approved, 409 otherwise. One request may have several POs. subtotal, nilaiPpn and grandTotal are computed by the server: subtotal = sum of (jumlah * hargaSatuan - diskon), dpp = subtotal + dppLain, nilaiPpn = dpp * persenPpn / 100 rounded, grandTotal = dpp + nilaiPpn + jasa. diskon is rupiah per line.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "approvalRequestId": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true
+                  },
+                  "tanggalPo": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "supplierId": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true
+                  },
+                  "picSupplier": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 191
+                  },
+                  "barang": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "kodeBarang": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 191
+                        },
+                        "namaBarang": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 191
+                        },
+                        "satuan": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 50
+                        },
+                        "jumlah": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        },
+                        "hargaSatuan": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "diskon": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "default": 0
+                        }
+                      },
+                      "required": [
+                        "kodeBarang",
+                        "namaBarang",
+                        "satuan",
+                        "jumlah",
+                        "hargaSatuan"
+                      ]
+                    },
+                    "minItems": 1
+                  },
+                  "dppLain": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 0
+                  },
+                  "persenPpn": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "default": 0
+                  },
+                  "jasa": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 0
+                  }
+                },
+                "required": [
+                  "approvalRequestId",
+                  "tanggalPo",
+                  "supplierId",
+                  "picSupplier",
+                  "barang"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Purchase order created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "nomorPo": {
+                          "type": "string"
+                        },
+                        "approvalRequestId": {
+                          "type": "number"
+                        },
+                        "tanggalPo": {
+                          "type": "string"
+                        },
+                        "supplierId": {
+                          "type": "number"
+                        },
+                        "supplierName": {
+                          "type": "string"
+                        },
+                        "picSupplier": {
+                          "type": "string"
+                        },
+                        "dppLain": {
+                          "type": "number"
+                        },
+                        "persenPpn": {
+                          "type": "number"
+                        },
+                        "jasa": {
+                          "type": "number"
+                        },
+                        "subtotal": {
+                          "type": "number"
+                        },
+                        "nilaiPpn": {
+                          "type": "number"
+                        },
+                        "grandTotal": {
+                          "type": "number"
+                        },
+                        "createdBy": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "barang": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kodeBarang": {
+                                "type": "string"
+                              },
+                              "namaBarang": {
+                                "type": "string"
+                              },
+                              "satuan": {
+                                "type": "string"
+                              },
+                              "jumlah": {
+                                "type": "number"
+                              },
+                              "hargaSatuan": {
+                                "type": "number"
+                              },
+                              "diskon": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "kodeBarang",
+                              "namaBarang",
+                              "satuan",
+                              "jumlah",
+                              "hargaSatuan",
+                              "diskon"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "nomorPo",
+                        "approvalRequestId",
+                        "tanggalPo",
+                        "supplierId",
+                        "supplierName",
+                        "picSupplier",
+                        "dppLain",
+                        "persenPpn",
+                        "jasa",
+                        "subtotal",
+                        "nilaiPpn",
+                        "grandTotal",
+                        "createdBy",
+                        "createdAt",
+                        "barang"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/purchase-orders/{id}": {
+      "get": {
+        "tags": [
+          "Purchase order"
+        ],
+        "summary": "Get a purchase order with its lines",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Purchase order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "nomorPo": {
+                          "type": "string"
+                        },
+                        "approvalRequestId": {
+                          "type": "number"
+                        },
+                        "tanggalPo": {
+                          "type": "string"
+                        },
+                        "supplierId": {
+                          "type": "number"
+                        },
+                        "supplierName": {
+                          "type": "string"
+                        },
+                        "picSupplier": {
+                          "type": "string"
+                        },
+                        "dppLain": {
+                          "type": "number"
+                        },
+                        "persenPpn": {
+                          "type": "number"
+                        },
+                        "jasa": {
+                          "type": "number"
+                        },
+                        "subtotal": {
+                          "type": "number"
+                        },
+                        "nilaiPpn": {
+                          "type": "number"
+                        },
+                        "grandTotal": {
+                          "type": "number"
+                        },
+                        "createdBy": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "barang": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kodeBarang": {
+                                "type": "string"
+                              },
+                              "namaBarang": {
+                                "type": "string"
+                              },
+                              "satuan": {
+                                "type": "string"
+                              },
+                              "jumlah": {
+                                "type": "number"
+                              },
+                              "hargaSatuan": {
+                                "type": "number"
+                              },
+                              "diskon": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "kodeBarang",
+                              "namaBarang",
+                              "satuan",
+                              "jumlah",
+                              "hargaSatuan",
+                              "diskon"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "nomorPo",
+                        "approvalRequestId",
+                        "tanggalPo",
+                        "supplierId",
+                        "supplierName",
+                        "picSupplier",
+                        "dppLain",
+                        "persenPpn",
+                        "jasa",
+                        "subtotal",
+                        "nilaiPpn",
+                        "grandTotal",
+                        "createdBy",
+                        "createdAt",
+                        "barang"
+                      ]
                     }
                   },
                   "required": [
@@ -11716,7 +13350,7 @@
           "Dokubah"
         ],
         "summary": "Create a dokubah",
-        "description": "noSpk must be one of GET /api/v1/tracking/spk (400 otherwise) and client is taken from there, a client in the body is ignored. status DRAFT (default) may have no materials. status PENDING releases it and needs at least one. totalAnggaran is computed, realisasi starts at 0, neither is accepted. noSpk must be unique (409 otherwise), kodeBarang unique within the dokubah.",
+        "description": "noSpk must be one of GET /api/v1/tracking/spk (400 otherwise) and client is taken from there, a client in the body is ignored. status DRAFT (default) may have no materials. status PENDING releases it and needs at least one. totalAnggaran is computed, realisasi is read from outbound, neither is accepted. noSpk must be unique (409 otherwise), kodeBarang unique within the dokubah.",
         "security": [
           {
             "bearerAuth": []
@@ -11908,7 +13542,7 @@
                               },
                               "realisasi": {
                                 "type": "number",
-                                "description": "Read-only, starts at 0"
+                                "description": "Read-only. Quantity of outbound lines whose SPK equals the dokubah noSpk and whose item code equals kodeBarang, counted once the dokubah is APPROVED, otherwise 0"
                               },
                               "keterangan": {
                                 "type": "string"
@@ -12203,7 +13837,7 @@
                               },
                               "realisasi": {
                                 "type": "number",
-                                "description": "Read-only, starts at 0"
+                                "description": "Read-only. Quantity of outbound lines whose SPK equals the dokubah noSpk and whose item code equals kodeBarang, counted once the dokubah is APPROVED, otherwise 0"
                               },
                               "keterangan": {
                                 "type": "string"
@@ -12392,7 +14026,7 @@
           "Dokubah"
         ],
         "summary": "Replace the material list",
-        "description": "Replaces the whole list and recomputes totalAnggaran. kodeBarang is the key: realisasi carries over for a kept code and starts at 0 for a new one. Rejected with 409 when the dokubah is APPROVED.",
+        "description": "Replaces the whole list and recomputes totalAnggaran. realisasi is read from outbound, not stored. Rejected with 409 when the dokubah is APPROVED.",
         "security": [
           {
             "bearerAuth": []
@@ -12557,7 +14191,7 @@
                               },
                               "realisasi": {
                                 "type": "number",
-                                "description": "Read-only, starts at 0"
+                                "description": "Read-only. Quantity of outbound lines whose SPK equals the dokubah noSpk and whose item code equals kodeBarang, counted once the dokubah is APPROVED, otherwise 0"
                               },
                               "keterangan": {
                                 "type": "string"
@@ -12853,7 +14487,7 @@
                               },
                               "realisasi": {
                                 "type": "number",
-                                "description": "Read-only, starts at 0"
+                                "description": "Read-only. Quantity of outbound lines whose SPK equals the dokubah noSpk and whose item code equals kodeBarang, counted once the dokubah is APPROVED, otherwise 0"
                               },
                               "keterangan": {
                                 "type": "string"
@@ -13149,7 +14783,7 @@
                               },
                               "realisasi": {
                                 "type": "number",
-                                "description": "Read-only, starts at 0"
+                                "description": "Read-only. Quantity of outbound lines whose SPK equals the dokubah noSpk and whose item code equals kodeBarang, counted once the dokubah is APPROVED, otherwise 0"
                               },
                               "keterangan": {
                                 "type": "string"
@@ -13445,7 +15079,7 @@
                               },
                               "realisasi": {
                                 "type": "number",
-                                "description": "Read-only, starts at 0"
+                                "description": "Read-only. Quantity of outbound lines whose SPK equals the dokubah noSpk and whose item code equals kodeBarang, counted once the dokubah is APPROVED, otherwise 0"
                               },
                               "keterangan": {
                                 "type": "string"
