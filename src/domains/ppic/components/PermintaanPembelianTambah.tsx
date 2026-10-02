@@ -3,17 +3,27 @@
 import React, { useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { createPurchaseRequest } from '@/domains/ppic/api';
+import { createPurchaseRequest, resubmitApproval } from '@/domains/ppic/api';
+import type { PermintaanPembelian } from '@/domains/ppic/data/pembelian';
 import { todayIso } from '@/domains/gudang/date';
 import { ApiError } from '@/shared/lib/api-client';
 
 const emptyRow = { namaBarang: "", qty: "", satuan: "", proyek: "", noSpk: "" };
 
-export default function TambahPermintaanPembelianPPIC() {
+// Dengan `permintaan`, form dipakai untuk memperbaiki permintaan yang diminta revisi lalu mengirim ulang.
+export default function TambahPermintaanPembelianPPIC({ permintaan }: { permintaan?: PermintaanPembelian }) {
   const router = useRouter();
 
-  const [header, setHeader] = useState({ bagian: "", namaPemohon: "", jabatan: "", tanggalPengajuan: todayIso() });
-  const [tableData, setTableData] = useState(Array.from({ length: 8 }, () => emptyRow));
+  const [header, setHeader] = useState({
+    bagian: permintaan?.bagian ?? "",
+    namaPemohon: permintaan?.nama ?? "",
+    jabatan: permintaan?.jabatan ?? "",
+    tanggalPengajuan: permintaan?.tanggal ?? todayIso(),
+  });
+  const [tableData, setTableData] = useState(() => {
+    const rows = (permintaan?.barang ?? []).map((b) => ({ ...b, qty: String(b.qty) }));
+    return [...rows, ...Array.from({ length: Math.max(8 - rows.length, 0) }, () => emptyRow)];
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -35,13 +45,16 @@ export default function TambahPermintaanPembelianPPIC() {
     setSaving(true);
     setError("");
     try {
-      await createPurchaseRequest({
+      const payload = {
         bagian,
         namaPemohon,
         jabatan,
         tanggalPengajuan,
         items: filled.map((row) => ({ ...row, qty: Math.trunc(Number(row.qty)) })),
-      });
+        ...(permintaan?.catatan ? { notes: permintaan.catatan } : {}),
+      };
+      if (permintaan) await resubmitApproval(permintaan.id, payload);
+      else await createPurchaseRequest(payload);
       router.push('/dashboard/ppic/transaksi/permintaan-pembelian');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Gagal mengirim permintaan pembelian.");
@@ -58,7 +71,7 @@ export default function TambahPermintaanPembelianPPIC() {
           <ArrowLeft className="w-5 h-5" strokeWidth={2.5} />
         </button>
         <h1 className="text-[18px] font-extrabold text-black tracking-wide">
-          Permintaan Pembelian Gudang
+          {permintaan ? 'Perbaiki Permintaan Pembelian' : 'Permintaan Pembelian'}
         </h1>
       </div>
 
@@ -152,7 +165,7 @@ export default function TambahPermintaanPembelianPPIC() {
         {error && <p className="text-sm text-red-500 text-right mb-3">{error}</p>}
         <div className="flex justify-end w-full">
           <button onClick={handleSubmit} disabled={saving} className="disabled:opacity-60 px-8 py-2.5 bg-[#ff8a00] text-white rounded-lg hover:bg-[#eb7d00] transition-all duration-200 font-semibold text-[14px] shadow-sm hover:shadow-md hover:-translate-y-0.5">
-            {saving ? 'Mengirim...' : 'Submit'}
+            {saving ? 'Mengirim...' : permintaan ? 'Kirim Ulang' : 'Submit'}
           </button>
         </div>
       </div>

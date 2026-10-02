@@ -145,6 +145,18 @@ export interface ApprovalRequest {
   createdAt: string;
 }
 
+export interface ApprovalAction {
+  id: number;
+  approvalRequestId: number;
+  stepOrder: number;
+  cycle: number;
+  domainId: number;
+  actorId: number;
+  action: "approved" | "rejected" | "revision_requested" | string;
+  note: string | null;
+  createdAt: string;
+}
+
 export interface ApprovalListParams {
   page?: number;
   pageSize?: number;

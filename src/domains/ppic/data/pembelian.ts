@@ -1,5 +1,5 @@
 import { getApprovalDetail, listApprovals } from '@/domains/ppic/api';
-import type { ApprovalRequest, ApprovalStatus } from '@/domains/ppic/types';
+import type { ApprovalAction, ApprovalRequest, ApprovalStatus } from '@/domains/ppic/types';
 
 export type StatusPermintaan = 'Belum Disetujui' | 'Disetujui' | 'Perlu Revisi' | 'Ditolak';
 
@@ -21,6 +21,8 @@ export interface PermintaanPembelian {
   nama: string;
   jabatan: string;
   barang: BarangPermintaan[];
+  catatan?: string;
+  riwayat?: ApprovalAction[];
   lampiranRekapDokubah?: string;
   lampiranKartuStok?: string;
 }
@@ -49,6 +51,7 @@ const toPermintaan = (req: ApprovalRequest): PermintaanPembelian => {
     nama: p?.namaPemohon ?? '-',
     jabatan: p?.jabatan ?? '-',
     barang,
+    catatan: p?.notes,
     // Lampiran belum ada di payload purchase-request, jadi selalu kosong.
   };
 };
@@ -57,4 +60,15 @@ const toPermintaan = (req: ApprovalRequest): PermintaanPembelian => {
 export const fetchPermintaanList = async () =>
   (await listApprovals({ pageSize: 100, type: 'purchase-request' })).rows.map(toPermintaan);
 
-export const fetchPermintaan = async (id: string) => toPermintaan((await getApprovalDetail(id)).request);
+export const fetchPermintaan = async (id: string): Promise<PermintaanPembelian> => {
+  const { request, actions } = await getApprovalDetail(id);
+  return { ...toPermintaan(request), riwayat: actions };
+};
+
+export const revisiPath = (id: number | string) => `/dashboard/ppic/transaksi/permintaan-pembelian/${id}/revisi`;
+
+export const AKSI_LABEL: Record<string, string> = {
+  approved: 'Disetujui',
+  rejected: 'Ditolak',
+  revision_requested: 'Minta Revisi',
+};
