@@ -3,6 +3,7 @@ vi.setConfig({ testTimeout: 30000 });
 import { fireEvent, render, screen } from '@testing-library/react';
 import { fail, installFakeApi } from '@/test/fake-api';
 import PermintaanPembelianPPIC from './PermintaanPembelian';
+import { withUser } from './as-user';
 
 vi.mock('next/navigation', () => ({ useParams: () => ({ id: '5' }), useRouter: () => ({ push: vi.fn() }) }));
 
@@ -92,5 +93,25 @@ describe('PermintaanPembelian detail (PPIC)', () => {
     expect(screen.getByLabelText('Kembali ke Rekap Pembelian').getAttribute('href')).toBe('/x');
     fireEvent.click(btn);
     await vi.waitFor(() => expect(api.calls('GET /api/v1/approvals/5').length).toBe(2));
+  });
+});
+
+
+describe('permissions', () => {
+  it('a view-only user keeps the screen but not the actions', async () => {
+    installFakeApi({ 'GET /api/v1/approvals/5': detail('revision_requested') });
+    render(withUser(<PermintaanPembelianPPIC />, ['approval.view']));
+    await screen.findByText('Triplex');
+    expect(screen.queryByText('Perbaiki dan Kirim Ulang')).toBeNull();
+  });
+
+  it.each([
+    ['holds the permission', ['purchase-request.create'], false],
+    ['is a superadmin', [], true],
+  ])('a user who %s sees the actions', async (_label, perms, isSuperadmin) => {
+    installFakeApi({ 'GET /api/v1/approvals/5': detail('revision_requested') });
+    render(withUser(<PermintaanPembelianPPIC />, perms, isSuperadmin));
+    await screen.findByText('Triplex');
+    expect(screen.getByText('Perbaiki dan Kirim Ulang')).toBeTruthy();
   });
 });

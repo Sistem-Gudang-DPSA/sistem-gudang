@@ -1,3 +1,4 @@
+import { AuthUserProvider } from '@/domains/auth/user-context';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { installFakeApi, paged, fail } from '@/test/fake-api';
@@ -176,5 +177,33 @@ describe('BarangMasuk create return', () => {
     expect(body.clientName).toBeUndefined();
     expect(body.spk).toBeUndefined();
     expect(screen.getByText('FORM BARANG KEMBALI')).not.toBeNull();
+  });
+});
+
+const who = (permissions: string[], isSuperadmin = false) => ({ id: 1, username: 'u', email: 'u@x.id', roleId: 2, roleName: 'Staff', isSuperadmin, permissions });
+
+describe('permissions', () => {
+  const open = async (user: ReturnType<typeof who>) => {
+    installFakeApi({ 'GET /api/v1/inbound': paged([inbound(1)]), 'GET /api/v1/items': items, 'GET /api/v1/suppliers': suppliers });
+    render(<AuthUserProvider user={user}><BarangMasuk /></AuthUserProvider>);
+    await screen.findAllByText('Triplex 1');
+  };
+
+  it('hides mutation buttons from a view-only user but keeps the list', async () => {
+    await open(who([]));
+    expect(screen.queryByText('Barang Baru')).toBeNull();
+    expect(screen.queryByText('Barang Kembali')).toBeNull();
+  });
+
+  it('shows them to a user with the permission', async () => {
+    await open(who(['inbound.create']));
+    expect(screen.getByText('Barang Baru')).not.toBeNull();
+    expect(screen.getByText('Barang Kembali')).not.toBeNull();
+  });
+
+  it('shows them to a superadmin', async () => {
+    await open(who([], true));
+    expect(screen.getByText('Barang Baru')).not.toBeNull();
+    expect(screen.getByText('Barang Kembali')).not.toBeNull();
   });
 });

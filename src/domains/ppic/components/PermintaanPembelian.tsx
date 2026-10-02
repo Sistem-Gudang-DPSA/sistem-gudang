@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { useCan } from '@/domains/auth/user-context';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
@@ -38,6 +39,7 @@ function Lampiran({ label, file }: { label: string; file?: string }) {
 // `actions` mengganti tampilan status dengan tombol aksi (dipakai halaman purchasing)
 export default function PermintaanPembelianPPIC({ backPath = rekap_pembelian_path, actions }: { backPath?: string; actions?: (permintaan: PermintaanPembelian, reload: () => void) => React.ReactNode }) {
   const { id } = useParams<{ id: string }>();
+  const canResubmit = useCan('purchase-request.create');
   const { data: permintaan, loading, error, reload } = useApiData(() => fetchPermintaan(id), id, 'Gagal memuat permintaan pembelian.');
 
   const header = (
@@ -159,7 +161,7 @@ export default function PermintaanPembelianPPIC({ backPath = rekap_pembelian_pat
         {actions?.(permintaan, reload) ?? (
           <>
             <p className="text-sm text-gray-600">Status permintaan: <span className="font-bold text-gray-900">{permintaan.status}</span></p>
-            {permintaan.statusApi === 'revision_requested' && (
+            {canResubmit && permintaan.statusApi === 'revision_requested' && (
               <Link href={revisiPath(permintaan.id)} className="min-w-24 px-8 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm text-center">
                 Perbaiki dan Kirim Ulang
               </Link>

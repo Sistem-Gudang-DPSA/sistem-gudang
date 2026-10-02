@@ -3,6 +3,7 @@ vi.setConfig({ testTimeout: 30000 });
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { fail, installFakeApi } from '@/test/fake-api';
 import Estimasi from './EstimasiPenawaranBiaya';
+import { withUser } from './as-user';
 
 vi.mock('next/navigation', () => ({ useParams: () => ({ id: '3' }), useRouter: () => ({ push: vi.fn() }) }));
 
@@ -198,5 +199,37 @@ describe('EstimasiPenawaranBiaya', () => {
     await waitFor(() => expect(screen.getByRole('alert').textContent).toBe('Penawaran sudah dipublish'));
     expect(screen.getByText('Simpan')).toBeTruthy();
     expect(disabled(box('Nama Client :'))).toBe(false);
+  });
+});
+
+describe('permissions', () => {
+  const open = async (permissions: string[], isSuperadmin = false) => {
+    installFakeApi({ 'GET /api/v1/penawaran-harga/3': detail() });
+    render(withUser(<Estimasi />, permissions, isSuperadmin));
+    await screen.findByText(/No Order/);
+  };
+
+  it('a view-only user sees the form read-only with a note and no Simpan/Publish', async () => {
+    await open(['penawaran-harga.view']);
+    expect(screen.getByText(/Anda tidak punya izin untuk mengubah/)).toBeTruthy();
+    expect(screen.queryByText('Simpan')).toBeNull();
+    expect(screen.queryByText('Publish', { selector: 'button' })).toBeNull();
+    expect(disabled(box('Nama Client :'))).toBe(true);
+  });
+
+  it('update without publish sees Simpan only', async () => {
+    await open(['penawaran-harga.update']);
+    expect(screen.getByText('Simpan')).toBeTruthy();
+    expect(screen.queryByText('Publish', { selector: 'button' })).toBeNull();
+    expect(disabled(box('Nama Client :'))).toBe(false);
+  });
+
+  it.each([
+    ['holds update and publish', ['penawaran-harga.update', 'penawaran-harga.publish'], false],
+    ['is a superadmin', [], true],
+  ])('a user who %s sees Simpan and Publish', async (_label, perms, isSuperadmin) => {
+    await open(perms, isSuperadmin);
+    expect(screen.getByText('Simpan')).toBeTruthy();
+    expect(screen.getByText('Publish', { selector: 'button' })).toBeTruthy();
   });
 });

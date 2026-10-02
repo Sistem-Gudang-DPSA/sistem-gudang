@@ -4,6 +4,7 @@ import { installFakeApi, paged, fail } from '@/test/fake-api';
 import { vi as viTimeout } from 'vitest';
 viTimeout.setConfig({ testTimeout: 30000 });
 import DataBarang from './DataBarang';
+import { withUser } from './as-user';
 
 const item = (id: number, over: Record<string, unknown> = {}) => ({
   id, code: `KB-${id}`, name: `Barang ${id}`, category: 'Lembaran', unit: 'Lembar', price: 1500, stock: 100,
@@ -155,5 +156,29 @@ describe('DataBarang', () => {
     fireEvent.click(screen.getByText('Batal'));
     expect(screen.queryByText('DATA BARANG')).toBeNull();
     expect(api.calls('POST /api/v1/items')).toHaveLength(0);
+  });
+});
+
+
+describe('permissions', () => {
+  it('a view-only user keeps the screen but not the actions', async () => {
+    installFakeApi(routes());
+    render(withUser(<DataBarang />, ['item.view']));
+    await screen.findByText('Barang 1');
+    expect(screen.queryByText('Tambah Data')).toBeNull();
+    expect(screen.queryAllByTitle('Edit Data')).toHaveLength(0);
+    expect(screen.queryAllByTitle('Hapus Data')).toHaveLength(0);
+  });
+
+  it.each([
+    ['holds the permission', ['item.create', 'item.update', 'item.delete'], false],
+    ['is a superadmin', [], true],
+  ])('a user who %s sees the actions', async (_label, perms, isSuperadmin) => {
+    installFakeApi(routes());
+    render(withUser(<DataBarang />, perms, isSuperadmin));
+    await screen.findByText('Barang 1');
+    expect(screen.getByText('Tambah Data')).toBeTruthy();
+    expect(screen.getAllByTitle('Edit Data')).toHaveLength(2);
+    expect(screen.getAllByTitle('Hapus Data')).toHaveLength(2);
   });
 });

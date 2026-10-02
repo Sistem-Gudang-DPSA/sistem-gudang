@@ -1,5 +1,6 @@
 "use client";
 
+import { useCan } from '@/domains/auth/user-context';
 import React, { useEffect, useState } from 'react';
 import { Search, Calendar, Plus, Download } from 'lucide-react';
 import { createInbound, createInboundReturn, listInbound } from '@/domains/gudang/api';
@@ -18,6 +19,7 @@ const emptyBaru = { itemId: "", itemName: "", supplierId: "", tanggal: todayIso(
 const emptyKembali = { itemId: "", itemName: "", tanggal: todayIso(), jumlah: "", clientName: "", spk: "" };
 
 export default function BarangMasukGudang() {
+  const canCreate = useCan('inbound.create');
   const [searchQuery, setSearchQuery] = useState("");
   const [filterDay, setFilterDay] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
@@ -212,20 +214,20 @@ export default function BarangMasukGudang() {
           </div>
 
           <div className="flex gap-2 w-full lg:w-auto">
-            <button 
+            {canCreate && <button 
               onClick={openModal}
               className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0"
             >
               <Plus className="w-4 h-4" />
               <span>Barang Baru</span>
-            </button>
-            <button 
+            </button>}
+            {canCreate && <button 
               onClick={openModalKembali}
               className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0"
             >
               <Plus className="w-4 h-4" />
               <span>Barang Kembali</span>
-            </button>
+            </button>}
           </div>
         </div>
 

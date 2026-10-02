@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, cleanup, screen, waitFor, fireEvent } from '@testing-library/react';
 import { installFakeApi, fail } from '@/test/fake-api';
 import DataSupplierDetail from './DataSupplierDetail';
+import { AuthUserProvider } from '@/domains/auth/user-context';
 
 vi.setConfig({ testTimeout: 20000 });
 
@@ -125,5 +126,29 @@ describe('DataSupplierDetail', () => {
   it('shows load error', async () => {
     setup({ 'GET /api/v1/suppliers/5/prices': fail(404, 'Supplier tidak ditemukan') });
     expect(await screen.findByText('Supplier tidak ditemukan')).not.toBeNull();
+  });
+});
+
+describe('permissions', () => {
+  const user = (permissions: string[], isSuperadmin = false) => ({ id: 1, username: 'u', email: 'u@x.id', roleId: 1, roleName: 'R', isSuperadmin, permissions });
+  const renderAs = (u: ReturnType<typeof user>) => {
+    installFakeApi({ 'GET /api/v1/suppliers/5/prices': (r: { query: URLSearchParams }) => prices(Number(r.query.get('tahun'))) });
+    render(<AuthUserProvider user={u}><DataSupplierDetail /></AuthUserProvider>);
+  };
+  it('view-only user sees prices read-only', async () => {
+    renderAs(user(['supplier.view']));
+    await screen.findByText('Triplex');
+    expect(screen.queryByText('Simpan Perubahan')).toBeNull();
+    expect(screen.queryByTitle(/Klik untuk edit harga/)).toBeNull();
+    expect(screen.queryByText('+ Input')).toBeNull();
+  });
+  it('supplier.update and superadmin can edit', async () => {
+    for (const u of [user(['supplier.update']), user([], true)]) {
+      renderAs(u);
+      await screen.findByText('Triplex');
+      expect(screen.getByText('Simpan Perubahan')).not.toBeNull();
+      expect(screen.getAllByTitle(/Klik untuk edit harga/).length).toBeGreaterThan(0);
+      cleanup();
+    }
   });
 });

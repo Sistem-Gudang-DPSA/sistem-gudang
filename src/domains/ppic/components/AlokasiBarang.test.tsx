@@ -4,6 +4,7 @@ import { installFakeApi, paged, fail } from '@/test/fake-api';
 import { vi as viTimeout } from 'vitest';
 viTimeout.setConfig({ testTimeout: 30000 });
 import AlokasiBarang from './AlokasiBarang';
+import { withUser } from './as-user';
 
 const replace = vi.fn();
 vi.mock('next/navigation', () => ({
@@ -119,5 +120,26 @@ describe('AlokasiBarang', () => {
   it('catatan textarea is limited to 500 chars like the other catatan fields', async () => {
     await load();
     expect((screen.getByLabelText('Catatan :') as HTMLTextAreaElement).maxLength).toBe(500);
+  });
+});
+
+
+describe('permissions', () => {
+  it('a view-only user keeps the screen but not the actions', async () => {
+    installFakeApi({ 'GET /api/v1/spk-internal': paged([line(3, 6)]), 'GET /api/v1/dokubah': dokubah });
+    render(withUser(<AlokasiBarang />, ['spk-internal.view']));
+    await screen.findByText(/Anda tidak punya izin|Kaitkan/);
+    expect(screen.getByText(/Anda tidak punya izin/)).toBeTruthy();
+    expect(screen.queryByText('Kaitkan')).toBeNull();
+  });
+
+  it.each([
+    ['holds the permission', ['spk-internal.allocate'], false],
+    ['is a superadmin', [], true],
+  ])('a user who %s sees the actions', async (_label, perms, isSuperadmin) => {
+    installFakeApi({ 'GET /api/v1/spk-internal': paged([line(3, 6)]), 'GET /api/v1/dokubah': dokubah });
+    render(withUser(<AlokasiBarang />, perms, isSuperadmin));
+    await screen.findByText(/Anda tidak punya izin|Kaitkan/);
+    expect(screen.getByText('Kaitkan')).toBeTruthy();
   });
 });

@@ -3,6 +3,7 @@ vi.setConfig({ testTimeout: 30000 });
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { fail, installFakeApi } from '@/test/fake-api';
 import Revisi from './PermintaanPembelianRevisi';
+import { withUser } from './as-user';
 
 const push = vi.fn();
 vi.mock('next/navigation', () => ({
@@ -74,5 +75,25 @@ describe('PermintaanPembelianRevisi', () => {
     fireEvent.click(await screen.findByText('Kirim Ulang'));
     expect(await screen.findByText('Status berubah')).toBeTruthy();
     expect(push).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('permissions', () => {
+  it('a view-only user keeps the screen but not the actions', async () => {
+    installFakeApi({ 'GET /api/v1/approvals/5': detail('revision_requested') });
+    render(withUser(<Revisi />, ['approval.view']));
+    await screen.findByText(/Anda tidak punya izin|Kirim Ulang/);
+    expect(screen.getByText(/Anda tidak punya izin/)).toBeTruthy();
+  });
+
+  it.each([
+    ['holds the permission', ['purchase-request.create'], false],
+    ['is a superadmin', [], true],
+  ])('a user who %s sees the actions', async (_label, perms, isSuperadmin) => {
+    installFakeApi({ 'GET /api/v1/approvals/5': detail('revision_requested') });
+    render(withUser(<Revisi />, perms, isSuperadmin));
+    await screen.findByText(/Anda tidak punya izin|Kirim Ulang/);
+    expect(screen.getAllByText(/Kirim Ulang/).length).toBeGreaterThan(0);
   });
 });

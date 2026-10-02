@@ -4,6 +4,7 @@ import { installFakeApi, paged, fail } from '@/test/fake-api';
 import { vi as viTimeout } from 'vitest';
 viTimeout.setConfig({ testTimeout: 30000 });
 import ViewDokubah from './ViewDokubah';
+import { withUser } from './as-user';
 
 const replace = vi.fn();
 vi.mock('next/navigation', () => ({
@@ -91,5 +92,25 @@ describe('ViewDokubah', () => {
     await screen.findByText('SPK-008');
     fireEvent.change(screen.getByLabelText('Pilih SPK / Proyek'), { target: { value: '8' } });
     expect(replace).toHaveBeenCalledWith('/dashboard/ppic/transaksi/dokubah/view-dokubah/8');
+  });
+});
+
+
+describe('permissions', () => {
+  it('a view-only user keeps the screen but not the actions', async () => {
+    installFakeApi({ 'GET /api/v1/dokubah/7': { ...base, status: 'DRAFT' }, 'GET /api/v1/dokubah': listRoute });
+    render(withUser(<ViewDokubah />, ['dokubah.view']));
+    await screen.findByText('Triplex');
+    expect(screen.queryAllByText('Edit')).toHaveLength(0);
+  });
+
+  it.each([
+    ['holds the permission', ['dokubah.update'], false],
+    ['is a superadmin', [], true],
+  ])('a user who %s sees the actions', async (_label, perms, isSuperadmin) => {
+    installFakeApi({ 'GET /api/v1/dokubah/7': { ...base, status: 'DRAFT' }, 'GET /api/v1/dokubah': listRoute });
+    render(withUser(<ViewDokubah />, perms, isSuperadmin));
+    await screen.findByText('Triplex');
+    expect(screen.getAllByText('Edit')).toHaveLength(2);
   });
 });

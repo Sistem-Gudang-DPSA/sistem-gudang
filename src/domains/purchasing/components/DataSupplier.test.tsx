@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { installFakeApi, paged, fail } from '@/test/fake-api';
 import DataSupplier from './DataSupplier';
+import { AuthUserProvider } from '@/domains/auth/user-context';
 
 vi.setConfig({ testTimeout: 20000 });
 
@@ -167,5 +168,29 @@ describe('DataSupplier delete', () => {
     await screen.findByText('PT Supplier 1');
     fireEvent.click(screen.getAllByText('Hapus')[0]);
     expect(await screen.findByText('Supplier masih dipakai')).not.toBeNull();
+  });
+});
+
+describe('permissions', () => {
+  const user = (permissions: string[], isSuperadmin = false) => ({ id: 1, username: 'u', email: 'u@x.id', roleId: 1, roleName: 'R', isSuperadmin, permissions });
+  const renderAs = (u: ReturnType<typeof user>) => {
+    installFakeApi({ 'GET /api/v1/suppliers': paged([sup(1)]) });
+    render(<AuthUserProvider user={u}><DataSupplier /></AuthUserProvider>);
+  };
+  it('view-only user sees the list and detail link but no mutation buttons', async () => {
+    renderAs(user(['supplier.view']));
+    await screen.findByText('PT Supplier 1');
+    expect(screen.getByText('Detail Barang')).not.toBeNull();
+    for (const t of ['Tambah Data', 'Edit', 'Hapus']) expect(screen.queryByText(t)).toBeNull();
+  });
+  it('user with permissions sees them', async () => {
+    renderAs(user(['supplier.view', 'supplier.create', 'supplier.update', 'supplier.delete']));
+    await screen.findByText('PT Supplier 1');
+    for (const t of ['Tambah Data', 'Edit', 'Hapus']) expect(screen.getByText(t)).not.toBeNull();
+  });
+  it('superadmin sees all', async () => {
+    renderAs(user([], true));
+    await screen.findByText('PT Supplier 1');
+    for (const t of ['Tambah Data', 'Edit', 'Hapus']) expect(screen.getByText(t)).not.toBeNull();
   });
 });

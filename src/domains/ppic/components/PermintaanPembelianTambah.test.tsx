@@ -3,6 +3,7 @@ vi.setConfig({ testTimeout: 30000 });
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { fail, installFakeApi } from '@/test/fake-api';
 import Tambah from './PermintaanPembelianTambah';
+import { withUser } from './as-user';
 
 const push = vi.fn();
 const back = vi.fn();
@@ -112,5 +113,24 @@ describe('PermintaanPembelianTambah', () => {
     expect(await screen.findByText('Payload tidak valid')).toBeTruthy();
     expect(push).not.toHaveBeenCalled();
     expect(screen.getByText('Submit')).toBeTruthy();
+  });
+});
+
+
+describe('permissions', () => {
+  it('a view-only user keeps the screen but not the actions', async () => {
+    installFakeApi();
+    render(withUser(<Tambah />, ['approval.view']));
+    expect(screen.getByText(/Anda tidak punya izin/)).toBeTruthy();
+    expect(screen.queryAllByPlaceholderText('Masukkan nama barang')).toHaveLength(0);
+  });
+
+  it.each([
+    ['holds the permission', ['purchase-request.create'], false],
+    ['is a superadmin', [], true],
+  ])('a user who %s sees the actions', async (_label, perms, isSuperadmin) => {
+    installFakeApi();
+    render(withUser(<Tambah />, perms, isSuperadmin));
+    expect(text('Masukkan nama barang')).toHaveLength(8);
   });
 });
