@@ -2,9 +2,9 @@
 
 import React, { useState } from 'react';
 import { Search, FileUp, Download, Eye, Loader2, AlertCircle } from 'lucide-react';
-import { exportRequestsReport, getMaterialRequest, getRequestsReport } from '@/domains/gudang/api';
-import { displayDate } from '@/domains/gudang/date';
-import type { MaterialRequestDetail, MaterialRequestStatus } from '@/domains/gudang/types';
+import { exportRequestsReport, getMaterialRequest, getRequestsReport } from '@/domains/inventory/api';
+import { displayDate } from '@/domains/inventory/date';
+import type { MaterialRequestDetail, MaterialRequestStatus } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';

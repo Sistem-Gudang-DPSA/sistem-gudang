@@ -94,3 +94,20 @@ setelah migrasi susulan halaman Penawaran Harga. Beberapa error lint yang
 tersisa (`react-hooks/set-state-in-effect` di `DataSupplier.tsx` dan
 `Users.tsx`) sudah ada sebelum perubahan ini dan tidak berkaitan dengan
 restrukturisasi folder, jadi belum diperbaiki di sini.
+
+## Folder Gudang Digabung ke Inventory
+
+Divisi Gudang di sisi backend bernama domain Inventory, dan role-nya Koor
+Inventory dan Staf Inventory. Di FE sebelumnya ada dua folder untuk hal yang
+sama: `src/domains/inventory` hanya berisi API dan tipe barang dan lokasi,
+sedangkan `src/domains/gudang` berisi layar divisi dan API transaksinya.
+Keduanya digabung ke `src/domains/inventory`: komponen layar ada di
+`components`, `api.ts` dan `types.ts` memuat barang, lokasi, barang masuk,
+barang keluar, stock opname, dan permintaan material, dan `date.ts` serta
+`quota.ts` ikut pindah beserta test-nya.
+
+Route dan menu tetap bernama `gudang`. URL `/dashboard/gudang`, folder
+`src/app/dashboard/gudang`, kunci divisi `gudang` di `nav.ts`, dan tulisan
+Gudang di layar tidak berubah. Dokumen lama yang menyebut
+`src/domains/gudang` sudah disesuaikan ke `src/domains/inventory`.
+

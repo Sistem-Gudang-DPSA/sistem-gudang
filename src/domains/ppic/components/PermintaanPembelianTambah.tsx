@@ -7,7 +7,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createPurchaseRequest, resubmitApproval } from '@/domains/ppic/api';
 import type { PermintaanPembelian } from '@/domains/ppic/data/pembelian';
-import { todayIso } from '@/domains/gudang/date';
+import { todayIso } from '@/domains/inventory/date';
 import { ApiError } from '@/shared/lib/api-client';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 
