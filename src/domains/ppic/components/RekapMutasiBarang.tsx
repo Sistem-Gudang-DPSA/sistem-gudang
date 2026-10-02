@@ -270,6 +270,7 @@ export default function RekapMutasiBarang() {
               id="mutasi-cari"
               type="text"
               value={searchQuery}
+              maxLength={100}
               onChange={(e) => setSearchQuery(e.target.value)}
               className={fieldClass}
             />

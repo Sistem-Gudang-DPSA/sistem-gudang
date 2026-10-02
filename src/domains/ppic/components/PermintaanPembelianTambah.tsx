@@ -7,6 +7,7 @@ import { createPurchaseRequest, resubmitApproval } from '@/domains/ppic/api';
 import type { PermintaanPembelian } from '@/domains/ppic/data/pembelian';
 import { todayIso } from '@/domains/gudang/date';
 import { ApiError } from '@/shared/lib/api-client';
+import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 
 const emptyRow = { namaBarang: "", qty: "", satuan: "", proyek: "", noSpk: "" };
 
@@ -89,17 +90,17 @@ export default function TambahPermintaanPembelianPPIC({ permintaan }: { perminta
             <div className="flex items-center">
               <span className="w-[180px] text-[15px] font-semibold text-gray-700">Bagian/Sub bagian</span>
               <span className="w-8 text-center text-gray-700 font-semibold">:</span>
-              <input type="text" placeholder="Contoh: Divisi Produksi / Maintenance" value={header.bagian} onChange={(e) => setHeader({...header, bagian: e.target.value})} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200" />
+              <input type="text" placeholder="Contoh: Divisi Produksi / Maintenance" value={header.bagian} maxLength={100} onChange={(e) => setHeader({...header, bagian: e.target.value})} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200" />
             </div>
             <div className="flex items-center">
               <span className="w-[180px] text-[15px] font-semibold text-gray-700">Nama</span>
               <span className="w-8 text-center text-gray-700 font-semibold">:</span>
-              <input type="text" placeholder="Masukkan nama pemohon" value={header.namaPemohon} onChange={(e) => setHeader({...header, namaPemohon: e.target.value})} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200" />
+              <input type="text" placeholder="Masukkan nama pemohon" value={header.namaPemohon} maxLength={191} onChange={(e) => setHeader({...header, namaPemohon: e.target.value})} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200" />
             </div>
             <div className="flex items-center">
               <span className="w-[180px] text-[15px] font-semibold text-gray-700">Jabatan</span>
               <span className="w-8 text-center text-gray-700 font-semibold">:</span>
-              <input type="text" placeholder="Masukkan jabatan pemohon" value={header.jabatan} onChange={(e) => setHeader({...header, jabatan: e.target.value})} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200" />
+              <input type="text" placeholder="Masukkan jabatan pemohon" value={header.jabatan} maxLength={100} onChange={(e) => setHeader({...header, jabatan: e.target.value})} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200" />
             </div>
             <div className="flex items-center">
               <span className="w-[180px] text-[15px] font-semibold text-gray-700">Tanggal Pengajuan</span>
@@ -139,19 +140,19 @@ export default function TambahPermintaanPembelianPPIC({ permintaan }: { perminta
                         {i + 1}
                       </td>
                       <td className="p-0 border-r border-gray-100/50">
-                        <input type="text" value={row.namaBarang} placeholder="Masukkan nama barang" onChange={(e) => handleChange(i, 'namaBarang', e.target.value)} className="w-full h-full px-4 text-center bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 placeholder-gray-300 not-italic" />
+                        <input type="text" value={row.namaBarang} maxLength={191} placeholder="Masukkan nama barang" onChange={(e) => handleChange(i, 'namaBarang', e.target.value)} className="w-full h-full px-4 text-center bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 placeholder-gray-300 not-italic" />
                       </td>
                       <td className="p-0 border-r border-gray-100/50">
-                        <input type="number" min={1} step={1} value={row.qty} placeholder="0" onChange={(e) => handleChange(i, 'qty', e.target.value)} className="w-full h-full px-4 text-center bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 placeholder-gray-300 not-italic [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                        <input {...INTEGER_INPUT} maxLength={9} value={row.qty} placeholder="0" onChange={(e) => handleChange(i, 'qty', digitsOnly(e.target.value))} className="w-full h-full px-4 text-center bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 placeholder-gray-300 not-italic [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                       </td>
                       <td className="p-0 border-r border-gray-100/50">
-                        <input type="text" value={row.satuan} placeholder="Pcs/Unit/Koli" onChange={(e) => handleChange(i, 'satuan', e.target.value)} className="w-full h-full px-4 text-center bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 placeholder-gray-300 not-italic" />
+                        <input type="text" value={row.satuan} maxLength={50} placeholder="Pcs/Unit/Koli" onChange={(e) => handleChange(i, 'satuan', e.target.value)} className="w-full h-full px-4 text-center bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 placeholder-gray-300 not-italic" />
                       </td>
                       <td className="p-0 border-r border-gray-100/50">
-                        <input type="text" value={row.proyek} placeholder="Isi nama proyek" onChange={(e) => handleChange(i, 'proyek', e.target.value)} className="w-full h-full px-4 text-center bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 placeholder-gray-300 not-italic" />
+                        <input type="text" value={row.proyek} maxLength={191} placeholder="Isi nama proyek" onChange={(e) => handleChange(i, 'proyek', e.target.value)} className="w-full h-full px-4 text-center bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 placeholder-gray-300 not-italic" />
                       </td>
                       <td className="p-0">
-                        <input type="text" value={row.noSpk} placeholder="000/SPK/..." onChange={(e) => handleChange(i, 'noSpk', e.target.value)} className="w-full h-full px-4 text-center bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 placeholder-gray-300 not-italic" />
+                        <input type="text" value={row.noSpk} maxLength={100} placeholder="000/SPK/..." onChange={(e) => handleChange(i, 'noSpk', e.target.value)} className="w-full h-full px-4 text-center bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 placeholder-gray-300 not-italic" />
                       </td>
                     </tr>
                   ))}

@@ -2,14 +2,15 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { ArrowLeft, ChevronDown } from 'lucide-react';
 import { formatAngka } from '@/domains/ppic/data/dokubah';
 import { fetchPermintaan, type PermintaanPembelian } from '@/domains/ppic/data/pembelian';
 import { useApiData } from '@/shared/lib/use-api-data';
-import { listSuppliers } from '@/domains/purchasing/api';
-import { addPo, lihatPermintaanPath, PEMESAN, rekap_pembelian_path } from '@/domains/purchasing/data/pembelian';
-import type { Supplier } from '@/domains/purchasing/types';
+import { createPurchaseOrder, listSuppliers } from '@/domains/purchasing/api';
+import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
+import { lihatPermintaanPath, PEMESAN, rekap_pembelian_path } from '@/domains/purchasing/data/pembelian';
+import type { PurchaseOrder, Supplier } from '@/domains/purchasing/types';
 import { ApiError } from '@/shared/lib/api-client';
 
 type BarisHarga = { kodeBarang: string; harga: string; diskon: string };
@@ -50,9 +51,9 @@ export default function PemesananPembelianPurchasing() {
 }
 
 function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
-  const router = useRouter();
 
-  const [nomorPo, setNomorPo] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [dibuat, setDibuat] = useState<PurchaseOrder | null>(null);
   const [tanggalPo, setTanggalPo] = useState('');
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [supplierError, setSupplierError] = useState('');
@@ -122,45 +123,73 @@ function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
     setBarisHarga((prev) => prev.map((baris, i) => (i === index ? { ...baris, [field]: value } : baris)));
   };
 
-  const handleBuat = (e: React.SubmitEvent<HTMLFormElement>) => {
+  const handleBuat = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (nomorPo.trim() === '' || tanggalPo === '') {
-      setFormError('Nomor PO dan Tanggal PO wajib diisi.');
+    if (tanggalPo === '') {
+      setFormError('Tanggal PO wajib diisi.');
       return;
     }
     if (!supplier) {
       setFormError('Pilih supplier terlebih dahulu.');
       return;
     }
+    if (picSupplier.trim() === '') {
+      setFormError('PIC supplier wajib diisi.');
+      return;
+    }
+    if (barang.some((b) => b.kodeBarang.trim() === '')) {
+      setFormError('Kode barang setiap baris wajib diisi.');
+      return;
+    }
     if (barang.some((b) => b.hargaSatuan <= 0)) {
       setFormError('Harga satuan setiap barang wajib diisi lebih dari 0.');
       return;
     }
-    if (barang.some((b) => b.diskon < 0 || b.total < 0) || toNumber(persenPpn) < 0 || toNumber(jasa) < 0) {
-      setFormError('Diskon, PPN, dan Jasa tidak boleh minus, dan diskon tidak boleh melebihi harga barang.');
+    if (barang.some((b) => b.diskon < 0 || b.total < 0) || toNumber(persenPpn) < 0 || toNumber(persenPpn) > 100 || toNumber(jasa) < 0) {
+      setFormError('Diskon, PPN, dan Jasa tidak boleh minus, PPN maksimal 100, dan diskon tidak boleh melebihi harga barang.');
       return;
     }
-    addPo({
-      permintaanId: permintaan.id,
-      nomorPo: nomorPo.trim(),
-      tanggalPo,
-      supplierId: supplier.id,
-      picSupplier: picSupplier.trim(),
-      barang: barang.map((b) => ({
-        kodeBarang: b.kodeBarang.trim(),
-        namaBarang: b.namaBarang,
-        satuan: b.satuan,
-        jumlah: b.qty,
-        hargaSatuan: b.hargaSatuan,
-        diskon: b.diskon,
-      })),
-      dppLain,
-      persenPpn: toNumber(persenPpn),
-      jasa: toNumber(jasa),
-      grandTotal,
-    });
-    router.replace(rekap_pembelian_path);
+    setSaving(true);
+    setFormError('');
+    try {
+      // Totals shown on screen are a preview; the backend computes and stores the real ones.
+      setDibuat(
+        await createPurchaseOrder({
+          approvalRequestId: permintaan.id,
+          tanggalPo,
+          supplierId: supplier.id,
+          picSupplier: picSupplier.trim(),
+          barang: barang.map((b) => ({
+            kodeBarang: b.kodeBarang.trim(),
+            namaBarang: b.namaBarang,
+            satuan: b.satuan,
+            jumlah: b.qty,
+            hargaSatuan: b.hargaSatuan,
+            diskon: b.diskon,
+          })),
+          persenPpn: toNumber(persenPpn),
+          jasa: toNumber(jasa),
+        }),
+      );
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : 'Gagal membuat PO.');
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (dibuat) {
+    return (
+      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+        {header}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-6 py-10 text-center">
+          <p className="text-base font-bold text-gray-900">PO {dibuat.nomorPo} berhasil dibuat</p>
+          <p className="mt-2 text-sm text-gray-600">Supplier {dibuat.supplierName}, grand total Rp. {formatAngka(dibuat.grandTotal)}</p>
+          <Link href={rekap_pembelian_path} className={`${orangeButtonClass} inline-block mt-6`}>Kembali ke Rekap Pembelian</Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -171,11 +200,6 @@ function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
 
         {/* Nomor & tanggal PO */}
         <div className="flex flex-col gap-2 max-w-sm">
-          <div className="flex items-center gap-2">
-            <label htmlFor="po-nomor" className="w-24 shrink-0 text-sm font-medium text-gray-800">Nomor PO</label>
-            <span className="text-gray-800">:</span>
-            <input id="po-nomor" type="text" value={nomorPo} onChange={(e) => setNomorPo(e.target.value)} className={fieldClass} />
-          </div>
           <div className="flex items-center gap-2">
             <label htmlFor="po-tanggal" className="w-24 shrink-0 text-sm font-medium text-gray-800">Tanggal PO</label>
             <span className="text-gray-800">:</span>
@@ -308,6 +332,7 @@ function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
                   <td className={cellClass}>
                     <input
                       type="text"
+                      maxLength={191}
                       value={barisHarga[index].kodeBarang}
                       onChange={(e) => updateBaris(index, 'kodeBarang', e.target.value)}
                       aria-label={`Kode barang ${b.namaBarang}`}
@@ -319,10 +344,10 @@ function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
                   <td className={`${cellClass} text-center`}>{formatAngka(b.qty)}</td>
                   <td className={cellClass}>
                     <input
-                      type="number"
-                      min={0}
+                      {...INTEGER_INPUT}
+                      maxLength={9}
                       value={barisHarga[index].harga}
-                      onChange={(e) => updateBaris(index, 'harga', e.target.value)}
+                      onChange={(e) => updateBaris(index, 'harga', digitsOnly(e.target.value))}
                       placeholder="0"
                       aria-label={`Harga satuan ${b.namaBarang}`}
                       className={`${cellInputClass} text-right`}
@@ -330,10 +355,10 @@ function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
                   </td>
                   <td className={cellClass}>
                     <input
-                      type="number"
-                      min={0}
+                      {...INTEGER_INPUT}
+                      maxLength={9}
                       value={barisHarga[index].diskon}
-                      onChange={(e) => updateBaris(index, 'diskon', e.target.value)}
+                      onChange={(e) => updateBaris(index, 'diskon', digitsOnly(e.target.value))}
                       placeholder="0"
                       aria-label={`Diskon ${b.namaBarang}`}
                       className={`${cellInputClass} text-right`}
@@ -373,10 +398,11 @@ function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
             <div className="w-28 min-w-0">
               <input
                 id="po-ppn"
-                type="number"
-                min={0}
+                type="text"
+                inputMode="decimal"
+                maxLength={6}
                 value={persenPpn}
-                onChange={(e) => setPersenPpn(e.target.value)}
+                onChange={(e) => setPersenPpn(e.target.value.replace(/[^\d.]/g, ''))}
                 aria-label="PPN (persen)"
                 className={`${fieldClass} text-right`}
               />
@@ -400,10 +426,10 @@ function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
             <div className={kotakTotalClass}>
               <input
                 id="po-jasa"
-                type="number"
-                min={0}
+                {...INTEGER_INPUT}
+                maxLength={9}
                 value={jasa}
-                onChange={(e) => setJasa(e.target.value)}
+                onChange={(e) => setJasa(digitsOnly(e.target.value))}
                 className={`${fieldClass} text-right`}
               />
             </div>
@@ -423,7 +449,7 @@ function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
         )}
 
         <div className="flex justify-end mt-8">
-          <button type="submit" className={orangeButtonClass}>Buat</button>
+          <button type="submit" disabled={saving} className={`${orangeButtonClass} disabled:opacity-60`}>{saving ? 'Menyimpan...' : 'Buat'}</button>
         </div>
       </form>
     </div>

@@ -13,6 +13,7 @@ import {
 import { getDokubah, replaceDokubahMaterials } from '@/domains/ppic/api';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
+import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 
 // Angka disimpan sebagai teks selama diedit supaya kolomnya boleh dikosongkan dulu
 type BahanDraft = Omit<BahanDokubah, 'kuota' | 'hargaSatuan'> & { kuota: string; hargaSatuan: string };
@@ -142,11 +143,10 @@ function EditMaterialForm({ dokubah, message }: { dokubah?: DokubahItem; message
                   <td className={`${inputCellClass} ${invalidClass(b.kuota)}`}>
                     <div className="flex items-center">
                       <input
-                        type="number"
-                        min={0}
-                        step="any"
+                      {...INTEGER_INPUT}
+                      maxLength={9}
                         value={b.kuota}
-                        onChange={(e) => handleChange(b.kodeBarang, 'kuota', e.target.value)}
+                        onChange={(e) => handleChange(b.kodeBarang, 'kuota', digitsOnly(e.target.value))}
                         placeholder="0"
                         aria-label={`Kuota alokasi ${b.kodeBarang}`}
                         className={`${cellInputClass} min-w-24`}
@@ -158,11 +158,10 @@ function EditMaterialForm({ dokubah, message }: { dokubah?: DokubahItem; message
                     <div className="flex items-center">
                       <span className="pl-4 text-gray-500">Rp</span>
                       <input
-                        type="number"
-                        min={0}
-                        step="any"
+                      {...INTEGER_INPUT}
+                      maxLength={9}
                         value={b.hargaSatuan}
-                        onChange={(e) => handleChange(b.kodeBarang, 'hargaSatuan', e.target.value)}
+                        onChange={(e) => handleChange(b.kodeBarang, 'hargaSatuan', digitsOnly(e.target.value))}
                         placeholder="0"
                         aria-label={`Estimasi harga ${b.kodeBarang}`}
                         className={`${cellInputClass} pl-2 min-w-32`}
@@ -173,6 +172,7 @@ function EditMaterialForm({ dokubah, message }: { dokubah?: DokubahItem; message
                     <input
                       type="text"
                       value={b.keterangan}
+                      maxLength={500}
                       onChange={(e) => handleChange(b.kodeBarang, 'keterangan', e.target.value)}
                       placeholder="Tambahkan keterangan"
                       aria-label={`Keterangan ${b.kodeBarang}`}

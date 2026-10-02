@@ -35,6 +35,7 @@ export default function RekapPembelian() {
                 <input
                 type="text"
                 value={searchQuery}
+                maxLength={100}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Cari"
                 aria-label="Cari pembelian"

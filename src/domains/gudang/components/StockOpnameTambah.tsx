@@ -7,6 +7,7 @@ import { createStockOpname } from '@/domains/gudang/api';
 import { listItems } from '@/domains/inventory/api';
 import type { ItemListRow } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
+import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 
 const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 const emptyRow = { itemId: "", itemName: "", jumlah: "", keterangan: "" };
@@ -162,13 +163,13 @@ export default function TambahStockOpnameGudang() {
                         <td className="border-r border-b border-gray-100/50 px-4 py-2 w-28 text-center text-gray-600">{fmt(adm?.qty)}</td>
                         <td className="border-r border-b border-gray-100/50 px-4 py-2 w-36 text-center text-gray-600">{fmt(adm?.harga)}</td>
                         <td className="border-r border-b border-gray-100/50 p-0 w-28">
-                          <input type="number" min={0} value={row.jumlah} placeholder="0" onChange={(e) => handleChange(index, { jumlah: e.target.value })} className="w-full h-full min-h-[48px] px-4 py-2 bg-transparent text-center focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 text-gray-700 text-sm transition-all placeholder-gray-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                          <input {...INTEGER_INPUT} maxLength={9} value={row.jumlah} placeholder="0" onChange={(e) => handleChange(index, { jumlah: digitsOnly(e.target.value) })} className="w-full h-full min-h-[48px] px-4 py-2 bg-transparent text-center focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 text-gray-700 text-sm transition-all placeholder-gray-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                         </td>
                         <td className="border-r border-b border-gray-100/50 px-4 py-2 w-36 text-center text-gray-600">{fmt(fsk?.harga)}</td>
                         <td className="border-r border-b border-gray-100/50 px-4 py-2 w-28 text-center text-gray-600 font-bold bg-gray-50/50">{fsk && adm ? fmt(fsk.qty - adm.qty) : ''}</td>
                         <td className="border-r border-b border-gray-100/50 px-4 py-2 w-36 text-center text-gray-600 font-bold bg-gray-50/50">{fsk && adm ? fmt(fsk.harga - adm.harga) : ''}</td>
                         <td className="border-b border-gray-100/50 p-0">
-                          <input type="text" value={row.keterangan} placeholder="Tambahkan catatan..." onChange={(e) => handleChange(index, { keterangan: e.target.value })} className="w-full h-full min-h-[48px] px-6 py-2 bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 text-gray-700 text-sm transition-all placeholder-gray-300 italic" />
+                          <input type="text" maxLength={255} value={row.keterangan} placeholder="Tambahkan catatan..." onChange={(e) => handleChange(index, { keterangan: e.target.value })} className="w-full h-full min-h-[48px] px-6 py-2 bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 text-gray-700 text-sm transition-all placeholder-gray-300 italic" />
                         </td>
                       </tr>
                     );
