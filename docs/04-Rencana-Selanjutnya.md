@@ -4,7 +4,8 @@
 
 Dokumen ini mencatat status pekerjaan dan urutan yang belum digarap, supaya
 lanjutannya tidak dimulai dari nol menyusun ulang prioritas. Status
-terakhir diperbarui pada 2 Oktober 2026.
+terakhir diperbarui pada 2 Oktober 2026, setelah penggabungan folder
+`gudang` ke `inventory` dan push ke remote.
 
 ## Status Saat Ini
 
@@ -45,17 +46,35 @@ Selesai dan tersambung ke API asli:
   asli, serta sidebar dan tombol yang mengikuti permission role
   (`14-Test-Menyeluruh-Dashboard-dan-Ability.md`). Laporan memakai
   ringkasan backend dan paginasi dari server.
+- Kelanjutan dari backend yang sudah dipakai FE: filter `hasPurchaseOrder`
+  untuk kartu "Disetujui, Belum Dibuat PO", ringkasan stok di `GET /items`
+  untuk dashboard Gudang, dan `GET /locations` untuk filter lokasi di
+  laporan Mutasi.
+- Folder `src/domains/gudang` digabung ke `src/domains/inventory`, karena
+  di backend divisi gudang bernama domain Inventory. Route, menu, dan
+  tulisan Gudang tidak berubah (`05-Struktur-Routing-dan-Domain.md`).
+- Kode mati dan halaman tanpa tautan dihapus, dan lint bersih tanpa
+  warning.
 
 ## Posisi Branch
 
-- `dev` memuat semua pekerjaan termasuk SPH, test menyeluruh, dashboard,
-  dan pembatasan ability. Branch `dev` di sisi lokal belum di-push untuk
-  gelombang terakhir.
-- Backend sudah menyediakan ringkasan laporan, pencarian approvals, dan
-  nama pelaku di riwayat. Perubahan itu masih berupa commit lokal di sisi
-  backend dan menunggu user backend mem-push-nya. Permission
-  `penawaran-harga.*` dan `purchase-order.*` sudah ada setelah database
-  di-seed ulang.
+- `dev` sudah di-push ke remote `gh` dan memuat semua pekerjaan sampai
+  catatan refactoring (commit `9fdd45a`). Semua branch kerja lokal yang
+  sudah ter-merge dihapus, jadi lokal hanya tersisa `dev`.
+- Branch Cal dan Imel di remote tidak diubah. Branch mereka masih memakai
+  path lama `@/domains/gudang/`, jadi sebelum lanjut mereka perlu menarik
+  `dev` terbaru. Setiap merge dari branch lama perlu mengganti
+  `@/domains/gudang/` menjadi `@/domains/inventory/`.
+- Backend sudah menyediakan ringkasan laporan, pencarian approvals, nama
+  pelaku di riwayat, filter `hasPurchaseOrder`, ringkasan stok, dan data
+  contoh. Perubahan itu masih berupa commit lokal di sisi backend dan
+  menunggu user backend mem-push-nya. Tabel workflow approval sempat kosong
+  di database dev karena test backend yang berjalan bersamaan, sudah
+  dipulihkan, dan test backend sekarang menyimpan cadangannya. Test
+  backend sebaiknya tidak dijalankan paralel di database dev yang sama.
+- Berkas liar `src/domains/gudang/api.ts` beberapa kali muncul lagi karena
+  tab editor lama menyimpannya kembali. Tutup tab `gudang/...` dan restart
+  TypeScript server bila `tsc` melaporkan modul `@/domains/gudang/types`.
 
 ## Belum Selesai
 
@@ -66,37 +85,42 @@ Selesai dan tersambung ke API asli:
   sengaja ditunda sampai semua domain selesai diuji.
 - Tracking asli. Backend masih memakai data tiruan untuk tracking dan
   menunggu kontrak sistem tracking.
-- Layar daftar dan detail PO. Endpoint-nya sudah ada, tetapi FE belum
-  punya layarnya.
+- Layar daftar dan detail PO. Endpoint-nya sudah ada dan dashboard
+  Purchasing sudah menampilkan PO terbaru, tetapi FE belum punya layar
+  daftar dan detail PO.
 - Arti tombol Rekap di daftar Penawaran Harga. Edit, Detail, dan Rekap
   masih menuju halaman yang sama.
 - Halaman Detail Rekap Permintaan Gudang belum tertaut dari Rekap
   Permintaan, menunggu keputusan tujuan tombol View Detail dan Edit.
 - Tombol Download PDF di Detail Data Barang supplier belum berfungsi.
+- Dropdown barang dan supplier masih dibatasi 100 baris.
 - Tampilan layar baru belum diuji di browser: SPH, cetak PDF dari Cal,
-  dashboard, paginasi laporan, dan tombol yang tersembunyi per permission.
-  Test otomatis sudah mencakupnya, tetapi uji manual tetap perlu.
+  dashboard, paginasi laporan, filter periode baru di Rekap Dokubah PPIC
+  yang berupa dua kolom tanggal, dan tombol yang tersembunyi per
+  permission. Test otomatis sudah mencakupnya, tetapi uji manual tetap
+  perlu.
 
 ## Urutan yang Disarankan
 
-1. **Uji `feat/sph-wiring` di browser lalu merge ke `dev`.** Pastikan
-   backend sudah menambahkan permission `penawaran-harga.*` ke role PPIC
-   agar menu Penawaran Harga muncul.
-2. **Rapikan sisa keputusan PPIC dan Gudang.** Pilihan Tujuan Produksi
-   selain `STOCK`, konfirmasi asumsi `totalBisaPakai`, tombol Simpan
-   Draft di Buat SPK Internal, tujuan tombol Edit di Detail Rekap
-   Permintaan, dan apakah View Detail di Rekap Permintaan mengarah ke
-   halaman detail yang baru.
-3. **Layar daftar dan detail PO.** Endpoint sudah tersedia.
-4. **Perapian sisa.** Paginasi untuk laporan yang menghitung ringkasan,
-   yang butuh ringkasan dari backend lebih dulu. Cetak PDF dari Cal pada
-   Rekap Permintaan hanya mencetak halaman yang tampil karena daftarnya
-   sekarang dipaginasi 20 baris. Selain itu perlu pemeriksaan dampak
-   `globals.css` shadcn di semua halaman, penghapusan halaman lama
-   `penawaran-harga/detail-permintaan` yang tidak tertaut lagi, dan tujuh
-   warning lint dari kode Cal berupa variabel dan import yang tidak terpakai.
-5. **Tracking asli.** Menunggu kontrak sistem tracking dari backend.
-6. **Alur approval umum.** Rancang bersama backend untuk persetujuan
+1. **Uji `dev` di browser.** Login sebagai `staf.ppic`, `koor.purchasing`,
+   dan `koor.inventory`. Perhatikan sidebar tiap role, dashboard, SPH,
+   paginasi laporan, dan tombol yang tersembunyi.
+2. **Putuskan dua hal yang menggantung.** Arti tombol Rekap di daftar
+   Penawaran Harga, serta tujuan tombol View Detail dan Edit di Rekap
+   Permintaan Gudang, yang menentukan apakah halaman Detail Rekap
+   Permintaan ditautkan atau dihapus. Satu test `it.fails` di
+   `src/test/integration/routes.test.ts` menandai halaman itu dan harus
+   diubah menjadi test biasa setelah diputuskan.
+3. **Sinkronkan Cal dan Imel dengan `dev`.** Setelah itu pekerjaan
+   perapian di nomor 5 aman dimulai.
+4. **Layar daftar dan detail PO.** Endpoint sudah tersedia.
+5. **Refactoring terarah** menurut `15-Catatan-Refactoring.md`: helper
+   cetak dan `escapeHtml` bersama, pemformat dan modul approval keluar dari
+   PPIC, hook halaman, `Modal`, token warna, tabel bersama untuk layar
+   kembar, dan Prettier paling akhir. Selain itu perlu pemeriksaan dampak
+   `globals.css` shadcn di semua halaman.
+6. **Tracking asli.** Menunggu kontrak sistem tracking dari backend.
+7. **Alur approval umum.** Rancang bersama backend untuk persetujuan
    Dokubah oleh Koor Inventory dan permintaan material yang kuotanya
    habis. Dokumen ini dibuat setelah semua domain selesai.
 
@@ -111,6 +135,8 @@ OpenAPI backend disalin ke `docs/api-1.json` setiap kali berubah.
 ## Status dan Langkah Berikutnya
 
 Semua domain tersambung ke backend, kecuali alur approval selain permintaan
-pembelian dan tracking asli. Lanjutkan dari poin 1 di atas. Dokumen
+pembelian dan tracking asli. Pekerjaan pembangunan sudah selesai, dan yang
+tersisa adalah uji di browser, dua keputusan bisnis, sinkronisasi Cal dan
+Imel, serta tracking dan approval umum. Lanjutkan dari poin 1 di atas. Dokumen
 berikutnya beri nomor `16-<Judul-Singkat>.md` sesuai konvensi di
 `00-Template-Docs.md`.
