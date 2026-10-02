@@ -101,6 +101,7 @@ export default function LaporanBarangKeluar(){
                             type="text"
                             placeholder="Cari Client, SPK, Item, atau Penerima"
                             value={searchQuery}
+                            maxLength={100}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="border border-gray-300 rounded-md pl-3 pr-10 py-1.5 text-sm w-full bg-white text-black placeholder:text-gray focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />

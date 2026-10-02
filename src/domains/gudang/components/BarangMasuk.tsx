@@ -12,6 +12,7 @@ import { displayDate, todayIso, toDateRange } from '@/domains/gudang/date';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
+import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 
 const emptyBaru = { itemId: "", itemName: "", supplierId: "", tanggal: todayIso(), jumlahKedatangan: "", jumlahRekap: "", statusQc: "PASS" as StatusQc };
 const emptyKembali = { itemId: "", itemName: "", tanggal: todayIso(), jumlah: "", clientName: "", spk: "" };
@@ -138,6 +139,7 @@ export default function BarangMasukGudang() {
               <input 
                 type="text" 
                 value={searchQuery}
+                maxLength={100}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] sm:text-sm transition-all shadow-sm"
                 placeholder="Cari kode, nama barang, atau supplier..." 
@@ -387,20 +389,22 @@ export default function BarangMasukGudang() {
                 <div className="flex-1 flex flex-col gap-2">
                   <label className="text-[15px] font-medium text-gray-900">Jumlah Sesuai Kedatangan</label>
                   <input 
-                    type="number"
+                    {...INTEGER_INPUT}
+                    maxLength={9}
                     placeholder="0"
                     value={modalData.jumlahKedatangan}
-                    onChange={(e) => setModalData({...modalData, jumlahKedatangan: e.target.value})}
+                    onChange={(e) => setModalData({...modalData, jumlahKedatangan: digitsOnly(e.target.value)})}
                     className="w-full border border-gray-200 bg-gray-50/50 rounded-lg py-3 px-4 text-gray-700 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white transition-all duration-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
                 <div className="flex-1 flex flex-col gap-2">
                   <label className="text-[15px] font-medium text-gray-900">Jumlah Sesuai Rekap Pembelian</label>
                   <input 
-                    type="number"
+                    {...INTEGER_INPUT}
+                    maxLength={9}
                     placeholder="0"
                     value={modalData.jumlahRekap}
-                    onChange={(e) => setModalData({...modalData, jumlahRekap: e.target.value})}
+                    onChange={(e) => setModalData({...modalData, jumlahRekap: digitsOnly(e.target.value)})}
                     className="w-full border border-gray-200 bg-gray-50/50 rounded-lg py-3 px-4 text-gray-700 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white transition-all duration-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
@@ -501,10 +505,11 @@ export default function BarangMasukGudang() {
                 <div className="flex-1 flex flex-col gap-2">
                   <label className="text-[15px] font-medium text-gray-900">Jumlah</label>
                   <input 
-                    type="number"
+                    {...INTEGER_INPUT}
+                    maxLength={9}
                     placeholder="0"
                     value={modalKembaliData.jumlah}
-                    onChange={(e) => setModalKembaliData({...modalKembaliData, jumlah: e.target.value})}
+                    onChange={(e) => setModalKembaliData({...modalKembaliData, jumlah: digitsOnly(e.target.value)})}
                     className="w-full border border-gray-300 rounded-md py-3 px-4 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 placeholder-gray-400 text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
@@ -517,6 +522,7 @@ export default function BarangMasukGudang() {
                   <input
                     type="text"
                     value={modalKembaliData.clientName}
+                    maxLength={191}
                     onChange={(e) => setModalKembaliData({...modalKembaliData, clientName: e.target.value})}
                     className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white text-sm"
                   />
@@ -526,6 +532,7 @@ export default function BarangMasukGudang() {
                   <input
                     type="text"
                     value={modalKembaliData.spk}
+                    maxLength={100}
                     onChange={(e) => setModalKembaliData({...modalKembaliData, spk: e.target.value})}
                     className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white text-sm"
                   />

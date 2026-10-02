@@ -67,6 +67,7 @@ export default function SpkInternalMutasiStokPPIC() {
                 placeholder="Cari"
                 aria-label="Cari kode barang"
                 value={searchQuery}
+                maxLength={100}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"
               />

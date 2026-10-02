@@ -9,6 +9,7 @@ import type { Supplier } from '@/domains/purchasing/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
+import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 
 const emptyForm = { name: '', unit: '', category: '', price: '', supplierId: '' };
 
@@ -164,6 +165,7 @@ export default function DataBarangPPIC() {
             <input
               type="text"
               value={searchTerm}
+              maxLength={100}
               onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
               className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 sm:text-sm transition-all"
               placeholder="Cari kode atau nama barang..."
@@ -301,6 +303,7 @@ export default function DataBarangPPIC() {
                 <input
                   type="text"
                   value={formData.name}
+                  maxLength={191}
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
                   placeholder="Masukan nama barang"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all sm:text-sm text-gray-900 placeholder:text-gray-400"
@@ -343,9 +346,10 @@ export default function DataBarangPPIC() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Harga</label>
                   <input
-                    type="number"
+                  {...INTEGER_INPUT}
+                  maxLength={9}
                     value={formData.price}
-                    onChange={(e) => setFormData({...formData, price: e.target.value})}
+                    onChange={(e) => setFormData({...formData, price: digitsOnly(e.target.value)})}
                     placeholder="0"
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all sm:text-sm text-gray-900 placeholder:text-gray-400"
                   />

@@ -9,6 +9,7 @@ import { createSpkInternal, listTrackingPic, listTrackingSpk } from '@/domains/p
 import { listItems } from '@/domains/inventory/api';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
+import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 
 type BarangRow = { id: number; kodeSku: string; namaBarang: string; totalQty: string; alokasiSpkKlien: string; alokasiStokBebas: string };
 type BarangField = Exclude<keyof BarangRow, 'id'>;
@@ -219,30 +220,30 @@ export default function BuatSpkInternalPPIC() {
                     </td>
                     <td className={inputCellClass}>
                       <input
-                        type="number"
-                        min={0}
+                      {...INTEGER_INPUT}
+                      maxLength={9}
                         value={row.totalQty}
-                        onChange={(e) => handleRowChange(row.id, 'totalQty', e.target.value)}
+                        onChange={(e) => handleRowChange(row.id, 'totalQty', digitsOnly(e.target.value))}
                         aria-label={`Total qty diproduksi baris ${nomor}`}
                         className={`${cellInputClass} min-w-32`}
                       />
                     </td>
                     <td className={inputCellClass}>
                       <input
-                        type="number"
-                        min={0}
+                      {...INTEGER_INPUT}
+                      maxLength={9}
                         value={row.alokasiSpkKlien}
-                        onChange={(e) => handleRowChange(row.id, 'alokasiSpkKlien', e.target.value)}
+                        onChange={(e) => handleRowChange(row.id, 'alokasiSpkKlien', digitsOnly(e.target.value))}
                         aria-label={`Alokasi SPK klien baris ${nomor}`}
                         className={`${cellInputClass} min-w-28`}
                       />
                     </td>
                     <td className={inputCellClass}>
                       <input
-                        type="number"
-                        min={0}
+                      {...INTEGER_INPUT}
+                      maxLength={9}
                         value={row.alokasiStokBebas}
-                        onChange={(e) => handleRowChange(row.id, 'alokasiStokBebas', e.target.value)}
+                        onChange={(e) => handleRowChange(row.id, 'alokasiStokBebas', digitsOnly(e.target.value))}
                         aria-label={`Alokasi stok bebas baris ${nomor}`}
                         className={`${cellInputClass} min-w-28`}
                       />
@@ -285,6 +286,7 @@ export default function BuatSpkInternalPPIC() {
           id="spk-internal-catatan"
           rows={5}
           value={form.catatan}
+          maxLength={500}
           onChange={(e) => setField('catatan', e.target.value)}
           className={`${fieldClass} max-w-4xl resize-y`}
         />

@@ -8,6 +8,7 @@ import { listSuppliers } from '@/domains/purchasing/api';
 import type { Supplier } from '@/domains/purchasing/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
+import { digitsOnly, INTEGER_INPUT } from '@/shared/lib/input';
 import Pagination from '@/shared/components/Pagination';
 
 export default function DataBarangPurchasing() {
@@ -118,6 +119,7 @@ export default function DataBarangPurchasing() {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                maxLength={100}
                 className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 sm:text-sm transition-all"
                 placeholder="Cari kode atau nama barang..."
               />
@@ -260,9 +262,10 @@ export default function DataBarangPurchasing() {
               <div>
                 <label className="block text-[15px] font-medium text-gray-800 mb-2 font-sans">Harga</label>
                 <input
-                  type="number"
+                  {...INTEGER_INPUT}
                   value={formData.price}
-                  onChange={(e) => setFormData({...formData, price: e.target.value})}
+                  onChange={(e) => setFormData({...formData, price: digitsOnly(e.target.value)})}
+                  maxLength={9}
                   placeholder="Masukan Jumlah"
                   className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors font-sans"
                 />

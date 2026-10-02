@@ -16,3 +16,4 @@ Satu dokumen membahas satu pekerjaan atau satu keputusan besar. Lihat
 | [08-Tampilan-Gudang-dan-Detail-Rekap-Permintaan.md](08-Tampilan-Gudang-dan-Detail-Rekap-Permintaan.md) | Tampilan Gudang diselaraskan dengan Cal, dan Detail Rekap Permintaan membaca sisa kuota serta tanggal dari Dokubah. |
 | [09-Permintaan-Pembelian-PPIC-dan-Rekap-Pembelian.md](09-Permintaan-Pembelian-PPIC-dan-Rekap-Pembelian.md) | Permintaan Pembelian pindah dari Gudang ke PPIC karena permission, dan Rekap Pembelian PPIC serta Purchasing disambungkan ke backend. |
 | [10-Perapian-Lint-dan-Paginasi.md](10-Perapian-Lint-dan-Paginasi.md) | Error lint dibersihkan dan daftar utama memakai komponen paginasi sungguhan dari server, dengan daftar yang belum dipaginasi dicatat. |
+| [11-Batasan-Input-Form.md](11-Batasan-Input-Form.md) | Input angka hanya menerima digit dan input teks dibatasi panjangnya sesuai kontrak backend di semua form utama. |
