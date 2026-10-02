@@ -63,3 +63,55 @@ describe("canAccess", () => {
     expect(canAccess(inventory, "/dashboard/tidak-ada")).toBe(true);
   });
 });
+
+// Permission sets copied from the seeded accounts of the backend (login response, 2026-10-02).
+const SEEDED = {
+  kInventory: ["inbound.view", "inbound.create", "outbound.view", "outbound.create", "stock-opname.view", "stock-opname.create", "material-request.view", "material-request.update", "report.view", "item.view", "item.create", "item.update", "item.delete", "item.assign-location", "item.adjust-stock", "dokubah.view", "dokubah.approve", "spk-internal.view", "location.view", "location.create", "location.update", "location.delete", "supplier.view"],
+  stafInventory: ["inbound.view", "inbound.create", "outbound.view", "outbound.create", "stock-opname.view", "stock-opname.create", "material-request.view", "material-request.update", "report.view", "item.view", "item.create", "item.update", "item.assign-location", "item.adjust-stock", "dokubah.view", "spk-internal.view", "location.view", "location.create", "location.update", "supplier.view"],
+  ppic: ["purchase-request.create", "material-request.view", "material-request.create", "report.view", "item.view", "item.create", "item.update", "dokubah.view", "dokubah.create", "dokubah.update", "penawaran-harga.view", "penawaran-harga.create", "penawaran-harga.update", "penawaran-harga.publish", "spk-internal.view", "spk-internal.create", "spk-internal.allocate"],
+  kPurchasing: ["purchase-request.approve", "item.view", "item.update", "item.set-price", "purchase-order.view", "purchase-order.create", "supplier.view", "supplier.create", "supplier.update", "supplier.delete"],
+};
+
+const itemsOf = (u: AuthUser, key: string) =>
+  visibleNav(u).find((d) => d.key === key)?.groups.flatMap((g) => g.items.map((i) => i.label)) ?? [];
+
+describe("sidebar per seeded role", () => {
+  it("Inventory staff and coordinator see only the Gudang division", () => {
+    expect(labels(user(SEEDED.kInventory))).toEqual(["gudang"]);
+    expect(labels(user(SEEDED.stafInventory))).toEqual(["gudang"]);
+    expect(itemsOf(user(SEEDED.kInventory), "gudang")).toContain("Rekap Dokubah");
+  });
+
+  it("PPIC sees only the PPIC division even though it holds report.view and item.view", () => {
+    const ppic = user(SEEDED.ppic);
+    expect(labels(ppic)).toEqual(["ppic"]);
+    expect(itemsOf(ppic, "ppic")).toEqual([
+      "Data Barang", "Penawaran Harga", "Dokubah", "SPK Internal & Mutasi Stok", "Permintaan Pembelian",
+      "Rekap Dokubah", "Rekap Mutasi Barang", "Rekap Stok Opname & Mutasi Stok", "Rekap Pembelian",
+    ]);
+    expect(canAccess(ppic, "/dashboard/gudang/laporan/rekap-permintaan")).toBe(false);
+    expect(canAccess(ppic, "/dashboard/gudang/master/data-barang")).toBe(false);
+  });
+
+  it("Purchasing sees only the Purchasing division with its own pages", () => {
+    const p = user(SEEDED.kPurchasing);
+    expect(labels(p)).toEqual(["purchasing"]);
+    expect(itemsOf(p, "purchasing")).toEqual(["Data Barang", "Data Supplier", "Rekap Pembelian"]);
+    expect(canAccess(p, "/dashboard/ppic/transaksi/permintaan-pembelian")).toBe(false);
+    expect(canAccess(p, "/dashboard/purchasing/laporan/rekap-pembelian/buat-po/3")).toBe(true);
+  });
+
+  it("only PPIC can open the pembelian request pages and only Purchasing approvers see its rekap", () => {
+    expect(itemsOf(user(SEEDED.kInventory), "gudang").some((l) => l.includes("Pembelian"))).toBe(false);
+    expect(itemsOf(user(SEEDED.kPurchasing), "purchasing")).not.toContain("Permintaan Pembelian");
+  });
+
+  it("every nav item declares the permission it needs", () => {
+    const all = visibleNav(user([], true)).flatMap((d) => d.groups.flatMap((g) => g.items));
+    expect(all.length).toBeGreaterThan(0);
+    // A superadmin sees everything, so a missing anyOf would show up as an item reachable with no permission.
+    const nobody = visibleNav(user(["inbound.view", "purchase-request.create", "item.set-price"]));
+    const leaked = nobody.flatMap((d) => d.groups.flatMap((g) => g.items.filter((i) => !i.anyOf).map((i) => i.label)));
+    expect(leaked).toEqual([]);
+  });
+});
