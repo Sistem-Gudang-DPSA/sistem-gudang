@@ -59,10 +59,11 @@ Belum disentuh atau belum selesai:
    keluar sehingga nilainya selalu 0 kecuali di data seed.
 5. **Penawaran harga PPIC dan histori harga per supplier.** Fitur yang
    butuh rancangan skema.
-6. **Perapian.** Ganti pola pemuatan data di PPIC `DataBarang`,
-   Purchasing, dan Superadmin dengan `useApiData`, periksa dampak
-   `globals.css` shadcn di semua halaman, dan tambahkan paginasi di
-   semua daftar yang sekarang memuat 100 baris pertama.
+6. **Perapian sisa.** Pola `useApiData` dan paginasi sudah dikerjakan
+   untuk daftar utama (`10-Perapian-Lint-dan-Paginasi.md`). Sisanya
+   adalah paginasi untuk laporan yang menghitung ringkasan, yang butuh
+   ringkasan dari backend lebih dulu, serta pemeriksaan dampak
+   `globals.css` shadcn di semua halaman.
 
 ## Status dan Langkah Berikutnya
 
