@@ -13,15 +13,16 @@ const rows = [
   m('out-2', '2026-04-10', 'Keluar', 250, 'B-02'),
   m('in-3', '2026-04-20', 'Masuk', 50, 'A-01'),
 ];
+const summary = { totalTransaksi: 3, jumlahMasuk: 2, jumlahKeluar: 1, totalMasuk: 1050, totalKeluar: 250 };
 const bodyRows = () => screen.getAllByRole('row').slice(1);
 const setVal = (l: string, v: string) => fireEvent.change(screen.getByLabelText(l), { target: { value: v } });
 
 describe('RekapMutasiBarang', () => {
-  it('loads rows and summary totals', async () => {
-    const api = installFakeApi({ 'GET /api/v1/reports/mutations': paged(rows) });
+  it('loads rows and backend summary totals', async () => {
+    const api = installFakeApi({ 'GET /api/v1/reports/mutations': paged(rows, { summary }) });
     render(<RekapMutasiBarang />);
     expect(await screen.findByText('SPK-in-1')).toBeTruthy();
-    expect(api.calls('GET /api/v1/reports/mutations')[0].query.get('pageSize')).toBe('100');
+    expect(api.calls('GET /api/v1/reports/mutations')[0].query.get('pageSize')).toBe('20');
     expect(screen.getByText('3 Transaksi')).toBeTruthy();
     expect(screen.getByText('+ 1.050 Unit')).toBeTruthy();
     expect(screen.getByText('− 250 Unit')).toBeTruthy();
@@ -30,7 +31,7 @@ describe('RekapMutasiBarang', () => {
   });
 
   it('empty state with zero summary', async () => {
-    installFakeApi({ 'GET /api/v1/reports/mutations': paged([]) });
+    installFakeApi({ 'GET /api/v1/reports/mutations': paged([], { summary: { ...summary, totalTransaksi: 0, totalMasuk: 0, totalKeluar: 0 } }) });
     render(<RekapMutasiBarang />);
     expect(await screen.findByText('Data tidak ditemukan.')).toBeTruthy();
     expect(screen.getByText('0 Transaksi')).toBeTruthy();
@@ -42,28 +43,36 @@ describe('RekapMutasiBarang', () => {
     expect(await screen.findByText('Missing permission: report.view')).toBeTruthy();
   });
 
-  it('filters by date range, tipe, lokasi and search; summary ignores filters', async () => {
-    installFakeApi({ 'GET /api/v1/reports/mutations': paged(rows) });
+  it('sends tipe, lokasi, dates and search to the API and resets to page 1', async () => {
+    const api = installFakeApi({ 'GET /api/v1/reports/mutations': paged(rows, { summary, total: 45 }) });
     render(<RekapMutasiBarang />);
     await screen.findByText('SPK-in-1');
+    const last = () => api.calls('GET /api/v1/reports/mutations').at(-1)!.query;
+    fireEvent.click(screen.getByRole('button', { name: '2' }));
+    await waitFor(() => expect(last().get('page')).toBe('2'));
     setVal('Periode Awal', '2026-04-01');
-    expect(bodyRows()).toHaveLength(2);
-    setVal('Periode Akhir', '2026-04-10');
-    expect(bodyRows()).toHaveLength(1);
-    expect(screen.getByText('SPK-out-2')).toBeTruthy();
-    expect(screen.getByText('3 Transaksi')).toBeTruthy();
-    setVal('Periode Awal', '');
-    setVal('Periode Akhir', '');
+    setVal('Periode Akhir', '2026-04-30');
     setVal('Tipe Mutasi', 'Masuk');
-    expect(bodyRows()).toHaveLength(2);
     setVal('Lokasi', 'A-01');
-    setVal('Cari Data', 'item in-3');
-    expect(bodyRows()).toHaveLength(1);
+    setVal('Cari Data', ' item ');
+    await waitFor(() => expect(last().get('search')).toBe('item'));
+    const q = last();
+    expect([q.get('startDate'), q.get('endDate'), q.get('tipe'), q.get('lokasi'), q.get('page'), q.get('pageSize')])
+      .toEqual(['2026-04-01', '2026-04-30', 'Masuk', 'A-01', '1', '20']);
     expect((screen.getByLabelText('Cari Data') as HTMLInputElement).maxLength).toBe(100);
   });
 
+  it('paginates on the server', async () => {
+    const api = installFakeApi({ 'GET /api/v1/reports/mutations': paged(rows, { summary, total: 45 }) });
+    render(<RekapMutasiBarang />);
+    await screen.findByText('SPK-in-1');
+    expect(screen.getByText('45')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '2' }));
+    await waitFor(() => expect(api.calls('GET /api/v1/reports/mutations').some((c) => c.query.get('page') === '2')).toBe(true));
+  });
+
   it('date inputs constrain each other (min/max)', async () => {
-    installFakeApi({ 'GET /api/v1/reports/mutations': paged(rows) });
+    installFakeApi({ 'GET /api/v1/reports/mutations': paged(rows, { summary }) });
     render(<RekapMutasiBarang />);
     await screen.findByText('SPK-in-1');
     setVal('Periode Awal', '2026-04-01');
@@ -73,7 +82,7 @@ describe('RekapMutasiBarang', () => {
   });
 
   it('lists locations from the data', async () => {
-    installFakeApi({ 'GET /api/v1/reports/mutations': paged(rows) });
+    installFakeApi({ 'GET /api/v1/reports/mutations': paged(rows, { summary }) });
     render(<RekapMutasiBarang />);
     await screen.findByText('SPK-in-1');
     const opts = Array.from((screen.getByLabelText('Lokasi') as HTMLSelectElement).options).map((o) => o.value);
@@ -81,7 +90,7 @@ describe('RekapMutasiBarang', () => {
   });
 
   it('checkbox select-all', async () => {
-    installFakeApi({ 'GET /api/v1/reports/mutations': paged(rows) });
+    installFakeApi({ 'GET /api/v1/reports/mutations': paged(rows, { summary }) });
     render(<RekapMutasiBarang />);
     await screen.findByText('SPK-in-1');
     fireEvent.click(screen.getByLabelText('Centang semua'));
@@ -100,18 +109,6 @@ describe('RekapMutasiBarang', () => {
     fireEvent.click(screen.getByText('Print PDF'));
     await waitFor(() => expect(printed).toBe(true));
     expect(written).toContain('&lt;i&gt;x&lt;/i&gt;');
-  });
-
-  it.fails('BUG: date filters are applied client-side on the first 100 rows, never sent as startDate/endDate to the API', async () => {
-    const api = installFakeApi({ 'GET /api/v1/reports/mutations': paged(rows) });
-    render(<RekapMutasiBarang />);
-    await screen.findByText('SPK-in-1');
-    setVal('Periode Awal', '2026-04-01');
-    setVal('Periode Akhir', '2026-04-30');
-    await waitFor(() => {
-      const last = api.calls('GET /api/v1/reports/mutations').at(-1)!;
-      expect(last.query.get('startDate')).toBe('2026-04-01');
-      expect(last.query.get('endDate')).toBe('2026-04-30');
-    }, { timeout: 500 });
+    expect(written).toContain('halaman ini');
   });
 });

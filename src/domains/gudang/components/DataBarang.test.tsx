@@ -55,13 +55,29 @@ describe('DataBarang list', () => {
     await waitFor(() => expect(lastQ(api).get('search')).toBe('tri'));
   });
 
-  // The screen has no pagination: the API default page size applies and rows past it are unreachable.
-  it.fails('BUG: list request carries page=1&pageSize=20 and exposes pagination', async () => {
+  it('list request carries page=1&pageSize=20 and exposes pagination', async () => {
     const api = setup({}, paged([item(1)], { total: 45 }));
     await screen.findByText('Barang 1');
     expect(lastQ(api).get('page')).toBe('1');
     expect(lastQ(api).get('pageSize')).toBe('20');
     expect(screen.getByText('Selanjutnya')).not.toBeNull();
+  });
+
+  it('requests page=2 on Selanjutnya', async () => {
+    const api = setup({}, paged([item(1)], { total: 45 }));
+    await screen.findByText('Barang 1');
+    fireEvent.click(screen.getByText('Selanjutnya'));
+    await waitFor(() => expect(lastQ(api).get('page')).toBe('2'));
+  });
+
+  it('resets to page 1 when search changes', async () => {
+    const api = setup({}, paged([item(1)], { total: 45 }));
+    await screen.findByText('Barang 1');
+    fireEvent.click(screen.getByText('Selanjutnya'));
+    await waitFor(() => expect(lastQ(api).get('page')).toBe('2'));
+    fireEvent.change(screen.getByPlaceholderText('Cari kode atau nama barang...'), { target: { value: 'x' } });
+    await waitFor(() => expect(lastQ(api).get('search')).toBe('x'));
+    expect(lastQ(api).get('page')).toBe('1');
   });
 });
 

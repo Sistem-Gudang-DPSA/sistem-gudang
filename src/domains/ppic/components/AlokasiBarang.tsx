@@ -134,6 +134,7 @@ export default function AlokasiBarangPPIC() {
         <textarea
           id="alokasi-catatan"
           rows={6}
+          maxLength={500}
           value={catatan}
           onChange={(e) => setCatatan(e.target.value)}
           placeholder="Tulis catatan (opsional)"

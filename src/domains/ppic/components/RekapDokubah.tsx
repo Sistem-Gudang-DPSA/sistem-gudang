@@ -3,72 +3,64 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Search, ChevronDown, Plus, Download, FileUp } from 'lucide-react';
+import { Search, ChevronDown, Download, FileUp } from 'lucide-react';
 import { getStatusBadge, STATUS_OPTIONS } from '@/domains/ppic/components/Dokubah';
 import { detailRekapDokubahPath, escapeHtml, formatRupiah, type StatusDokubah } from '@/domains/ppic/data/dokubah';
-import { listDokubahRows, STATUS_TO_UI } from '@/domains/ppic/api';
+import { listDokubahRows, STATUS_TO_UI, statusToApi } from '@/domains/ppic/api';
+import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
-
-const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
 const cellClass = 'px-4 py-3 border-b border-r border-gray-300';
 const cardClass = 'bg-white rounded-sm border border-gray-100 shadow-md p-6 min-h-32';
 const labelClass = 'shrink-0 text-sm font-medium text-gray-800';
 const fieldClass = 'w-full pl-3 pr-9 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors';
 const checkboxClass = 'w-4 h-4 accent-[#FF8A00] cursor-pointer disabled:cursor-not-allowed';
-const orangeButtonClass = 'px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed';
-
-// YYYY-MM -> "September 2026"
-const formatPeriode = (periode: string) => {
-  const [y, m] = periode.split('-');
-  return `${BULAN[Number(m) - 1]} ${y}`;
-};
 
 export default function RekapDokubah() {
   const router = useRouter();
-  // ponytail: loads first 100 rows only; the API list rows already carry the rupiah realisation, so no per-row detail calls
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState<StatusDokubah | ''>('');
+  const [filterDari, setFilterDari] = useState('');
+  const [filterSampai, setFilterSampai] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
+  const filters = {
+    search: searchQuery.trim() || undefined,
+    status: filterStatus ? statusToApi(filterStatus) : undefined,
+    startDate: filterDari || undefined,
+    endDate: filterSampai || undefined,
+  };
+  const filterKey = JSON.stringify(filters);
+  const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
+  const page = pageState.key === filterKey ? pageState.page : 1;
+  const setPage = (next: number) => setPageState({ key: filterKey, page: next });
+  // The list rows already carry the rupiah realisation, so no per-row detail calls.
   const { data: result, loading, error } = useApiData(
-    () => listDokubahRows({ pageSize: 100 }),
-    'list',
+    () => listDokubahRows({ ...filters, page, pageSize: 20 }),
+    `${filterKey}|${page}`,
     'Gagal memuat rekap Dokubah.',
   );
-  const data = (result?.rows ?? []).map((row) => ({
+  const total = result?.total ?? 0;
+  const summary = result?.summary;
+  const filteredData = (result?.rows ?? []).map((row) => ({
     ...row,
     status: STATUS_TO_UI[row.status],
     realisasi: row.totalRealisasiNilai,
     sisa: row.totalAnggaran - row.totalRealisasiNilai,
   }));
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<StatusDokubah | ''>('');
-  const [filterPeriode, setFilterPeriode] = useState('');
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
-  // Ringkasan dihitung dari seluruh SPK, tidak ikut filter
-  const totalSpkAktif = data.filter((item) => item.status === 'Approved').length;
-  const totalSpkOverbudget = data.filter((item) => item.sisa < 0).length;
+  // Ringkasan dari API, dihitung atas semua SPK yang cocok dengan filter (bukan hanya halaman ini)
+  const totalSpkAktif = summary?.totalApproved ?? 0;
+  const totalSpkOverbudget = summary?.overbudgetCount ?? 0;
   // Satuan bahan berbeda-beda, jadi pemakaian material dibandingkan dalam nilai rupiah
-  // totalAnggaran is computed by the server as the sum of kuota * hargaSatuan
-  const nilaiKuota = data.reduce((sum, item) => sum + item.totalAnggaran, 0);
-  const nilaiRealisasi = data.reduce((sum, item) => sum + item.realisasi, 0);
+  const nilaiKuota = summary?.nilaiKuota ?? 0;
+  const nilaiRealisasi = summary?.nilaiRealisasi ?? 0;
   const persenMaterial = nilaiKuota === 0 ? 0 : Math.round((nilaiRealisasi / nilaiKuota) * 100);
-
-  // Periode = bulan tanggal mulai SPK
-  const periodeOptions = Array.from(new Set(data.map((item) => item.tanggalMulai.slice(0, 7)))).sort();
-
-  const filteredData = data.filter((item) => {
-    const q = searchQuery.trim().toLowerCase();
-    const matchesSearch = q === '' ||
-      item.noSpk.toLowerCase().includes(q) ||
-      item.client.toLowerCase().includes(q);
-    const matchesStatus = filterStatus === '' || item.status === filterStatus;
-    const matchesPeriode = filterPeriode === '' || item.tanggalMulai.startsWith(filterPeriode);
-    return matchesSearch && matchesStatus && matchesPeriode;
-  });
 
   const checkedRows = filteredData.filter((item) => selectedIds.has(item.id));
   const allChecked = filteredData.length > 0 && checkedRows.length === filteredData.length;
 
-  // Export & cetak pakai baris yang dicentang; kalau tidak ada yang dicentang, semua baris hasil filter
+  // Export & cetak pakai baris yang dicentang; kalau tidak ada yang dicentang, semua baris di halaman ini
   const rowsToExport = checkedRows.length > 0 ? checkedRows : filteredData;
 
   const toggleAll = () => {
@@ -137,7 +129,7 @@ export default function RekapDokubah() {
           </style>
         </head>
         <body>
-          <h1>Rekapitulasi Dokubah per SPK</h1>
+          <h1>Rekapitulasi Dokubah per SPK</h1>${checkedRows.length === 0 && total > filteredData.length ? `<p>Halaman ini (${filteredData.length} dari ${total} data)</p>` : ''}
           <table>
             <thead>
               <tr><th class="center">No.</th><th>No. SPK</th><th>Klien &amp; Proyek</th><th>Anggaran</th><th>Realisasi</th><th>Sisa Anggaran</th><th>Status</th></tr>
@@ -199,21 +191,12 @@ export default function RekapDokubah() {
           </div>
 
           <div className="flex items-center gap-2">
-            <label htmlFor="rekap-periode" className={labelClass}>Periode</label>
+            <span className={labelClass}>Periode</span>
             <span className="text-gray-800">:</span>
-            <div className="relative w-56">
-              <select
-                id="rekap-periode"
-                value={filterPeriode}
-                onChange={(e) => setFilterPeriode(e.target.value)}
-                className={`${fieldClass} appearance-none cursor-pointer`}
-              >
-                <option value="">Semua Periode</option>
-                {periodeOptions.map((p) => (
-                  <option key={p} value={p}>{formatPeriode(p)}</option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+            <div className="flex items-center gap-2">
+              <input type="date" aria-label="Periode dari" value={filterDari} onChange={(e) => setFilterDari(e.target.value)} className={`${fieldClass} pr-3`} />
+              <span className="text-xs text-gray-500">s/d</span>
+              <input type="date" aria-label="Periode sampai" value={filterSampai} onChange={(e) => setFilterSampai(e.target.value)} className={`${fieldClass} pr-3`} />
             </div>
           </div>
 
@@ -290,7 +273,7 @@ export default function RekapDokubah() {
                   onClick={() => router.push(detailRekapDokubahPath(item.id))}
                   className={`cursor-pointer transition-colors ${selectedIds.has(item.id) ? 'bg-orange-50/60' : 'hover:bg-orange-50/20'}`}
                 >
-                  <td className={cellClass}>{index + 1}</td>
+                  <td className={cellClass}>{(page - 1) * 20 + index + 1}</td>
                   <td className={`${cellClass} font-semibold text-gray-900`}>
                     {/* Link supaya baris tetap bisa dibuka lewat keyboard; klik di sel lain ditangani onClick baris */}
                     <Link href={detailRekapDokubahPath(item.id)} onClick={(e) => e.stopPropagation()} className="hover:underline">
@@ -324,6 +307,7 @@ export default function RekapDokubah() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} pageSize={20} total={total} onPageChange={setPage} />
       </div>
     </div>
   );

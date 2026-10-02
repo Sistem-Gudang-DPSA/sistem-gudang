@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 vi.setConfig({ testTimeout: 30000 });
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { fail, installFakeApi, paged } from '@/test/fake-api';
 import RekapPembelian from './RekapPembelian';
 
@@ -22,18 +22,24 @@ describe('RekapPembelian', () => {
     expect(links[0].getAttribute('href')).toBe('/dashboard/ppic/laporan/rekap-pembelian/permintaan-pembelian/7');
     const q = api.calls('GET /api/v1/approvals')[0].query;
     expect(q.get('type')).toBe('purchase-request');
-    expect(q.get('pageSize')).toBe('100');
+    expect(q.get('pageSize')).toBe('20');
   });
 
-  it('filters by search text and shows empty state', async () => {
-    installFakeApi({ 'GET /api/v1/approvals': paged([row(8, 'approved', 'Beli kayu'), row(9, 'pending', 'Beli paku')]) });
+  it('sends the search text to the server, resets to page 1 and shows the empty state', async () => {
+    const api = installFakeApi({ 'GET /api/v1/approvals': paged([row(8, 'approved', 'Beli kayu')], { total: 45 }) });
     render(<RekapPembelian />);
     await screen.findByText('Beli kayu');
+    fireEvent.click(screen.getByText('2'));
+    await waitFor(() => expect(api.calls('GET /api/v1/approvals').at(-1)!.query.get('page')).toBe('2'));
     fireEvent.change(screen.getByLabelText('Cari pembelian'), { target: { value: 'paku' } });
-    expect(screen.queryByText('Beli kayu')).toBeNull();
-    expect(screen.getByText('Beli paku')).toBeTruthy();
-    fireEvent.change(screen.getByLabelText('Cari pembelian'), { target: { value: 'zzz' } });
-    expect(screen.getByText('Data tidak ditemukan.')).toBeTruthy();
+    await waitFor(() => expect(api.calls('GET /api/v1/approvals').at(-1)!.query.get('search')).toBe('paku'));
+    expect(api.calls('GET /api/v1/approvals').at(-1)!.query.get('page')).toBe('1');
+  });
+
+  it('shows the empty state', async () => {
+    installFakeApi({ 'GET /api/v1/approvals': paged([]) });
+    render(<RekapPembelian />);
+    expect(await screen.findByText('Data tidak ditemukan.')).toBeTruthy();
   });
 
   it('shows error', async () => {

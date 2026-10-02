@@ -11,25 +11,25 @@ const row = (o = {}) => ({
   referenceNo: 'PO-001', supplierDeliveryNo: 'SJ-9', clientName: null, spk: null, notes: null, createdBy: 1, createdAt: '2026-10-01',
   ...o,
 });
-const report = (rows: unknown[], summary = { total: 7, supplier: 4, produksi: 3, klien: 0 }) => ({ rows, total: rows.length, page: 1, pageSize: 100, summary });
+const report = (rows: unknown[], summary = { total: 7, supplier: 4, produksi: 3, klien: 0, qtyTotal: 500, qtySupplier: 300, qtyProduksi: 200, qtyKlien: 0 }, total = rows.length) => ({ rows, total: total, page: 1, pageSize: 20, summary });
 const KEY = 'GET /api/v1/reports/inbound';
 const lastQuery = (api: ReturnType<typeof installFakeApi>) => api.calls(KEY).at(-1)!.query;
 
 describe('LaporanBarangMasuk', () => {
-  it('shows rows and transaction counts from the backend summary', async () => {
+  it('shows rows and qty and transaction counts from the backend summary', async () => {
     installFakeApi({ [KEY]: report([row(), row({ id: 2, source: 'PRODUKSI', supplierName: null, clientName: 'Klien A', referenceNo: 'PR-2', supplierDeliveryNo: null, qtyArrived: 5, statusQc: 'PARTIAL_RETUR' })]) });
     render(<LaporanBarangMasuk />);
     expect(await screen.findByText('PO-001')).toBeTruthy();
     expect(screen.getByText('PT Kayu')).toBeTruthy();
     expect(screen.getByText('Pass (IPM)')).toBeTruthy();
     expect(screen.getByText('Part (Retur)')).toBeTruthy();
-    expect(screen.getByText('15 Qty / 7 Transaksi')).toBeTruthy();
-    expect(screen.getByText('10 Qty (4 Transaksi)')).toBeTruthy();
-    expect(screen.getByText('5 Qty (3 Transaksi)')).toBeTruthy();
+    expect(screen.getByText('500 Qty / 7 Transaksi')).toBeTruthy();
+    expect(screen.getByText('300 Qty (4 Transaksi)')).toBeTruthy();
+    expect(screen.getByText('200 Qty (3 Transaksi)')).toBeTruthy();
   });
 
   it('shows the empty state', async () => {
-    installFakeApi({ [KEY]: report([], { total: 0, supplier: 0, produksi: 0, klien: 0 }) });
+    installFakeApi({ [KEY]: report([], { total: 0, supplier: 0, produksi: 0, klien: 0, qtyTotal: 0, qtySupplier: 0, qtyProduksi: 0, qtyKlien: 0 }) });
     render(<LaporanBarangMasuk />);
     expect(await screen.findByText('Tidak ada data penerimaan barang masuk ditemukan.')).toBeTruthy();
   });
@@ -45,7 +45,8 @@ describe('LaporanBarangMasuk', () => {
     const { container } = render(<LaporanBarangMasuk />);
     await screen.findByText('PO-001');
     expect(lastQuery(api).get('startDate')).toMatch(/^\d{4}-\d{2}-01$/);
-    expect(lastQuery(api).get('pageSize')).toBe('100');
+    expect(lastQuery(api).get('pageSize')).toBe('20');
+    expect(lastQuery(api).get('page')).toBe('1');
     expect(lastQuery(api).get('source')).toBeNull();
 
     const [from, to] = Array.from(container.querySelectorAll('input[type=date]'));
@@ -58,6 +59,17 @@ describe('LaporanBarangMasuk', () => {
     expect(q.get('startDate')).toBe('2026-09-01');
     expect(q.get('endDate')).toBe('2026-09-30');
     expect(q.get('q')).toBe('kayu');
+  });
+
+  it('paginates on the server and resets to page 1 when a filter changes', async () => {
+    const api = installFakeApi({ [KEY]: report([row()], undefined, 45) });
+    const { container } = render(<LaporanBarangMasuk />);
+    await screen.findByText('PO-001');
+    fireEvent.click(screen.getByText('Selanjutnya'));
+    await waitFor(() => expect(lastQuery(api).get('page')).toBe('2'));
+    fireEvent.change(container.querySelector('select')!, { target: { value: 'PRODUKSI' } });
+    await waitFor(() => expect(lastQuery(api).get('source')).toBe('PRODUKSI'));
+    expect(lastQuery(api).get('page')).toBe('1');
   });
 
   it('exports with the current filters', async () => {
@@ -84,6 +96,8 @@ describe('LaporanBarangMasuk', () => {
     expect(html).not.toContain('<script>');
     expect(html).not.toContain('<img onerror');
     expect(html).toContain('&lt;script&gt;');
+    expect(html).toContain('halaman ini');
+    expect(html).toContain('500 Qty');
     expect(win.print).toHaveBeenCalled();
   });
 });

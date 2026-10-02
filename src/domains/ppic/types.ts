@@ -34,6 +34,17 @@ export interface DokubahApiDetail extends DokubahApiRow {
   bahan: DokubahApiMaterial[];
 }
 
+// Computed by the API over every row the filters match, not just the page.
+export interface DokubahSummary {
+  totalDokubah: number;
+  totalApproved: number;
+  overbudgetCount: number;
+  totalKuota: number;
+  totalRealisasi: number;
+  nilaiKuota: number;
+  nilaiRealisasi: number;
+}
+
 export interface DokubahListParams {
   page?: number;
   pageSize?: number;
@@ -108,6 +119,20 @@ export interface MutationListParams {
   endDate?: string;
 }
 
+export interface MutationSummary {
+  totalTransaksi: number;
+  jumlahMasuk: number;
+  jumlahKeluar: number;
+  totalMasuk: number;
+  totalKeluar: number;
+}
+
+export interface SpkInternalSummary {
+  totalBuffer: number;
+  stockUnallocated: number;
+  dialokasikan: number;
+}
+
 export interface StockOpnameSummary {
   totalAudit: number;
   totalItemSelisih: number;
@@ -152,6 +177,7 @@ export interface ApprovalAction {
   cycle: number;
   domainId: number;
   actorId: number;
+  actorName?: string | null;
   action: "approved" | "rejected" | "revision_requested" | string;
   note: string | null;
   createdAt: string;

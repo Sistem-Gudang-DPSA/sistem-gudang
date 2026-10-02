@@ -14,7 +14,7 @@ const trx = (o = {}) => ({
   ],
   ...o,
 });
-const report = (rows: unknown[], summary = { bahanBaku: 11, wip: 22, barangJadi: 33 }) => ({ rows, total: rows.length, page: 1, pageSize: 100, summary });
+const report = (rows: unknown[], summary = { bahanBaku: 11, wip: 22, barangJadi: 33 }, total = rows.length) => ({ rows, total, page: 1, pageSize: 20, summary });
 const KEY = 'GET /api/v1/reports/outbound';
 const lastQuery = (api: ReturnType<typeof installFakeApi>) => api.calls(KEY).at(-1)!.query;
 
@@ -47,7 +47,8 @@ describe('LaporanBarangKeluar', () => {
     const { container } = render(<LaporanBarangKeluar />);
     await screen.findByText('Triplex');
     expect(lastQuery(api).get('startDate')).toMatch(/^\d{4}-\d{2}-01$/);
-    expect(lastQuery(api).get('pageSize')).toBe('100');
+    expect(lastQuery(api).get('pageSize')).toBe('20');
+    expect(lastQuery(api).get('page')).toBe('1');
 
     const [from, to] = Array.from(container.querySelectorAll('input[type=date]'));
     const [gudang, penerima] = Array.from(container.querySelectorAll('select'));
@@ -62,6 +63,17 @@ describe('LaporanBarangKeluar', () => {
     expect(q.get('endDate')).toBe('2026-09-30');
     expect(q.get('q')).toBe('spk-1');
     expect(q.get('warehouseType')).toBe('WIP');
+  });
+
+  it('paginates on the server and resets to page 1 when a filter changes', async () => {
+    const api = installFakeApi({ [KEY]: report([trx()], undefined, 45) });
+    const { container } = render(<LaporanBarangKeluar />);
+    await screen.findByText('Triplex');
+    fireEvent.click(screen.getByText('Selanjutnya'));
+    await waitFor(() => expect(lastQuery(api).get('page')).toBe('2'));
+    fireEvent.change(container.querySelector('select')!, { target: { value: 'WIP' } });
+    await waitFor(() => expect(lastQuery(api).get('warehouseType')).toBe('WIP'));
+    expect(lastQuery(api).get('page')).toBe('1');
   });
 
   it('exports with the current filters', async () => {

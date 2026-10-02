@@ -133,6 +133,7 @@ export default function PermintaanPembelianPPIC({ backPath = rekap_pembelian_pat
                     <th scope="col" className={cellClass}>Tanggal</th>
                     <th scope="col" className={`${cellClass} text-center`}>Putaran</th>
                     <th scope="col" className={`${cellClass} text-center`}>Aksi</th>
+                    <th scope="col" className={cellClass}>Oleh</th>
                     <th scope="col" className={cellClass}>Catatan</th>
                   </tr>
                 </thead>
@@ -142,6 +143,7 @@ export default function PermintaanPembelianPPIC({ backPath = rekap_pembelian_pat
                       <td className={cellClass}>{formatTanggal(r.createdAt.slice(0, 10))}</td>
                       <td className={`${cellClass} text-center`}>{r.cycle}</td>
                       <td className={`${cellClass} text-center font-semibold text-gray-900`}>{AKSI_LABEL[r.action] ?? r.action}</td>
+                      <td className={cellClass}>{r.actorName ?? '-'}</td>
                       <td className={cellClass}>{r.note ?? '-'}</td>
                     </tr>
                   ))}

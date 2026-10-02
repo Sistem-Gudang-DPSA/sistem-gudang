@@ -28,7 +28,6 @@ export default function RekapPermintaan(){
     const [filterStatus, setFilterStatus] = useState<'ALL' | MaterialRequestStatus>('ALL');
     const [startDate, setStartDate] = useState<string>(monthStart());
     const [endDate, setEndDate] = useState<string>(new Date().toISOString().slice(0, 10));
-    const [selected, setSelected] = useState<Set<number>>(new Set());
     const [detail, setDetail] = useState<MaterialRequestDetail | null>(null);
     const [actionError, setActionError] = useState('');
     const [exporting, setExporting] = useState(false);
@@ -43,6 +42,11 @@ export default function RekapPermintaan(){
     const filterKey = JSON.stringify(filters);
     const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
     const page = pageState.key === filterKey ? pageState.page : 1;
+    // Selection belongs to one filters+page view; any change of either drops it.
+    const viewKey = `${filterKey}|${page}`;
+    const [selState, setSelState] = useState<{ key: string; ids: Set<number> }>({ key: viewKey, ids: new Set() });
+    const selected = selState.key === viewKey ? selState.ids : new Set<number>();
+    const setSelected = (ids: Set<number>) => setSelState({ key: viewKey, ids });
     const { data: report, loading, error } = useApiData(
         () => getRequestsReport({ ...filters, page, pageSize: 20 }),
         `${filterKey}|${page}`,
@@ -54,11 +58,11 @@ export default function RekapPermintaan(){
     const anySelected = selected.size > 0;
 
     const toggleRow = (id: number) =>
-        setSelected((prev) => {
-            const next = new Set(prev);
+        setSelected((() => {
+            const next = new Set(selected);
             if (next.has(id)) next.delete(id); else next.add(id);
             return next;
-        });
+        })());
 
     const toggleAll = () => setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.id)));
 

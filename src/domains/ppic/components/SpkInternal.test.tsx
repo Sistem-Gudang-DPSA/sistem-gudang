@@ -10,16 +10,17 @@ const line = (id: number, status: 'BUFFER' | 'LOCKED', totalStock: number, bisa:
   penanggungJawab: 'Budi', targetSelesai: '2026-06-01', catatan: null, sku: `SKU-${id}`, namaBarang: `Barang ${id}`,
   periode: '2026-05', totalQty: totalStock, alokasiSpkKlien: 0, alokasiStokBebas: bisa, totalStock, totalBisaPakai: bisa, status,
 });
+const summary = { totalBuffer: 15, stockUnallocated: 11, dialokasikan: 4 };
 const rows = [line(1, 'BUFFER', 10, 6), line(2, 'LOCKED', 4, 0), line(3, 'BUFFER', 5, 5)];
 
 describe('SpkInternal list', () => {
   it('renders rows, summary and per-status actions', async () => {
-    const api = installFakeApi({ 'GET /api/v1/spk-internal': paged(rows) });
+    const api = installFakeApi({ 'GET /api/v1/spk-internal': paged(rows, { summary }) });
     render(<SpkInternal />);
     expect(await screen.findByText('SPKI-1')).toBeTruthy();
-    expect(api.calls('GET /api/v1/spk-internal')[0].query.get('pageSize')).toBe('100');
+    expect(api.calls('GET /api/v1/spk-internal')[0].query.get('pageSize')).toBe('20');
     expect(screen.getByText('SKU-1 - Barang 1')).toBeTruthy();
-    expect(screen.getByText('15 pcs')).toBeTruthy(); // buffer stock 10+5
+    expect(screen.getByText('15 pcs')).toBeTruthy(); // backend summary
     expect(screen.getByText('11 pcs (Siap Pakai)')).toBeTruthy();
     expect(screen.getByText('4 pcs (Locked)')).toBeTruthy();
     expect(screen.getAllByText('BUFFER', { selector: 'button' })).toHaveLength(2);
@@ -29,7 +30,7 @@ describe('SpkInternal list', () => {
   });
 
   it('empty state', async () => {
-    installFakeApi({ 'GET /api/v1/spk-internal': paged([]) });
+    installFakeApi({ 'GET /api/v1/spk-internal': paged([], { summary: { totalBuffer: 0, stockUnallocated: 0, dialokasikan: 0 } }) });
     render(<SpkInternal />);
     expect(await screen.findByText('Data tidak ditemukan.')).toBeTruthy();
   });
@@ -41,7 +42,7 @@ describe('SpkInternal list', () => {
   });
 
   it('sends search and status filters to the API', async () => {
-    const api = installFakeApi({ 'GET /api/v1/spk-internal': paged(rows) });
+    const api = installFakeApi({ 'GET /api/v1/spk-internal': paged(rows, { summary }) });
     render(<SpkInternal />);
     await screen.findByText('SPKI-1');
     const box = screen.getByLabelText('Cari kode barang') as HTMLInputElement;
@@ -50,5 +51,18 @@ describe('SpkInternal list', () => {
     await waitFor(() => expect(api.calls('GET /api/v1/spk-internal').some((c) => c.query.get('search') === 'SKU-2')).toBe(true));
     fireEvent.change(screen.getByLabelText('Status :'), { target: { value: 'LOCKED' } });
     await waitFor(() => expect(api.calls('GET /api/v1/spk-internal').some((c) => c.query.get('status') === 'LOCKED' && c.query.get('search') === 'SKU-2')).toBe(true));
+  });
+
+  it('paginates on the server and resets to page 1 when a filter changes', async () => {
+    const api = installFakeApi({ 'GET /api/v1/spk-internal': paged(rows, { summary, total: 45 }) });
+    render(<SpkInternal />);
+    await screen.findByText('SPKI-1');
+    fireEvent.click(screen.getByRole('button', { name: '2' }));
+    await waitFor(() => expect(api.calls('GET /api/v1/spk-internal').at(-1)!.query.get('page')).toBe('2'));
+    fireEvent.change(screen.getByLabelText('Status :'), { target: { value: 'LOCKED' } });
+    await waitFor(() => {
+      const q = api.calls('GET /api/v1/spk-internal').at(-1)!.query;
+      expect([q.get('status'), q.get('page')]).toEqual(['LOCKED', '1']);
+    });
   });
 });

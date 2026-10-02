@@ -109,6 +109,29 @@ describe('Users form', () => {
     expect(api.calls('POST /api/v1/superadmin/users')).toHaveLength(0);
   });
 
+  it('rejects a password shorter than 8 characters on create and edit', async () => {
+    const api = setup({ 'PUT /api/v1/superadmin/users/2': { id: 2 } });
+    await openAdd();
+    fireEvent.change(ph('johndoe'), { target: { value: 'budi' } });
+    fireEvent.change(ph('john@example.com'), { target: { value: 'budi@x.id' } });
+    fireEvent.change(ph('Min. 8 karakter'), { target: { value: 'pendek' } });
+    fireEvent.click(roleBtn('ppic'));
+    submitForm();
+    expect(await screen.findByText('Password minimal 8 karakter.')).not.toBeNull();
+    expect(api.calls('POST /api/v1/superadmin/users')).toHaveLength(0);
+  });
+
+  it('rejects a short password when editing but allows blank', async () => {
+    const api = setup({ 'PUT /api/v1/superadmin/users/2': { id: 2 } });
+    await screen.findByText('user2');
+    fireEvent.click(screen.getAllByTitle('Edit user')[1]);
+    await screen.findByRole('heading', { name: 'Edit User' });
+    fireEvent.change(ph('Min. 8 karakter'), { target: { value: 'pendek' } });
+    submitForm();
+    expect(await screen.findByText('Password minimal 8 karakter.')).not.toBeNull();
+    expect(api.calls('PUT /api/v1/superadmin/users/2')).toHaveLength(0);
+  });
+
   it('edit prefills without password, password optional, omitted from PUT when blank', async () => {
     const api = setup({ 'PUT /api/v1/superadmin/users/2': { id: 2 } });
     await screen.findByText('user2');

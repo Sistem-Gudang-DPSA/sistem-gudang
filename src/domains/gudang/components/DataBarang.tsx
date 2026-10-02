@@ -7,6 +7,7 @@ import type { ItemListRow, Location } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
 import type { Supplier } from '@/domains/purchasing/types';
 import { ApiError } from '@/shared/lib/api-client';
+import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
 
 export default function DataBarangGudang() {
@@ -27,12 +28,17 @@ export default function DataBarangGudang() {
   const [stockSaving, setStockSaving] = useState(false);
   const [stockError, setStockError] = useState("");
 
+  const filterKey = JSON.stringify([searchQuery]);
+  const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
+  const page = pageState.key === filterKey ? pageState.page : 1;
+  const setPage = (next: number) => setPageState({ key: filterKey, page: next });
   const { data: loaded, loading, error, reload } = useApiData(
-    () => listItems({ search: searchQuery || undefined }),
-    searchQuery,
+    () => listItems({ page, pageSize: 20, search: searchQuery || undefined }),
+    `${filterKey}|${page}`,
     "Gagal memuat data barang.",
   );
   const dataBarang = loaded?.rows ?? [];
+  const total = loaded?.total ?? 0;
 
   useEffect(() => {
     listLocations().then((res) => setLocations(res.rows)).catch(() => {});
@@ -277,6 +283,8 @@ export default function DataBarangGudang() {
             </tbody>
           </table>
         </div>
+
+        <Pagination page={page} pageSize={20} total={total} onPageChange={setPage} />
       </div>
 
       {/* Modal Tambah Lokasi */}

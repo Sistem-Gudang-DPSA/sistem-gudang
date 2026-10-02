@@ -10,7 +10,6 @@ const m = (id: string, tanggal: string, tipe: 'Masuk' | 'Keluar', qty: number) =
 });
 const rows = [m('in-1', '2026-03-05', 'Masuk', 1000), m('out-2', '2026-04-10', 'Keluar', 250)];
 const summary = { totalAudit: 3, totalItemSelisih: 12, totalAdjustmentNilai: -1500000 };
-const bodyRows = () => screen.getAllByRole('row').slice(1);
 
 const routes = (s: unknown = summary) => ({ 'GET /api/v1/reports/mutations': paged(rows), 'GET /api/v1/reports/stock-opname-summary': s });
 
@@ -35,7 +34,7 @@ describe('RekapStokOpname', () => {
     expect(await screen.findByText('+ 2.000 (Keuntungan)')).toBeTruthy();
   });
 
-  it('selecting a periode sends month and year to the summary and filters rows', async () => {
+  it('selecting a periode sends month and year to the summary', async () => {
     const api = installFakeApi(routes());
     render(<RekapStokOpname />);
     await screen.findByText('SPK-in-1');
@@ -45,8 +44,6 @@ describe('RekapStokOpname', () => {
       expect(last.query.get('month')).toBe('4');
       expect(last.query.get('year')).toBe('2026');
     });
-    expect(bodyRows()).toHaveLength(1);
-    expect(screen.getByText('SPK-out-2')).toBeTruthy();
     expect(screen.getByText('April 2026')).toBeTruthy();
   });
 
@@ -71,21 +68,30 @@ describe('RekapStokOpname', () => {
     expect((screen.getByLabelText('Centang SPK-out-2') as HTMLInputElement).checked).toBe(true);
   });
 
-  it.fails('BUG: a failed summary request is swallowed and shows 0 kali selesai instead of the backend error', async () => {
+  it('shows the backend error when the summary fails', async () => {
     installFakeApi({ 'GET /api/v1/reports/mutations': paged(rows), 'GET /api/v1/reports/stock-opname-summary': fail(500, 'Summary gagal') });
     render(<RekapStokOpname />);
     await screen.findByText('SPK-in-1');
-    expect(await screen.findByText('Summary gagal', {}, { timeout: 500 })).toBeTruthy();
+    expect(await screen.findByText('Summary gagal')).toBeTruthy();
   });
 
-  it.fails('BUG: periode filter on the mutation table is client-side only; month is never sent to /reports/mutations', async () => {
-    const api = installFakeApi(routes());
+  it('periode becomes startDate/endDate on /reports/mutations and resets the page', async () => {
+    const api = installFakeApi({ 'GET /api/v1/reports/mutations': paged(rows, { total: 45 }), 'GET /api/v1/reports/stock-opname-summary': summary });
     render(<RekapStokOpname />);
     await screen.findByText('SPK-in-1');
-    fireEvent.change(screen.getByLabelText('Periode'), { target: { value: '2026-04' } });
+    fireEvent.click(screen.getByRole('button', { name: '2' }));
+    await waitFor(() => expect(api.calls('GET /api/v1/reports/mutations').at(-1)!.query.get('page')).toBe('2'));
+    fireEvent.change(screen.getByLabelText('Periode'), { target: { value: '2026-02' } });
     await waitFor(() => {
-      const last = api.calls('GET /api/v1/reports/mutations').at(-1)!;
-      expect(last.query.get('startDate')).toBe('2026-04-01');
-    }, { timeout: 500 });
+      const q = api.calls('GET /api/v1/reports/mutations').at(-1)!.query;
+      expect([q.get('startDate'), q.get('endDate'), q.get('page'), q.get('pageSize')]).toEqual(['2026-02-01', '2026-02-28', '1', '20']);
+    });
+  });
+
+  it('offers 24 recent months', async () => {
+    installFakeApi(routes());
+    render(<RekapStokOpname />);
+    await screen.findByText('SPK-in-1');
+    expect((screen.getByLabelText('Periode') as HTMLSelectElement).options).toHaveLength(25);
   });
 });
