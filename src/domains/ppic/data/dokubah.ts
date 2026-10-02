@@ -1,3 +1,4 @@
+import type { DokubahRiwayat } from '../types';
 export type StatusDokubah = 'Draft' | 'Pending' | 'Approved' | 'Rejected';
 
 export interface BahanDokubah {
@@ -21,6 +22,7 @@ export interface DokubahItem {
   fileDokubah?: string;
   totalAnggaran: number;
   bahan: BahanDokubah[];
+  riwayat?: DokubahRiwayat[];
 }
 
 export const dokubah_path = '/dashboard/ppic/transaksi/dokubah';

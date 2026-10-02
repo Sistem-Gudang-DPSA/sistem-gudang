@@ -13731,6 +13731,41 @@
                               "keterangan"
                             ]
                           }
+                        },
+                        "riwayat": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "aksi": {
+                                "type": "string",
+                                "enum": [
+                                  "SUBMITTED",
+                                  "APPROVED",
+                                  "REJECTED"
+                                ]
+                              },
+                              "catatan": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "The reason, set for REJECTED"
+                              },
+                              "actorName": {
+                                "type": "string",
+                                "description": "Username of the actor"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "aksi",
+                              "catatan",
+                              "actorName",
+                              "createdAt"
+                            ]
+                          },
+                          "description": "Submit, approve and reject actions, oldest first"
                         }
                       },
                       "required": [
@@ -13746,7 +13781,8 @@
                         "createdBy",
                         "createdAt",
                         "updatedAt",
-                        "bahan"
+                        "bahan",
+                        "riwayat"
                       ]
                     }
                   },
@@ -14026,6 +14062,41 @@
                               "keterangan"
                             ]
                           }
+                        },
+                        "riwayat": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "aksi": {
+                                "type": "string",
+                                "enum": [
+                                  "SUBMITTED",
+                                  "APPROVED",
+                                  "REJECTED"
+                                ]
+                              },
+                              "catatan": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "The reason, set for REJECTED"
+                              },
+                              "actorName": {
+                                "type": "string",
+                                "description": "Username of the actor"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "aksi",
+                              "catatan",
+                              "actorName",
+                              "createdAt"
+                            ]
+                          },
+                          "description": "Submit, approve and reject actions, oldest first"
                         }
                       },
                       "required": [
@@ -14041,7 +14112,8 @@
                         "createdBy",
                         "createdAt",
                         "updatedAt",
-                        "bahan"
+                        "bahan",
+                        "riwayat"
                       ]
                     }
                   },
@@ -14380,6 +14452,41 @@
                               "keterangan"
                             ]
                           }
+                        },
+                        "riwayat": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "aksi": {
+                                "type": "string",
+                                "enum": [
+                                  "SUBMITTED",
+                                  "APPROVED",
+                                  "REJECTED"
+                                ]
+                              },
+                              "catatan": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "The reason, set for REJECTED"
+                              },
+                              "actorName": {
+                                "type": "string",
+                                "description": "Username of the actor"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "aksi",
+                              "catatan",
+                              "actorName",
+                              "createdAt"
+                            ]
+                          },
+                          "description": "Submit, approve and reject actions, oldest first"
                         }
                       },
                       "required": [
@@ -14395,7 +14502,8 @@
                         "createdBy",
                         "createdAt",
                         "updatedAt",
-                        "bahan"
+                        "bahan",
+                        "riwayat"
                       ]
                     }
                   },
@@ -14553,7 +14661,7 @@
           "Dokubah"
         ],
         "summary": "Release a draft",
-        "description": "DRAFT to PENDING, needs at least one material. 409 from any other status.",
+        "description": "DRAFT or REJECTED to PENDING, needs at least one material. A rejected dokubah is fixed with PUT /materials first. 409 from any other status.",
         "security": [
           {
             "bearerAuth": []
@@ -14676,6 +14784,41 @@
                               "keterangan"
                             ]
                           }
+                        },
+                        "riwayat": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "aksi": {
+                                "type": "string",
+                                "enum": [
+                                  "SUBMITTED",
+                                  "APPROVED",
+                                  "REJECTED"
+                                ]
+                              },
+                              "catatan": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "The reason, set for REJECTED"
+                              },
+                              "actorName": {
+                                "type": "string",
+                                "description": "Username of the actor"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "aksi",
+                              "catatan",
+                              "actorName",
+                              "createdAt"
+                            ]
+                          },
+                          "description": "Submit, approve and reject actions, oldest first"
                         }
                       },
                       "required": [
@@ -14691,7 +14834,8 @@
                         "createdBy",
                         "createdAt",
                         "updatedAt",
-                        "bahan"
+                        "bahan",
+                        "riwayat"
                       ]
                     }
                   },
@@ -14972,6 +15116,41 @@
                               "keterangan"
                             ]
                           }
+                        },
+                        "riwayat": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "aksi": {
+                                "type": "string",
+                                "enum": [
+                                  "SUBMITTED",
+                                  "APPROVED",
+                                  "REJECTED"
+                                ]
+                              },
+                              "catatan": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "The reason, set for REJECTED"
+                              },
+                              "actorName": {
+                                "type": "string",
+                                "description": "Username of the actor"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "aksi",
+                              "catatan",
+                              "actorName",
+                              "createdAt"
+                            ]
+                          },
+                          "description": "Submit, approve and reject actions, oldest first"
                         }
                       },
                       "required": [
@@ -14987,7 +15166,8 @@
                         "createdBy",
                         "createdAt",
                         "updatedAt",
-                        "bahan"
+                        "bahan",
+                        "riwayat"
                       ]
                     }
                   },
@@ -15145,7 +15325,7 @@
           "Dokubah"
         ],
         "summary": "Reject a dokubah",
-        "description": "PENDING to REJECTED. 409 from any other status.",
+        "description": "PENDING to REJECTED. The body needs a note with the reason, 400 without it. 409 from any other status.",
         "security": [
           {
             "bearerAuth": []
@@ -15162,6 +15342,25 @@
             "in": "path"
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "note": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "note"
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Dokubah",
@@ -15268,6 +15467,41 @@
                               "keterangan"
                             ]
                           }
+                        },
+                        "riwayat": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "aksi": {
+                                "type": "string",
+                                "enum": [
+                                  "SUBMITTED",
+                                  "APPROVED",
+                                  "REJECTED"
+                                ]
+                              },
+                              "catatan": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "The reason, set for REJECTED"
+                              },
+                              "actorName": {
+                                "type": "string",
+                                "description": "Username of the actor"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "aksi",
+                              "catatan",
+                              "actorName",
+                              "createdAt"
+                            ]
+                          },
+                          "description": "Submit, approve and reject actions, oldest first"
                         }
                       },
                       "required": [
@@ -15283,7 +15517,8 @@
                         "createdBy",
                         "createdAt",
                         "updatedAt",
-                        "bahan"
+                        "bahan",
+                        "riwayat"
                       ]
                     }
                   },

@@ -16,7 +16,7 @@ const rows: Row[] = [
   ['replaceDokubahMaterials', [3, [{ kodeBarang: 'K' }]], 'PUT /api/v1/dokubah/3/materials', {}, { bahan: [{ kodeBarang: 'K' }] }],
   ['submitDokubah', [3], 'POST /api/v1/dokubah/3/submit', {}, undefined],
   ['approveDokubah', [3], 'POST /api/v1/dokubah/3/approve', {}, undefined],
-  ['rejectDokubah', [3], 'POST /api/v1/dokubah/3/reject', {}, undefined],
+  ['rejectDokubah', [3, 'rusak'], 'POST /api/v1/dokubah/3/reject', {}, { note: 'rusak' }],
   ['listSpkInternal', [{ page: 1 }], 'GET /api/v1/spk-internal', { page: '1' }, undefined],
   ['createSpkInternal', [{ x: 1 }], 'POST /api/v1/spk-internal', {}, { x: 1 }],
   ['allocateSpkInternal', [6, 10], 'POST /api/v1/spk-internal/6/allocate', {}, { jumlah: 10 }],
@@ -68,5 +68,14 @@ describe('ppic dokubah mapping', () => {
     const d = await api.getDokubah(1);
     expect(d.status).toBe('Approved');
     expect(d.bahan).toEqual([{ kodeBarang: 'K' }]);
+    expect(d.riwayat).toEqual([]);
+  });
+  it('maps riwayat and the submit/approve/reject responses', async () => {
+    const riwayat = [{ aksi: 'REJECTED', catatan: 'x', actorName: 'A', createdAt: 't' }];
+    const row = { id: 1, status: 'REJECTED', bahan: [], riwayat };
+    installFakeApi({ 'GET /api/v1/dokubah/1': row, 'POST /api/v1/dokubah/1/submit': row, 'POST /api/v1/dokubah/1/approve': row, 'POST /api/v1/dokubah/1/reject': row });
+    for (const d of [await api.getDokubah(1), await api.submitDokubah(1), await api.approveDokubah(1), await api.rejectDokubah(1, 'x')]) {
+      expect(d).toMatchObject({ status: 'Rejected', riwayat });
+    }
   });
 });
