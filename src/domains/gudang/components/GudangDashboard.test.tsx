@@ -17,7 +17,7 @@ const outbound = { ...paged([
 ]), total: 3 };
 
 const routes = () => ({
-  "GET /api/v1/items": { ...paged([]), total: 120 },
+  "GET /api/v1/items": { ...paged([]), total: 120, summary: { totalJenis: 120, totalStock: 4500 } },
   "GET /api/v1/reports/inbound": inbound,
   "GET /api/v1/reports/outbound": outbound,
   "GET /api/v1/reports/requests": { ...paged([]), total: 11 },
@@ -28,6 +28,7 @@ describe("GudangDashboard", () => {
     const api = installFakeApi(routes());
     render(<GudangDashboard />);
     expect(await screen.findByText("120")).toBeTruthy();
+    expect(screen.getByText(/4\.500 unit stok|4,500 unit stok/)).toBeTruthy();
     expect(screen.getByText("Dashboard Gudang")).toBeTruthy();
     expect(await screen.findByText("Paku")).toBeTruthy();
     expect(screen.getByText("7")).toBeTruthy();
