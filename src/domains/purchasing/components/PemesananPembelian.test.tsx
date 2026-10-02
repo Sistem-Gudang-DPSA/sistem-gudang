@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, cleanup, screen, waitFor, fireEvent } from '@testing-library/react';
 import { installFakeApi, paged, fail } from '@/test/fake-api';
 import PemesananPembelian from './PemesananPembelian';
+import { AuthUserProvider } from '@/domains/auth/user-context';
 
 vi.setConfig({ testTimeout: 20000 });
 
@@ -179,5 +180,25 @@ describe('PemesananPembelian submit', () => {
     setup('approved', { 'GET /api/v1/suppliers': fail(500, 'Supplier gagal') });
     await screen.findByText('Pemesanan Pembelian');
     expect(await screen.findByText('Supplier gagal')).not.toBeNull();
+  });
+});
+
+describe('permissions', () => {
+  const user = (permissions: string[], isSuperadmin = false) => ({ id: 1, username: 'u', email: 'u@x.id', roleId: 1, roleName: 'R', isSuperadmin, permissions });
+  const renderAs = (u: ReturnType<typeof user>) => {
+    installFakeApi({ 'GET /api/v1/approvals/7': request('approved'), 'GET /api/v1/suppliers': suppliers });
+    render(<AuthUserProvider user={u}><PemesananPembelian /></AuthUserProvider>);
+  };
+  it('without purchase-order.create shows a message instead of the form', async () => {
+    renderAs(user(['purchase-order.view']));
+    await screen.findByText('Anda tidak memiliki izin untuk membuat PO.');
+    expect(screen.queryByText('Buat')).toBeNull();
+  });
+  it('with permission or superadmin shows the form', async () => {
+    renderAs(user(['purchase-order.create']));
+    await screen.findByText('Pemesanan Pembelian');
+    cleanup();
+    renderAs(user([], true));
+    await screen.findByText('Pemesanan Pembelian');
   });
 });

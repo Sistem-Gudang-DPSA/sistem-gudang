@@ -4,6 +4,7 @@ import { installFakeApi, paged, fail } from '@/test/fake-api';
 import { vi as viTimeout } from 'vitest';
 viTimeout.setConfig({ testTimeout: 30000 });
 import SpkInternal from './SpkInternal';
+import { withUser } from './as-user';
 
 const line = (id: number, status: 'BUFFER' | 'LOCKED', totalStock: number, bisa: number) => ({
   id, spkInternalId: id, noSpk: `SPKI-${id}`, tanggalTerbit: '2026-05-01', tujuanProduksi: 'STOCK', spkKlienInduk: 'SPK-1',
@@ -64,5 +65,27 @@ describe('SpkInternal list', () => {
       const q = api.calls('GET /api/v1/spk-internal').at(-1)!.query;
       expect([q.get('status'), q.get('page')]).toEqual(['LOCKED', '1']);
     });
+  });
+});
+
+
+describe('permissions', () => {
+  it('a view-only user keeps the screen but not the actions', async () => {
+    installFakeApi({ 'GET /api/v1/spk-internal': paged(rows, { summary }) });
+    render(withUser(<SpkInternal />, ['spk-internal.view']));
+    await screen.findByText('SPKI-1');
+    expect(screen.queryByText('Buat SPK Internal')).toBeNull();
+    expect(screen.queryAllByText('DETAIL')).toHaveLength(0);
+  });
+
+  it.each([
+    ['holds the permission', ['spk-internal.create', 'spk-internal.allocate'], false],
+    ['is a superadmin', [], true],
+  ])('a user who %s sees the actions', async (_label, perms, isSuperadmin) => {
+    installFakeApi({ 'GET /api/v1/spk-internal': paged(rows, { summary }) });
+    render(withUser(<SpkInternal />, perms, isSuperadmin));
+    await screen.findByText('SPKI-1');
+    expect(screen.getByText('Buat SPK Internal')).toBeTruthy();
+    expect(screen.getAllByText('DETAIL')).toHaveLength(3);
   });
 });

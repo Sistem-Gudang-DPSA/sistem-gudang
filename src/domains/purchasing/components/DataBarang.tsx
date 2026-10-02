@@ -9,9 +9,14 @@ import type { Supplier } from '@/domains/purchasing/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { digitsOnly, INTEGER_INPUT } from '@/shared/lib/input';
+import { useCan } from '@/domains/auth/user-context';
 import Pagination from '@/shared/components/Pagination';
 
 export default function DataBarangPurchasing() {
+  // PUT /items/:id needs item.update, and changing the price also needs item.set-price.
+  const canUpdateItem = useCan('item.update');
+  const canSetPrice = useCan('item.set-price');
+  const canEditPrice = canUpdateItem && canSetPrice;
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
 
@@ -222,13 +227,13 @@ export default function DataBarangPurchasing() {
 
                   {/* Aksi */}
                   <td className="px-6 py-4 text-center">
-                    <button
+                    {canEditPrice && <button
                       onClick={() => handleEdit(item)}
                       className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-[#FF8A00] hover:bg-orange-600 rounded-lg transition-all shadow-sm w-full max-w-[110px] mx-auto"
                     >
                        <Plus className="w-3.5 h-3.5" />
                        Lengkapi
-                    </button>
+                    </button>}
                   </td>
                 </tr>
               ))}

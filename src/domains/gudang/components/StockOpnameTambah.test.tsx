@@ -1,3 +1,4 @@
+import { AuthUserProvider } from '@/domains/auth/user-context';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { installFakeApi, paged, fail } from '@/test/fake-api';
@@ -130,5 +131,29 @@ describe('StockOpnameTambah', () => {
     installFakeApi({ 'GET /api/v1/items': fail(500, 'Item error') });
     render(<StockOpnameTambah />);
     expect(await screen.findByText('Item error')).not.toBeNull();
+  });
+});
+
+describe('permissions', () => {
+  const user = (permissions: string[], isSuperadmin = false) => ({ id: 1, username: 'u', email: 'u@x.id', roleId: 2, roleName: 'Staff', isSuperadmin, permissions });
+  const open = (u: ReturnType<typeof user>) => {
+    installFakeApi({ 'GET /api/v1/items': paged([]) });
+    render(<AuthUserProvider user={u}><StockOpnameTambah /></AuthUserProvider>);
+  };
+
+  it('shows a no-permission message instead of the form', () => {
+    open(user(['stock-opname.view']));
+    expect(screen.getByText(/Anda tidak punya izin/)).not.toBeNull();
+    expect(screen.queryByText('Simpan')).toBeNull();
+  });
+
+  it('shows the form with stock-opname.create or for a superadmin', () => {
+    open(user(['stock-opname.create']));
+    expect(screen.getByText('Simpan')).not.toBeNull();
+  });
+
+  it('shows the form to a superadmin', () => {
+    open(user([], true));
+    expect(screen.getByText('Simpan')).not.toBeNull();
   });
 });

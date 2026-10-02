@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useCan } from '@/domains/auth/user-context';
+import NoPermission from './NoPermission';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, ChevronDown } from 'lucide-react';
@@ -25,6 +27,7 @@ function Field({ id, label, children }: { id: string; label: string; children: R
 }
 
 export default function AlokasiBarangPPIC() {
+  const canAllocate = useCan('spk-internal.allocate');
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   // ponytail: the API has no GET by id, so the row is picked from the first 100 SPK Internal
@@ -45,6 +48,8 @@ export default function AlokasiBarangPPIC() {
       <h1 className="text-[18px] font-extrabold text-black tracking-wide">Alokasikan Barang</h1>
     </div>
   );
+
+  if (!canAllocate) return <NoPermission action="mengalokasikan barang" />;
 
   if (!spk) {
     return (

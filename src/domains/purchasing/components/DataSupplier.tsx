@@ -7,6 +7,7 @@ import { createSupplier, deleteSupplier, listSuppliers, updateSupplier } from '@
 import type { Pajak, Supplier } from '@/domains/purchasing/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
+import { useCan } from '@/domains/auth/user-context';
 import Pagination from '@/shared/components/Pagination';
 
 const emptyForm: { code: string; name: string; bank: string; npwp: string; phone: string; address: string; pajak: Pajak } = {
@@ -14,6 +15,9 @@ const emptyForm: { code: string; name: string; bank: string; npwp: string; phone
 };
 
 export default function DataSupplierPurchasing() {
+  const canCreate = useCan('supplier.create');
+  const canUpdate = useCan('supplier.update');
+  const canDelete = useCan('supplier.delete');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -106,13 +110,13 @@ export default function DataSupplierPurchasing() {
             </div>
           </div>
 
-          <button
+          {canCreate && <button
             onClick={handleMulaiTambah}
             className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0 w-full lg:w-auto"
           >
             <Plus className="w-4 h-4" />
             <span>Tambah Data</span>
-          </button>
+          </button>}
         </div>
 
         {error && (
@@ -155,12 +159,12 @@ export default function DataSupplierPurchasing() {
                        <Link href={`/dashboard/purchasing/master/data-supplier/${item.id}/detail`} className="px-3 py-1 bg-green-50 text-green-600 font-bold rounded-lg text-xs hover:bg-green-100 transition-all border border-green-100">
                         Detail Barang
                       </Link>
-                      <button onClick={() => handleEdit(item)} className="px-3 py-1 bg-amber-50 text-amber-600 font-bold rounded-lg text-xs hover:bg-amber-100 transition-all border border-amber-100">
+                      {canUpdate && <button onClick={() => handleEdit(item)} className="px-3 py-1 bg-amber-50 text-amber-600 font-bold rounded-lg text-xs hover:bg-amber-100 transition-all border border-amber-100">
                         Edit
-                      </button>
-                      <button onClick={() => handleHapus(item.id)} className="px-3 py-1 bg-red-50 text-red-600 font-bold rounded-lg text-xs hover:bg-red-100 transition-all border border-red-100">
+                      </button>}
+                      {canDelete && <button onClick={() => handleHapus(item.id)} className="px-3 py-1 bg-red-50 text-red-600 font-bold rounded-lg text-xs hover:bg-red-100 transition-all border border-red-100">
                         Hapus
-                      </button>
+                      </button>}
                     </div>
                   </td>
                 </tr>

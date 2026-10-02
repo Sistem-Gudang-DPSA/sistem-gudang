@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useCan } from '@/domains/auth/user-context';
 import Link from 'next/link';
 import { Search, Funnel, Plus, Eye, CircleCheck, CircleX, Clock, FilePen, FileUp, Download } from 'lucide-react';
 import {
@@ -36,6 +37,7 @@ const orangeButtonClass = 'flex items-center justify-center gap-2 px-5 py-2.5 bg
 const filterInputClass = 'border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00]';
 
 export default function DokubahPPIC() {
+  const canCreate = useCan('dokubah.create');
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilter, setShowFilter] = useState(false);
   const [filterStatus, setFilterStatus] = useState<StatusDokubah | ''>('');
@@ -248,10 +250,12 @@ export default function DokubahPPIC() {
                     <Download className="w-4 h-4" />
                     <span className="hidden sm:inline">Print PDF</span>
                 </button>
-                <Link href={buat_dokubah_path} className={orangeButtonClass}>
-                  <Plus className="w-4 h-4" />
-                  <span>Buat Dokubah</span>
-                </Link>
+                {canCreate && (
+                  <Link href={buat_dokubah_path} className={orangeButtonClass}>
+                    <Plus className="w-4 h-4" />
+                    <span>Buat Dokubah</span>
+                  </Link>
+                )}
             </div>
           </div>
         </div>

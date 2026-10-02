@@ -3,6 +3,7 @@ vi.setConfig({ testTimeout: 30000 });
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { fail, installFakeApi, paged, type FakeRequest } from '@/test/fake-api';
 import DaftarPermintaanPembelianPPIC from './DaftarPermintaanPembelian';
+import { withUser } from './as-user';
 
 const row = (id: number, status: string, over: Record<string, unknown> = {}) => ({
   id, type: 'purchase-request', requestedBy: 1, requestedByDomainId: 1, currentStepOrder: 1, cycle: 1, status,
@@ -89,5 +90,25 @@ describe('DaftarPermintaanPembelian', () => {
     const link = screen.getByText('Tambah Data').closest('a');
     expect(link?.getAttribute('href')).toBe('/dashboard/ppic/transaksi/permintaan-pembelian/tambah');
     await within(document.body).findByText('Data tidak ditemukan untuk filter tersebut.');
+  });
+});
+
+
+describe('permissions', () => {
+  it('a view-only user keeps the screen but not the actions', async () => {
+    installFakeApi({ 'GET /api/v1/approvals': paged([row(1, 'pending')]) });
+    render(withUser(<DaftarPermintaanPembelianPPIC />, ['approval.view']));
+    await screen.findByText('Detail');
+    expect(screen.queryByText('Tambah Data')).toBeNull();
+  });
+
+  it.each([
+    ['holds the permission', ['purchase-request.create'], false],
+    ['is a superadmin', [], true],
+  ])('a user who %s sees the actions', async (_label, perms, isSuperadmin) => {
+    installFakeApi({ 'GET /api/v1/approvals': paged([row(1, 'pending')]) });
+    render(withUser(<DaftarPermintaanPembelianPPIC />, perms, isSuperadmin));
+    await screen.findByText('Detail');
+    expect(screen.getByText('Tambah Data')).toBeTruthy();
   });
 });

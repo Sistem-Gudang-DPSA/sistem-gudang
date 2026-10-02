@@ -1,3 +1,4 @@
+import { AuthUserProvider } from '@/domains/auth/user-context';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { installFakeApi, paged, fail } from '@/test/fake-api';
@@ -206,5 +207,39 @@ describe('DataBarang adjust stock', () => {
     expect((screen.getByText('Menyimpan...') as HTMLButtonElement).disabled).toBe(true);
     expect(await screen.findByText('Stok tidak boleh negatif')).not.toBeNull();
     expect(screen.getByText(/SESUAIKAN STOK/)).not.toBeNull();
+  });
+});
+
+const who = (permissions: string[], isSuperadmin = false) => ({ id: 1, username: 'u', email: 'u@x.id', roleId: 2, roleName: 'Staff', isSuperadmin, permissions });
+
+describe('permissions', () => {
+  const open = async (user: ReturnType<typeof who>) => {
+    installFakeApi({ 'GET /api/v1/items': rows, 'GET /api/v1/locations': locations, 'GET /api/v1/suppliers': suppliers });
+    render(<AuthUserProvider user={user}><DataBarang /></AuthUserProvider>);
+    await screen.findByText('Barang 1');
+  };
+
+  it('hides assign-location and stock actions from a view-only user', async () => {
+    await open(who([]));
+    expect(screen.queryByText('Tambah')).toBeNull();
+    expect(screen.queryByTitle('Sesuaikan stok')).toBeNull();
+  });
+
+  it('shows each action only with its own permission', async () => {
+    await open(who(['item.adjust-stock']));
+    expect(screen.queryByText('Tambah')).toBeNull();
+    expect(screen.getAllByTitle('Sesuaikan stok').length).toBe(2);
+  });
+
+  it('shows assign-location with item.assign-location', async () => {
+    await open(who(['item.assign-location']));
+    expect(screen.getByText('Tambah')).not.toBeNull();
+    expect(screen.queryByTitle('Sesuaikan stok')).toBeNull();
+  });
+
+  it('shows everything to a superadmin', async () => {
+    await open(who([], true));
+    expect(screen.getByText('Tambah')).not.toBeNull();
+    expect(screen.getAllByTitle('Sesuaikan stok').length).toBe(2);
   });
 });

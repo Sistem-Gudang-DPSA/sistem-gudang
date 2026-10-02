@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, cleanup, screen, waitFor, fireEvent } from '@testing-library/react';
 import { installFakeApi, paged, fail } from '@/test/fake-api';
 import DataBarang from './DataBarang';
+import { AuthUserProvider } from '@/domains/auth/user-context';
 
 vi.setConfig({ testTimeout: 20000 });
 
@@ -80,5 +81,36 @@ describe('purchasing DataBarang', () => {
     await openEdit(setup({ 'PUT /api/v1/items/1': fail(422, 'Harga tidak valid') }));
     fireEvent.click(screen.getByText('Simpan'));
     expect(await screen.findByText('Harga tidak valid')).not.toBeNull();
+  });
+});
+
+describe('permissions', () => {
+  const user = (permissions: string[], isSuperadmin = false) => ({ id: 1, username: 'u', email: 'u@x.id', roleId: 1, roleName: 'R', isSuperadmin, permissions });
+  const renderAs = (u: ReturnType<typeof user>) => {
+    installFakeApi({
+      'GET /api/v1/items': paged([item(1)]),
+      'GET /api/v1/suppliers': paged([{ id: 7, name: 'PT Kayu' }]),
+      'GET /api/v1/locations': paged([{ id: 3, code: 'A-01' }]),
+    });
+    render(<AuthUserProvider user={u}><DataBarang /></AuthUserProvider>);
+  };
+  it('view-only user sees the list but no Lengkapi', async () => {
+    renderAs(user(['item.view']));
+    await screen.findByText('Triplex 1');
+    expect(screen.queryByText('Lengkapi')).toBeNull();
+  });
+  it('needs both item.update and item.set-price', async () => {
+    renderAs(user(['item.update']));
+    await screen.findByText('Triplex 1');
+    expect(screen.queryByText('Lengkapi')).toBeNull();
+    cleanup();
+    renderAs(user(['item.update', 'item.set-price']));
+    await screen.findByText('Triplex 1');
+    expect(screen.getByText('Lengkapi')).not.toBeNull();
+  });
+  it('superadmin sees it', async () => {
+    renderAs(user([], true));
+    await screen.findByText('Triplex 1');
+    expect(screen.getByText('Lengkapi')).not.toBeNull();
   });
 });

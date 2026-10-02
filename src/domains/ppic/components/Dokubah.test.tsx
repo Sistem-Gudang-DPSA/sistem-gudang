@@ -4,6 +4,7 @@ import { installFakeApi, paged, fail } from '@/test/fake-api';
 import { vi as viTimeout } from 'vitest';
 viTimeout.setConfig({ testTimeout: 30000 });
 import Dokubah from './Dokubah';
+import { withUser } from './as-user';
 
 const row = (id: number, status: string, over: Record<string, unknown> = {}) => ({
   id, noSpk: `SPK-${id}`, client: `Client ${id}`, tanggalMulai: `2026-0${id}-10`, tanggalSelesai: `2026-0${id}-20`,
@@ -122,5 +123,25 @@ describe('Dokubah print', () => {
     await waitFor(() => expect(printed).toBe(true));
     expect(written).toContain('&lt;b&gt;X&lt;/b&gt;');
     expect(written).not.toContain('<b>X</b>');
+  });
+});
+
+
+describe('permissions', () => {
+  it('a view-only user keeps the screen but not the actions', async () => {
+    installFakeApi({ 'GET /api/v1/dokubah': paged(rows) });
+    render(withUser(<Dokubah />, ['dokubah.view']));
+    await screen.findByText('SPK-1');
+    expect(screen.queryByText('Buat Dokubah')).toBeNull();
+  });
+
+  it.each([
+    ['holds the permission', ['dokubah.create'], false],
+    ['is a superadmin', [], true],
+  ])('a user who %s sees the actions', async (_label, perms, isSuperadmin) => {
+    installFakeApi({ 'GET /api/v1/dokubah': paged(rows) });
+    render(withUser(<Dokubah />, perms, isSuperadmin));
+    await screen.findByText('SPK-1');
+    expect(screen.getByText('Buat Dokubah')).toBeTruthy();
   });
 });

@@ -11,6 +11,7 @@ import { createPurchaseOrder, listSuppliers } from '@/domains/purchasing/api';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 import { lihatPermintaanPath, PEMESAN, rekap_pembelian_path } from '@/domains/purchasing/data/pembelian';
 import type { PurchaseOrder, Supplier } from '@/domains/purchasing/types';
+import { useCan } from '@/domains/auth/user-context';
 import { ApiError } from '@/shared/lib/api-client';
 
 type BarisHarga = { kodeBarang: string; harga: string; diskon: string };
@@ -36,6 +37,7 @@ const toNumber = (value: string) => {
 
 export default function PemesananPembelianPurchasing() {
   const { id } = useParams<{ id: string }>();
+  const canCreate = useCan('purchase-order.create');
   const { data: permintaan, loading, error } = useApiData(() => fetchPermintaan(id), id, 'Gagal memuat permintaan pembelian.');
 
   if (loading || error) {
@@ -44,6 +46,10 @@ export default function PemesananPembelianPurchasing() {
 
   if (permintaan && permintaan.statusApi !== 'approved') {
     return <div className="py-10 text-center text-sm text-gray-500">PO baru bisa dibuat setelah permintaan pembelian disetujui.</div>;
+  }
+
+  if (!canCreate) {
+    return <div className="py-10 text-center text-sm text-gray-500">Anda tidak memiliki izin untuk membuat PO.</div>;
   }
 
   // Formnya baru dibuat setelah permintaan siap, supaya baris harga awal sesuai jumlah barang.

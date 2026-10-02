@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useCan } from '@/domains/auth/user-context';
+import NoPermission from './NoPermission';
 import { ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createPurchaseRequest, resubmitApproval } from '@/domains/ppic/api';
@@ -14,6 +16,7 @@ const emptyRow = { namaBarang: "", qty: "", satuan: "", proyek: "", noSpk: "" };
 // Dengan `permintaan`, form dipakai untuk memperbaiki permintaan yang diminta revisi lalu mengirim ulang.
 export default function TambahPermintaanPembelianPPIC({ permintaan }: { permintaan?: PermintaanPembelian }) {
   const router = useRouter();
+  const canCreate = useCan("purchase-request.create");
 
   const [header, setHeader] = useState({
     bagian: permintaan?.bagian ?? "",
@@ -63,6 +66,8 @@ export default function TambahPermintaanPembelianPPIC({ permintaan }: { perminta
       setSaving(false);
     }
   };
+
+  if (!canCreate) return <NoPermission action="mengajukan permintaan pembelian" />;
 
   return (
     <div className="flex flex-col min-h-screen p-6">

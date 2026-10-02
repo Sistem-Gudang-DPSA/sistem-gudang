@@ -4,6 +4,7 @@ import { installFakeApi, fail } from '@/test/fake-api';
 import { vi as viTimeout } from 'vitest';
 viTimeout.setConfig({ testTimeout: 30000 });
 import EditMaterial from './EditMaterial';
+import { withUser } from './as-user';
 
 const replace = vi.fn();
 vi.mock('next/navigation', () => ({
@@ -112,5 +113,26 @@ describe('EditMaterial', () => {
   it('Batal links back to the view page', async () => {
     await load();
     expect(screen.getByText('Batal').closest('a')?.getAttribute('href')).toBe('/dashboard/ppic/transaksi/dokubah/view-dokubah/7');
+  });
+});
+
+
+describe('permissions', () => {
+  it('a view-only user keeps the screen but not the actions', async () => {
+    installFakeApi({ 'GET /api/v1/dokubah/7': detail });
+    render(withUser(<EditMaterial />, ['dokubah.view']));
+    await screen.findByText(/Anda tidak punya izin|Triplex/);
+    expect(screen.getByText(/Anda tidak punya izin/)).toBeTruthy();
+    expect(screen.queryByText('Simpan')).toBeNull();
+  });
+
+  it.each([
+    ['holds the permission', ['dokubah.update'], false],
+    ['is a superadmin', [], true],
+  ])('a user who %s sees the actions', async (_label, perms, isSuperadmin) => {
+    installFakeApi({ 'GET /api/v1/dokubah/7': detail });
+    render(withUser(<EditMaterial />, perms, isSuperadmin));
+    await screen.findByText(/Anda tidak punya izin|Triplex/);
+    expect(screen.getByText('Simpan')).toBeTruthy();
   });
 });

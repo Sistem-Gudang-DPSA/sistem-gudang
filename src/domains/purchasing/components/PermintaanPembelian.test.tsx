@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, cleanup, screen, waitFor, fireEvent } from '@testing-library/react';
 import { installFakeApi, fail } from '@/test/fake-api';
 import PermintaanPembelian from './PermintaanPembelian';
+import { AuthUserProvider } from '@/domains/auth/user-context';
 
 vi.setConfig({ testTimeout: 20000 });
 
@@ -108,5 +109,35 @@ describe('purchasing PermintaanPembelian', () => {
     fireEvent.change(screen.getByLabelText('Catatan penolakan'), { target: { value: 'x' } });
     fireEvent.click(btn('Kirim'));
     expect(await screen.findByText('Sudah diproses')).not.toBeNull();
+  });
+});
+
+describe('permissions', () => {
+  const user = (permissions: string[], isSuperadmin = false) => ({ id: 1, username: 'u', email: 'u@x.id', roleId: 1, roleName: 'R', isSuperadmin, permissions });
+  const renderAs = (status: string, u: ReturnType<typeof user>) => {
+    installFakeApi({ 'GET /api/v1/approvals/7': detail(status) });
+    render(<AuthUserProvider user={u}><PermintaanPembelian /></AuthUserProvider>);
+  };
+  it('view-only user sees the request but no decision buttons', async () => {
+    renderAs('pending', user(['purchase-request.view']));
+    await screen.findByText('Triplex');
+    for (const t of ['Setuju', 'Tolak', 'Revisi']) expect(screen.queryByText(t)).toBeNull();
+  });
+  it('approver sees decision buttons', async () => {
+    renderAs('pending', user(['purchase-request.approve']));
+    await screen.findByText('Setuju');
+    expect(screen.getByText('Tolak')).not.toBeNull();
+  });
+  it('Buat PO needs purchase-order.create', async () => {
+    renderAs('approved', user(['purchase-request.approve']));
+    await screen.findByText('Triplex');
+    expect(screen.queryByText('Buat PO')).toBeNull();
+    cleanup();
+    renderAs('approved', user(['purchase-order.create']));
+    await screen.findByText('Buat PO');
+  });
+  it('superadmin sees all', async () => {
+    renderAs('pending', user([], true));
+    await screen.findByText('Setuju');
   });
 });

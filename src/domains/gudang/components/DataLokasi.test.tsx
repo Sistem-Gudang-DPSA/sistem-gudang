@@ -1,3 +1,4 @@
+import { AuthUserProvider } from '@/domains/auth/user-context';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { installFakeApi, paged, fail } from '@/test/fake-api';
@@ -98,5 +99,30 @@ describe('DataLokasi', () => {
     fireEvent.click(screen.getByText('TAMBAH DATA LOKASI').parentElement!.querySelector('button')!);
     expect(screen.queryByText('TAMBAH DATA LOKASI')).toBeNull();
     expect(screen.queryByText('Lengkapi nama rak dan nomer rak.')).toBeNull();
+  });
+});
+
+const who = (permissions: string[], isSuperadmin = false) => ({ id: 1, username: 'u', email: 'u@x.id', roleId: 2, roleName: 'Staff', isSuperadmin, permissions });
+
+describe('permissions', () => {
+  const open = async (user: ReturnType<typeof who>) => {
+    installFakeApi({ 'GET /api/v1/locations': locs });
+    render(<AuthUserProvider user={user}><DataLokasi /></AuthUserProvider>);
+    await screen.findAllByText('A01');
+  };
+
+  it('hides mutation buttons from a view-only user but keeps the list', async () => {
+    await open(who([]));
+    expect(screen.queryByText('Tambah Data')).toBeNull();
+  });
+
+  it('shows them to a user with the permission', async () => {
+    await open(who(['location.create']));
+    expect(screen.getByText('Tambah Data')).not.toBeNull();
+  });
+
+  it('shows them to a superadmin', async () => {
+    await open(who([], true));
+    expect(screen.getByText('Tambah Data')).not.toBeNull();
   });
 });

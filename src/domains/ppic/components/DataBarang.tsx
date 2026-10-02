@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
+import { useCan } from '@/domains/auth/user-context';
 import { Search, Plus, Download, Edit2, Trash2, Filter, MoreHorizontal } from 'lucide-react';
 import { listItems, createItem, deleteItem, listLocations, updateItem } from '@/domains/inventory/api';
 import type { ItemListRow, Location } from '@/domains/inventory/types';
@@ -14,6 +15,9 @@ import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 const emptyForm = { name: '', unit: '', category: '', price: '', supplierId: '' };
 
 export default function DataBarangPPIC() {
+  const canCreate = useCan("item.create");
+  const canUpdate = useCan("item.update");
+  const canDelete = useCan("item.delete");
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [actionError, setActionError] = useState("");
@@ -145,13 +149,15 @@ export default function DataBarangPPIC() {
           <p className="text-gray-500 text-sm">Kelola master data barang, material, dan stok inventaris PPIC.</p>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={handleMulaiTambah}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:shadow-purple-500/30 hover:-translate-y-0.5 transition-all font-medium text-sm"
-          >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Tambah Data</span>
-          </button>
+          {canCreate && (
+            <button
+              onClick={handleMulaiTambah}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:shadow-purple-500/30 hover:-translate-y-0.5 transition-all font-medium text-sm"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Tambah Data</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -271,12 +277,16 @@ export default function DataBarangPPIC() {
                   {/* Aksi */}
                   <td className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => handleEdit(item)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit Data">
-                         <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => handleHapus(item.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Hapus Data">
-                         <Trash2 className="w-4 h-4" />
-                      </button>
+                      {canUpdate && (
+                        <button onClick={() => handleEdit(item)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit Data">
+                           <Edit2 className="w-4 h-4" />
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button onClick={() => handleHapus(item.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Hapus Data">
+                           <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                     {/* Fallback for mobile/non-hover */}
                     <button className="md:hidden p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg">

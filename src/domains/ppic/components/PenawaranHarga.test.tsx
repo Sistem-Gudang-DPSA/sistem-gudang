@@ -3,6 +3,7 @@ vi.setConfig({ testTimeout: 30000 });
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { fail, installFakeApi, paged } from '@/test/fake-api';
 import PenawaranHargaPPIC from './PenawaranHarga';
+import { withUser } from './as-user';
 
 const push = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push, back: vi.fn(), replace: vi.fn() }) }));
@@ -102,5 +103,25 @@ describe('PenawaranHarga list', () => {
       fireEvent.keyDown(document, { key: 'Escape' });
       expect(screen.queryByRole('dialog')).toBeNull();
     });
+  });
+});
+
+
+describe('permissions', () => {
+  it('a view-only user keeps the screen but not the actions', async () => {
+    installFakeApi({ 'GET /api/v1/penawaran-harga': paged(rows) });
+    render(withUser(<PenawaranHargaPPIC />, ['penawaran-harga.view']));
+    await screen.findByText('SPH-001');
+    expect(screen.queryByText('Tambah Data')).toBeNull();
+  });
+
+  it.each([
+    ['holds the permission', ['penawaran-harga.create'], false],
+    ['is a superadmin', [], true],
+  ])('a user who %s sees the actions', async (_label, perms, isSuperadmin) => {
+    installFakeApi({ 'GET /api/v1/penawaran-harga': paged(rows) });
+    render(withUser(<PenawaranHargaPPIC />, perms, isSuperadmin));
+    await screen.findByText('SPH-001');
+    expect(screen.getByText('Tambah Data')).toBeTruthy();
   });
 });

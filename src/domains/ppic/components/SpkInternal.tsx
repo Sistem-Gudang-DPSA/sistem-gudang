@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useCan } from '@/domains/auth/user-context';
 import Link from 'next/link';
 import { Search, ChevronDown, Plus } from 'lucide-react';
 import { alokasiBarangPath, buat_spk_internal_path, type StatusBarang } from '@/domains/ppic/data/spk-internal';
@@ -19,6 +20,8 @@ const statusButtonClass: Record<StatusBarang, string> = {
 };
 
 export default function SpkInternalMutasiStokPPIC() {
+  const canCreate = useCan('spk-internal.create');
+  const canAllocate = useCan('spk-internal.allocate');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'' | StatusBarang>('');
 
@@ -95,10 +98,12 @@ export default function SpkInternalMutasiStokPPIC() {
             </div>
           </div>
 
-          <Link href={buat_spk_internal_path} className={orangeButtonClass}>
-                <Plus className="w-4 h-4" />
-                <span>Buat SPK Internal</span>
-              </Link>
+          {canCreate && (
+            <Link href={buat_spk_internal_path} className={orangeButtonClass}>
+              <Plus className="w-4 h-4" />
+              <span>Buat SPK Internal</span>
+            </Link>
+          )}
         </div>
 
         {/* Tabel barang */}
@@ -130,13 +135,17 @@ export default function SpkInternalMutasiStokPPIC() {
                       <button type="button" className={`${actionButtonClass} ${statusButtonClass[item.status]}`}>
                         {item.status}
                       </button>
-                      <span className="text-gray-400">/</span>
-                      <Link
-                        href={alokasiBarangPath(item.id)}
-                        className={`${actionButtonClass} border-[#FF8A00] bg-[#FF8A00] text-white hover:bg-orange-600`}
-                      >
-                        DETAIL
-                      </Link>
+                      {canAllocate && (
+                        <>
+                          <span className="text-gray-400">/</span>
+                          <Link
+                            href={alokasiBarangPath(item.id)}
+                            className={`${actionButtonClass} border-[#FF8A00] bg-[#FF8A00] text-white hover:bg-orange-600`}
+                          >
+                            DETAIL
+                          </Link>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>

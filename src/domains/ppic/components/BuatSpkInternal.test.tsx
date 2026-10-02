@@ -4,6 +4,7 @@ import { installFakeApi, paged, fail } from '@/test/fake-api';
 import { vi as viTimeout } from 'vitest';
 viTimeout.setConfig({ testTimeout: 30000 });
 import BuatSpkInternal from './BuatSpkInternal';
+import { withUser } from './as-user';
 
 const replace = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ replace, push: vi.fn(), back: vi.fn() }) }));
@@ -180,6 +181,27 @@ describe('BuatSpkInternal', () => {
   it('has no Simpan Draft button (API has no draft status)', async () => {
     await renderForm();
     expect(screen.queryByText('Simpan Draft')).toBeNull();
+    expect(screen.getByText('Simpan')).toBeTruthy();
+  });
+});
+
+
+describe('permissions', () => {
+  it('a view-only user keeps the screen but not the actions', async () => {
+    installFakeApi({ 'GET /api/v1/tracking/spk': [{ noSpk: 'SPK-001', client: 'PT Maju' }], 'GET /api/v1/tracking/pic': [{ id: 1, nama: 'Budi' }], 'GET /api/v1/items': paged(items) });
+    render(withUser(<BuatSpkInternal />, ['spk-internal.view']));
+    await screen.findByText(/Anda tidak punya izin|Budi/);
+    expect(screen.getByText(/Anda tidak punya izin/)).toBeTruthy();
+    expect(screen.queryByText('Simpan')).toBeNull();
+  });
+
+  it.each([
+    ['holds the permission', ['spk-internal.create'], false],
+    ['is a superadmin', [], true],
+  ])('a user who %s sees the actions', async (_label, perms, isSuperadmin) => {
+    installFakeApi({ 'GET /api/v1/tracking/spk': [{ noSpk: 'SPK-001', client: 'PT Maju' }], 'GET /api/v1/tracking/pic': [{ id: 1, nama: 'Budi' }], 'GET /api/v1/items': paged(items) });
+    render(withUser(<BuatSpkInternal />, perms, isSuperadmin));
+    await screen.findByText(/Anda tidak punya izin|Budi/);
     expect(screen.getByText('Simpan')).toBeTruthy();
   });
 });

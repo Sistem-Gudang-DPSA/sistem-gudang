@@ -1,5 +1,6 @@
 "use client";
 
+import { useCan } from '@/domains/auth/user-context';
 import React, { useState } from 'react';
 import { Search, Calendar, Plus, Eye } from 'lucide-react';
 import Link from 'next/link';
@@ -14,6 +15,7 @@ const periodeLabel = (month: number, year: number) => `Stok Opname ${BULAN[month
 const rupiah = (n: number) => n.toLocaleString('id-ID');
 
 export default function StockOpnameMasterGudang() {
+  const canCreate = useCan('stock-opname.create');
   const [searchQuery, setSearchQuery] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
   const [filterYear, setFilterYear] = useState("");
@@ -120,12 +122,12 @@ export default function StockOpnameMasterGudang() {
             </div>
           </div>
 
-          <Link href="/dashboard/gudang/transaksi/stock-opname/tambah" className="w-full lg:w-auto">
+          {canCreate && <Link href="/dashboard/gudang/transaksi/stock-opname/tambah" className="w-full lg:w-auto">
             <button className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0 w-full">
               <Plus className="w-4 h-4" />
               <span>Tambah Data</span>
             </button>
-          </Link>
+          </Link>}
         </div>
 
         {detailError && <p className="px-6 pt-3 text-sm text-red-500">{detailError}</p>}

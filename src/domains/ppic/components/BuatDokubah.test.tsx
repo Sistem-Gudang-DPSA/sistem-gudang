@@ -4,6 +4,7 @@ import { installFakeApi, fail } from '@/test/fake-api';
 import { vi as viTimeout } from 'vitest';
 viTimeout.setConfig({ testTimeout: 30000 });
 import BuatDokubah from './BuatDokubah';
+import { withUser } from './as-user';
 
 const replace = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ replace, push: vi.fn(), back: vi.fn() }) }));
@@ -167,5 +168,26 @@ describe('BuatDokubah', () => {
     fillRow(1, 'B', 'N', '1500', 'kg');
     expect(screen.getAllByText('1.500 kg').length).toBe(1);
     expect(screen.getAllByText('0 kg').length).toBe(1);
+  });
+});
+
+
+describe('permissions', () => {
+  it('a view-only user keeps the screen but not the actions', async () => {
+    installFakeApi({ 'GET /api/v1/tracking/spk': spk });
+    render(withUser(<BuatDokubah />, ['dokubah.view']));
+    await screen.findByText(/Anda tidak punya izin|SPK-001/);
+    expect(screen.getByText(/Anda tidak punya izin/)).toBeTruthy();
+    expect(screen.queryByText('Simpan Draft')).toBeNull();
+  });
+
+  it.each([
+    ['holds the permission', ['dokubah.create'], false],
+    ['is a superadmin', [], true],
+  ])('a user who %s sees the actions', async (_label, perms, isSuperadmin) => {
+    installFakeApi({ 'GET /api/v1/tracking/spk': spk });
+    render(withUser(<BuatDokubah />, perms, isSuperadmin));
+    await screen.findByText(/Anda tidak punya izin|SPK-001/);
+    expect(screen.getByText('Simpan Draft')).toBeTruthy();
   });
 });

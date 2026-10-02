@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
+import { useCan } from '@/domains/auth/user-context';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Search, Plus } from 'lucide-react';
@@ -21,6 +22,7 @@ const statusClass: Record<StatusPenawaran, string> = {
 };
 
 export default function PenawaranHargaPPIC() {
+  const canCreate = useCan('penawaran-harga.create');
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const filterKey = searchQuery.trim();
@@ -101,14 +103,16 @@ export default function PenawaranHargaPPIC() {
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-800 pointer-events-none" />
           </div>
 
-          <button
-            type="button"
-            onClick={bukaModal}
-            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Tambah Data</span>
-          </button>
+          {canCreate && (
+            <button
+              type="button"
+              onClick={bukaModal}
+              className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Tambah Data</span>
+            </button>
+          )}
         </div>
 
         {/* Tabel */}

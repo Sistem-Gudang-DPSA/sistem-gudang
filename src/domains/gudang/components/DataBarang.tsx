@@ -1,5 +1,6 @@
 "use client";
 
+import { useCan } from '@/domains/auth/user-context';
 import React, { useEffect, useState } from 'react';
 import { Search, Plus, Download, Filter, PackageSearch } from 'lucide-react';
 import { adjustItemStock, assignItemLocation, listItems, listLocations, suggestItemCode } from '@/domains/inventory/api';
@@ -11,6 +12,8 @@ import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
 
 export default function DataBarangGudang() {
+  const canAssign = useCan('item.assign-location');
+  const canAdjust = useCan('item.adjust-stock');
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeItem, setActiveItem] = useState<ItemListRow | null>(null);
@@ -259,7 +262,7 @@ export default function DataBarangGudang() {
                   {/* Aksi */}
                   <td className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center gap-2">
-                      {item.locationId === null ? (
+                      {item.locationId === null && canAssign ? (
                         <button
                           onClick={() => openAssignModal(item)}
                           className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] text-xs font-bold rounded-lg hover:bg-[#FF8A00]/20 transition-all duration-200 opacity-90 group-hover:opacity-100"
@@ -268,14 +271,14 @@ export default function DataBarangGudang() {
                           Tambah
                         </button>
                       ) : null}
-                      <button
+                      {canAdjust && <button
                         onClick={() => openStockModal(item)}
                         className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-100 transition-all duration-200 opacity-90 group-hover:opacity-100"
                         title="Sesuaikan stok"
                       >
                         <PackageSearch className="w-3.5 h-3.5" strokeWidth={2.5} />
                         Stok
-                      </button>
+                      </button>}
                     </div>
                   </td>
                 </tr>
