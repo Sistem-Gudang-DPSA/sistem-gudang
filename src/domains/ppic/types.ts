@@ -167,3 +167,69 @@ export interface ApprovalListParams {
   startDate?: string;
   endDate?: string;
 }
+
+export type PenawaranApiStatus = "DRAFT" | "PUBLISH";
+
+export interface PenawaranRow {
+  id: number;
+  noOrder: string;
+  namaClient: string;
+  namaProyek: string;
+  status: PenawaranApiStatus;
+  tanggal: string;
+  grandTotal: number;
+}
+
+export interface PenawaranBahanApi {
+  id: number;
+  namaBahan: string;
+  satuan: string;
+  panjang: number;
+  lebar: number;
+  tinggi: number;
+  jumlahSatuan: number;
+  jumlahOrder: number;
+  hargaSatuan: number;
+  keterangan: string;
+  total: number;
+}
+
+export interface PenawaranDetail extends PenawaranRow {
+  pekerjaan: string;
+  ruangan: string;
+  ukuran: string;
+  jumlah: string;
+  tglMulaiProduksi: string | null;
+  tglSelesaiProduksi: string | null;
+  kategori: { kategori: string; subtotal: number; bahan: PenawaranBahanApi[] }[];
+}
+
+export interface PenawaranHeaderInput {
+  namaClient: string;
+  namaProyek: string;
+  tanggal?: string;
+  pekerjaan?: string;
+  ruangan?: string;
+  ukuran?: string;
+  jumlah?: string;
+  tglMulaiProduksi?: string | null;
+  tglSelesaiProduksi?: string | null;
+}
+
+export interface PenawaranBahanInput {
+  kategori: string;
+  namaBahan: string;
+  satuan?: string;
+  panjang?: number;
+  lebar?: number;
+  tinggi?: number;
+  jumlahSatuan?: number;
+  jumlahOrder?: number;
+  hargaSatuan?: number;
+  keterangan?: string;
+}
+
+export interface SavePenawaranInput extends PenawaranHeaderInput {
+  bahan: PenawaranBahanInput[];
+}
+
