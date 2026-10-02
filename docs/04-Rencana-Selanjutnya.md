@@ -2,71 +2,112 @@
 
 ## Ringkasan
 
-Dokumen ini mencatat urutan pekerjaan yang belum digarap, supaya
-lanjutannya tidak dimulai dari nol menyusun ulang prioritas.
+Dokumen ini mencatat status pekerjaan dan urutan yang belum digarap, supaya
+lanjutannya tidak dimulai dari nol menyusun ulang prioritas. Status
+terakhir diperbarui pada 2 Oktober 2026.
 
 ## Status Saat Ini
 
 Selesai dan tersambung ke API asli:
 
 - Auth: login, refresh, logout (`01-Integrasi-Auth.md`).
-- Superadmin: list role, kelola user penuh, yaitu list, tambah, edit, dan
+- Superadmin: list role dan kelola user penuh, yaitu list, tambah, edit, dan
   hapus.
 - Item, Location, dan Supplier (`02-Integrasi-Inventory-Item-Lokasi.md`,
   `03-Integrasi-Data-Supplier.md`).
-- Divisi Gudang: barang masuk, barang keluar, stock opname, laporan barang masuk, laporan barang keluar, dan rekap
-  permintaan (`06-Integrasi-Modul-Gudang.md`).
+- Divisi Gudang: barang masuk, barang keluar, stock opname, laporan barang
+  masuk, laporan barang keluar, dan rekap permintaan
+  (`06-Integrasi-Modul-Gudang.md`).
 - Tampilan Gudang dari Cal, Rekap Stok Opname dan Rekap Dokubah di menu
   Laporan Gudang, serta Detail Rekap Permintaan dengan sisa kuota dari
   Dokubah (`08-Tampilan-Gudang-dan-Detail-Rekap-Permintaan.md`).
 - PPIC: Dokubah, SPK Internal, Rekap Dokubah, Rekap Mutasi Barang, dan
   Rekap Stok Opname PPIC, termasuk pilihan SPK dan Penanggung Jawab dari
   tracking (`07-Integrasi-PPIC-Dokubah-dan-SPK-Internal.md`).
-- Permintaan Pembelian di PPIC dan Rekap Pembelian PPIC serta Purchasing
-  (`09-Permintaan-Pembelian-PPIC-dan-Rekap-Pembelian.md`).
+- Alur pembelian: PPIC membuat Permintaan Pembelian, Purchasing menyetujui,
+  menolak, atau meminta revisi, PPIC mengirim ulang setelah revisi, dan
+  riwayat persetujuan tampil di detail
+  (`09-Permintaan-Pembelian-PPIC-dan-Rekap-Pembelian.md`). Workflow
+  backend dua langkah, yaitu PPIC lalu Purchasing.
+- Perapian lint dan paginasi sungguhan untuk daftar utama
+  (`10-Perapian-Lint-dan-Paginasi.md`) serta batasan input angka dan
+  teks di form utama (`11-Batasan-Input-Form.md`).
+- Buat PO ke endpoint PO dengan nomor dan total dari backend, grid harga
+  bulanan per supplier, dan field Pajak Vendor
+  (`12-Pemesanan-Pembelian-dan-Histori-Harga-Supplier.md`). Rumus pajak
+  mengikuti rancangan Imel.
+- Penawaran Harga dan Estimasi Penawaran Biaya buatan Imel, dengan client
+  dan projek terpisah serta Publish yang mengunci
+  (`13-Penawaran-Harga-SPH.md`).
+- Realisasi Dokubah di backend sekarang dihitung dari barang keluar, hanya
+  untuk Dokubah yang sudah disetujui.
 
-Belum disentuh atau belum selesai:
+## Posisi Branch
 
-- Alur approval. Endpoint `/approvals` sudah ada di `docs/api-1.json`
-  untuk approve, reject, minta revisi, dan resubmit, dan Dokubah punya
-  endpoint `submit`, `approve`, dan `reject` sendiri. Belum ada layar
-  untuk keduanya, dan halaman Approval PPIC masih kosong.
-- Penawaran harga PPIC dan histori harga bulanan per supplier di
-  Purchasing. Layar Penawaran Harga PPIC masih memakai data contoh,
-  tombolnya belum berfungsi, dan backend belum punya endpoint maupun
-  rancangan skema.
-- Tampilan semua halaman belum pernah diuji di browser. Pengujian
-  sejauh ini sampai lapisan API.
+- `dev` sudah memuat semua pekerjaan sampai nomor 12 dan sudah di-push.
+- Branch `feat/sph-wiring` memuat pembaruan Imel dan Cal serta wiring SPH,
+  dan belum di-merge. Branch itu menunggu uji di browser. Dua sisa
+  pengujian sementara di branch Imel, yaitu halaman pratinjau tanpa login
+  dan satu kelas CSS tes, sudah dibuang saat merge.
+- Backend sudah men-push workflow dua langkah, PO, histori harga, dan
+  realisasi Dokubah. Modul SPH di backend belum di-commit, dan permission
+  `penawaran-harga.*` belum ada di role PPIC pada database dev, sehingga
+  menu dan endpoint SPH belum bisa dipakai role PPIC.
+
+## Belum Selesai
+
+- Alur approval selain permintaan pembelian. Dokubah punya endpoint
+  `submit`, `approve`, dan `reject` sendiri yang belum punya layar, dan
+  halaman Approval PPIC masih kosong. Alur permintaan material yang
+  kuotanya habis dengan status `Perlu Approval` juga belum ada. Ini
+  sengaja ditunda sampai semua domain selesai diuji.
+- Tracking asli. Backend masih memakai data tiruan untuk tracking dan
+  menunggu kontrak sistem tracking.
+- Layar daftar dan detail PO. Endpoint-nya sudah ada, tetapi FE belum
+  punya layarnya.
+- Arti tombol Rekap di daftar Penawaran Harga. Edit, Detail, dan Rekap
+  masih menuju halaman yang sama.
+- Tombol Download PDF di Detail Data Barang supplier belum berfungsi.
+- Riwayat persetujuan belum menampilkan nama pelaku, karena backend hanya
+  mengirim `actorId`.
+- Tampilan layar baru, yaitu SPH dan cetak PDF dari Cal, belum diuji di
+  browser. Layar pembelian, PO, histori harga, paginasi, dan validasi
+  input sudah diuji.
 
 ## Urutan yang Disarankan
 
-1. **Uji manual di browser.** Mulai dari alur Dokubah, SPK Internal, dan
-   halaman Gudang yang elemennya diubah. Pastikan juga menu PPIC muncul
-   untuk role PPIC, karena divisi itu bergantung pada permission
-   `material-request.create` atau `purchase-request.create`.
-2. **Alur approval.** Rancang bersama backend untuk tiga kebutuhan:
-   persetujuan permintaan pembelian, persetujuan atau penolakan Dokubah
-   oleh Koor Inventory, dan persetujuan permintaan material yang
-   kuotanya habis dengan status `Perlu Approval`. Dokumen ini dibuat
-   setelah semua domain selesai.
-3. **Rapikan sisa keputusan PPIC dan Gudang.** Pilihan Tujuan Produksi
+1. **Uji `feat/sph-wiring` di browser lalu merge ke `dev`.** Pastikan
+   backend sudah menambahkan permission `penawaran-harga.*` ke role PPIC
+   agar menu Penawaran Harga muncul.
+2. **Rapikan sisa keputusan PPIC dan Gudang.** Pilihan Tujuan Produksi
    selain `STOCK`, konfirmasi asumsi `totalBisaPakai`, tombol Simpan
    Draft di Buat SPK Internal, tujuan tombol Edit di Detail Rekap
    Permintaan, dan apakah View Detail di Rekap Permintaan mengarah ke
    halaman detail yang baru.
-4. **Penghubung backend yang masih tiruan.** Backend memakai data tiruan
-   untuk tracking, dan realisasi Dokubah belum terhubung ke barang
-   keluar sehingga nilainya selalu 0 kecuali di data seed.
-5. **Penawaran harga PPIC dan histori harga per supplier.** Fitur yang
-   butuh rancangan skema.
-6. **Perapian sisa.** Pola `useApiData` dan paginasi sudah dikerjakan
-   untuk daftar utama (`10-Perapian-Lint-dan-Paginasi.md`). Sisanya
-   adalah paginasi untuk laporan yang menghitung ringkasan, yang butuh
-   ringkasan dari backend lebih dulu, serta pemeriksaan dampak
-   `globals.css` shadcn di semua halaman.
+3. **Layar daftar dan detail PO.** Endpoint sudah tersedia.
+4. **Perapian sisa.** Paginasi untuk laporan yang menghitung ringkasan,
+   yang butuh ringkasan dari backend lebih dulu. Cetak PDF dari Cal pada
+   Rekap Permintaan hanya mencetak halaman yang tampil karena daftarnya
+   sekarang dipaginasi 20 baris. Selain itu perlu pemeriksaan dampak
+   `globals.css` shadcn di semua halaman, penghapusan halaman lama
+   `penawaran-harga/detail-permintaan` yang tidak tertaut lagi, dan tujuh
+   warning lint dari kode Cal berupa variabel dan import yang tidak terpakai.
+5. **Tracking asli.** Menunggu kontrak sistem tracking dari backend.
+6. **Alur approval umum.** Rancang bersama backend untuk persetujuan
+   Dokubah oleh Koor Inventory dan permintaan material yang kuotanya
+   habis. Dokumen ini dibuat setelah semua domain selesai.
+
+## Kolaborasi dengan Backend
+
+FE dan BE bertukar informasi lewat sesi masing-masing. Masing-masing sisi
+memiliki sub-agent liaison yang hanya membaca kode untuk menjawab
+pertanyaan tentang layar, field, dan kontrak. Keputusan bisnis, perubahan
+kode, dan izin tetap ke sesi utama dan pengguna masing-masing. Kontrak
+OpenAPI backend disalin ke `docs/api-1.json` setiap kali berubah.
 
 ## Status dan Langkah Berikutnya
 
-Divisi Gudang dan PPIC selesai tersambung, kecuali alur approval dan
-Penawaran Harga. Lanjutkan dari poin 1 di atas. Dokumen berikutnya beri
-nomor `14-<Judul-Singkat>.md` sesuai konvensi di `00-Template-Docs.md`.
+Semua domain tersambung ke backend, kecuali alur approval selain permintaan
+pembelian dan tracking asli. Lanjutkan dari poin 1 di atas. Dokumen
+berikutnya beri nomor `14-<Judul-Singkat>.md` sesuai konvensi di
+`00-Template-Docs.md`.
