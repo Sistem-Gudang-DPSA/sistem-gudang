@@ -6,6 +6,9 @@ import { exportOutboundReport, getOutboundReport } from '@/domains/gudang/api';
 import type { OutboundRow, RecipientType, WarehouseType } from '@/domains/gudang/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
+import Pagination from '@/shared/components/Pagination';
+
+const PAGE_SIZE = 20;
 
 const GUDANG_LABEL: Record<WarehouseType, string> = {
     BAHAN_BAKU: 'Gudang Bahan Baku',
@@ -49,10 +52,14 @@ export default function LaporanBarangKeluar(){
       recipientType: filterPenerima === 'ALL' ? undefined : filterPenerima,
     };
 
-    // ponytail: loads first 100 rows only, add real pagination when the list outgrows it
+    const filterKey = JSON.stringify(filters);
+    const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
+    const page = pageState.key === filterKey ? pageState.page : 1;
+    const setPage = (next: number) => setPageState({ key: filterKey, page: next });
+
     const { data: report, loading, error } = useApiData(
-      () => getOutboundReport({ ...filters, pageSize: 100 }),
-      JSON.stringify(filters),
+      () => getOutboundReport({ ...filters, page, pageSize: PAGE_SIZE }),
+      `${filterKey}|${page}`,
       'Gagal memuat laporan barang keluar.',
     );
 
@@ -127,7 +134,7 @@ export default function LaporanBarangKeluar(){
                 </style>
             </head>
             <body>
-                <h1>Rekap Barang Keluar</h1>
+                <h1>Rekap Barang Keluar (halaman ini)</h1>
                 <p class="meta">Periode: ${periodeText} &nbsp;|&nbsp; Asal Gudang: ${escapeHtml(gudangText)} &nbsp;|&nbsp; Penerima: ${escapeHtml(penerimaText)}${
                 searchQuery ? ` &nbsp;|&nbsp; Pencarian: ${escapeHtml(searchQuery)}` : ''
                 }</p>
@@ -349,15 +356,7 @@ export default function LaporanBarangKeluar(){
                     </tbody>
                 </table>
 
-                <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
-                    <div className="flex gap-1">
-                      <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-400 cursor-not-allowed">Sec</button>
-                      <button className="px-3 py-1 bg-[#FF8A00] text-white rounded-md font-medium shadow-sm shadow-orange-500/20">1</button>
-                      <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-600 hover:text-[#FF8A00] font-medium transition-colors">2</button>
-                      <span className="px-2 py-1 text-gray-400">...</span>
-                      <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-600 hover:text-[#FF8A00] font-medium transition-colors">Selanjutnya</button>
-                    </div>
-                </div>
+                <Pagination page={page} pageSize={PAGE_SIZE} total={report?.total ?? 0} onPageChange={setPage} />
             </div>
 
             {selectedDetail && (

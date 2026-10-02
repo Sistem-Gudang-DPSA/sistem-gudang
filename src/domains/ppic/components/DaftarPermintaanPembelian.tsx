@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useCan } from '@/domains/auth/user-context';
 import { Search, Plus, Calendar, Eye } from 'lucide-react';
 import Link from 'next/link';
 import { listApprovals } from '@/domains/ppic/api';
@@ -24,6 +25,7 @@ const summarize = (req: ApprovalRequest) => {
 };
 
 export default function DaftarPermintaanPembelianPPIC() {
+  const canCreate = useCan('purchase-request.create');
   const [searchQuery, setSearchQuery] = useState("");
   const [filterDay, setFilterDay] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
@@ -33,20 +35,19 @@ export default function DaftarPermintaanPembelianPPIC() {
 
   const dateRange = toDateRange(filterDay, filterMonth, filterYear);
 
-  const filterKey = JSON.stringify(dateRange);
+  const filterKey = JSON.stringify([searchQuery, dateRange]);
   const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
   const page = pageState.key === filterKey ? pageState.page : 1;
   const setPage = (next: number) => setPageState({ key: filterKey, page: next });
   const { data: result, loading, error } = useApiData(
-    () => listApprovals({ page, pageSize: 20, type: 'purchase-request', ...dateRange }),
+    () => listApprovals({ page, pageSize: 20, type: 'purchase-request', search: searchQuery.trim() || undefined, ...dateRange }),
     `${filterKey}|${page}`,
     'Gagal memuat permintaan pembelian.',
   );
   const rows = result?.rows ?? [];
   const total = result?.total ?? 0;
 
-  // ponytail: the approvals API has no working text search yet, so filter the loaded rows here
-  const filteredData = rows.filter((req) => summarize(req).toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredData = rows;
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -138,12 +139,14 @@ export default function DaftarPermintaanPembelianPPIC() {
             </div>
           </div>
 
-          <Link href="/dashboard/ppic/transaksi/permintaan-pembelian/tambah" className="w-full lg:w-auto">
-            <button className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0 w-full">
-              <Plus className="w-4 h-4" />
-              <span>Tambah Data</span>
-            </button>
-          </Link>
+          {canCreate && (
+            <Link href="/dashboard/ppic/transaksi/permintaan-pembelian/tambah" className="w-full lg:w-auto">
+              <button className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0 w-full">
+                <Plus className="w-4 h-4" />
+                <span>Tambah Data</span>
+              </button>
+            </Link>
+          )}
         </div>
 
         {/* Table Container */}
@@ -171,12 +174,16 @@ export default function DaftarPermintaanPembelianPPIC() {
                   <td className="px-6 py-4 text-gray-700 italic max-w-md truncate">{summarize(item)}</td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center gap-2">
-                      <button className="px-4 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] font-bold rounded-lg text-xs hover:bg-[#FF8A00]/20 transition-all">
-                        Edit
-                      </button>
-                      <button className="px-4 py-1.5 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs hover:bg-blue-100 transition-all">
-                        Tambah
-                      </button>
+                      {canCreate && (
+                        <>
+                          <button className="px-4 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] font-bold rounded-lg text-xs hover:bg-[#FF8A00]/20 transition-all">
+                            Edit
+                          </button>
+                          <button className="px-4 py-1.5 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs hover:bg-blue-100 transition-all">
+                            Tambah
+                          </button>
+                        </>
+                      )}
                       <button
                         onClick={() => setDetail(item)}
                         className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs hover:bg-blue-100 transition-all"

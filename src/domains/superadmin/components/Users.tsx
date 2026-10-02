@@ -71,6 +71,11 @@ export default function UserManagementPage() {
       return;
     }
 
+    if (formData.password && formData.password.length < 8) {
+      setError("Password minimal 8 karakter.");
+      return;
+    }
+
     setSaving(true);
     try {
       if (editingId) {

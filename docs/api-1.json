@@ -2083,9 +2083,11 @@
           },
           {
             "schema": {
-              "type": "string"
+              "type": "string",
+              "description": "Free text over the request payload (requester, items, SPK), or an exact id"
             },
             "required": false,
+            "description": "Free text over the request payload (requester, items, SPK), or an exact id",
             "name": "search",
             "in": "query"
           },
@@ -3632,7 +3634,58 @@
                         "actions": {
                           "type": "array",
                           "items": {
-                            "nullable": true
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "number"
+                              },
+                              "approvalRequestId": {
+                                "type": "number"
+                              },
+                              "stepOrder": {
+                                "type": "number"
+                              },
+                              "cycle": {
+                                "type": "number"
+                              },
+                              "domainId": {
+                                "type": "number"
+                              },
+                              "actorId": {
+                                "type": "number"
+                              },
+                              "actorName": {
+                                "type": "string",
+                                "description": "Username of the actor"
+                              },
+                              "action": {
+                                "type": "string",
+                                "enum": [
+                                  "approved",
+                                  "rejected",
+                                  "revision_requested"
+                                ]
+                              },
+                              "note": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "approvalRequestId",
+                              "stepOrder",
+                              "cycle",
+                              "domainId",
+                              "actorId",
+                              "actorName",
+                              "action",
+                              "note",
+                              "createdAt"
+                            ]
                           }
                         }
                       },
@@ -3884,7 +3937,58 @@
                         "actions": {
                           "type": "array",
                           "items": {
-                            "nullable": true
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "number"
+                              },
+                              "approvalRequestId": {
+                                "type": "number"
+                              },
+                              "stepOrder": {
+                                "type": "number"
+                              },
+                              "cycle": {
+                                "type": "number"
+                              },
+                              "domainId": {
+                                "type": "number"
+                              },
+                              "actorId": {
+                                "type": "number"
+                              },
+                              "actorName": {
+                                "type": "string",
+                                "description": "Username of the actor"
+                              },
+                              "action": {
+                                "type": "string",
+                                "enum": [
+                                  "approved",
+                                  "rejected",
+                                  "revision_requested"
+                                ]
+                              },
+                              "note": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "approvalRequestId",
+                              "stepOrder",
+                              "cycle",
+                              "domainId",
+                              "actorId",
+                              "actorName",
+                              "action",
+                              "note",
+                              "createdAt"
+                            ]
                           }
                         }
                       },
@@ -13184,13 +13288,54 @@
                         },
                         "pageSize": {
                           "type": "number"
+                        },
+                        "summary": {
+                          "type": "object",
+                          "properties": {
+                            "totalDokubah": {
+                              "type": "number"
+                            },
+                            "totalApproved": {
+                              "type": "number",
+                              "description": "APPROVED count"
+                            },
+                            "overbudgetCount": {
+                              "type": "number",
+                              "description": "Dokubah whose nilaiRealisasi exceeds its totalAnggaran"
+                            },
+                            "totalKuota": {
+                              "type": "number"
+                            },
+                            "totalRealisasi": {
+                              "type": "number"
+                            },
+                            "nilaiKuota": {
+                              "type": "number",
+                              "description": "Rupiah: sum of totalAnggaran"
+                            },
+                            "nilaiRealisasi": {
+                              "type": "number",
+                              "description": "Rupiah"
+                            }
+                          },
+                          "required": [
+                            "totalDokubah",
+                            "totalApproved",
+                            "overbudgetCount",
+                            "totalKuota",
+                            "totalRealisasi",
+                            "nilaiKuota",
+                            "nilaiRealisasi"
+                          ],
+                          "description": "Over every dokubah the filters match, not just the page"
                         }
                       },
                       "required": [
                         "rows",
                         "total",
                         "page",
-                        "pageSize"
+                        "pageSize",
+                        "summary"
                       ]
                     }
                   },
@@ -17207,13 +17352,46 @@
                         },
                         "pageSize": {
                           "type": "number"
+                        },
+                        "summary": {
+                          "type": "object",
+                          "properties": {
+                            "totalTransaksi": {
+                              "type": "number",
+                              "description": "Row count, all pages"
+                            },
+                            "jumlahMasuk": {
+                              "type": "number",
+                              "description": "Masuk row count"
+                            },
+                            "jumlahKeluar": {
+                              "type": "number",
+                              "description": "Keluar row count"
+                            },
+                            "totalMasuk": {
+                              "type": "number",
+                              "description": "Quantity of Masuk rows"
+                            },
+                            "totalKeluar": {
+                              "type": "number",
+                              "description": "Quantity of Keluar rows"
+                            }
+                          },
+                          "required": [
+                            "totalTransaksi",
+                            "jumlahMasuk",
+                            "jumlahKeluar",
+                            "totalMasuk",
+                            "totalKeluar"
+                          ]
                         }
                       },
                       "required": [
                         "rows",
                         "total",
                         "page",
-                        "pageSize"
+                        "pageSize",
+                        "summary"
                       ]
                     }
                   },
@@ -17770,13 +17948,37 @@
                         },
                         "pageSize": {
                           "type": "number"
+                        },
+                        "summary": {
+                          "type": "object",
+                          "properties": {
+                            "totalBuffer": {
+                              "type": "number",
+                              "description": "Sum of totalQty of BUFFER lines"
+                            },
+                            "stockUnallocated": {
+                              "type": "number",
+                              "description": "Sum of totalBisaPakai"
+                            },
+                            "dialokasikan": {
+                              "type": "number",
+                              "description": "Sum of totalQty of LOCKED lines"
+                            }
+                          },
+                          "required": [
+                            "totalBuffer",
+                            "stockUnallocated",
+                            "dialokasikan"
+                          ],
+                          "description": "Over every line the filters match, not just the page"
                         }
                       },
                       "required": [
                         "rows",
                         "total",
                         "page",
-                        "pageSize"
+                        "pageSize",
+                        "summary"
                       ]
                     }
                   },
@@ -21018,13 +21220,30 @@
                             },
                             "klien": {
                               "type": "number"
+                            },
+                            "qtyTotal": {
+                              "type": "number",
+                              "description": "Quantity received, all sources"
+                            },
+                            "qtySupplier": {
+                              "type": "number"
+                            },
+                            "qtyProduksi": {
+                              "type": "number"
+                            },
+                            "qtyKlien": {
+                              "type": "number"
                             }
                           },
                           "required": [
                             "total",
                             "supplier",
                             "produksi",
-                            "klien"
+                            "klien",
+                            "qtyTotal",
+                            "qtySupplier",
+                            "qtyProduksi",
+                            "qtyKlien"
                           ]
                         }
                       },

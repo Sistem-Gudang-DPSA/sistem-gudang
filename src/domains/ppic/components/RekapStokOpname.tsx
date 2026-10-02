@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, Download, FileUp } from 'lucide-react';
 import { getStockOpnameSummary, listMutations } from '@/domains/ppic/api';
+import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
 
 type TipeMutasi = 'Masuk' | 'Keluar';
@@ -24,7 +25,6 @@ const cardClass = 'bg-white rounded-sm border border-gray-100 shadow-md p-6 min-
 const labelClass = 'shrink-0 text-sm font-medium text-gray-800';
 const fieldClass = 'w-full pl-3 pr-9 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors';
 const checkboxClass = 'w-4 h-4 accent-[#FF8A00] cursor-pointer disabled:cursor-not-allowed';
-const orangeButtonClass = 'px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed';
 
 const formatAngka = (n: number) => n.toLocaleString('id-ID');
 // The API only has the date (no time of day), so a date-only value is shown without a time
@@ -45,17 +45,30 @@ export default function RekapStokOpnameMutasiStok() {
   // State periode dipindah ke atas karena ringkasan mengikutinya
   const [filterPeriode, setFilterPeriode] = useState('');
 
-  // ponytail: loads first 100 mutations and filters them here, move the filters to the API params when the list outgrows it
+  // ponytail: no period-list endpoint, so offer the last 24 months
+  const periodeOptions = Array.from({ length: 24 }, (_, i) => {
+    const d = new Date(new Date().getFullYear(), new Date().getMonth() - i, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+
+  const [pageState, setPageState] = useState({ key: filterPeriode, page: 1 });
+  const page = pageState.key === filterPeriode ? pageState.page : 1;
   const { data: result, loading, error } = useApiData(
-    () => listMutations({ pageSize: 100 }),
-    'list',
+    () => {
+      if (!filterPeriode) return listMutations({ page, pageSize: 20 });
+      const [y, m] = filterPeriode.split('-').map(Number);
+      const last = new Date(y, m, 0).getDate();
+      return listMutations({ page, pageSize: 20, startDate: `${filterPeriode}-01`, endDate: `${filterPeriode}-${String(last).padStart(2, '0')}` });
+    },
+    `${filterPeriode}|${page}`,
     'Gagal memuat rekap mutasi stok.',
   );
-  const data: MutasiBarang[] = result?.rows ?? [];
+  const filteredData: MutasiBarang[] = result?.rows ?? [];
+  const total = result?.total ?? 0;
 
   // Ringkasan stok opname mengikuti periode yang dipilih (semua periode kalau kosong)
   const summaryParams = filterPeriode ? { year: Number(filterPeriode.slice(0, 4)), month: Number(filterPeriode.slice(5, 7)) } : undefined;
-  const { data: summary } = useApiData(
+  const { data: summary, error: summaryError } = useApiData(
     () => getStockOpnameSummary(summaryParams),
     filterPeriode || 'all',
     'Gagal memuat ringkasan stok opname.',
@@ -63,13 +76,6 @@ export default function RekapStokOpnameMutasiStok() {
   const ringkasan = summary ?? { totalAudit: 0, totalItemSelisih: 0, totalAdjustmentNilai: 0 };
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-
-  // Periode = bulan dari tanggal mutasi
-  const periodeOptions = Array.from(new Set(data.map((d) => d.tanggal.slice(0, 7)))).sort();
-
-  const filteredData = data.filter((item) =>
-    filterPeriode === '' || item.tanggal.startsWith(filterPeriode)
-  );
 
   const checkedRows = filteredData.filter((item) => selectedIds.has(item.id));
   const allChecked = filteredData.length > 0 && checkedRows.length === filteredData.length;
@@ -143,7 +149,7 @@ export default function RekapStokOpnameMutasiStok() {
           </style>
         </head>
         <body>
-          <h1>Tabel Mutasi Barang</h1>
+          <h1>Tabel Mutasi Barang (halaman ini)</h1>
           <table>
             <thead>
               <tr><th class="center">No.</th><th>Tanggal &amp; Jam</th><th>No. Referensi SPK</th><th>Kode Barang</th><th>Nama Item</th><th>Tipe</th><th>Qty Mutasi</th></tr>
@@ -168,6 +174,7 @@ export default function RekapStokOpnameMutasiStok() {
 
       {/* Kontainer konten */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        {summaryError && <p role="alert" className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{summaryError}</p>}
         {/* Ringkasan */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
           <div className={cardClass}>
@@ -292,6 +299,7 @@ export default function RekapStokOpnameMutasiStok() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} pageSize={20} total={total} onPageChange={(next) => setPageState({ key: filterPeriode, page: next })} />
       </div>
     </div>
   );

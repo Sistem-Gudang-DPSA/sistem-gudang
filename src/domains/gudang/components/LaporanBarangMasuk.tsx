@@ -6,6 +6,9 @@ import { exportInboundReport, getInboundReport } from '@/domains/gudang/api';
 import type { InboundRow, InboundSource } from '@/domains/gudang/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
+import Pagination from '@/shared/components/Pagination';
+
+const PAGE_SIZE = 20;
 
 const SUMBER_LABEL: Record<InboundSource, string> = {
   SUPPLIER: 'Supplier External',
@@ -37,7 +40,7 @@ const formatTanggalCetak = (iso: string) => {
   return `${d}-${m}-${y}`;
 };
 
-const emptySummary = { total: 0, supplier: 0, produksi: 0, klien: 0 };
+const emptySummary = { total: 0, supplier: 0, produksi: 0, klien: 0, qtyTotal: 0, qtySupplier: 0, qtyProduksi: 0, qtyKlien: 0 };
 
 export default function LaporanBarangMasuk() {
     const [filterSumber, setFilterSumber] = useState<'ALL' | InboundSource>('ALL');
@@ -56,10 +59,14 @@ export default function LaporanBarangMasuk() {
       source: filterSumber === 'ALL' ? undefined : filterSumber,
     };
 
-    // ponytail: loads first 100 rows only, add real pagination when the list outgrows it
+    const filterKey = JSON.stringify(filters);
+    const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
+    const page = pageState.key === filterKey ? pageState.page : 1;
+    const setPage = (next: number) => setPageState({ key: filterKey, page: next });
+
     const { data: report, loading, error } = useApiData(
-      () => getInboundReport({ ...filters, pageSize: 100 }),
-      JSON.stringify(filters),
+      () => getInboundReport({ ...filters, page, pageSize: PAGE_SIZE }),
+      `${filterKey}|${page}`,
       'Gagal memuat laporan barang masuk.',
     );
 
@@ -133,14 +140,14 @@ export default function LaporanBarangMasuk() {
             </style>
           </head>
           <body>
-            <h1>Rekap Barang Masuk</h1>
+            <h1>Rekap Barang Masuk (halaman ini)</h1>
             <p class="meta">Periode: ${periodeText} &nbsp;|&nbsp; Sumber: ${escapeHtml(sumberText)}${
               searchQuery ? ` &nbsp;|&nbsp; Pencarian: ${escapeHtml(searchQuery)}` : ''
             }</p>
             <p class="summary">
-              <span><b>Total:</b> ${totalQty.toLocaleString('id-ID')} Qty / ${summary.total.toLocaleString('id-ID')} Transaksi</span>
-              <span><b>Supplier:</b> ${qtyBySource('SUPPLIER').toLocaleString('id-ID')} Qty (${summary.supplier.toLocaleString('id-ID')} Transaksi)</span>
-              <span><b>Produksi:</b> ${qtyBySource('PRODUKSI').toLocaleString('id-ID')} Qty (${summary.produksi.toLocaleString('id-ID')} Transaksi)</span>
+              <span><b>Total:</b> ${summary.qtyTotal.toLocaleString('id-ID')} Qty / ${summary.total.toLocaleString('id-ID')} Transaksi</span>
+              <span><b>Supplier:</b> ${summary.qtySupplier.toLocaleString('id-ID')} Qty (${summary.supplier.toLocaleString('id-ID')} Transaksi)</span>
+              <span><b>Produksi:</b> ${summary.qtyProduksi.toLocaleString('id-ID')} Qty (${summary.produksi.toLocaleString('id-ID')} Transaksi)</span>
             </p>
             <table>
               <thead>
@@ -165,9 +172,6 @@ export default function LaporanBarangMasuk() {
 
     const rows = report?.rows ?? [];
     const summary = report?.summary ?? emptySummary;
-    // ponytail: Qty is summed from the loaded rows (max 100), transaction counts come from the API summary
-    const qtyBySource = (source: InboundSource) => rows.filter((r) => r.source === source).reduce((acc, r) => acc + r.qtyArrived, 0);
-    const totalQty = rows.reduce((acc, r) => acc + r.qtyArrived, 0);
 
 
     return (
@@ -181,19 +185,19 @@ export default function LaporanBarangMasuk() {
             <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
             <p className="text-xs font-semibold text-gray-500 uppercase">Total Inbound Bulan Ini</p>
             <p className="text-2xl font-bold text-gray-900 mt-1">
-                {totalQty.toLocaleString('id-ID')} Qty / {summary.total.toLocaleString('id-ID')} Transaksi
+                {summary.qtyTotal.toLocaleString('id-ID')} Qty / {summary.total.toLocaleString('id-ID')} Transaksi
             </p>
             </div>
             <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
             <p className="text-xs font-semibold text-gray-500 uppercase">Penerimaan Supplier (PO)</p>
             <p className="text-2xl font-bold text-blue-600 mt-1">
-                {qtyBySource('SUPPLIER').toLocaleString('id-ID')} Qty ({summary.supplier.toLocaleString('id-ID')} Transaksi)
+                {summary.qtySupplier.toLocaleString('id-ID')} Qty ({summary.supplier.toLocaleString('id-ID')} Transaksi)
             </p>
             </div>
             <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
             <p className="text-xs font-semibold text-gray-500 uppercase">Barang Jadi Produksi (QC Pass)</p>
             <p className="text-2xl font-bold text-green-600 mt-1">
-                {qtyBySource('PRODUKSI').toLocaleString('id-ID')} Qty ({summary.produksi.toLocaleString('id-ID')} Transaksi)
+                {summary.qtyProduksi.toLocaleString('id-ID')} Qty ({summary.produksi.toLocaleString('id-ID')} Transaksi)
             </p>
             </div>
         </div>
@@ -368,15 +372,7 @@ export default function LaporanBarangMasuk() {
           </tbody>
         </table>
 
-        <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
-            <div className="flex gap-1">
-              <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-400 cursor-not-allowed">Sec</button>
-              <button className="px-3 py-1 bg-[#FF8A00] text-white rounded-md font-medium shadow-sm shadow-orange-500/20">1</button>
-              <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-600 hover:text-[#FF8A00] font-medium transition-colors">2</button>
-              <span className="px-2 py-1 text-gray-400">...</span>
-              <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-600 hover:text-[#FF8A00] font-medium transition-colors">Selanjutnya</button>
-            </div>
-        </div>
+        <Pagination page={page} pageSize={PAGE_SIZE} total={report?.total ?? 0} onPageChange={setPage} />
       </div>
 
       {selectedDetail && (

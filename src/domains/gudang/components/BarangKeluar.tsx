@@ -1,5 +1,6 @@
 "use client";
 
+import { useCan } from '@/domains/auth/user-context';
 import React, { useEffect, useState } from 'react';
 import { Search, Calendar, Plus, AlertCircle } from 'lucide-react';
 import { createOutbound, listOutbound } from '@/domains/gudang/api';
@@ -23,6 +24,7 @@ const emptyForm = {
 };
 
 export default function BarangKeluarGudang() {
+  const canCreate = useCan('outbound.create');
   const [searchQuery, setSearchQuery] = useState("");
   const [filterDay, setFilterDay] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
@@ -189,13 +191,13 @@ export default function BarangKeluarGudang() {
             </div>
           </div>
 
-          <button 
+          {canCreate && <button 
             onClick={openModal}
             className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0 w-full lg:w-auto"
           >
             <Plus className="w-4 h-4" />
             <span>Tambah Data</span>
-          </button>
+          </button>}
         </div>
 
         {/* Table Container */}

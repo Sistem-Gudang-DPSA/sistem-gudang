@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useCan } from '@/domains/auth/user-context';
+import NoPermission from './NoPermission';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, ChevronDown, Plus } from 'lucide-react';
@@ -53,6 +55,7 @@ function SelectField({ id, value, onChange, placeholder, options = [] }: { id: s
 }
 
 export default function BuatSpkInternalPPIC() {
+  const canCreate = useCan('spk-internal.create');
   const router = useRouter();
   const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState('');
@@ -131,6 +134,8 @@ export default function BuatSpkInternalPPIC() {
   };
 
   const hapusBaris = (id: number) => setRows((prev) => prev.filter((row) => row.id !== id));
+
+  if (!canCreate) return <NoPermission action="membuat SPK Internal" />;
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -293,13 +298,9 @@ export default function BuatSpkInternalPPIC() {
 
         {formError && <p className="mt-6 p-3 bg-red-50 text-red-600 text-sm rounded-lg max-w-4xl">{formError}</p>}
 
-        {/* Simpan Draft belum punya aksi: API SPK Internal tidak punya status draft */}
         <div className="flex flex-wrap items-center justify-between gap-4 mt-10">
           <Link href={spk_internal_path} className={orangeButtonClass}>Batal</Link>
-          <div className="flex gap-4">
-            <button type="button" className={orangeButtonClass}>Simpan Draft</button>
-            <button type="button" onClick={handleSimpan} disabled={saving} className={`${orangeButtonClass} disabled:opacity-60`}>Simpan</button>
-          </div>
+          <button type="button" onClick={handleSimpan} disabled={saving} className={`${orangeButtonClass} disabled:opacity-60`}>Simpan</button>
         </div>
       </div>
     </div>

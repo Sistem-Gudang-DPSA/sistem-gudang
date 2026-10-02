@@ -1,5 +1,6 @@
 "use client";
 
+import { useCan } from '@/domains/auth/user-context';
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -14,6 +15,7 @@ const emptyRow = { itemId: "", itemName: "", jumlah: "", keterangan: "" };
 
 export default function TambahStockOpnameGudang() {
   const router = useRouter();
+  const canCreate = useCan('stock-opname.create');
 
   const now = new Date();
   const [month, setMonth] = useState(String(now.getMonth() + 1));
@@ -74,6 +76,8 @@ export default function TambahStockOpnameGudang() {
       setSaving(false);
     }
   };
+
+  if (!canCreate) return <div className="p-6 text-sm text-gray-600">Anda tidak punya izin untuk membuat stock opname.</div>;
 
   return (
     <div className="flex flex-col bg-white min-h-screen p-6">

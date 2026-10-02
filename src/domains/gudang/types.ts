@@ -64,7 +64,7 @@ export interface InboundReport {
   total: number;
   page: number;
   pageSize: number;
-  summary: { total: number; supplier: number; produksi: number; klien: number };
+  summary: { total: number; supplier: number; produksi: number; klien: number; qtyTotal: number; qtySupplier: number; qtyProduksi: number; qtyKlien: number };
 }
 
 export type WarehouseType = "BAHAN_BAKU" | "WIP" | "BARANG_JADI";

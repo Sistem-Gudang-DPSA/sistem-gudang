@@ -3,6 +3,7 @@
 import React, { useRef, useState } from 'react';
 import { Search, ChevronDown, CalendarDays, FileUp, Download } from 'lucide-react';
 import { listMutations } from '@/domains/ppic/api';
+import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
 
 type TipeMutasi = 'Masuk' | 'Keluar';
@@ -25,7 +26,6 @@ const cardClass = 'bg-white rounded-sm border border-gray-100 shadow-md p-6 min-
 const labelClass = 'w-24 shrink-0 text-sm font-medium text-gray-800';
 const fieldClass = 'w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors';
 const checkboxClass = 'w-4 h-4 accent-[#FF8A00] cursor-pointer disabled:cursor-not-allowed';
-const orangeButtonClass = 'px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed';
 
 const formatAngka = (n: number) => n.toLocaleString('id-ID');
 // The API only has the date (no time of day), so a date-only value is shown without a time
@@ -81,14 +81,6 @@ function DateInput({ id, value, onChange, min, max }: {
 }
 
 export default function RekapMutasiBarang() {
-  // ponytail: loads first 100 mutations and filters them here, move the filters to the API params when the list outgrows it
-  const { data: result, loading, error } = useApiData(
-    () => listMutations({ pageSize: 100 }),
-    'list',
-    'Gagal memuat rekap mutasi barang.',
-  );
-  const data: MutasiBarang[] = result?.rows ?? [];
-
   const [filterTipe, setFilterTipe] = useState<TipeMutasi | ''>('');
   const [filterLokasi, setFilterLokasi] = useState('');
   const [periodeAwal, setPeriodeAwal] = useState('');
@@ -96,31 +88,33 @@ export default function RekapMutasiBarang() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  // Ringkasan dihitung dari seluruh data, tidak ikut filter
-  const totalTransaksi = data.length;
-  const totalMasuk = data.filter((d) => d.tipe === 'Masuk').reduce((s, d) => s + d.qty, 0);
-  const totalKeluar = data.filter((d) => d.tipe === 'Keluar').reduce((s, d) => s + d.qty, 0);
+  const filters = {
+    tipe: filterTipe || undefined,
+    lokasi: filterLokasi || undefined,
+    startDate: periodeAwal || undefined,
+    endDate: periodeAkhir || undefined,
+    search: searchQuery.trim() || undefined,
+  };
+  const filterKey = JSON.stringify(filters);
+  const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
+  const page = pageState.key === filterKey ? pageState.page : 1;
+  const { data: result, loading, error } = useApiData(
+    () => listMutations({ ...filters, page, pageSize: 20 }),
+    `${filterKey}|${page}`,
+    'Gagal memuat rekap mutasi barang.',
+  );
+  const filteredData: MutasiBarang[] = result?.rows ?? [];
+  const total = result?.total ?? 0;
+  const { totalTransaksi, totalMasuk, totalKeluar } = result?.summary ?? { totalTransaksi: 0, totalMasuk: 0, totalKeluar: 0 };
 
-  const lokasiOptions = Array.from(new Set(data.map((d) => d.lokasi))).sort();
-
-  const filteredData = data.filter((item) => {
-    const q = searchQuery.trim().toLowerCase();
-    const tgl = item.tanggal.slice(0, 10);
-    const matchesSearch = q === '' ||
-      item.noReferensiSpk.toLowerCase().includes(q) ||
-      item.kodeBarang.toLowerCase().includes(q) ||
-      item.namaItem.toLowerCase().includes(q);
-    const matchesTipe = filterTipe === '' || item.tipe === filterTipe;
-    const matchesLokasi = filterLokasi === '' || item.lokasi === filterLokasi;
-    const matchesAwal = periodeAwal === '' || tgl >= periodeAwal;
-    const matchesAkhir = periodeAkhir === '' || tgl <= periodeAkhir;
-    return matchesSearch && matchesTipe && matchesLokasi && matchesAwal && matchesAkhir;
-  });
+  // ponytail: location options come from the first 100 rows, no location-list endpoint
+  const { data: optionRows } = useApiData(() => listMutations({ pageSize: 100 }), 'lokasi', 'Gagal memuat lokasi.');
+  const lokasiOptions = Array.from(new Set((optionRows?.rows ?? []).map((d) => d.lokasi))).sort();
 
   const checkedRows = filteredData.filter((item) => selectedIds.has(item.id));
   const allChecked = filteredData.length > 0 && checkedRows.length === filteredData.length;
 
-  // Export & cetak pakai baris yang dicentang; kalau tidak ada, semua hasil filter
+  // Export & cetak pakai baris yang dicentang; kalau tidak ada, semua baris di halaman ini
   const rowsToExport = checkedRows.length > 0 ? checkedRows : filteredData;
 
   const toggleAll = () => {
@@ -189,7 +183,7 @@ export default function RekapMutasiBarang() {
           </style>
         </head>
         <body>
-          <h1>Tabel Mutasi Barang</h1>
+          <h1>Tabel Mutasi Barang (halaman ini)</h1>
           <table>
             <thead>
               <tr><th class="center">No.</th><th>Tanggal &amp; Jam</th><th>No. Referensi SPK</th><th>Kode Barang</th><th>Nama Item</th><th>Tipe</th><th>Qty Mutasi</th></tr>
@@ -367,6 +361,7 @@ export default function RekapMutasiBarang() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} pageSize={20} total={total} onPageChange={(next) => setPageState({ key: filterKey, page: next })} />
       </div>
     </div>
   );

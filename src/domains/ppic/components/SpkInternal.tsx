@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useCan } from '@/domains/auth/user-context';
 import Link from 'next/link';
 import { Search, ChevronDown, Plus } from 'lucide-react';
 import { alokasiBarangPath, buat_spk_internal_path, type StatusBarang } from '@/domains/ppic/data/spk-internal';
 import { listSpkInternal } from '@/domains/ppic/api';
+import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
 
 const cellClass = 'px-4 py-3 border-b border-r border-gray-300';
@@ -18,20 +20,23 @@ const statusButtonClass: Record<StatusBarang, string> = {
 };
 
 export default function SpkInternalMutasiStokPPIC() {
+  const canCreate = useCan('spk-internal.create');
+  const canAllocate = useCan('spk-internal.allocate');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'' | StatusBarang>('');
 
   const filters = { search: searchQuery || undefined, status: filterStatus || undefined };
-  // ponytail: loads first 100 rows only, add real pagination when the list outgrows it
+  const filterKey = JSON.stringify(filters);
+  const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
+  const page = pageState.key === filterKey ? pageState.page : 1;
   const { data: result, loading, error } = useApiData(
-    () => listSpkInternal({ ...filters, pageSize: 100 }),
-    JSON.stringify(filters),
+    () => listSpkInternal({ ...filters, page, pageSize: 20 }),
+    `${filterKey}|${page}`,
     'Gagal memuat SPK Internal.',
   );
   const rows = result?.rows ?? [];
-  const sum = (items: typeof rows, pick: (r: (typeof rows)[number]) => number) => items.reduce((acc, r) => acc + pick(r), 0);
-  const buffer = rows.filter((r) => r.status === 'BUFFER');
-  const locked = rows.filter((r) => r.status === 'LOCKED');
+  const total = result?.total ?? 0;
+  const summary = result?.summary ?? { totalBuffer: 0, stockUnallocated: 0, dialokasikan: 0 };
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -46,15 +51,15 @@ export default function SpkInternalMutasiStokPPIC() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
           <div className={cardClass}>
             <h2 className="text-lg font-bold text-gray-900 mb-3">Total Item Buffer Stock</h2>
-            <p className="text-base font-bold text-gray-900">{sum(buffer, (r) => r.totalStock)} pcs</p>
+            <p className="text-base font-bold text-gray-900">{summary.totalBuffer} pcs</p>
           </div>
           <div className={cardClass}>
             <h2 className="text-lg font-bold text-gray-900 mb-3">Stock Unallocated</h2>
-            <p className="text-base font-bold text-gray-900">{sum(rows, (r) => r.totalBisaPakai)} pcs (Siap Pakai)</p>
+            <p className="text-base font-bold text-gray-900">{summary.stockUnallocated} pcs (Siap Pakai)</p>
           </div>
           <div className={cardClass}>
             <h2 className="text-lg font-bold text-gray-900 mb-3">Dialokasikan ke SPK Klien</h2>
-            <p className="text-base font-bold text-gray-900">{sum(locked, (r) => r.totalStock)} pcs (Locked)</p>
+            <p className="text-base font-bold text-gray-900">{summary.dialokasikan} pcs (Locked)</p>
           </div>
         </div>
 
@@ -93,10 +98,12 @@ export default function SpkInternalMutasiStokPPIC() {
             </div>
           </div>
 
-          <Link href={buat_spk_internal_path} className={orangeButtonClass}>
-                <Plus className="w-4 h-4" />
-                <span>Buat SPK Internal</span>
-              </Link>
+          {canCreate && (
+            <Link href={buat_spk_internal_path} className={orangeButtonClass}>
+              <Plus className="w-4 h-4" />
+              <span>Buat SPK Internal</span>
+            </Link>
+          )}
         </div>
 
         {/* Tabel barang */}
@@ -128,13 +135,17 @@ export default function SpkInternalMutasiStokPPIC() {
                       <button type="button" className={`${actionButtonClass} ${statusButtonClass[item.status]}`}>
                         {item.status}
                       </button>
-                      <span className="text-gray-400">/</span>
-                      <Link
-                        href={alokasiBarangPath(item.id)}
-                        className={`${actionButtonClass} border-[#FF8A00] bg-[#FF8A00] text-white hover:bg-orange-600`}
-                      >
-                        DETAIL
-                      </Link>
+                      {canAllocate && (
+                        <>
+                          <span className="text-gray-400">/</span>
+                          <Link
+                            href={alokasiBarangPath(item.id)}
+                            className={`${actionButtonClass} border-[#FF8A00] bg-[#FF8A00] text-white hover:bg-orange-600`}
+                          >
+                            DETAIL
+                          </Link>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -149,6 +160,7 @@ export default function SpkInternalMutasiStokPPIC() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} pageSize={20} total={total} onPageChange={(next) => setPageState({ key: filterKey, page: next })} />
       </div>
     </div>
   );
