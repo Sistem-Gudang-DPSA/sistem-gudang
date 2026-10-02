@@ -3,13 +3,13 @@
 import React, { useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { createPurchaseRequest } from '@/domains/gudang/api';
+import { createPurchaseRequest } from '@/domains/ppic/api';
 import { todayIso } from '@/domains/gudang/date';
 import { ApiError } from '@/shared/lib/api-client';
 
 const emptyRow = { namaBarang: "", qty: "", satuan: "", proyek: "", noSpk: "" };
 
-export default function TambahPermintaanPembelianGudang() {
+export default function TambahPermintaanPembelianPPIC() {
   const router = useRouter();
 
   const [header, setHeader] = useState({ bagian: "", namaPemohon: "", jabatan: "", tanggalPengajuan: todayIso() });
@@ -42,7 +42,7 @@ export default function TambahPermintaanPembelianGudang() {
         tanggalPengajuan,
         items: filled.map((row) => ({ ...row, qty: Math.trunc(Number(row.qty)) })),
       });
-      router.push('/dashboard/gudang/transaksi/permintaan-pembelian');
+      router.push('/dashboard/ppic/transaksi/permintaan-pembelian');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Gagal mengirim permintaan pembelian.");
     } finally {

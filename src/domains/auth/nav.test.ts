@@ -27,6 +27,13 @@ describe("visibleNav", () => {
     expect(labels(user(["item.set-price", "supplier.view", "item.view"]))).toEqual(["purchasing"]);
   });
 
+  it("puts permintaan pembelian under ppic, not gudang", () => {
+    const hrefs = (u: AuthUser, key: string) => visibleNav(u).find((d) => d.key === key)?.groups.flatMap((g) => g.items.map((i) => i.href)) ?? [];
+    const ppic = user(["purchase-request.create", "item.view"]);
+    expect(hrefs(ppic, "ppic")).toContain("/dashboard/ppic/transaksi/permintaan-pembelian");
+    expect(hrefs(user(["inbound.view"]), "gudang").some((h) => h.includes("pembelian"))).toBe(false);
+  });
+
   it("shows no division to a user without permissions", () => {
     expect(labels(user([]))).toEqual([]);
   });
