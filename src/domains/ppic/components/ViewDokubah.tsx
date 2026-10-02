@@ -14,7 +14,9 @@ import {
   formatTanggal,
   viewDokubahPath,
 } from '@/domains/ppic/data/dokubah';
-import { getDokubah, listDokubah } from '@/domains/ppic/api';
+import { approveDokubah, getDokubah, listDokubah, rejectDokubah, submitDokubah } from '@/domains/ppic/api';
+import type { DokubahItem } from '@/domains/ppic/data/dokubah';
+import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 
 const cellClass = 'px-4 py-3 border-b border-r border-gray-200';
@@ -32,14 +34,25 @@ function Field({ id, label, children }: { id: string; label: string; children: R
   );
 }
 
+const AKSI_RIWAYAT: Record<string, string> = { SUBMITTED: 'Diajukan', APPROVED: 'Disetujui', REJECTED: 'Ditolak' };
+const actionBtn = 'px-5 py-2.5 font-semibold rounded-xl text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed';
+
 export default function ViewDokubahPPIC() {
   const canUpdate = useCan('dokubah.update');
+  const canApprove = useCan('dokubah.approve');
+  const [updated, setUpdated] = React.useState<DokubahItem | null>(null);
+  const [busy, setBusy] = React.useState(false);
+  const [actionError, setActionError] = React.useState('');
+  const [rejecting, setRejecting] = React.useState(false);
+  const [note, setNote] = React.useState('');
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   // ponytail: the SPK picker lists the first 100 dokubah only
   const { data: listResult } = useApiData(() => listDokubah({ pageSize: 100 }), 'list', 'Gagal memuat daftar Dokubah.');
   const list = listResult?.rows ?? [];
-  const { data: dokubah, loading, error } = useApiData(() => getDokubah(Number(id)), id, 'Gagal memuat Dokubah.');
+  const { data: fetched, loading, error } = useApiData(() => getDokubah(Number(id)), id, 'Gagal memuat Dokubah.');
+
+  const dokubah = updated && updated.id === fetched?.id ? updated : fetched;
 
   const header = (
     <div className="flex items-center gap-3 mb-6">
@@ -63,6 +76,34 @@ export default function ViewDokubahPPIC() {
 
   const totalHpp = dokubah.bahan.reduce((sum, b) => sum + b.realisasi * b.hargaSatuan, 0);
   const margin = dokubah.totalAnggaran - totalHpp;
+
+  const run = async (call: () => Promise<DokubahItem>) => {
+    setBusy(true);
+    setActionError('');
+    try {
+      setUpdated(await call());
+      setRejecting(false);
+      setNote('');
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : 'Gagal memproses Dokubah.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleKirimTolak = () => {
+    const alasan = note.trim();
+    if (!alasan) {
+      setActionError('Alasan penolakan wajib diisi.');
+      return;
+    }
+    run(() => rejectDokubah(dokubah.id, alasan));
+  };
+
+  const riwayat = dokubah.riwayat ?? [];
+  const lastReject = [...riwayat].reverse().find((r) => r.aksi === 'REJECTED');
+  const canSubmit = canUpdate && (dokubah.status === 'Draft' || dokubah.status === 'Rejected');
+  const canDecide = canApprove && dokubah.status === 'Pending';
 
   const handlePilihSpk = (e: React.ChangeEvent<HTMLSelectElement>) => {
     router.replace(viewDokubahPath(e.target.value));
@@ -157,6 +198,12 @@ export default function ViewDokubahPPIC() {
           </Field>
         </div>
 
+        {dokubah.status === 'Rejected' && lastReject?.catatan && (
+          <p role="note" className="max-w-4xl mb-8 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+            <span className="font-semibold">Alasan penolakan:</span> {lastReject.catatan}
+          </p>
+        )}
+
         {/* Ringkasan anggaran */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className={cardClass}>
@@ -222,6 +269,75 @@ export default function ViewDokubahPPIC() {
             </tbody>
           </table>
         </div>
+
+        {riwayat.length > 0 && (
+          <div className="mt-8">
+            <h2 className="text-base font-bold text-gray-900 mb-4">Riwayat Persetujuan</h2>
+            <div className="overflow-x-auto border-t border-l border-gray-300 rounded-sm max-w-4xl">
+              <table className="w-full text-left text-sm border-collapse">
+                <thead className="bg-gray-100 text-gray-800 font-semibold text-xs">
+                  <tr>
+                    <th scope="col" className={cellClass}>Tanggal</th>
+                    <th scope="col" className={`${cellClass} text-center`}>Aksi</th>
+                    <th scope="col" className={cellClass}>Oleh</th>
+                    <th scope="col" className={cellClass}>Catatan</th>
+                  </tr>
+                </thead>
+                <tbody className="text-gray-600">
+                  {riwayat.map((r, i) => (
+                    <tr key={i}>
+                      <td className={cellClass}>{formatTanggal(r.createdAt.slice(0, 10))}</td>
+                      <td className={`${cellClass} text-center font-semibold ${r.aksi === 'REJECTED' ? 'text-red-600' : 'text-gray-900'}`}>{AKSI_RIWAYAT[r.aksi] ?? r.aksi}</td>
+                      <td className={cellClass}>{r.actorName}</td>
+                      <td className={`${cellClass} ${r.aksi === 'REJECTED' ? 'text-red-700 font-medium' : ''}`}>{r.catatan ?? '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {(canSubmit || canDecide) && (
+          <div className="mt-8 space-y-3">
+            {actionError && <p role="alert" className="text-sm text-red-600">{actionError}</p>}
+            {rejecting && canDecide && (
+              <div className="max-w-xl">
+                <label htmlFor="alasan-penolakan" className="block text-sm font-medium text-gray-800 mb-1">Alasan penolakan</label>
+                <textarea
+                  id="alasan-penolakan"
+                  required
+                  maxLength={500}
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  rows={3}
+                  className={fieldClass}
+                />
+                <div className="flex gap-3 mt-2">
+                  <button type="button" disabled={busy} onClick={() => { setRejecting(false); setNote(''); setActionError(''); }} className={`${actionBtn} border border-gray-300 text-gray-700 hover:bg-gray-50`}>Batal</button>
+                  <button type="button" disabled={busy} onClick={handleKirimTolak} className={`${actionBtn} bg-red-600 text-white hover:bg-red-700`}>Kirim</button>
+                </div>
+              </div>
+            )}
+            <div className="flex justify-end gap-3">
+              {canSubmit && (
+                <button type="button" disabled={busy} onClick={() => {
+                  if (dokubah.bahan.length === 0) {
+                    setActionError('Tambahkan minimal satu bahan sebelum mengirim untuk approval.');
+                    return;
+                  }
+                  run(() => submitDokubah(dokubah.id));
+                }} className={`${actionBtn} bg-[#FF8A00] text-white hover:bg-orange-600`}>Kirim untuk Approval</button>
+              )}
+              {canDecide && !rejecting && (
+                <>
+                  <button type="button" disabled={busy} onClick={() => { setActionError(''); setRejecting(true); }} className={`${actionBtn} bg-red-600 text-white hover:bg-red-700`}>Tolak</button>
+                  <button type="button" disabled={busy} onClick={() => run(() => approveDokubah(dokubah.id))} className={`${actionBtn} bg-green-600 text-white hover:bg-green-700`}>Setuju</button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="flex justify-end mt-8">
           <button

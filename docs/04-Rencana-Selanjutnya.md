@@ -42,6 +42,9 @@ Selesai dan tersambung ke API asli:
   (`13-Penawaran-Harga-SPH.md`).
 - Realisasi Dokubah di backend sekarang dihitung dari barang keluar, hanya
   untuk Dokubah yang sudah disetujui.
+- Alur persetujuan Dokubah di View Dokubah: kirim, setujui, tolak dengan
+  alasan, kirim ulang, dan riwayat aksi (`16-Alur-Approval-Dokubah.md`).
+  Branch `feat/dokubah-approval` menunggu uji browser dan merge.
 - Test untuk seluruh bagian aplikasi, dashboard tiap divisi dengan data
   asli, serta sidebar dan tombol yang mengikuti permission role
   (`14-Test-Menyeluruh-Dashboard-dan-Ability.md`). Laporan memakai
@@ -78,9 +81,8 @@ Selesai dan tersambung ke API asli:
 
 ## Belum Selesai
 
-- Alur approval selain permintaan pembelian. Dokubah punya endpoint
-  `submit`, `approve`, dan `reject` sendiri yang belum punya layar, dan
-  halaman Approval PPIC masih kosong. Alur permintaan material yang
+- Alur approval umum. Dokubah sudah punya alurnya sendiri di View Dokubah,
+  dan halaman Approval PPIC masih kosong. Alur permintaan material yang
   kuotanya habis dengan status `Perlu Approval` juga belum ada. Ini
   sengaja ditunda sampai semua domain selesai diuji.
 - Tracking asli. Backend masih memakai data tiruan untuk tracking dan
@@ -138,5 +140,5 @@ Semua domain tersambung ke backend, kecuali alur approval selain permintaan
 pembelian dan tracking asli. Pekerjaan pembangunan sudah selesai, dan yang
 tersisa adalah uji di browser, dua keputusan bisnis, sinkronisasi Cal dan
 Imel, serta tracking dan approval umum. Lanjutkan dari poin 1 di atas. Dokumen
-berikutnya beri nomor `16-<Judul-Singkat>.md` sesuai konvensi di
+berikutnya beri nomor `17-<Judul-Singkat>.md` sesuai konvensi di
 `00-Template-Docs.md`.

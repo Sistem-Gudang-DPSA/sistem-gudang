@@ -26,6 +26,7 @@ const toItem = (row: DokubahApiRow | DokubahApiDetail): DokubahItem => ({
   penanggungJawab: row.penanggungJawab ?? undefined,
   totalAnggaran: row.totalAnggaran,
   bahan: "bahan" in row ? row.bahan : [],
+  riwayat: "riwayat" in row ? row.riwayat ?? [] : [],
 });
 
 export async function listDokubah(params?: DokubahListParams): Promise<PaginatedResult<DokubahItem> & { summary?: DokubahSummary }> {
@@ -54,9 +55,10 @@ export async function replaceDokubahMaterials(id: number, bahan: Pick<BahanDokub
 }
 
 // Status transitions have no screen yet (the Approval page is empty); ready for when it exists.
-export const submitDokubah = (id: number) => apiClient.post<DokubahApiDetail>(`/api/v1/dokubah/${id}/submit`);
-export const approveDokubah = (id: number) => apiClient.post<DokubahApiDetail>(`/api/v1/dokubah/${id}/approve`);
-export const rejectDokubah = (id: number) => apiClient.post<DokubahApiDetail>(`/api/v1/dokubah/${id}/reject`);
+export const submitDokubah = async (id: number) => toItem(await apiClient.post<DokubahApiDetail>(`/api/v1/dokubah/${id}/submit`));
+export const approveDokubah = async (id: number) => toItem(await apiClient.post<DokubahApiDetail>(`/api/v1/dokubah/${id}/approve`));
+// The reason is required by the API (non-empty, max 500).
+export const rejectDokubah = async (id: number, note: string) => toItem(await apiClient.post<DokubahApiDetail>(`/api/v1/dokubah/${id}/reject`, { note }));
 
 export const listSpkInternal = (params?: SpkInternalListParams) =>
   apiClient.get<PaginatedResult<SpkInternal> & { summary: SpkInternalSummary }>(`/api/v1/spk-internal${toQuery(params)}`);

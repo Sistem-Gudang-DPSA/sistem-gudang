@@ -21,4 +21,5 @@ Satu dokumen membahas satu pekerjaan atau satu keputusan besar. Lihat
 | [13-Penawaran-Harga-SPH.md](13-Penawaran-Harga-SPH.md) | Penawaran Harga dan Estimasi Penawaran Biaya buatan Imel disambungkan ke backend, dengan keputusan client dan projek terpisah serta Publish yang mengunci. |
 | [14-Test-Menyeluruh-Dashboard-dan-Ability.md](14-Test-Menyeluruh-Dashboard-dan-Ability.md) | Test untuk seluruh bagian aplikasi, dashboard tiap divisi dengan data asli, serta sidebar dan tombol yang mengikuti permission role. |
 | [15-Catatan-Refactoring.md](15-Catatan-Refactoring.md) | Hasil pengukuran kode dan daftar refactoring yang layak dikerjakan, berurut menurut nilai, beserta waktu yang disarankan. |
+| [16-Alur-Approval-Dokubah.md](16-Alur-Approval-Dokubah.md) | Alur kirim, setujui, dan tolak Dokubah di layar View Dokubah dengan alasan penolakan wajib, kirim ulang, dan riwayat aksi. |
 
