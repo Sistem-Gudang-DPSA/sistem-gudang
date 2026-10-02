@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { formatAngka, formatTanggal } from '@/domains/ppic/data/dokubah';
-import { fetchPermintaan, rekap_pembelian_path, type PermintaanPembelian } from '@/domains/ppic/data/pembelian';
+import { AKSI_LABEL, fetchPermintaan, rekap_pembelian_path, revisiPath, type PermintaanPembelian } from '@/domains/ppic/data/pembelian';
 import { useApiData } from '@/shared/lib/use-api-data';
 
 const cellClass = 'px-4 py-3 border-b border-r border-gray-300';
@@ -121,12 +121,48 @@ export default function PermintaanPembelianPPIC({ backPath = rekap_pembelian_pat
           <Lampiran label="Rekap Dokubah" file={permintaan.lampiranRekapDokubah} />
           <Lampiran label="Kartu Stok" file={permintaan.lampiranKartuStok} />
         </div>
+
+        {(permintaan.riwayat?.length ?? 0) > 0 && (
+          <>
+            <hr className={dividerClass} />
+            <h2 className="text-base font-bold text-gray-900 mb-4">Riwayat Persetujuan</h2>
+            <div className="overflow-x-auto border-t border-l border-gray-300 rounded-sm max-w-4xl">
+              <table className="w-full text-left text-sm border-collapse">
+                <thead className="bg-gray-100 text-gray-800 font-semibold text-xs">
+                  <tr>
+                    <th scope="col" className={cellClass}>Tanggal</th>
+                    <th scope="col" className={`${cellClass} text-center`}>Putaran</th>
+                    <th scope="col" className={`${cellClass} text-center`}>Aksi</th>
+                    <th scope="col" className={cellClass}>Catatan</th>
+                  </tr>
+                </thead>
+                <tbody className="text-gray-600">
+                  {permintaan.riwayat?.map((r) => (
+                    <tr key={r.id}>
+                      <td className={cellClass}>{formatTanggal(r.createdAt.slice(0, 10))}</td>
+                      <td className={`${cellClass} text-center`}>{r.cycle}</td>
+                      <td className={`${cellClass} text-center font-semibold text-gray-900`}>{AKSI_LABEL[r.action] ?? r.action}</td>
+                      <td className={cellClass}>{r.note ?? '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
 
       {/* PPIC hanya melihat status. Approve, tolak, dan revisi dilakukan Purchasing lewat `actions`. */}
       <div className="flex items-center justify-end gap-4 mt-8">
         {actions?.(permintaan, reload) ?? (
-          <p className="text-sm text-gray-600">Status permintaan: <span className="font-bold text-gray-900">{permintaan.status}</span></p>
+          <>
+            <p className="text-sm text-gray-600">Status permintaan: <span className="font-bold text-gray-900">{permintaan.status}</span></p>
+            {permintaan.statusApi === 'revision_requested' && (
+              <Link href={revisiPath(permintaan.id)} className="min-w-24 px-8 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm text-center">
+                Perbaiki dan Kirim Ulang
+              </Link>
+            )}
+          </>
         )}
       </div>
     </div>

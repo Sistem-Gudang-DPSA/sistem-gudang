@@ -7,15 +7,15 @@ import type { ItemListRow, Location } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
 import type { Supplier } from '@/domains/purchasing/types';
 import { ApiError } from '@/shared/lib/api-client';
+import { useApiData } from '@/shared/lib/use-api-data';
+import Pagination from '@/shared/components/Pagination';
 
 const emptyForm = { name: '', unit: '', category: '', price: '', supplierId: '' };
 
 export default function DataBarangPPIC() {
-  const [dataBarang, setDataBarang] = useState<ItemListRow[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -24,21 +24,14 @@ export default function DataBarangPPIC() {
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState("");
 
-  const loadBarang = async (search: string) => {
-    setLoading(true);
-    try {
-      const result = await listItems({ search: search || undefined });
-      setDataBarang(result.rows);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Gagal memuat data barang.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadBarang(searchTerm);
-  }, [searchTerm]);
+  const [page, setPage] = useState(1);
+  const { data: loaded, loading, error: loadError, reload } = useApiData(
+    () => listItems({ search: searchTerm || undefined, page, pageSize: 20 }),
+    `${searchTerm}|${page}`,
+    "Gagal memuat data barang.",
+  );
+  const dataBarang = loaded?.rows ?? [];
+  const error = actionError || loadError;
 
   useEffect(() => {
     listSuppliers().then((res) => setSuppliers(res.rows)).catch(() => {});
@@ -70,7 +63,7 @@ export default function DataBarangPPIC() {
           supplierId: Number(formData.supplierId),
         });
       }
-      await loadBarang(searchTerm);
+      reload();
       setIsModalOpen(false);
       setEditingId(null);
       setFormData(emptyForm);
@@ -105,9 +98,9 @@ export default function DataBarangPPIC() {
     if (!window.confirm('Apakah Anda yakin ingin menghapus data ini?')) return;
     try {
       await deleteItem(id);
-      setDataBarang((prev) => prev.filter((item) => item.id !== id));
+      reload();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Gagal menghapus barang.");
+      setActionError(err instanceof ApiError ? err.message : "Gagal menghapus barang.");
     }
   };
 
@@ -171,7 +164,7 @@ export default function DataBarangPPIC() {
             <input
               type="text"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
               className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 sm:text-sm transition-all"
               placeholder="Cari kode atau nama barang..."
             />
@@ -293,6 +286,7 @@ export default function DataBarangPPIC() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} pageSize={20} total={loaded?.total ?? 0} onPageChange={setPage} activeClass="bg-purple-500 text-white border-purple-500" />
       </div>
 
       {/* Modal Tambah Data */}
