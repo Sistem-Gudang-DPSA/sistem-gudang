@@ -2,19 +2,24 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { ArrowLeft, Plus } from 'lucide-react';
 import { formatAngka } from '@/domains/ppic/data/dokubah';
+import { getPenawaran, publishPenawaran, updatePenawaran } from '@/domains/ppic/api';
 import {
   barisBahanKosong,
-  getEstimasi,
-  getPenawaranList,
+  detailKeForm,
+  formKePayload,
   KATEGORI_BAHAN,
   penawaran_harga_path,
-  saveEstimasi,
+  STATUS_UI,
   type BarisBahan,
   type EstimasiPenawaran,
 } from '@/domains/ppic/data/penawaran-harga';
+import type { PenawaranDetail } from '@/domains/ppic/types';
+import { ApiError } from '@/shared/lib/api-client';
+import { INTEGER_INPUT, decimalOnly, digitsOnly } from '@/shared/lib/input';
+import { useApiData } from '@/shared/lib/use-api-data';
 
 type FieldInfo = Exclude<keyof EstimasiPenawaran, 'bahan'>;
 
@@ -68,12 +73,25 @@ function DateInput({ id, value, onChange, placeholder, min }: {
 
 export default function EstimasiPenawaranBiayaPPIC() {
   const { id } = useParams<{ id: string }>();
-  const router = useRouter();
-  const penawaran = getPenawaranList().find((item) => String(item.id) === id);
-  const [form, setForm] = useState<EstimasiPenawaran>(() => getEstimasi(Number(id)));
-  const [formError, setFormError] = useState('');
+  const { data: detail, loading, error } = useApiData(() => getPenawaran(id), id, 'Gagal memuat penawaran harga.');
 
-  const header = (
+  if (loading || error || !detail) {
+    return (
+      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+        <PageHeader />
+        <div className={`bg-white rounded-2xl shadow-sm border border-gray-100 px-6 py-10 text-center italic ${error ? 'text-red-600' : 'text-gray-400'}`}>
+          {error || (loading ? 'Memuat data...' : 'Penawaran harga tidak ditemukan.')}
+        </div>
+      </div>
+    );
+  }
+
+  // The form is built once the detail is loaded, so its initial state comes from the saved data.
+  return <FormEstimasi detail={detail} />;
+}
+
+function PageHeader() {
+  return (
     <div className="flex items-center gap-3 mb-6">
       <Link href={penawaran_harga_path} aria-label="Kembali ke Estimasi Penawaran Harga" className="text-gray-800 hover:opacity-70 transition-opacity">
         <ArrowLeft className="w-5 h-5" strokeWidth={2.5} />
@@ -81,17 +99,20 @@ export default function EstimasiPenawaranBiayaPPIC() {
       <h1 className="text-[18px] font-extrabold text-black tracking-wide">Estimasi Penawaran Harga</h1>
     </div>
   );
+}
 
-  if (!penawaran) {
-    return (
-      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
-        {header}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-6 py-10 text-center text-gray-400 italic">
-          Penawaran harga tidak ditemukan.
-        </div>
-      </div>
-    );
-  }
+const hitungTotal = (row: BarisBahan) => Math.round(toNumber(row.jumlahOrder) * toNumber(row.hargaSatuan));
+
+function FormEstimasi({ detail }: { detail: PenawaranDetail }) {
+  const [saved, setSaved] = useState(detail);
+  const [form, setForm] = useState<EstimasiPenawaran>(() => detailKeForm(detail));
+  const [formError, setFormError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [busy, setBusy] = useState(false);
+  const locked = saved.status === 'PUBLISH';
+
+  const subtotal = (rows: BarisBahan[]) => rows.reduce((sum, row) => sum + hitungTotal(row), 0);
+  const grandTotal = form.bahan.reduce((sum, rows) => sum + subtotal(rows), 0);
 
   const setInfo = (field: FieldInfo) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
@@ -111,51 +132,105 @@ export default function EstimasiPenawaranBiayaPPIC() {
     }));
   };
 
-  const handleSimpan = (e: React.SubmitEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  // Validates and saves; returns the saved detail, or null when something is wrong.
+  const simpan = async () => {
+    if (form.namaClient.trim() === '' || form.namaProyek.trim() === '') {
+      setFormError('Nama client dan nama projek wajib diisi.');
+      return null;
+    }
     if (form.tglMulaiProduksi && form.tglSelesaiProduksi && form.tglSelesaiProduksi < form.tglMulaiProduksi) {
       setFormError('Tgl Selesai Produksi tidak boleh lebih awal dari Tgl Mulai Produksi.');
-      return;
+      return null;
     }
-    saveEstimasi(penawaran.id, form);
-    router.replace(penawaran_harga_path);
+    if (form.bahan.some((rows) => rows.some((b) => Object.values(b).some((v) => v.trim() !== '') && b.namaBahan.trim() === ''))) {
+      setFormError('Nama bahan wajib diisi untuk setiap baris yang dipakai.');
+      return null;
+    }
+    const result = await updatePenawaran(saved.id, formKePayload(form));
+    setSaved(result);
+    return result;
   };
 
-  const cellInput = (kategori: number, baris: number, field: keyof BarisBahan, label: string, type: 'text' | 'number' = 'text') => (
-    <input
-      type={type}
-      min={type === 'number' ? 0 : undefined}
-      value={form.bahan[kategori][baris][field]}
-      onChange={(e) => updateBaris(kategori, baris, field, e.target.value)}
-      aria-label={`${label} ${KATEGORI_BAHAN[kategori]} baris ${baris + 1}`}
-      className={`${cellInputClass} ${type === 'number' ? 'text-right' : ''}`}
-    />
-  );
+  const jalankan = async (aksi: () => Promise<boolean | void>, pesan: string) => {
+    setBusy(true);
+    setFormError('');
+    setNotice('');
+    try {
+      if ((await aksi()) === false) return;
+      setNotice(pesan);
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : 'Gagal memproses penawaran harga.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSimpan = (e: React.SubmitEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    void jalankan(async () => {
+      await simpan();
+    }, 'Penawaran harga tersimpan.');
+  };
+
+  const handlePublish = () => {
+    if (!window.confirm('Publish akan mengunci penawaran ini dan tidak bisa diubah lagi. Lanjutkan?')) return;
+    void jalankan(async () => {
+      if (!(await simpan())) return false;
+      setSaved(await publishPenawaran(saved.id));
+    }, 'Penawaran harga dipublish dan dikunci.');
+  };
+
+  type Jenis = 'teks' | 'desimal' | 'bulat';
+  const cellInput = (kategori: number, baris: number, field: keyof BarisBahan, label: string, jenis: Jenis = 'teks') => {
+    const batas = { namaBahan: 191, satuan: 50, keterangan: 500 }[field as 'namaBahan' | 'satuan' | 'keterangan'];
+    return (
+      <input
+        {...(jenis === 'bulat' ? INTEGER_INPUT : jenis === 'desimal' ? { type: 'text', inputMode: 'decimal', autoComplete: 'off' } : { type: 'text' })}
+        maxLength={jenis === 'bulat' ? 9 : jenis === 'desimal' ? 13 : batas}
+        value={form.bahan[kategori][baris][field]}
+        onChange={(e) => updateBaris(kategori, baris, field, jenis === 'bulat' ? digitsOnly(e.target.value) : jenis === 'desimal' ? decimalOnly(e.target.value) : e.target.value)}
+        aria-label={`${label} ${KATEGORI_BAHAN[kategori]} baris ${baris + 1}`}
+        className={`${cellInputClass} ${jenis === 'teks' ? '' : 'text-right'}`}
+      />
+    );
+  };
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
-      {header}
+      <PageHeader />
 
       <form onSubmit={handleSimpan} noValidate className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <h2 className="text-sm font-bold text-gray-900 text-center mb-8">Estimasi Penawaran Biaya</h2>
+        <h2 className="text-sm font-bold text-gray-900 text-center mb-2">Estimasi Penawaran Biaya</h2>
+        <p className="text-xs text-gray-600 text-center mb-8">
+          No Order {saved.noOrder} · <span className="font-semibold">{STATUS_UI[saved.status]}</span>
+          {locked && ' · sudah dipublish, tidak bisa diubah'}
+        </p>
+
+        <fieldset disabled={locked || busy} className="contents">
 
         {/* Info pekerjaan */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-2 max-w-4xl mx-auto items-start">
           <div className="flex flex-col gap-2">
+            <Field id="estimasi-client" label="Nama Client">
+              <input id="estimasi-client" type="text" maxLength={191} value={form.namaClient} onChange={setInfo('namaClient')} placeholder="Isi nama client" className={fieldClass} />
+            </Field>
+            <Field id="estimasi-proyek" label="Nama Projek">
+              <input id="estimasi-proyek" type="text" maxLength={191} value={form.namaProyek} onChange={setInfo('namaProyek')} placeholder="Isi nama projek" className={fieldClass} />
+            </Field>
             <Field id="estimasi-tanggal" label="Tanggal">
               <DateInput id="estimasi-tanggal" value={form.tanggal} onChange={setInfo('tanggal')} placeholder="Isi tanggal" />
             </Field>
             <Field id="estimasi-pekerjaan" label="Pekerjaan">
-              <input id="estimasi-pekerjaan" type="text" value={form.pekerjaan} onChange={setInfo('pekerjaan')} placeholder="Isi pekerjaan" className={fieldClass} />
+              <input id="estimasi-pekerjaan" type="text" maxLength={191} value={form.pekerjaan} onChange={setInfo('pekerjaan')} placeholder="Isi pekerjaan" className={fieldClass} />
             </Field>
             <Field id="estimasi-ruangan" label="Ruangan/Lantai">
-              <input id="estimasi-ruangan" type="text" value={form.ruangan} onChange={setInfo('ruangan')} placeholder="Isi ruangan / lantai" className={fieldClass} />
+              <input id="estimasi-ruangan" type="text" maxLength={191} value={form.ruangan} onChange={setInfo('ruangan')} placeholder="Isi ruangan / lantai" className={fieldClass} />
             </Field>
             <Field id="estimasi-ukuran" label="Ukuran">
-              <input id="estimasi-ukuran" type="text" value={form.ukuran} onChange={setInfo('ukuran')} placeholder="Isi ukuran" className={fieldClass} />
+              <input id="estimasi-ukuran" type="text" maxLength={191} value={form.ukuran} onChange={setInfo('ukuran')} placeholder="Isi ukuran" className={fieldClass} />
             </Field>
             <Field id="estimasi-jumlah" label="Jumlah">
-              <input id="estimasi-jumlah" type="number" min={0} value={form.jumlah} onChange={setInfo('jumlah')} placeholder="Isi jumlah" className={`${fieldClass} [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`} />
+              <input id="estimasi-jumlah" {...INTEGER_INPUT} maxLength={9} value={form.jumlah} onChange={(e) => setForm((prev) => ({ ...prev, jumlah: digitsOnly(e.target.value) }))} placeholder="Isi jumlah" className={`${fieldClass} [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`} />
             </Field>
           </div>
           <div className="flex flex-col gap-2">
@@ -218,28 +293,43 @@ export default function EstimasiPenawaranBiayaPPIC() {
                       <td className={cellClass} />
                       <td className={cellClass}>{cellInput(k, b, 'namaBahan', 'Nama bahan')}</td>
                       <td className={cellClass}>{cellInput(k, b, 'satuan', 'Satuan')}</td>
-                      <td className={cellClass}>{cellInput(k, b, 'panjang', 'Panjang', 'number')}</td>
-                      <td className={cellClass}>{cellInput(k, b, 'lebar', 'Lebar', 'number')}</td>
-                      <td className={cellClass}>{cellInput(k, b, 'tinggi', 'Tinggi', 'number')}</td>
-                      <td className={cellClass}>{cellInput(k, b, 'jumlahSatuan', 'Jumlah satuan', 'number')}</td>
-                      <td className={cellClass}>{cellInput(k, b, 'jumlahOrder', 'Jumlah order', 'number')}</td>
-                      <td className={cellClass}>{cellInput(k, b, 'hargaSatuan', 'Harga satuan', 'number')}</td>
-                      <td className={`${cellClass} px-2 text-right text-xs`}>{formatAngka(toNumber(row.jumlahOrder) * toNumber(row.hargaSatuan))}</td>
+                      <td className={cellClass}>{cellInput(k, b, 'panjang', 'Panjang', 'desimal')}</td>
+                      <td className={cellClass}>{cellInput(k, b, 'lebar', 'Lebar', 'desimal')}</td>
+                      <td className={cellClass}>{cellInput(k, b, 'tinggi', 'Tinggi', 'desimal')}</td>
+                      <td className={cellClass}>{cellInput(k, b, 'jumlahSatuan', 'Jumlah satuan', 'desimal')}</td>
+                      <td className={cellClass}>{cellInput(k, b, 'jumlahOrder', 'Jumlah order', 'desimal')}</td>
+                      <td className={cellClass}>{cellInput(k, b, 'hargaSatuan', 'Harga satuan', 'bulat')}</td>
+                      <td className={`${cellClass} px-2 text-right text-xs`}>{formatAngka(hitungTotal(row))}</td>
                       <td className={cellClass}>{cellInput(k, b, 'keterangan', 'Keterangan')}</td>
                     </tr>
                   ))}
+                  <tr>
+                    <td colSpan={9} className={`${cellClass} px-2 text-right text-[10px] font-bold text-gray-900 uppercase`}>Subtotal {kategori}</td>
+                    <td className={`${cellClass} px-2 text-right text-xs font-semibold`}>{formatAngka(subtotal(form.bahan[k]))}</td>
+                    <td className={cellClass} />
+                  </tr>
                 </React.Fragment>
               ))}
             </tbody>
           </table>
         </div>
 
-        {formError && (
-          <p className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{formError}</p>
-        )}
+        </fieldset>
 
-        <div className="flex justify-end mt-10">
-          <button type="submit" className={orangeButtonClass}>Simpan</button>
+        <p className="mt-4 text-right text-sm font-bold text-gray-900">Grand Total: Rp. {formatAngka(grandTotal)}</p>
+
+        {formError && (
+          <p role="alert" className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{formError}</p>
+        )}
+        {notice && <p role="status" className="mt-4 p-3 bg-green-50 text-green-700 text-sm rounded-lg">{notice}</p>}
+
+        <div className="flex justify-end gap-4 mt-10">
+          {!locked && (
+            <>
+              <button type="button" onClick={handlePublish} disabled={busy} className={`${orangeButtonClass} disabled:opacity-60`}>Publish</button>
+              <button type="submit" disabled={busy} className={`${orangeButtonClass} disabled:opacity-60`}>{busy ? 'Menyimpan...' : 'Simpan'}</button>
+            </>
+          )}
         </div>
       </form>
     </div>

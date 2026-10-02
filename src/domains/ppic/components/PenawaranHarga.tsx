@@ -2,8 +2,13 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Search, Plus } from 'lucide-react';
-import { estimasiPenawaranPath, getPenawaranList, type StatusPenawaran } from '@/domains/ppic/data/penawaran-harga';
+import { createPenawaran, listPenawaran } from '@/domains/ppic/api';
+import { estimasiPenawaranPath, STATUS_UI, type StatusPenawaran } from '@/domains/ppic/data/penawaran-harga';
+import { ApiError } from '@/shared/lib/api-client';
+import Pagination from '@/shared/components/Pagination';
+import { useApiData } from '@/shared/lib/use-api-data';
 
 const headCellClass = 'px-4 py-3 border-b border-r border-gray-300';
 // Baris isi dibuat lebih rapat dari header supaya tombol aksi hampir memenuhi tinggi baris, seperti di desain
@@ -16,22 +21,27 @@ const statusClass: Record<StatusPenawaran, string> = {
 };
 
 export default function PenawaranHargaPPIC() {
-  const data = getPenawaranList();
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
+  const filterKey = searchQuery.trim();
+  const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
+  const page = pageState.key === filterKey ? pageState.page : 1;
+  const { data: result, loading, error } = useApiData(
+    () => listPenawaran({ search: filterKey || undefined, page, pageSize: 20 }),
+    `${filterKey}|${page}`,
+    'Gagal memuat penawaran harga.',
+  );
+  const data = result?.rows ?? [];
 
   // State pop up Tambah Data
   const [showModal, setShowModal] = useState(false);
+  const [namaClient, setNamaClient] = useState('');
   const [namaProjek, setNamaProjek] = useState('');
   const [modalError, setModalError] = useState('');
-
-  const filteredData = data.filter((item) => {
-    const q = searchQuery.trim().toLowerCase();
-    return q === '' ||
-      item.namaClient.toLowerCase().includes(q) ||
-      item.noOrder.toLowerCase().includes(q);
-  });
+  const [saving, setSaving] = useState(false);
 
   const bukaModal = () => {
+    setNamaClient('');
     setNamaProjek('');
     setModalError('');
     setShowModal(true);
@@ -49,17 +59,23 @@ export default function PenawaranHargaPPIC() {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [showModal]);
 
-  const handleSimpan = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSimpan = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const nama = namaProjek.trim();
-    if (nama === '') {
-      setModalError('Nama projek wajib diisi.');
+    const client = namaClient.trim();
+    const proyek = namaProjek.trim();
+    if (client === '' || proyek === '') {
+      setModalError('Nama client dan nama projek wajib diisi.');
       return;
     }
-    // TODO: simpan penawaran baru di sini, misalnya addPenawaran(nama) dari '@/domains/ppic/data/penawaran-harga',
-    // lalu arahkan ke halaman Estimasi Penawaran Biaya miliknya jika perlu.
-    console.log('Simpan nama projek:', nama);
-    setShowModal(false);
+    setSaving(true);
+    setModalError('');
+    try {
+      const created = await createPenawaran({ namaClient: client, namaProyek: proyek });
+      router.push(estimasiPenawaranPath(created.id));
+    } catch (err) {
+      setModalError(err instanceof ApiError ? err.message : 'Gagal membuat penawaran harga.');
+      setSaving(false);
+    }
   };
 
   return (
@@ -77,8 +93,9 @@ export default function PenawaranHargaPPIC() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari Nama Projek"
-              aria-label="Cari nama projek"
+              maxLength={100}
+              placeholder="Cari No Order, Client, atau Projek"
+              aria-label="Cari penawaran harga"
               className="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"
             />
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-800 pointer-events-none" />
@@ -101,17 +118,19 @@ export default function PenawaranHargaPPIC() {
               <tr>
                 <th scope="col" className={`${headCellClass} w-32`}>No Order</th>
                 <th scope="col" className={headCellClass}>Nama Client</th>
+                <th scope="col" className={headCellClass}>Nama Projek</th>
                 <th scope="col" className={`${headCellClass} w-56`}>Status</th>
                 <th scope="col" className={`${headCellClass} w-56`}>Action</th>
               </tr>
             </thead>
             <tbody className="text-gray-800">
-              {filteredData.map((item) => (
+              {data.map((item) => (
                 <tr key={item.id} className="hover:bg-orange-50/20 transition-colors">
                   <td className={cellClass}>{item.noOrder}</td>
                   <td className={cellClass}>{item.namaClient}</td>
+                  <td className={cellClass}>{item.namaProyek}</td>
                   <td className={`${cellClass} text-center`}>
-                    <span className={`inline-block w-28 py-0.5 text-sm font-medium rounded-md ${statusClass[item.status]}`}>{item.status}</span>
+                    <span className={`inline-block w-28 py-0.5 text-sm font-medium rounded-md ${statusClass[STATUS_UI[item.status]]}`}>{STATUS_UI[item.status]}</span>
                   </td>
                   <td className={cellClass}>
                     {/* Ketiga tombol membuka halaman Estimasi Penawaran Biaya yang sama */}
@@ -123,9 +142,16 @@ export default function PenawaranHargaPPIC() {
                   </td>
                 </tr>
               ))}
-              {filteredData.length === 0 && (
+              {(loading || error) && (
                 <tr>
-                  <td colSpan={4} className={`${cellClass} px-6 py-10 text-center text-gray-400 italic`}>
+                  <td colSpan={5} className={`${cellClass} px-6 py-10 text-center ${error ? 'text-red-600' : 'text-gray-400 italic'}`}>
+                    {error || 'Memuat data...'}
+                  </td>
+                </tr>
+              )}
+              {!loading && !error && data.length === 0 && (
+                <tr>
+                  <td colSpan={5} className={`${cellClass} px-6 py-10 text-center text-gray-400 italic`}>
                     Data tidak ditemukan.
                   </td>
                 </tr>
@@ -133,6 +159,7 @@ export default function PenawaranHargaPPIC() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} pageSize={20} total={result?.total ?? 0} onPageChange={(next) => setPageState({ key: filterKey, page: next })} />
       </div>
 
       {/* Pop up Tambah Data */}
@@ -150,13 +177,28 @@ export default function PenawaranHargaPPIC() {
             noValidate
             className="w-full max-w-sm bg-white rounded-2xl shadow-xl p-6"
           >
-            <h2 id="modal-judul" className="text-base font-extrabold text-black mb-4">Nama Projek</h2>
+            <h2 id="modal-judul" className="text-base font-extrabold text-black mb-4">Tambah Penawaran Harga</h2>
+
+            <label htmlFor="modal-nama-client" className="block text-sm font-medium text-gray-800 mb-2">Nama Client</label>
+            <input
+              id="modal-nama-client"
+              type="text"
+              autoFocus
+              maxLength={191}
+              value={namaClient}
+              onChange={(e) => {
+                setNamaClient(e.target.value);
+                if (modalError) setModalError('');
+              }}
+              placeholder="Masukan nama client"
+              className="w-full px-3 py-2 mb-4 border border-gray-300 rounded-lg text-sm text-gray-800 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+            />
 
             <label htmlFor="modal-nama-projek" className="block text-sm font-medium text-gray-800 mb-2">Nama Projek</label>
             <input
               id="modal-nama-projek"
               type="text"
-              autoFocus
+              maxLength={191}
               value={namaProjek}
               onChange={(e) => {
                 setNamaProjek(e.target.value);
@@ -178,9 +220,10 @@ export default function PenawaranHargaPPIC() {
               </button>
               <button
                 type="submit"
-                className="px-6 py-2 bg-[#FF8A00] text-white text-sm font-semibold rounded-lg hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-colors"
+                disabled={saving}
+                className="px-6 py-2 bg-[#FF8A00] text-white text-sm font-semibold rounded-lg hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-colors disabled:opacity-60"
               >
-                Simpan
+                {saving ? 'Menyimpan...' : 'Simpan'}
               </button>
             </div>
           </form>

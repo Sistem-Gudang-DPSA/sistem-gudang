@@ -1,8 +1,8 @@
 import { apiClient, toQuery } from "@/shared/lib/api-client";
-import type { PaginatedResult } from "@/domains/inventory/types";
+import type { ListParams, PaginatedResult } from "@/domains/inventory/types";
 import type { BahanDokubah, DokubahItem, StatusDokubah } from "./data/dokubah";
 import type { SpkInternal } from "./data/spk-internal";
-import type { ApprovalAction, ApprovalListParams, ApprovalRequest, PurchaseRequestPayload, CreateDokubahInput, CreateSpkInternalInput, SpkInternalListParams, TrackingSpk, TrackingPic, MutationListParams, MutationRow, StockOpnameSummary, DokubahApiDetail, DokubahApiRow, DokubahApiStatus, DokubahListParams } from "./types";
+import type { PenawaranDetail, PenawaranHeaderInput, PenawaranRow, SavePenawaranInput, ApprovalAction, ApprovalListParams, ApprovalRequest, PurchaseRequestPayload, CreateDokubahInput, CreateSpkInternalInput, SpkInternalListParams, TrackingSpk, TrackingPic, MutationListParams, MutationRow, StockOpnameSummary, DokubahApiDetail, DokubahApiRow, DokubahApiStatus, DokubahListParams } from "./types";
 
 // The screens use title-case statuses, the API uses UPPER_SNAKE.
 export const STATUS_TO_UI: Record<DokubahApiStatus, StatusDokubah> = {
@@ -96,4 +96,13 @@ export const approveApproval = (id: number, note?: string) => apiClient.post(`/a
 export const rejectApproval = (id: number, note: string) => apiClient.post(`/api/v1/approvals/${id}/reject`, { note });
 export const requestApprovalRevision = (id: number, note: string) =>
   apiClient.post(`/api/v1/approvals/${id}/request-revision`, { note });
+
+export const listPenawaran = (params?: ListParams & { status?: string }) =>
+  apiClient.get<PaginatedResult<PenawaranRow>>(`/api/v1/penawaran-harga${toQuery(params)}`);
+export const createPenawaran = (input: PenawaranHeaderInput) => apiClient.post<PenawaranDetail>("/api/v1/penawaran-harga", input);
+export const getPenawaran = (id: number | string) => apiClient.get<PenawaranDetail>(`/api/v1/penawaran-harga/${id}`);
+// Replaces the header and every material row in one call; the response is the full detail.
+export const updatePenawaran = (id: number | string, input: SavePenawaranInput) =>
+  apiClient.put<PenawaranDetail>(`/api/v1/penawaran-harga/${id}`, input);
+export const publishPenawaran = (id: number | string) => apiClient.post<PenawaranDetail>(`/api/v1/penawaran-harga/${id}/publish`);
 
