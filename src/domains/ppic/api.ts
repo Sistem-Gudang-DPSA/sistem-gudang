@@ -2,7 +2,7 @@ import { apiClient, toQuery } from "@/shared/lib/api-client";
 import type { PaginatedResult } from "@/domains/inventory/types";
 import type { BahanDokubah, DokubahItem, StatusDokubah } from "./data/dokubah";
 import type { SpkInternal } from "./data/spk-internal";
-import type { ApprovalListParams, ApprovalRequest, PurchaseRequestPayload, CreateDokubahInput, CreateSpkInternalInput, SpkInternalListParams, TrackingSpk, TrackingPic, MutationListParams, MutationRow, StockOpnameSummary, DokubahApiDetail, DokubahApiRow, DokubahApiStatus, DokubahListParams } from "./types";
+import type { ApprovalAction, ApprovalListParams, ApprovalRequest, PurchaseRequestPayload, CreateDokubahInput, CreateSpkInternalInput, SpkInternalListParams, TrackingSpk, TrackingPic, MutationListParams, MutationRow, StockOpnameSummary, DokubahApiDetail, DokubahApiRow, DokubahApiStatus, DokubahListParams } from "./types";
 
 // The screens use title-case statuses, the API uses UPPER_SNAKE.
 export const STATUS_TO_UI: Record<DokubahApiStatus, StatusDokubah> = {
@@ -87,9 +87,11 @@ export function createPurchaseRequest(payload: PurchaseRequestPayload) {
 
 // Returns the request plus its action history (same shape as /approvals/{id}/actions).
 export function getApprovalDetail(id: number | string) {
-  return apiClient.get<{ request: ApprovalRequest; actions: unknown[] }>(`/api/v1/approvals/${id}`);
+  return apiClient.get<{ request: ApprovalRequest; actions: ApprovalAction[] }>(`/api/v1/approvals/${id}`);
 }
 
+export const resubmitApproval = (id: number, payload: PurchaseRequestPayload) =>
+  apiClient.post(`/api/v1/approvals/${id}/resubmit`, { payload });
 export const approveApproval = (id: number, note?: string) => apiClient.post(`/api/v1/approvals/${id}/approve`, note ? { note } : {});
 export const rejectApproval = (id: number, note: string) => apiClient.post(`/api/v1/approvals/${id}/reject`, { note });
 export const requestApprovalRevision = (id: number, note: string) =>

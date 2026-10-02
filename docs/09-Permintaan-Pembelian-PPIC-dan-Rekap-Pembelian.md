@@ -49,12 +49,20 @@ approve oleh PPIC atau Inventory, reject tanpa catatan, dan resubmit oleh
 selain pemohon. Inventory tidak lagi melihat daftar maupun detail request.
 Layar di browser belum diuji.
 
-## Yang Belum Tersambung
+## Revisi dan Riwayat
 
-- PPIC belum bisa mengirim ulang dan mengubah permintaan yang statusnya
-  Perlu Revisi. Backend mendukung resubmit dengan payload baru, tetapi
-  layar edit belum dibuat.
-- Riwayat aksi sudah diterima dari backend dengan field `stepOrder`, `cycle`, `action`, `note`, dan `createdAt`, tetapi belum ditampilkan di layar.
+Permintaan yang berstatus Perlu Revisi menampilkan tombol Perbaiki dan
+Kirim Ulang di detail PPIC. Tombol itu membuka form yang sama dengan
+Tambah, terisi data lama, di
+`/dashboard/ppic/transaksi/permintaan-pembelian/{id}/revisi`. Kirim Ulang
+memanggil `POST /approvals/{id}/resubmit` dengan payload baru, sehingga
+`cycle` naik dan permintaan kembali menunggu Purchasing. Form menolak
+permintaan yang tidak sedang menunggu revisi. Detail PPIC dan Purchasing
+juga menampilkan tabel Riwayat Persetujuan berisi tanggal, putaran, aksi,
+dan catatan. Nama pelaku belum tampil karena backend hanya mengirim
+`actorId`.
+
+## Yang Belum Tersambung
 
 - Simpan PO masih di memori dan hilang saat halaman di-refresh, karena
   backend belum punya endpoint PO.
