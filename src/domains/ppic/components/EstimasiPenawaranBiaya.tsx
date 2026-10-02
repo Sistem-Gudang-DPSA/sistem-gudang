@@ -167,9 +167,8 @@ function FormEstimasi({ detail }: { detail: PenawaranDetail }) {
 
   const handleSimpan = (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
-    void jalankan(async () => {
-      await simpan();
-    }, 'Penawaran harga tersimpan.');
+    // simpan() returns null when validation fails; `false` tells jalankan to skip the success notice.
+    void jalankan(async () => (await simpan()) !== null, 'Penawaran harga tersimpan.');
   };
 
   const handlePublish = () => {
