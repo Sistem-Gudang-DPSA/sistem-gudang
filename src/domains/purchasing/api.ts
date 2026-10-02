@@ -1,6 +1,6 @@
 import { apiClient, toQuery } from "@/shared/lib/api-client";
 import type { PaginatedResult, ListParams } from "@/domains/inventory/types";
-import type { CreateSupplierInput, Supplier, SupplierPriceChange, SupplierPrices } from "./types";
+import type { CreatePurchaseOrderInput, CreateSupplierInput, PurchaseOrder, Supplier, SupplierPriceChange, SupplierPrices } from "./types";
 
 export function listSuppliers(params?: ListParams) {
   return apiClient.get<PaginatedResult<Supplier>>(`/api/v1/suppliers${toQuery(params)}`);
@@ -25,5 +25,9 @@ export function getSupplierPrices(id: number | string, tahun: number) {
 // Saves only the changed cells; `harga: null` clears a cell. Responds with the same shape as getSupplierPrices.
 export function saveSupplierPrices(id: number | string, tahun: number, prices: SupplierPriceChange[]) {
   return apiClient.put<SupplierPrices>(`/api/v1/suppliers/${id}/prices`, { tahun, prices });
+}
+
+export function createPurchaseOrder(input: CreatePurchaseOrderInput) {
+  return apiClient.post<PurchaseOrder>("/api/v1/purchase-orders", input);
 }
 
