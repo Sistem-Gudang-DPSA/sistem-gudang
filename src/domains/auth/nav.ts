@@ -74,7 +74,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
         title: "Master",
         items: [
           { href: "/dashboard/ppic/master/data-barang", label: "Data Barang", anyOf: ["item.view"] },
-          { href: "/dashboard/ppic/master/penawaran-harga", label: "Penawaran Harga" },
+          { href: "/dashboard/ppic/master/penawaran-harga", label: "Penawaran Harga", anyOf: ["penawaran-harga.view"] },
         ],
       },
       {

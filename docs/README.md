@@ -18,3 +18,4 @@ Satu dokumen membahas satu pekerjaan atau satu keputusan besar. Lihat
 | [10-Perapian-Lint-dan-Paginasi.md](10-Perapian-Lint-dan-Paginasi.md) | Error lint dibersihkan dan daftar utama memakai komponen paginasi sungguhan dari server, dengan daftar yang belum dipaginasi dicatat. |
 | [11-Batasan-Input-Form.md](11-Batasan-Input-Form.md) | Input angka hanya menerima digit dan input teks dibatasi panjangnya sesuai kontrak backend di semua form utama. |
 | [12-Pemesanan-Pembelian-dan-Histori-Harga-Supplier.md](12-Pemesanan-Pembelian-dan-Histori-Harga-Supplier.md) | Buat PO dan grid harga bulanan supplier disambungkan ke backend, dengan rumus pajak Imel dan nomor PO dari backend. |
+| [13-Penawaran-Harga-SPH.md](13-Penawaran-Harga-SPH.md) | Penawaran Harga dan Estimasi Penawaran Biaya buatan Imel disambungkan ke backend, dengan keputusan client dan projek terpisah serta Publish yang mengunci. |
