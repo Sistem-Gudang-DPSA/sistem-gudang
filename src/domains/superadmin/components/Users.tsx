@@ -9,14 +9,14 @@ import {
 import { createUser, deleteUser, listRoles, listUsers, updateUser } from "@/domains/superadmin/api";
 import type { Role, UserAccount } from "@/domains/superadmin/types";
 import { ApiError } from "@/shared/lib/api-client";
+import { useApiData } from "@/shared/lib/use-api-data";
+import Pagination from "@/shared/components/Pagination";
 
 const emptyForm = { username: "", email: "", password: "", roleId: "" };
 
 export default function UserManagementPage() {
-  const [users, setUsers] = useState<UserAccount[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
+  const [actionError, setActionError] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -25,21 +25,14 @@ export default function UserManagementPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const loadUsers = async (search: string) => {
-    setLoading(true);
-    try {
-      const result = await listUsers({ search: search || undefined });
-      setUsers(result.rows);
-    } catch (err) {
-      setLoadError(err instanceof ApiError ? err.message : "Gagal memuat data user.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadUsers(searchTerm);
-  }, [searchTerm]);
+  const [page, setPage] = useState(1);
+  const { data: loaded, loading, error: fetchError, reload } = useApiData(
+    () => listUsers({ search: searchTerm || undefined, page, pageSize: 20 }),
+    `${searchTerm}|${page}`,
+    "Gagal memuat data user.",
+  );
+  const users = loaded?.rows ?? [];
+  const loadError = actionError || fetchError;
 
   useEffect(() => {
     listRoles().then(setRoles).catch(() => {});
@@ -63,9 +56,9 @@ export default function UserManagementPage() {
     if (!window.confirm(`Hapus user ${user.username}?`)) return;
     try {
       await deleteUser(user.id);
-      setUsers((prev) => prev.filter((u) => u.id !== user.id));
+      reload();
     } catch (err) {
-      setLoadError(err instanceof ApiError ? err.message : "Gagal menghapus user.");
+      setActionError(err instanceof ApiError ? err.message : "Gagal menghapus user.");
     }
   };
 
@@ -81,13 +74,12 @@ export default function UserManagementPage() {
     setSaving(true);
     try {
       if (editingId) {
-        const updated = await updateUser(editingId, {
+        await updateUser(editingId, {
           username: formData.username,
           email: formData.email,
           roleId: Number(formData.roleId),
           ...(formData.password ? { password: formData.password } : {}),
         });
-        setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
       } else {
         await createUser({
           username: formData.username,
@@ -95,8 +87,8 @@ export default function UserManagementPage() {
           password: formData.password,
           roleId: Number(formData.roleId),
         });
-        await loadUsers(searchTerm);
       }
+      reload();
       setShowModal(false);
       setEditingId(null);
       setFormData(emptyForm);
@@ -155,7 +147,7 @@ export default function UserManagementPage() {
             placeholder="Cari username, email, atau role..."
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
           />
         </div>
         <div className="bg-white px-4 py-2.5 rounded-xl border border-gray-100 flex items-center justify-between">
@@ -234,6 +226,7 @@ export default function UserManagementPage() {
             </tbody>
           </table>
         </div>
+          <Pagination page={page} pageSize={20} total={loaded?.total ?? 0} onPageChange={setPage} activeClass="bg-blue-500 text-white border-blue-500" />
       </div>
 
       {/* Add/Edit Modal */}
