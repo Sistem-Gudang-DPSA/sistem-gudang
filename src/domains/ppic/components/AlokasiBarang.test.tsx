@@ -116,7 +116,7 @@ describe('AlokasiBarang', () => {
     expect(screen.getByText(/Stock bebas barang ini sudah habis/)).toBeTruthy();
   });
 
-  it.fails('BUG: catatan textarea has no maxLength 500 like the other catatan fields', async () => {
+  it('catatan textarea is limited to 500 chars like the other catatan fields', async () => {
     await load();
     expect((screen.getByLabelText('Catatan :') as HTMLTextAreaElement).maxLength).toBe(500);
   });

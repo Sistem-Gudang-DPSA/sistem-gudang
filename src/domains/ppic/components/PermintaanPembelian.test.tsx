@@ -52,7 +52,7 @@ describe('PermintaanPembelian detail (PPIC)', () => {
   });
 
   it('renders the riwayat table with Indonesian action labels', async () => {
-    const act = (id: number, action: string, note: string | null) => ({ id, approvalRequestId: 5, stepOrder: 1, cycle: id, domainId: 2, actorId: 3, action, note, createdAt: `2026-03-0${id}T10:00:00Z` });
+    const act = (id: number, action: string, note: string | null) => ({ id, approvalRequestId: 5, stepOrder: 1, cycle: id, domainId: 2, actorId: 3, actorName: id === 1 ? 'budi' : undefined, action, note, createdAt: `2026-03-0${id}T10:00:00Z` });
     installFakeApi({
       'GET /api/v1/approvals/5': detail('approved', { actions: [act(1, 'revision_requested', 'Kurang jelas'), act(2, 'rejected', null), act(3, 'approved', 'OK'), act(4, 'custom', null)] }),
     });
@@ -64,7 +64,9 @@ describe('PermintaanPembelian detail (PPIC)', () => {
     expect(screen.getByText('custom')).toBeTruthy();
     expect(screen.getByText('Kurang jelas')).toBeTruthy();
     expect(screen.getByText('01/03/2026')).toBeTruthy();
-    expect(screen.getAllByText('-', { selector: 'td' })).toHaveLength(2);
+    expect(screen.getAllByText('-', { selector: 'td' })).toHaveLength(5);
+    expect(screen.getByText('Oleh', { selector: 'th' })).toBeTruthy();
+    expect(screen.getByText('budi', { selector: 'td' })).toBeTruthy();
   });
 
   it('shows the empty items row', async () => {

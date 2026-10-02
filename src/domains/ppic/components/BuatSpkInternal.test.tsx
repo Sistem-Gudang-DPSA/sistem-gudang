@@ -177,12 +177,9 @@ describe('BuatSpkInternal', () => {
     expect(screen.getByText(/Belum ada barang/)).toBeTruthy();
   });
 
-  it.fails('BUG: Simpan Draft button does nothing (dead button shown to the user)', async () => {
-    const api = await renderForm();
-    fillHeader();
-    fillRow(1, 'SKU-A', '3', '1', '2');
-    fireEvent.click(screen.getByText('Simpan Draft'));
-    await new Promise((r) => setTimeout(r, 50));
-    expect(api.calls('POST /api/v1/spk-internal').length + replace.mock.calls.length).toBeGreaterThan(0);
+  it('has no Simpan Draft button (API has no draft status)', async () => {
+    await renderForm();
+    expect(screen.queryByText('Simpan Draft')).toBeNull();
+    expect(screen.getByText('Simpan')).toBeTruthy();
   });
 });

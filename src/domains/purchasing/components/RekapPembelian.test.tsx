@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { installFakeApi, paged, fail } from '@/test/fake-api';
 import RekapPembelian from './RekapPembelian';
 
@@ -22,15 +22,21 @@ describe('purchasing RekapPembelian', () => {
     expect(api.calls('GET /api/v1/approvals')[0].query.get('type')).toBe('purchase-request');
   });
 
-  it('search filters rows and shows the empty state', async () => {
-    installFakeApi({ 'GET /api/v1/approvals': paged([row(7, 'pending', 'Beli kayu'), row(8, 'approved', 'Beli paku')]) });
+  it('sends the search text to the server, resets to page 1 and shows the empty state', async () => {
+    const api = installFakeApi({ 'GET /api/v1/approvals': paged([row(8, 'approved', 'Beli kayu')], { total: 45 }) });
     render(<RekapPembelian />);
     await screen.findByText('Beli kayu');
+    fireEvent.click(screen.getByText('2'));
+    await waitFor(() => expect(api.calls('GET /api/v1/approvals').at(-1)!.query.get('page')).toBe('2'));
     fireEvent.change(screen.getByLabelText('Cari pembelian'), { target: { value: 'paku' } });
-    expect(screen.queryByText('Beli kayu')).toBeNull();
-    expect(screen.getByText('Beli paku')).not.toBeNull();
-    fireEvent.change(screen.getByLabelText('Cari pembelian'), { target: { value: 'zzz' } });
-    expect(screen.getByText('Data tidak ditemukan.')).not.toBeNull();
+    await waitFor(() => expect(api.calls('GET /api/v1/approvals').at(-1)!.query.get('search')).toBe('paku'));
+    expect(api.calls('GET /api/v1/approvals').at(-1)!.query.get('page')).toBe('1');
+  });
+
+  it('shows the empty state', async () => {
+    installFakeApi({ 'GET /api/v1/approvals': paged([]) });
+    render(<RekapPembelian />);
+    expect(await screen.findByText('Data tidak ditemukan.')).toBeTruthy();
   });
 
   it('shows load error', async () => {

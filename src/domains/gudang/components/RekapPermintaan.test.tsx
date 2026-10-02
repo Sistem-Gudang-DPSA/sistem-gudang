@@ -89,6 +89,20 @@ describe('RekapPermintaan', () => {
     expect(q.get('startDate')).toBeNull();
   });
 
+  it('clears the selection when the filters or the page change', async () => {
+    installFakeApi({ [KEY]: report([req(1), req(2)], 45) });
+    const { container } = render(<RekapPermintaan />);
+    await screen.findByText('SPK-1');
+    fireEvent.click(screen.getAllByRole('checkbox')[1]);
+    expect(screen.getByText(/1 dipilih/)).toBeTruthy();
+    fireEvent.click(screen.getByText('Selanjutnya'));
+    await waitFor(() => expect(screen.queryByText(/dipilih/)).toBeNull());
+    fireEvent.click(screen.getAllByRole('checkbox')[1]);
+    expect(screen.getByText(/1 dipilih/)).toBeTruthy();
+    fireEvent.change(container.querySelector('select')!, { target: { value: 'PROSES' } });
+    await waitFor(() => expect(screen.queryByText(/dipilih/)).toBeNull());
+  });
+
   it('shows export error', async () => {
     installFakeApi({ [KEY]: report([req(1)]), [EXPORT]: fail(500, 'Export gagal') });
     render(<RekapPermintaan />);

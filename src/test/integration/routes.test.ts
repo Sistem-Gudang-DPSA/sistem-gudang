@@ -53,7 +53,6 @@ const linked = (route: string, self: string) => {
 const ALLOW = new Set(["/dashboard/gudang", "/dashboard/ppic", "/dashboard/purchasing", "/dashboard/superadmin", "/dashboard/superadmin/users"]);
 // Known unlinked leftovers.
 const KNOWN_ORPHANS = [
-  "/dashboard/ppic/master/penawaran-harga/detail-permintaan",
   "/dashboard/gudang/laporan/rekap-permintaan/detail-rekap-permintaan",
 ];
 
@@ -63,10 +62,7 @@ describe("orphan routes", () => {
     console.info("Orphan routes:", orphans);
     expect(orphans.filter((r) => !KNOWN_ORPHANS.includes(r))).toEqual([]);
   });
-  it.fails("BUG: detail-permintaan page is unlinked leftover", () => {
-    expect(orphans).not.toContain(KNOWN_ORPHANS[0]);
-  });
   it.fails("BUG: detail-rekap-permintaan page is unlinked", () => {
-    expect(orphans).not.toContain(KNOWN_ORPHANS[1]);
+    expect(orphans).not.toContain(KNOWN_ORPHANS[0]);
   });
 });

@@ -63,7 +63,7 @@ describe('DaftarPermintaanPembelian', () => {
     await waitFor(() => expect(api.calls('GET /api/v1/approvals').some((c) => c.query.get('page') === '2')).toBe(true));
   });
 
-  it('sends the date range filter and filters loaded rows by search text', async () => {
+  it('sends the search text and date range filter to the server', async () => {
     const api = installFakeApi({
       'GET /api/v1/approvals': paged([
         row(1, 'pending'),
@@ -73,8 +73,7 @@ describe('DaftarPermintaanPembelian', () => {
     render(<DaftarPermintaanPembelianPPIC />);
     await screen.findByText('Gudang - 1 barang (Paku)');
     fireEvent.change(screen.getByPlaceholderText('Cari rincian permintaan...'), { target: { value: 'paku' } });
-    expect(screen.queryByText('Produksi - 1 barang (Triplex)')).toBeNull();
-    expect(screen.getByText('Gudang - 1 barang (Paku)')).toBeTruthy();
+    await waitFor(() => expect(api.calls('GET /api/v1/approvals').at(-1)!.query.get('search')).toBe('paku'));
     fireEvent.change(screen.getByDisplayValue('Bulan'), { target: { value: '03' } });
     fireEvent.change(screen.getByDisplayValue('Tahun'), { target: { value: '2026' } });
     await waitFor(() => {

@@ -293,13 +293,9 @@ export default function BuatSpkInternalPPIC() {
 
         {formError && <p className="mt-6 p-3 bg-red-50 text-red-600 text-sm rounded-lg max-w-4xl">{formError}</p>}
 
-        {/* Simpan Draft belum punya aksi: API SPK Internal tidak punya status draft */}
         <div className="flex flex-wrap items-center justify-between gap-4 mt-10">
           <Link href={spk_internal_path} className={orangeButtonClass}>Batal</Link>
-          <div className="flex gap-4">
-            <button type="button" className={orangeButtonClass}>Simpan Draft</button>
-            <button type="button" onClick={handleSimpan} disabled={saving} className={`${orangeButtonClass} disabled:opacity-60`}>Simpan</button>
-          </div>
+          <button type="button" onClick={handleSimpan} disabled={saving} className={`${orangeButtonClass} disabled:opacity-60`}>Simpan</button>
         </div>
       </div>
     </div>

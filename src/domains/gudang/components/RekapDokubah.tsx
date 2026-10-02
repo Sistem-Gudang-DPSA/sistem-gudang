@@ -6,6 +6,7 @@ import * as XLSX from 'xlsx';
 import { listDokubahRows } from "@/domains/ppic/api";
 import { formatAngka } from "@/domains/ppic/data/dokubah";
 import type { DokubahApiStatus } from "@/domains/ppic/types";
+import Pagination from "@/shared/components/Pagination";
 import { useApiData } from "@/shared/lib/use-api-data";
 
 const escapeHtml = (s: string) =>
@@ -18,7 +19,6 @@ export default function RekapDokubah() {
     const [endDate, setEndDate] = useState("");
     const [filterSumber, setFilterSumber] = useState<"ALL" | DokubahApiStatus>("ALL");
     const [selectedIds, setSelectedIds] = useState<Set<string | number>>(new Set());
-    const [exporting, setExporting] = useState(false);
 
     const filters = {
         search: searchQuery || undefined,
@@ -27,19 +27,24 @@ export default function RekapDokubah() {
         endDate: endDate || undefined,
     };
 
-    // ponytail: loads first 100 rows only, add real pagination when the list outgrows it
+    const filterKey = JSON.stringify(filters);
+    const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
+    const page = pageState.key === filterKey ? pageState.page : 1;
+    const setPage = (next: number) => setPageState({ key: filterKey, page: next });
     const { data: result, loading: isLoading, error: errorMessage } = useApiData(
-        () => listDokubahRows({ ...filters, pageSize: 100 }),
-        JSON.stringify(filters),
+        () => listDokubahRows({ ...filters, page, pageSize: 20 }),
+        `${filterKey}|${page}`,
         "Gagal memuat rekap dokubah.",
     );
     const filteredData = result?.rows ?? [];
+    const total = result?.total ?? 0;
+    const summary = result?.summary;
     const realisasiOf = (item: { totalRealisasiNilai: number }) => item.totalRealisasiNilai;
-    const isAllSelected = filteredData.length > 0 && selectedIds.size === filteredData.length;
-    const overbudgetCount = filteredData.filter((item) => realisasiOf(item) > item.totalAnggaran).length;
-
-    const totalRealisasi = filteredData.reduce((acc, item) => acc + realisasiOf(item), 0);
-    const totalAnggaran = filteredData.reduce((acc, item) => acc + item.totalAnggaran, 0);
+    const isAllSelected = filteredData.length > 0 && filteredData.every((item) => selectedIds.has(item.id));
+    // Cards come from the API summary, computed over every row the filters match.
+    const overbudgetCount = summary?.overbudgetCount ?? 0;
+    const totalRealisasi = summary?.nilaiRealisasi ?? 0;
+    const totalAnggaran = summary?.nilaiKuota ?? 0;
     const persenPenggunaan = totalAnggaran > 0 ? (totalRealisasi / totalAnggaran) * 100 : 0;
 
     const handleSelectAll = () => {
@@ -126,7 +131,7 @@ export default function RekapDokubah() {
                     <h1>Rekap Dokubah</h1>
                     <p class="meta">Periode: ${escapeHtml(periodeText)} &nbsp;|&nbsp; Status: ${escapeHtml(statusText)}${
                     searchQuery ? ` &nbsp;|&nbsp; Pencarian: ${escapeHtml(searchQuery)}` : ''
-                    }${selectedIds.size > 0 ? ` &nbsp;|&nbsp; ${rowsToPrint.length} baris dipilih` : ''}</p>
+                    }${selectedIds.size > 0 ? ` &nbsp;|&nbsp; ${rowsToPrint.length} baris dipilih` : total > filteredData.length ? ` &nbsp;|&nbsp; halaman ini (${rowsToPrint.length} dari ${total} data)` : ''}</p>
                     <table>
                     <thead>
                         <tr>
@@ -158,7 +163,7 @@ export default function RekapDokubah() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
                     <p className="text-xs font-semibold text-gray-500 uppercase">Total SPK Aktif</p>
-                    <p className="text-2xl font-bold text-gray-900 mt-1">{filteredData.length} SPK</p>
+                    <p className="text-2xl font-bold text-gray-900 mt-1">{summary?.totalDokubah ?? 0} SPK</p>
                 </div>
                 <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
                     <p className="text-xs font-semibold text-gray-500 uppercase">Penggunaan Material Total</p>
@@ -241,7 +246,7 @@ export default function RekapDokubah() {
                         <div className="flex gap-2 items-end m-2 print:hidden">
                             <button
                                 onClick={handleExportCSV}
-                                disabled={ exporting || isLoading || filteredData.length === 0}
+                                disabled={isLoading || filteredData.length === 0}
                                 className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
                                 title="Export Data ke CSV"
                             >
@@ -313,7 +318,7 @@ export default function RekapDokubah() {
                                     key={item.id}
                                     className={`transition-colors ${realisasiOf(item) > item.totalAnggaran ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50'}`}
                                 >
-                                <td className="px-4 py-3 text-center text-gray-500">{index + 1}</td>
+                                <td className="px-4 py-3 text-center text-gray-500">{(page - 1) * 20 + index + 1}</td>
                                 <td className="px-4 py-3 text-gray-700 font-medium">{item.noSpk}</td>
                                 <td className="px-4 py-3 font-mono font-semibold text-blue-600">{item.client}</td>
                                 <td className="px-4 py-3">
@@ -341,6 +346,7 @@ export default function RekapDokubah() {
                             )}
                         </tbody>
                     </table>
+                    <Pagination page={page} pageSize={20} total={total} onPageChange={setPage} />
             </div>
         </div>
     )

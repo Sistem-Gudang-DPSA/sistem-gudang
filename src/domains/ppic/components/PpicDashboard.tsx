@@ -7,16 +7,8 @@ import StatCard from '@/shared/components/StatCard';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { useCan } from '@/domains/auth/user-context';
 import { listApprovals, listDokubah, listPenawaran, listSpkInternal } from '@/domains/ppic/api';
-import { lihatPermintaanPath } from '@/domains/ppic/data/pembelian';
+import { STATUS_LABEL, lihatPermintaanPath } from '@/domains/ppic/data/pembelian';
 import type { ApprovalStatus } from '@/domains/ppic/types';
-
-// Status labels as on the PPIC pembelian screens (data/pembelian.ts).
-const STATUS_LABEL: Record<ApprovalStatus, string> = {
-  pending: 'Belum Disetujui',
-  approved: 'Disetujui',
-  revision_requested: 'Perlu Revisi',
-  rejected: 'Ditolak',
-};
 
 const PEMBELIAN = '/dashboard/ppic/transaksi/permintaan-pembelian';
 

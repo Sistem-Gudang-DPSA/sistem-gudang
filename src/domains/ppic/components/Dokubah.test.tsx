@@ -24,7 +24,8 @@ describe('Dokubah list', () => {
       // badge text, not the filter option (filter panel closed)
       expect(screen.getAllByText(s).length).toBe(1);
     }
-    expect(api.calls('GET /api/v1/dokubah')[0].query.get('pageSize')).toBe('100');
+    expect(api.calls('GET /api/v1/dokubah')[0].query.get('pageSize')).toBe('20');
+    expect(api.calls('GET /api/v1/dokubah')[0].query.get('page')).toBe('1');
   });
 
   it('offers only a View link per status (no edit/approve actions in the list)', async () => {
@@ -55,34 +56,43 @@ describe('Dokubah list', () => {
     expect(await screen.findByText('Missing permission: dokubah.view')).toBeTruthy();
   });
 
-  it('search box is limited to 100 chars and filters by SPK or client', async () => {
-    installFakeApi({ 'GET /api/v1/dokubah': paged(rows) });
+  const lastQuery = (api: ReturnType<typeof installFakeApi>) => api.calls('GET /api/v1/dokubah').at(-1)!.query;
+
+  it('search box is limited to 100 chars and is sent as the search param', async () => {
+    const api = installFakeApi({ 'GET /api/v1/dokubah': paged(rows) });
     render(<Dokubah />);
     await screen.findByText('SPK-1');
     const box = screen.getByPlaceholderText(/Cari No. SPK/) as HTMLInputElement;
     expect(box.maxLength).toBe(100);
     fireEvent.change(box, { target: { value: 'client 2' } });
-    expect(screen.queryByText('SPK-1')).toBeNull();
-    expect(screen.getByText('SPK-2')).toBeTruthy();
-    fireEvent.change(box, { target: { value: 'zzz' } });
-    expect(screen.getByText('Data tidak ditemukan.')).toBeTruthy();
+    await waitFor(() => expect(lastQuery(api).get('search')).toBe('client 2'));
   });
 
-  it('filters by status and start date range, and resets', async () => {
-    installFakeApi({ 'GET /api/v1/dokubah': paged(rows) });
+  it('sends status and date filters to the API, and reset clears them', async () => {
+    const api = installFakeApi({ 'GET /api/v1/dokubah': paged(rows) });
     render(<Dokubah />);
     await screen.findByText('SPK-1');
     fireEvent.click(screen.getByText('Filter'));
     fireEvent.change(screen.getByDisplayValue('Semua Status'), { target: { value: 'Approved' } });
-    expect(screen.queryByText('SPK-1')).toBeNull();
-    expect(screen.getByText('SPK-3')).toBeTruthy();
-    fireEvent.click(screen.getByText('Reset'));
-    expect(screen.getByText('SPK-1')).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Tanggal mulai dari'), { target: { value: '2026-03-01' } });
     fireEvent.change(screen.getByLabelText('Tanggal mulai sampai'), { target: { value: '2026-03-31' } });
-    expect(screen.queryByText('SPK-2')).toBeNull();
-    expect(screen.getByText('SPK-3')).toBeTruthy();
-    expect(screen.queryByText('SPK-4')).toBeNull();
+    await waitFor(() => expect(lastQuery(api).get('endDate')).toBe('2026-03-31'));
+    expect(lastQuery(api).get('status')).toBe('APPROVED');
+    expect(lastQuery(api).get('startDate')).toBe('2026-03-01');
+    fireEvent.click(screen.getByText('Reset'));
+    await waitFor(() => expect(lastQuery(api).get('status')).toBeNull());
+    expect(lastQuery(api).get('startDate')).toBeNull();
+  });
+
+  it('paginates on the server and goes back to page 1 when a filter changes', async () => {
+    const api = installFakeApi({ 'GET /api/v1/dokubah': (req: { query: URLSearchParams }) => paged(rows, { total: 45, page: Number(req.query.get('page')) }) });
+    render(<Dokubah />);
+    await screen.findByText('SPK-1');
+    fireEvent.click(screen.getByRole('button', { name: '3' }));
+    await waitFor(() => expect(lastQuery(api).get('page')).toBe('3'));
+    fireEvent.change(screen.getByPlaceholderText(/Cari No. SPK/), { target: { value: 'x' } });
+    await waitFor(() => expect(lastQuery(api).get('search')).toBe('x'));
+    expect(lastQuery(api).get('page')).toBe('1');
   });
 
   it('select-all and per-row checkboxes', async () => {

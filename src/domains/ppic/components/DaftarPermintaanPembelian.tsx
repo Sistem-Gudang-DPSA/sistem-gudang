@@ -33,20 +33,19 @@ export default function DaftarPermintaanPembelianPPIC() {
 
   const dateRange = toDateRange(filterDay, filterMonth, filterYear);
 
-  const filterKey = JSON.stringify(dateRange);
+  const filterKey = JSON.stringify([searchQuery, dateRange]);
   const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
   const page = pageState.key === filterKey ? pageState.page : 1;
   const setPage = (next: number) => setPageState({ key: filterKey, page: next });
   const { data: result, loading, error } = useApiData(
-    () => listApprovals({ page, pageSize: 20, type: 'purchase-request', ...dateRange }),
+    () => listApprovals({ page, pageSize: 20, type: 'purchase-request', search: searchQuery.trim() || undefined, ...dateRange }),
     `${filterKey}|${page}`,
     'Gagal memuat permintaan pembelian.',
   );
   const rows = result?.rows ?? [];
   const total = result?.total ?? 0;
 
-  // ponytail: the approvals API has no working text search yet, so filter the loaded rows here
-  const filteredData = rows.filter((req) => summarize(req).toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredData = rows;
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">

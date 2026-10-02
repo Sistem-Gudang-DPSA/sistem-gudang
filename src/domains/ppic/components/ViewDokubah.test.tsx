@@ -47,7 +47,7 @@ describe('ViewDokubah', () => {
     expect(m.className).toContain('text-red-600');
   });
 
-  it.each(['DRAFT', 'PENDING', 'APPROVED', 'REJECTED'])('status %s: shows it and offers the Edit link', async (status) => {
+  it.each(['DRAFT', 'PENDING', 'REJECTED'])('status %s: shows it and offers the Edit link', async (status) => {
     installFakeApi({ 'GET /api/v1/dokubah/7': { ...base, status }, 'GET /api/v1/dokubah': listRoute });
     render(<ViewDokubah />);
     await screen.findByText('Triplex');
@@ -58,11 +58,18 @@ describe('ViewDokubah', () => {
     );
   });
 
-  it.fails('BUG: Edit material is offered even for APPROVED Dokubah (backend locks it)', async () => {
+  it('APPROVED: no Edit link (backend answers 409)', async () => {
     installFakeApi({ 'GET /api/v1/dokubah/7': base, 'GET /api/v1/dokubah': listRoute });
     render(<ViewDokubah />);
     await screen.findByText('Triplex');
     expect(screen.queryAllByText('Edit')).toHaveLength(0);
+  });
+
+  it('loads the dokubah through GET /dokubah/{id}', async () => {
+    const api = installFakeApi({ 'GET /api/v1/dokubah/7': base, 'GET /api/v1/dokubah': listRoute });
+    render(<ViewDokubah />);
+    await screen.findByText('Triplex');
+    expect(api.calls('GET /api/v1/dokubah/7')).toHaveLength(1);
   });
 
   it('empty materials state', async () => {
