@@ -7,6 +7,7 @@ import { displayDate } from '@/domains/gudang/date';
 import type { MaterialRequestDetail, MaterialRequestStatus } from '@/domains/gudang/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
+import Pagination from '@/shared/components/Pagination';
 
 const STATUS_LABEL: Record<MaterialRequestStatus, { label: string; cls: string }> = {
     PENDING: { label: 'Menunggu PPIC', cls: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
@@ -36,10 +37,12 @@ export default function RekapPermintaan(){
         endDate: endDate || undefined,
     };
 
-    // ponytail: loads first 100 rows only, add real pagination when the list outgrows it
+    const filterKey = JSON.stringify(filters);
+    const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
+    const page = pageState.key === filterKey ? pageState.page : 1;
     const { data: report, loading, error } = useApiData(
-        () => getRequestsReport({ ...filters, pageSize: 100 }),
-        JSON.stringify(filters),
+        () => getRequestsReport({ ...filters, page, pageSize: 20 }),
+        `${filterKey}|${page}`,
         'Gagal memuat rekap permintaan.',
     );
 
@@ -252,8 +255,8 @@ export default function RekapPermintaan(){
                     </tbody>
                 </table>
 
-                <div className="p-4 border-t border-gray-100 bg-gray-50/50 text-sm text-gray-500 print:hidden">
-                    Menampilkan <span className="font-semibold text-gray-900">{rows.length}</span> dari <span className="font-semibold text-gray-900">{report?.total ?? 0}</span> permintaan
+                <div className="print:hidden">
+                    <Pagination page={page} pageSize={20} total={report?.total ?? 0} onPageChange={(next) => setPageState({ key: filterKey, page: next })} />
                 </div>
             </div>
 
