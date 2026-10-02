@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Search, ChevronDown } from 'lucide-react';
+import { Search, ChevronDown, Plus, Download, FileUp } from 'lucide-react';
 import { getStatusBadge, STATUS_OPTIONS } from '@/domains/ppic/components/Dokubah';
 import { detailRekapDokubahPath, escapeHtml, formatRupiah, type StatusDokubah } from '@/domains/ppic/data/dokubah';
 import { listDokubahRows, STATUS_TO_UI } from '@/domains/ppic/api';
@@ -106,7 +106,7 @@ export default function RekapDokubah() {
   };
 
   // Buka jendela berisi tabel saja lalu panggil dialog print (pilih "Save as PDF")
-  const handleCetakPdf = () => {
+  const handlePrintPdf = () => {
     const win = window.open('', '_blank');
     if (!win) {
       alert('Pop-up diblokir browser. Izinkan pop-up untuk mencetak PDF.');
@@ -238,13 +238,23 @@ export default function RekapDokubah() {
         {/* Tabel rekapitulasi */}
         <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
           <h2 className="text-base font-bold text-gray-900">Tabel Rekapitulasi Dokubah per SPK</h2>
-          <div className="flex flex-wrap gap-4">
-            <button type="button" onClick={handleExportExcel} disabled={rowsToExport.length === 0} className={orangeButtonClass}>
-              Export Excel
-            </button>
-            <button type="button" onClick={handleCetakPdf} disabled={rowsToExport.length === 0} className={orangeButtonClass}>
-              Cetak PDF
-            </button>
+          <div className="flex gap-2 items-end m-2 print:hidden">
+              <button
+                  onClick={handleExportExcel}
+                  className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                  title="Export Data ke CSV"
+              >
+                  <FileUp className="w-4 h-4" />
+                  <span className="hidden sm:inline">Export</span>
+              </button>
+              <button
+                  onClick={handlePrintPdf}
+                  className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                  title="Print Data ke PDF"
+              >
+                  <Download className="w-4 h-4" />
+                  <span className="hidden sm:inline">Print PDF</span>
+              </button>
           </div>
         </div>
         <div className="overflow-x-auto border-t border-l border-gray-300 rounded-sm">

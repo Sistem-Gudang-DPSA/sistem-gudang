@@ -23,6 +23,20 @@ const monthStart = () => {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 };
 
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+const QC_LABEL: Record<string, string> = {
+  PASS: 'Pass (IPM)',
+  PARTIAL_RETUR: 'Part (Retur)',
+};
+
+const formatTanggalCetak = (iso: string) => {
+  if (!iso) return '-';
+  const [y, m, d] = iso.split('-');
+  return `${d}-${m}-${y}`;
+};
+
 const emptySummary = { total: 0, supplier: 0, produksi: 0, klien: 0 };
 
 export default function LaporanBarangMasuk() {
@@ -61,11 +75,100 @@ export default function LaporanBarangMasuk() {
       }
     };
 
+    const handlePrintPdf = () => {
+      const win = window.open('', '_blank');
+      if (!win) {
+        setActionError('Pop-up diblokir browser. Izinkan pop-up untuk mencetak PDF.');
+        return;
+      }
+      setActionError('');
+
+      const sumberText = filterSumber === 'ALL' ? 'Semua Sumber' : SUMBER_LABEL[filterSumber];
+      const periodeText = `${formatTanggalCetak(startDate)} s/d ${formatTanggalCetak(endDate)}`;
+
+      const bodyRows = rows.map((item, index) => {
+        const referensi =
+          escapeHtml(item.referenceNo ?? '-') +
+          (item.supplierDeliveryNo
+            ? `<div class="sub">(SJ: ${escapeHtml(item.supplierDeliveryNo)})</div>`
+            : '');
+        const sumber =
+          escapeHtml(item.supplierName ?? item.clientName ?? '-') +
+          `<div class="sub">(${escapeHtml(SUMBER_LABEL[item.source])})</div>`;
+        const qc = item.statusQc ? (QC_LABEL[item.statusQc] ?? item.statusQc) : '-';
+
+        return `
+          <tr>
+            <td class="center">${index + 1}</td>
+            <td>${escapeHtml(displayDateTime(item.date))}</td>
+            <td>${referensi}</td>
+            <td>${sumber}</td>
+            <td class="right">${item.qtyArrived.toLocaleString('id-ID')}</td>
+            <td class="center">${escapeHtml(qc)}</td>
+            <td class="center">${escapeHtml(item.locationCode ?? '-')}</td>
+          </tr>`;
+      }).join('');
+
+      const emptyRow = `<tr><td colspan="7" class="center">Tidak ada data penerimaan barang masuk.</td></tr>`;
+
+      win.document.write(`<!doctype html>
+        <html>
+          <head>
+            <title>Rekap Barang Masuk</title>
+            <style>
+              @page { size: A4 landscape; margin: 12mm; }
+              body { font-family: Arial, sans-serif; color: #111; }
+              h1 { font-size: 18px; margin: 0 0 4px; text-transform: uppercase; }
+              .meta { font-size: 12px; margin: 0 0 12px; color: #444; }
+              .summary { font-size: 12px; margin: 0 0 12px; }
+              .summary span { margin-right: 24px; }
+              table { width: 100%; border-collapse: collapse; font-size: 11px; }
+              th, td { border: 1px solid #999; padding: 6px 8px; text-align: left; vertical-align: top; }
+              th { background: #eee; }
+              thead { display: table-header-group; }
+              tr { page-break-inside: avoid; }
+              .center { text-align: center; }
+              .right { text-align: right; }
+              .sub { font-size: 10px; color: #555; }
+            </style>
+          </head>
+          <body>
+            <h1>Rekap Barang Masuk</h1>
+            <p class="meta">Periode: ${periodeText} &nbsp;|&nbsp; Sumber: ${escapeHtml(sumberText)}${
+              searchQuery ? ` &nbsp;|&nbsp; Pencarian: ${escapeHtml(searchQuery)}` : ''
+            }</p>
+            <p class="summary">
+              <span><b>Total:</b> ${totalQty.toLocaleString('id-ID')} Qty / ${summary.total.toLocaleString('id-ID')} Transaksi</span>
+              <span><b>Supplier:</b> ${qtyBySource('SUPPLIER').toLocaleString('id-ID')} Qty (${summary.supplier.toLocaleString('id-ID')} Transaksi)</span>
+              <span><b>Produksi:</b> ${qtyBySource('PRODUKSI').toLocaleString('id-ID')} Qty (${summary.produksi.toLocaleString('id-ID')} Transaksi)</span>
+            </p>
+            <table>
+              <thead>
+                <tr>
+                  <th class="center">No</th>
+                  <th>Tgl &amp; Jam Penerimaan</th>
+                  <th>No. Referensi / PO</th>
+                  <th>Sumber / Pemasok</th>
+                  <th class="right">Total Volume Item (Qty)</th>
+                  <th class="center">Status QC</th>
+                  <th class="center">Lokasi</th>
+                </tr>
+              </thead>
+              <tbody>${rows.length ? bodyRows : emptyRow}</tbody>
+            </table>
+          </body>
+        </html>`);
+      win.document.close();
+      win.focus();
+      win.print();
+    };
+
     const rows = report?.rows ?? [];
     const summary = report?.summary ?? emptySummary;
     // ponytail: Qty is summed from the loaded rows (max 100), transaction counts come from the API summary
     const qtyBySource = (source: InboundSource) => rows.filter((r) => r.source === source).reduce((acc, r) => acc + r.qtyArrived, 0);
     const totalQty = rows.reduce((acc, r) => acc + r.qtyArrived, 0);
+
 
     return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -157,7 +260,7 @@ export default function LaporanBarangMasuk() {
             <div className="flex gap-2 items-end m-2 print:hidden">
               <button
                 onClick={handleExport}
-                disabled={exporting}
+                disabled={exporting || loading || rows.length === 0}
                 className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-60"
                 title="Export Data ke CSV"
               >
@@ -165,8 +268,9 @@ export default function LaporanBarangMasuk() {
                 <span className="hidden sm:inline">{exporting ? 'Mengekspor...' : 'Export'}</span>
               </button>
               <button
-                onClick={() => window.print()}
-                className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                onClick={handlePrintPdf}
+                disabled={loading || rows.length === 0}
+                className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-60"
                 title="Print Data ke PDF"
               >
                 <Download className="w-4 h-4" />
