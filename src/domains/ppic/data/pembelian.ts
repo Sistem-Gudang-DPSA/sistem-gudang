@@ -1,4 +1,4 @@
-import { listApprovals } from '@/domains/ppic/api';
+import { getApprovalDetail, listApprovals } from '@/domains/ppic/api';
 import type { ApprovalRequest, ApprovalStatus } from '@/domains/ppic/types';
 
 export type StatusPermintaan = 'Belum Disetujui' | 'Disetujui' | 'Perlu Revisi' | 'Ditolak';
@@ -16,6 +16,7 @@ export interface PermintaanPembelian {
   tanggal: string; // YYYY-MM-DD
   permintaan: string;
   status: StatusPermintaan;
+  statusApi: ApprovalStatus;
   bagian: string;
   nama: string;
   jabatan: string;
@@ -43,6 +44,7 @@ const toPermintaan = (req: ApprovalRequest): PermintaanPembelian => {
     tanggal: (p?.tanggalPengajuan ?? req.createdAt).slice(0, 10),
     permintaan: p?.notes || `${p?.bagian ?? '-'} - ${barang.length} barang`,
     status: STATUS_LABEL[req.status],
+    statusApi: req.status,
     bagian: p?.bagian ?? '-',
     nama: p?.namaPemohon ?? '-',
     jabatan: p?.jabatan ?? '-',
@@ -55,6 +57,4 @@ const toPermintaan = (req: ApprovalRequest): PermintaanPembelian => {
 export const fetchPermintaanList = async () =>
   (await listApprovals({ pageSize: 100, type: 'purchase-request' })).rows.map(toPermintaan);
 
-// ponytail: the BE has no GET /approvals/{id}, so the detail is found in the list
-export const fetchPermintaan = async (id: string) =>
-  (await fetchPermintaanList()).find((item) => String(item.id) === id) ?? null;
+export const fetchPermintaan = async (id: string) => toPermintaan((await getApprovalDetail(id)).request);

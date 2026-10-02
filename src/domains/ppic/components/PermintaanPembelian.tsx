@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { formatAngka, formatTanggal } from '@/domains/ppic/data/dokubah';
-import { fetchPermintaan, rekap_pembelian_path } from '@/domains/ppic/data/pembelian';
+import { fetchPermintaan, rekap_pembelian_path, type PermintaanPembelian } from '@/domains/ppic/data/pembelian';
 import { useApiData } from '@/shared/lib/use-api-data';
 
 const cellClass = 'px-4 py-3 border-b border-r border-gray-300';
@@ -35,10 +35,10 @@ function Lampiran({ label, file }: { label: string; file?: string }) {
   );
 }
 
-// `actions` mengganti tombol Revisi/Setuju (dipakai halaman purchasing)
-export default function PermintaanPembelianPPIC({ backPath = rekap_pembelian_path, actions }: { backPath?: string; actions?: React.ReactNode }) {
+// `actions` mengganti tampilan status dengan tombol aksi (dipakai halaman purchasing)
+export default function PermintaanPembelianPPIC({ backPath = rekap_pembelian_path, actions }: { backPath?: string; actions?: (permintaan: PermintaanPembelian, reload: () => void) => React.ReactNode }) {
   const { id } = useParams<{ id: string }>();
-  const { data: permintaan, loading, error } = useApiData(() => fetchPermintaan(id), id, 'Gagal memuat permintaan pembelian.');
+  const { data: permintaan, loading, error, reload } = useApiData(() => fetchPermintaan(id), id, 'Gagal memuat permintaan pembelian.');
 
   const header = (
     <div className="flex items-center gap-3 mb-6">
@@ -123,9 +123,9 @@ export default function PermintaanPembelianPPIC({ backPath = rekap_pembelian_pat
         </div>
       </div>
 
-      {/* ponytail: Revisi/Setuju menunggu alur approval (ditunda), sementara hanya menampilkan status */}
+      {/* PPIC hanya melihat status. Approve, tolak, dan revisi dilakukan Purchasing lewat `actions`. */}
       <div className="flex items-center justify-end gap-4 mt-8">
-        {actions ?? (
+        {actions?.(permintaan, reload) ?? (
           <p className="text-sm text-gray-600">Status permintaan: <span className="font-bold text-gray-900">{permintaan.status}</span></p>
         )}
       </div>

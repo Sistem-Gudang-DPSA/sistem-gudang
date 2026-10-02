@@ -41,6 +41,10 @@ export default function PemesananPembelianPurchasing() {
     return <div className="py-10 text-center text-sm text-gray-400 italic">{error || 'Memuat data...'}</div>;
   }
 
+  if (permintaan && permintaan.statusApi !== 'approved') {
+    return <div className="py-10 text-center text-sm text-gray-500">PO baru bisa dibuat setelah permintaan pembelian disetujui.</div>;
+  }
+
   // Formnya baru dibuat setelah permintaan siap, supaya baris harga awal sesuai jumlah barang.
   return <FormPemesanan permintaan={permintaan ?? undefined} />;
 }
