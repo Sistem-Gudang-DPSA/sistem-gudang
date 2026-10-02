@@ -30,8 +30,17 @@ export interface DokubahApiRow {
   totalRealisasiNilai: number;
 }
 
+export interface DokubahRiwayat {
+  aksi: "SUBMITTED" | "APPROVED" | "REJECTED";
+  // Reason of a REJECTED entry.
+  catatan: string | null;
+  actorName: string;
+  createdAt: string;
+}
+
 export interface DokubahApiDetail extends DokubahApiRow {
   bahan: DokubahApiMaterial[];
+  riwayat?: DokubahRiwayat[];
 }
 
 // Computed by the API over every row the filters match, not just the page.
