@@ -60,6 +60,7 @@ export default function DataLokasiGudang() {
             <input
               type="text"
               value={searchQuery}
+              maxLength={100}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Cari..."
               className="w-full border border-gray-200 rounded-full py-2.5 pl-5 pr-10 shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 text-sm text-gray-700 placeholder-gray-400 transition-all duration-200"

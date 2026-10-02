@@ -103,6 +103,7 @@ export default function LoginPage() {
                 </div>
                 <input
                   type="email"
+                  maxLength={191}
                   required
                   placeholder="Email"
                   value={email}
@@ -117,6 +118,7 @@ export default function LoginPage() {
                 </div>
                 <input
                   type="password"
+                  maxLength={100}
                   required
                   placeholder="Password"
                   value={password}

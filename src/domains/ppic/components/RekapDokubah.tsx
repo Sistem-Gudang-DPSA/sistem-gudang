@@ -225,6 +225,7 @@ export default function RekapDokubah() {
                 id="rekap-cari"
                 type="text"
                 value={searchQuery}
+                maxLength={100}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="No. SPK atau klien"
                 className={fieldClass}

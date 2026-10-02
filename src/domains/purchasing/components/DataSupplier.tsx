@@ -97,6 +97,7 @@ export default function DataSupplierPurchasing() {
                 type="text"
                 value={searchTerm}
                 onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                maxLength={100}
                 className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] sm:text-sm transition-all shadow-sm"
                 placeholder="Cari supplier, npwp, atau kode..."
               />
@@ -179,6 +180,7 @@ export default function DataSupplierPurchasing() {
                   type="text"
                   value={formData.code}
                   onChange={(e) => setFormData({...formData, code: e.target.value})}
+                  maxLength={20}
                   placeholder="Masukan kode supplier"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"
                 />
@@ -190,6 +192,7 @@ export default function DataSupplierPurchasing() {
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  maxLength={191}
                   placeholder="Masukan nama supplier"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"
                 />
@@ -201,6 +204,7 @@ export default function DataSupplierPurchasing() {
                   type="text"
                   value={formData.bank}
                   onChange={(e) => setFormData({...formData, bank: e.target.value})}
+                  maxLength={100}
                   placeholder="Masukan nama Bank"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"
                 />
@@ -211,7 +215,9 @@ export default function DataSupplierPurchasing() {
                 <input
                   type="text"
                   value={formData.npwp}
-                  onChange={(e) => setFormData({...formData, npwp: e.target.value})}
+                  onChange={(e) => setFormData({...formData, npwp: e.target.value.replace(/[^\d.\-]/g, "")})}
+                  maxLength={50}
+                  inputMode="numeric"
                   placeholder="Masukan Npwp"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"
                 />
@@ -222,7 +228,9 @@ export default function DataSupplierPurchasing() {
                 <input
                   type="text"
                   value={formData.phone}
-                  onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                  onChange={(e) => setFormData({...formData, phone: e.target.value.replace(/[^\d\s+\-()]/g, "")})}
+                  maxLength={30}
+                  inputMode="tel"
                   placeholder="Masukan no telepon"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"
                 />
@@ -235,6 +243,7 @@ export default function DataSupplierPurchasing() {
                 type="text"
                 value={formData.address}
                 onChange={(e) => setFormData({...formData, address: e.target.value})}
+                maxLength={255}
                 placeholder="Masukan alamat"
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"
               />

@@ -8,6 +8,7 @@ import { allocateSpkInternal, listDokubah, listSpkInternal } from '@/domains/ppi
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { spk_internal_path } from '@/domains/ppic/data/spk-internal';
+import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 
 const fieldClass = 'w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors';
 const readOnlyFieldClass = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 bg-gray-50 cursor-default focus:outline-none';
@@ -119,12 +120,10 @@ export default function AlokasiBarangPPIC() {
           <Field id="alokasi-jumlah" label="Jumlah Mutasi">
             <input
               id="alokasi-jumlah"
-              type="number"
-              min={1}
-              max={stockBebas}
-              step={1}
+              {...INTEGER_INPUT}
+              maxLength={9}
               value={jumlah}
-              onChange={(e) => setJumlah(e.target.value)}
+              onChange={(e) => setJumlah(digitsOnly(e.target.value))}
               placeholder="0"
               className={fieldClass}
             />

@@ -147,6 +147,7 @@ export default function UserManagementPage() {
             placeholder="Cari username, email, atau role..."
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
             value={searchTerm}
+            maxLength={100}
             onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
           />
         </div>
@@ -254,6 +255,7 @@ export default function UserManagementPage() {
                     type="text"
                     required
                     minLength={3}
+                    maxLength={50}
                     placeholder="johndoe"
                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
                     value={formData.username}
@@ -266,6 +268,7 @@ export default function UserManagementPage() {
                   <input
                     type="email"
                     required
+                    maxLength={191}
                     placeholder="john@example.com"
                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
                     value={formData.email}
@@ -281,6 +284,7 @@ export default function UserManagementPage() {
                     type="password"
                     required={!editingId}
                     minLength={8}
+                    maxLength={100}
                     placeholder="Min. 8 karakter"
                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
                     value={formData.password}

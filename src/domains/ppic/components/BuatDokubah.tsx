@@ -8,6 +8,7 @@ import { dokubah_path, formatAngka, type StatusDokubah } from '@/domains/ppic/da
 import { createDokubah, listTrackingSpk } from '@/domains/ppic/api';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
+import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 
 // Kuota disimpan sebagai teks selama diisi supaya kolomnya boleh dikosongkan dulu
 type BahanRow = { kodeBarang: string; namaBahan: string; kuota: string; satuan: string };
@@ -181,6 +182,7 @@ export default function BuatDokubahPPIC() {
                       <input
                         type="text"
                         value={row.kodeBarang}
+                        maxLength={191}
                         onChange={(e) => handleRowChange(index, 'kodeBarang', e.target.value)}
                         placeholder="Contoh: BRG-001"
                         aria-label={`Kode barang baris ${nomor}`}
@@ -191,6 +193,7 @@ export default function BuatDokubahPPIC() {
                       <input
                         type="text"
                         value={row.namaBahan}
+                        maxLength={191}
                         onChange={(e) => handleRowChange(index, 'namaBahan', e.target.value)}
                         placeholder="Nama & spesifikasi bahan"
                         aria-label={`Nama dan spesifikasi bahan baris ${nomor}`}
@@ -200,11 +203,10 @@ export default function BuatDokubahPPIC() {
                     <td className={inputCellClass}>
                       <div className="flex items-center">
                         <input
-                          type="number"
-                          min={0}
-                          step="any"
+                        {...INTEGER_INPUT}
+                        maxLength={9}
                           value={row.kuota}
-                          onChange={(e) => handleRowChange(index, 'kuota', e.target.value)}
+                          onChange={(e) => handleRowChange(index, 'kuota', digitsOnly(e.target.value))}
                           placeholder="0"
                           aria-label={`Kuota alokasi baris ${nomor}`}
                           className={`${cellInputClass} min-w-24`}
@@ -212,6 +214,7 @@ export default function BuatDokubahPPIC() {
                         <input
                           type="text"
                           value={row.satuan}
+                          maxLength={50}
                           onChange={(e) => handleRowChange(index, 'satuan', e.target.value)}
                           placeholder="satuan"
                           aria-label={`Satuan baris ${nomor}`}

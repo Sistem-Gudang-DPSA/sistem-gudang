@@ -37,6 +37,7 @@ export default function RekapPembelianPurchasing() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            maxLength={100}
             placeholder="Cari"
             aria-label="Cari pembelian"
             className="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"
