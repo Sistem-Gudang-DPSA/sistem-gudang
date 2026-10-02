@@ -15258,6 +15258,1796 @@
         }
       }
     },
+    "/api/v1/penawaran-harga": {
+      "get": {
+        "tags": [
+          "Penawaran harga"
+        ],
+        "summary": "List penawaran harga",
+        "description": "Newest first. search matches noOrder, namaClient and namaProyek.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "maximum": 100,
+              "default": 10
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": false,
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DRAFT",
+                "PUBLISH"
+              ]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Penawaran harga list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "rows": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "number"
+                              },
+                              "noOrder": {
+                                "type": "string"
+                              },
+                              "namaClient": {
+                                "type": "string"
+                              },
+                              "namaProyek": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "DRAFT",
+                                  "PUBLISH"
+                                ]
+                              },
+                              "tanggal": {
+                                "type": "string"
+                              },
+                              "grandTotal": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "noOrder",
+                              "namaClient",
+                              "namaProyek",
+                              "status",
+                              "tanggal",
+                              "grandTotal"
+                            ]
+                          }
+                        },
+                        "total": {
+                          "type": "number"
+                        },
+                        "page": {
+                          "type": "number"
+                        },
+                        "pageSize": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "rows",
+                        "total",
+                        "page",
+                        "pageSize"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Penawaran harga"
+        ],
+        "summary": "Create a DRAFT penawaran harga",
+        "description": "namaClient and namaProyek are required, tanggal defaults to today. noOrder is generated (10 digits). tglSelesaiProduksi must not be before tglMulaiProduksi, 400 otherwise. noOrder, status and totals in the body are a 400.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "namaClient": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 191
+                  },
+                  "namaProyek": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 191
+                  },
+                  "tanggal": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "pekerjaan": {
+                    "type": "string",
+                    "maxLength": 191,
+                    "default": ""
+                  },
+                  "ruangan": {
+                    "type": "string",
+                    "maxLength": 191,
+                    "default": ""
+                  },
+                  "ukuran": {
+                    "type": "string",
+                    "maxLength": 191,
+                    "default": ""
+                  },
+                  "jumlah": {
+                    "type": "string",
+                    "maxLength": 191,
+                    "default": ""
+                  },
+                  "tglMulaiProduksi": {
+                    "type": "string",
+                    "nullable": true,
+                    "format": "date",
+                    "default": null
+                  },
+                  "tglSelesaiProduksi": {
+                    "type": "string",
+                    "nullable": true,
+                    "format": "date",
+                    "default": null
+                  }
+                },
+                "required": [
+                  "namaClient",
+                  "namaProyek"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Penawaran harga created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "noOrder": {
+                          "type": "string"
+                        },
+                        "namaClient": {
+                          "type": "string"
+                        },
+                        "namaProyek": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "DRAFT",
+                            "PUBLISH"
+                          ]
+                        },
+                        "tanggal": {
+                          "type": "string"
+                        },
+                        "pekerjaan": {
+                          "type": "string"
+                        },
+                        "ruangan": {
+                          "type": "string"
+                        },
+                        "ukuran": {
+                          "type": "string"
+                        },
+                        "jumlah": {
+                          "type": "string"
+                        },
+                        "tglMulaiProduksi": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "tglSelesaiProduksi": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "grandTotal": {
+                          "type": "number"
+                        },
+                        "kategori": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kategori": {
+                                "type": "string"
+                              },
+                              "subtotal": {
+                                "type": "number"
+                              },
+                              "bahan": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "number"
+                                    },
+                                    "namaBahan": {
+                                      "type": "string"
+                                    },
+                                    "satuan": {
+                                      "type": "string"
+                                    },
+                                    "panjang": {
+                                      "type": "number"
+                                    },
+                                    "lebar": {
+                                      "type": "number"
+                                    },
+                                    "tinggi": {
+                                      "type": "number"
+                                    },
+                                    "jumlahSatuan": {
+                                      "type": "number"
+                                    },
+                                    "jumlahOrder": {
+                                      "type": "number"
+                                    },
+                                    "hargaSatuan": {
+                                      "type": "number"
+                                    },
+                                    "keterangan": {
+                                      "type": "string"
+                                    },
+                                    "total": {
+                                      "type": "number",
+                                      "description": "Rupiah: round(jumlahOrder * hargaSatuan)"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "namaBahan",
+                                    "satuan",
+                                    "panjang",
+                                    "lebar",
+                                    "tinggi",
+                                    "jumlahSatuan",
+                                    "jumlahOrder",
+                                    "hargaSatuan",
+                                    "keterangan",
+                                    "total"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "kategori",
+                              "subtotal",
+                              "bahan"
+                            ]
+                          },
+                          "description": "Always the six categories in this order: Lembaran & Bahan Baku, Supplier, Perabotan, Finishing, Packing, Tenaga. A category without materials has an empty bahan list."
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "noOrder",
+                        "namaClient",
+                        "namaProyek",
+                        "status",
+                        "tanggal",
+                        "pekerjaan",
+                        "ruangan",
+                        "ukuran",
+                        "jumlah",
+                        "tglMulaiProduksi",
+                        "tglSelesaiProduksi",
+                        "grandTotal",
+                        "kategori"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/penawaran-harga/{id}": {
+      "get": {
+        "tags": [
+          "Penawaran harga"
+        ],
+        "summary": "Get a penawaran harga with its materials per category",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Penawaran harga",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "noOrder": {
+                          "type": "string"
+                        },
+                        "namaClient": {
+                          "type": "string"
+                        },
+                        "namaProyek": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "DRAFT",
+                            "PUBLISH"
+                          ]
+                        },
+                        "tanggal": {
+                          "type": "string"
+                        },
+                        "pekerjaan": {
+                          "type": "string"
+                        },
+                        "ruangan": {
+                          "type": "string"
+                        },
+                        "ukuran": {
+                          "type": "string"
+                        },
+                        "jumlah": {
+                          "type": "string"
+                        },
+                        "tglMulaiProduksi": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "tglSelesaiProduksi": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "grandTotal": {
+                          "type": "number"
+                        },
+                        "kategori": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kategori": {
+                                "type": "string"
+                              },
+                              "subtotal": {
+                                "type": "number"
+                              },
+                              "bahan": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "number"
+                                    },
+                                    "namaBahan": {
+                                      "type": "string"
+                                    },
+                                    "satuan": {
+                                      "type": "string"
+                                    },
+                                    "panjang": {
+                                      "type": "number"
+                                    },
+                                    "lebar": {
+                                      "type": "number"
+                                    },
+                                    "tinggi": {
+                                      "type": "number"
+                                    },
+                                    "jumlahSatuan": {
+                                      "type": "number"
+                                    },
+                                    "jumlahOrder": {
+                                      "type": "number"
+                                    },
+                                    "hargaSatuan": {
+                                      "type": "number"
+                                    },
+                                    "keterangan": {
+                                      "type": "string"
+                                    },
+                                    "total": {
+                                      "type": "number",
+                                      "description": "Rupiah: round(jumlahOrder * hargaSatuan)"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "namaBahan",
+                                    "satuan",
+                                    "panjang",
+                                    "lebar",
+                                    "tinggi",
+                                    "jumlahSatuan",
+                                    "jumlahOrder",
+                                    "hargaSatuan",
+                                    "keterangan",
+                                    "total"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "kategori",
+                              "subtotal",
+                              "bahan"
+                            ]
+                          },
+                          "description": "Always the six categories in this order: Lembaran & Bahan Baku, Supplier, Perabotan, Finishing, Packing, Tenaga. A category without materials has an empty bahan list."
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "noOrder",
+                        "namaClient",
+                        "namaProyek",
+                        "status",
+                        "tanggal",
+                        "pekerjaan",
+                        "ruangan",
+                        "ukuran",
+                        "jumlah",
+                        "tglMulaiProduksi",
+                        "tglSelesaiProduksi",
+                        "grandTotal",
+                        "kategori"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Penawaran harga"
+        ],
+        "summary": "Save the header and all materials",
+        "description": "Replaces the header and the whole bahan list. Only namaBahan and kategori are required on a line, missing numbers count as 0. Totals are computed by the server: line total = round(jumlahOrder * hargaSatuan), subtotal per category, grandTotal. panjang, lebar, tinggi and jumlahSatuan do not enter the total. 409 when the status is PUBLISH.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "namaClient": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 191
+                  },
+                  "namaProyek": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 191
+                  },
+                  "tanggal": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "pekerjaan": {
+                    "type": "string",
+                    "maxLength": 191,
+                    "default": ""
+                  },
+                  "ruangan": {
+                    "type": "string",
+                    "maxLength": 191,
+                    "default": ""
+                  },
+                  "ukuran": {
+                    "type": "string",
+                    "maxLength": 191,
+                    "default": ""
+                  },
+                  "jumlah": {
+                    "type": "string",
+                    "maxLength": 191,
+                    "default": ""
+                  },
+                  "tglMulaiProduksi": {
+                    "type": "string",
+                    "nullable": true,
+                    "format": "date",
+                    "default": null
+                  },
+                  "tglSelesaiProduksi": {
+                    "type": "string",
+                    "nullable": true,
+                    "format": "date",
+                    "default": null
+                  },
+                  "bahan": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "kategori": {
+                          "type": "string",
+                          "enum": [
+                            "Lembaran & Bahan Baku",
+                            "Supplier",
+                            "Perabotan",
+                            "Finishing",
+                            "Packing",
+                            "Tenaga"
+                          ]
+                        },
+                        "namaBahan": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 191
+                        },
+                        "satuan": {
+                          "type": "string",
+                          "maxLength": 50,
+                          "default": ""
+                        },
+                        "panjang": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 999999999,
+                          "default": 0
+                        },
+                        "lebar": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 999999999,
+                          "default": 0
+                        },
+                        "tinggi": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 999999999,
+                          "default": 0
+                        },
+                        "jumlahSatuan": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 999999999,
+                          "default": 0
+                        },
+                        "jumlahOrder": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 999999999,
+                          "default": 0
+                        },
+                        "hargaSatuan": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 2000000000,
+                          "default": 0
+                        },
+                        "keterangan": {
+                          "type": "string",
+                          "maxLength": 500,
+                          "default": ""
+                        }
+                      },
+                      "required": [
+                        "kategori",
+                        "namaBahan"
+                      ]
+                    },
+                    "maxItems": 500
+                  }
+                },
+                "required": [
+                  "namaClient",
+                  "namaProyek",
+                  "bahan"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Penawaran harga saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "noOrder": {
+                          "type": "string"
+                        },
+                        "namaClient": {
+                          "type": "string"
+                        },
+                        "namaProyek": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "DRAFT",
+                            "PUBLISH"
+                          ]
+                        },
+                        "tanggal": {
+                          "type": "string"
+                        },
+                        "pekerjaan": {
+                          "type": "string"
+                        },
+                        "ruangan": {
+                          "type": "string"
+                        },
+                        "ukuran": {
+                          "type": "string"
+                        },
+                        "jumlah": {
+                          "type": "string"
+                        },
+                        "tglMulaiProduksi": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "tglSelesaiProduksi": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "grandTotal": {
+                          "type": "number"
+                        },
+                        "kategori": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kategori": {
+                                "type": "string"
+                              },
+                              "subtotal": {
+                                "type": "number"
+                              },
+                              "bahan": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "number"
+                                    },
+                                    "namaBahan": {
+                                      "type": "string"
+                                    },
+                                    "satuan": {
+                                      "type": "string"
+                                    },
+                                    "panjang": {
+                                      "type": "number"
+                                    },
+                                    "lebar": {
+                                      "type": "number"
+                                    },
+                                    "tinggi": {
+                                      "type": "number"
+                                    },
+                                    "jumlahSatuan": {
+                                      "type": "number"
+                                    },
+                                    "jumlahOrder": {
+                                      "type": "number"
+                                    },
+                                    "hargaSatuan": {
+                                      "type": "number"
+                                    },
+                                    "keterangan": {
+                                      "type": "string"
+                                    },
+                                    "total": {
+                                      "type": "number",
+                                      "description": "Rupiah: round(jumlahOrder * hargaSatuan)"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "namaBahan",
+                                    "satuan",
+                                    "panjang",
+                                    "lebar",
+                                    "tinggi",
+                                    "jumlahSatuan",
+                                    "jumlahOrder",
+                                    "hargaSatuan",
+                                    "keterangan",
+                                    "total"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "kategori",
+                              "subtotal",
+                              "bahan"
+                            ]
+                          },
+                          "description": "Always the six categories in this order: Lembaran & Bahan Baku, Supplier, Perabotan, Finishing, Packing, Tenaga. A category without materials has an empty bahan list."
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "noOrder",
+                        "namaClient",
+                        "namaProyek",
+                        "status",
+                        "tanggal",
+                        "pekerjaan",
+                        "ruangan",
+                        "ukuran",
+                        "jumlah",
+                        "tglMulaiProduksi",
+                        "tglSelesaiProduksi",
+                        "grandTotal",
+                        "kategori"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/penawaran-harga/{id}/publish": {
+      "post": {
+        "tags": [
+          "Penawaran harga"
+        ],
+        "summary": "Publish a penawaran harga",
+        "description": "DRAFT to PUBLISH, needs at least one material (400) and locks the document. No approval. 409 from any other status.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Penawaran harga published",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "noOrder": {
+                          "type": "string"
+                        },
+                        "namaClient": {
+                          "type": "string"
+                        },
+                        "namaProyek": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "DRAFT",
+                            "PUBLISH"
+                          ]
+                        },
+                        "tanggal": {
+                          "type": "string"
+                        },
+                        "pekerjaan": {
+                          "type": "string"
+                        },
+                        "ruangan": {
+                          "type": "string"
+                        },
+                        "ukuran": {
+                          "type": "string"
+                        },
+                        "jumlah": {
+                          "type": "string"
+                        },
+                        "tglMulaiProduksi": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "tglSelesaiProduksi": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "grandTotal": {
+                          "type": "number"
+                        },
+                        "kategori": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kategori": {
+                                "type": "string"
+                              },
+                              "subtotal": {
+                                "type": "number"
+                              },
+                              "bahan": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "number"
+                                    },
+                                    "namaBahan": {
+                                      "type": "string"
+                                    },
+                                    "satuan": {
+                                      "type": "string"
+                                    },
+                                    "panjang": {
+                                      "type": "number"
+                                    },
+                                    "lebar": {
+                                      "type": "number"
+                                    },
+                                    "tinggi": {
+                                      "type": "number"
+                                    },
+                                    "jumlahSatuan": {
+                                      "type": "number"
+                                    },
+                                    "jumlahOrder": {
+                                      "type": "number"
+                                    },
+                                    "hargaSatuan": {
+                                      "type": "number"
+                                    },
+                                    "keterangan": {
+                                      "type": "string"
+                                    },
+                                    "total": {
+                                      "type": "number",
+                                      "description": "Rupiah: round(jumlahOrder * hargaSatuan)"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "namaBahan",
+                                    "satuan",
+                                    "panjang",
+                                    "lebar",
+                                    "tinggi",
+                                    "jumlahSatuan",
+                                    "jumlahOrder",
+                                    "hargaSatuan",
+                                    "keterangan",
+                                    "total"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "kategori",
+                              "subtotal",
+                              "bahan"
+                            ]
+                          },
+                          "description": "Always the six categories in this order: Lembaran & Bahan Baku, Supplier, Perabotan, Finishing, Packing, Tenaga. A category without materials has an empty bahan list."
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "noOrder",
+                        "namaClient",
+                        "namaProyek",
+                        "status",
+                        "tanggal",
+                        "pekerjaan",
+                        "ruangan",
+                        "ukuran",
+                        "jumlah",
+                        "tglMulaiProduksi",
+                        "tglSelesaiProduksi",
+                        "grandTotal",
+                        "kategori"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/reports/mutations": {
       "get": {
         "tags": [

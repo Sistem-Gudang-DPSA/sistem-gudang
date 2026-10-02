@@ -27,6 +27,9 @@ const monthStart = () => {
 
 const emptySummary = { bahanBaku: 0, wip: 0, barangJadi: 0 };
 
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
 export default function LaporanBarangKeluar(){
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [filterGudang, setFilterGudang] = useState<'ALL' | WarehouseType>('ALL');
@@ -64,6 +67,95 @@ export default function LaporanBarangKeluar(){
             setExporting(false);
         }
     };
+
+    const handlePrintPdf = () => {
+        const win = window.open('', '_blank');
+        if (!win) {
+            setActionError('Pop-up diblokir browser. Izinkan pop-up untuk mencetak PDF.');
+            return;
+        }
+        setActionError('');
+
+        const gudangText = filterGudang === 'ALL' ? 'Semua Jenis Gudang' : GUDANG_LABEL[filterGudang];
+        const penerimaText = filterPenerima === 'ALL' ? 'Semua Penerima' : RECIPIENT_LABEL[filterPenerima];
+        const periodeText = `${startDate ? displayDate(startDate) : '-'} s/d ${endDate ? displayDate(endDate) : '-'}`;
+
+        const bodyRows = tableRows.map(({ trx, line }, index) => {
+            const barang =
+            escapeHtml(line.itemName) +
+            `<div class="sub">${escapeHtml(line.itemCode ?? '-')}${
+                line.locationCode ? ` (${escapeHtml(line.locationCode)})` : ''
+            }</div>`;
+            const penerima =
+            escapeHtml(RECIPIENT_LABEL[trx.recipientType]) +
+            `<div class="sub">${escapeHtml(trx.clientName)}${
+                line.pic ? ` - PIC ${escapeHtml(line.pic)}` : ''
+            }</div>`;
+
+            return `
+            <tr>
+                <td class="center">${index + 1}</td>
+                <td>${barang}</td>
+                <td>${escapeHtml(GUDANG_LABEL[trx.warehouseType])}</td>
+                <td>${penerima}</td>
+                <td>${escapeHtml(trx.spk)}</td>
+                <td class="center">${escapeHtml(displayDate(trx.date))}</td>
+                <td class="center">${line.qty.toLocaleString('id-ID')}</td>
+            </tr>`;
+        }).join('');
+
+        const emptyRow = `<tr><td colspan="7" class="center">Tidak ada data barang keluar.</td></tr>`;
+
+        win.document.write(`<!doctype html>
+            <html>
+            <head>
+                <title>Rekap Barang Keluar</title>
+                <style>
+                @page { size: A4 landscape; margin: 12mm; }
+                body { font-family: Arial, sans-serif; color: #111; }
+                h1 { font-size: 18px; margin: 0 0 4px; text-transform: uppercase; }
+                .meta { font-size: 12px; margin: 0 0 12px; color: #444; }
+                .summary { font-size: 12px; margin: 0 0 12px; }
+                .summary span { margin-right: 24px; }
+                table { width: 100%; border-collapse: collapse; font-size: 11px; }
+                th, td { border: 1px solid #999; padding: 6px 8px; text-align: left; vertical-align: top; }
+                th { background: #eee; }
+                thead { display: table-header-group; }
+                tr { page-break-inside: avoid; }
+                .center { text-align: center; }
+                .sub { font-size: 10px; color: #555; }
+                </style>
+            </head>
+            <body>
+                <h1>Rekap Barang Keluar</h1>
+                <p class="meta">Periode: ${periodeText} &nbsp;|&nbsp; Asal Gudang: ${escapeHtml(gudangText)} &nbsp;|&nbsp; Penerima: ${escapeHtml(penerimaText)}${
+                searchQuery ? ` &nbsp;|&nbsp; Pencarian: ${escapeHtml(searchQuery)}` : ''
+                }</p>
+                <p class="summary">
+                <span><b>Bahan Baku:</b> ${summary.bahanBaku.toLocaleString('id-ID')} Transaksi</span>
+                <span><b>WIP:</b> ${summary.wip.toLocaleString('id-ID')} Transaksi</span>
+                <span><b>Barang Jadi:</b> ${summary.barangJadi.toLocaleString('id-ID')} Transaksi</span>
+                </p>
+                <table>
+                <thead>
+                    <tr>
+                    <th class="center">No</th>
+                    <th>Informasi Barang</th>
+                    <th>Asal Gudang</th>
+                    <th>Tujuan / Penerima</th>
+                    <th>SPK</th>
+                    <th class="center">Tanggal</th>
+                    <th class="center">Jumlah</th>
+                    </tr>
+                </thead>
+                <tbody>${tableRows.length ? bodyRows : emptyRow}</tbody>
+                </table>
+            </body>
+            </html>`);
+        win.document.close();
+        win.focus();
+        win.print();
+        };
 
     const rows = report?.rows ?? [];
     const summary = report?.summary ?? emptySummary;
@@ -167,7 +259,7 @@ export default function LaporanBarangKeluar(){
                     <div className="flex gap-2 items-end m-2 print:hidden">
                     <button
                         onClick={handleExport}
-                        disabled={exporting}
+                        disabled={exporting || loading || tableRows.length === 0}
                         title="Export Data ke CSV"
                         className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-60"
                     >
@@ -175,7 +267,8 @@ export default function LaporanBarangKeluar(){
                         <span className="hidden sm:inline">{exporting ? 'Mengekspor...' : 'Export'}</span>
                     </button>
                     <button
-                        onClick={() => window.print()}
+                        onClick={handlePrintPdf}
+                        disabled={loading || tableRows.length === 0}
                         title="Print Data ke PDF"
                         className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-60"
                     >

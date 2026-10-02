@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Search, Funnel, FileSpreadsheet, Printer, Plus, Eye, CircleCheck, CircleX, Clock, FilePen } from 'lucide-react';
+import { Search, Funnel, FileSpreadsheet, Printer, Plus, Eye, CircleCheck, CircleX, Clock, FilePen, FileUp, Download } from 'lucide-react';
 import {
   buat_dokubah_path,
   escapeHtml,
@@ -231,19 +231,27 @@ export default function DokubahPPIC() {
                 {checkedRows.length} data dicentang — Export &amp; Print hanya untuk data yang dicentang.
               </p>
             )}
-            <div className="flex flex-wrap gap-3">
-              <button onClick={handleExportExcel} disabled={rowsToExport.length === 0} className={orangeButtonClass}>
-                <FileSpreadsheet className="w-4 h-4" />
-                <span>Export Excel</span>
-              </button>
-              <button onClick={handlePrintPdf} disabled={rowsToExport.length === 0} className={orangeButtonClass}>
-                <Printer className="w-4 h-4" />
-                <span>Print PDF</span>
-              </button>
-              <Link href={buat_dokubah_path} className={orangeButtonClass}>
-                <Plus className="w-4 h-4" />
-                <span>Buat Dokubah</span>
-              </Link>
+            <div className="flex gap-2 items-end m-2 print:hidden">
+                <button
+                    onClick={handleExportExcel}
+                    className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                    title="Export Data ke CSV"
+                >
+                    <FileUp className="w-4 h-4" />
+                    <span className="hidden sm:inline">Export</span>
+                </button>
+                <button
+                    onClick={handlePrintPdf}
+                    className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                    title="Print Data ke PDF"
+                >
+                    <Download className="w-4 h-4" />
+                    <span className="hidden sm:inline">Print PDF</span>
+                </button>
+                <Link href={buat_dokubah_path} className={orangeButtonClass}>
+                  <Plus className="w-4 h-4" />
+                  <span>Buat Dokubah</span>
+                </Link>
             </div>
           </div>
         </div>
@@ -290,7 +298,7 @@ export default function DokubahPPIC() {
                   <td className={`${cellClass} text-center`}>
                     <Link
                       href={viewDokubahPath(item.id)}
-                      className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-[#FF8A00] text-white text-xs font-semibold rounded-lg hover:bg-orange-600 transition-colors"
+                      className="flex-1 lg:flex-none flex items-center justify-center gap-2 text-blue-600 hover:text-blue-800 font-medium text-xs bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded border border-blue-200 transition-colors"
                     >
                       <Eye className="w-3.5 h-3.5" />
                       View

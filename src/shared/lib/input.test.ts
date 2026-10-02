@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { digitsOnly } from "./input";
+import { decimalOnly, digitsOnly } from "./input";
 
 describe("digitsOnly", () => {
   it("drops everything except digits", () => {
@@ -9,3 +9,12 @@ describe("digitsOnly", () => {
     expect(digitsOnly("abc")).toBe("");
   });
 });
+
+describe("decimalOnly", () => {
+  it("keeps digits and the first dot only", () => {
+    expect(decimalOnly("1.5.2")).toBe("1.52");
+    expect(decimalOnly("-2,5e3")).toBe("253");
+    expect(decimalOnly(".5")).toBe(".5");
+  });
+});
+
