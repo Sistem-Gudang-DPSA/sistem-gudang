@@ -4,12 +4,14 @@ import React, { useState } from 'react';
 import { Search, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { createSupplier, deleteSupplier, listSuppliers, updateSupplier } from '@/domains/purchasing/api';
-import type { Supplier } from '@/domains/purchasing/types';
+import type { Pajak, Supplier } from '@/domains/purchasing/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
 
-const emptyForm = { code: '', name: '', bank: '', npwp: '', phone: '', address: '' };
+const emptyForm: { code: string; name: string; bank: string; npwp: string; phone: string; address: string; pajak: Pajak } = {
+  code: '', name: '', bank: '', npwp: '', phone: '', address: '', pajak: 'NON_PKP',
+};
 
 export default function DataSupplierPurchasing() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -39,7 +41,7 @@ export default function DataSupplierPurchasing() {
 
   const handleEdit = (item: Supplier) => {
     setEditingId(item.id);
-    setFormData({ code: item.code, name: item.name, bank: item.bank, npwp: item.npwp, phone: item.phone, address: item.address });
+    setFormData({ code: item.code, name: item.name, bank: item.bank, npwp: item.npwp, phone: item.phone, address: item.address, pajak: item.pajak });
     setModalError("");
     setIsModalOpen(true);
   };
@@ -126,6 +128,7 @@ export default function DataSupplierPurchasing() {
                 <th scope="col" className="px-6 py-4">Nama Supplier</th>
                 <th scope="col" className="px-6 py-4 text-center">Bank</th>
                 <th scope="col" className="px-6 py-4 text-center">NPWP</th>
+                <th scope="col" className="px-6 py-4 text-center">Pajak</th>
                 <th scope="col" className="px-6 py-4 text-center">Kontak</th>
                 <th scope="col" className="px-6 py-4">Alamat</th>
                 <th scope="col" className="px-6 py-4 text-center">Aksi</th>
@@ -133,7 +136,7 @@ export default function DataSupplierPurchasing() {
             </thead>
             <tbody className="divide-y divide-gray-50 text-gray-600">
               {loading && (
-                <tr><td colSpan={7} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
+                <tr><td colSpan={8} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
               )}
               {!loading && dataSupplier.length === 0 && (
                 <tr><td colSpan={7} className="px-6 py-6 text-center text-gray-400">Belum ada data supplier.</td></tr>
@@ -144,11 +147,12 @@ export default function DataSupplierPurchasing() {
                   <td className="px-6 py-4 font-bold text-gray-900">{item.name}</td>
                   <td className="px-6 py-4 text-center">{item.bank}</td>
                   <td className="px-6 py-4 text-center font-mono text-xs">{item.npwp}</td>
+                  <td className="px-6 py-4 text-center text-xs">{item.pajak === 'PKP' ? 'PKP' : 'Non PKP'}</td>
                   <td className="px-6 py-4 text-center text-xs">{item.phone}</td>
                   <td className="px-6 py-4 max-w-xs truncate" title={item.address}>{item.address}</td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center gap-2">
-                       <Link href="/dashboard/purchasing/master/data-supplier/detail" className="px-3 py-1 bg-green-50 text-green-600 font-bold rounded-lg text-xs hover:bg-green-100 transition-all border border-green-100">
+                       <Link href={`/dashboard/purchasing/master/data-supplier/${item.id}/detail`} className="px-3 py-1 bg-green-50 text-green-600 font-bold rounded-lg text-xs hover:bg-green-100 transition-all border border-green-100">
                         Detail Barang
                       </Link>
                       <button onClick={() => handleEdit(item)} className="px-3 py-1 bg-amber-50 text-amber-600 font-bold rounded-lg text-xs hover:bg-amber-100 transition-all border border-amber-100">
@@ -221,6 +225,19 @@ export default function DataSupplierPurchasing() {
                   placeholder="Masukan Npwp"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"
                 />
+              </div>
+
+              <div>
+                <label htmlFor="supplier-pajak" className="block text-[15px] font-medium text-gray-800 mb-2">Pajak Vendor</label>
+                <select
+                  id="supplier-pajak"
+                  value={formData.pajak}
+                  onChange={(e) => setFormData({...formData, pajak: e.target.value as Pajak})}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"
+                >
+                  <option value="NON_PKP">Non PKP</option>
+                  <option value="PKP">PKP</option>
+                </select>
               </div>
 
               <div>
