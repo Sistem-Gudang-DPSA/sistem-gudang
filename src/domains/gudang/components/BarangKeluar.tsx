@@ -9,6 +9,7 @@ import type { ItemListRow } from '@/domains/inventory/types';
 import { displayDate, todayIso, toDateRange } from '@/domains/gudang/date';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
+import Pagination from '@/shared/components/Pagination';
 
 const emptyLine = { itemId: "", qty: "", pic: "" };
 const emptyForm = {
@@ -36,10 +37,13 @@ export default function BarangKeluarGudang() {
 
   const dateRange = toDateRange(filterDay, filterMonth, filterYear);
 
-  // ponytail: loads first 100 rows only, add real pagination when the list outgrows it
+  const filterKey = JSON.stringify([searchQuery, dateRange]);
+  const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
+  const page = pageState.key === filterKey ? pageState.page : 1;
+  const setPage = (next: number) => setPageState({ key: filterKey, page: next });
   const { data: result, loading, error, reload } = useApiData(
-    () => listOutbound({ pageSize: 100, search: searchQuery || undefined, ...dateRange }),
-    JSON.stringify([searchQuery, dateRange]),
+    () => listOutbound({ page, pageSize: 20, search: searchQuery || undefined, ...dateRange }),
+    `${filterKey}|${page}`,
     'Gagal memuat data barang keluar.',
   );
   const rows = result?.rows ?? [];
@@ -256,19 +260,7 @@ export default function BarangKeluarGudang() {
           </table>
         </div>
 
-        {/* Pagination Footer */}
-        <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
-          <div>
-            Menampilkan <span className="font-semibold text-gray-900">{rows.length > 0 ? 1 : 0}</span> sampai <span className="font-semibold text-gray-900">{rows.length}</span> dari <span className="font-semibold text-gray-900">{total}</span> data
-          </div>
-          <div className="flex gap-1">
-            <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-400 cursor-not-allowed">Sec</button>
-            <button className="px-3 py-1 bg-[#FF8A00] text-white rounded-md font-medium shadow-sm shadow-orange-500/20">1</button>
-            <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-600 hover:text-[#FF8A00] font-medium transition-colors">2</button>
-            <span className="px-2 py-1 text-gray-400">...</span>
-            <button className="px-3 py-1 border border-gray-200 rounded-md hover:bg-white text-gray-600 hover:text-[#FF8A00] font-medium transition-colors">Selanjutnya</button>
-          </div>
-        </div>
+        <Pagination page={page} pageSize={20} total={total} onPageChange={setPage} />
       </div>
 
       {/* Modal Form Barang Keluar */}

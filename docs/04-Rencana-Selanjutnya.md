@@ -68,4 +68,4 @@ Belum disentuh atau belum selesai:
 
 Divisi Gudang dan PPIC selesai tersambung, kecuali alur approval dan
 Penawaran Harga. Lanjutkan dari poin 1 di atas. Dokumen berikutnya beri
-nomor `10-<Judul-Singkat>.md` sesuai konvensi di `00-Template-Docs.md`.
+nomor `11-<Judul-Singkat>.md` sesuai konvensi di `00-Template-Docs.md`.
