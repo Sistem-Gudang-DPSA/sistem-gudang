@@ -3,15 +3,16 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Search } from 'lucide-react';
+import { useApiData } from '@/shared/lib/use-api-data';
 import { formatTanggal } from '@/domains/ppic/data/dokubah';
-import { getPermintaanList } from '@/domains/ppic/data/pembelian';
+import { fetchPermintaanList } from '@/domains/ppic/data/pembelian';
 import { lihatPermintaanPath } from '@/domains/purchasing/data/pembelian';
 
 const cellClass = 'px-4 py-3 border-b border-r border-gray-300';
 
 export default function RekapPembelianPurchasing() {
-  // Daftar permintaan dipakai bersama dengan halaman Rekap Pembelian PPIC
-  const data = getPermintaanList();
+  const { data: rows, loading, error } = useApiData(fetchPermintaanList, '', 'Gagal memuat rekap pembelian.');
+  const data = rows ?? [];
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredData = data.filter((item) => {
@@ -72,7 +73,14 @@ export default function RekapPembelianPurchasing() {
                   </td>
                 </tr>
               ))}
-              {filteredData.length === 0 && (
+              {(loading || error) && (
+                <tr>
+                  <td colSpan={5} className={`${cellClass} px-6 py-10 text-center ${error ? 'text-red-600' : 'text-gray-400 italic'}`}>
+                    {error || 'Memuat data...'}
+                  </td>
+                </tr>
+              )}
+              {!loading && !error && filteredData.length === 0 && (
                 <tr>
                   <td colSpan={5} className={`${cellClass} px-6 py-10 text-center text-gray-400 italic`}>
                     Data tidak ditemukan.
