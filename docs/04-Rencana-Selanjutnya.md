@@ -112,5 +112,5 @@ OpenAPI backend disalin ke `docs/api-1.json` setiap kali berubah.
 
 Semua domain tersambung ke backend, kecuali alur approval selain permintaan
 pembelian dan tracking asli. Lanjutkan dari poin 1 di atas. Dokumen
-berikutnya beri nomor `15-<Judul-Singkat>.md` sesuai konvensi di
+berikutnya beri nomor `16-<Judul-Singkat>.md` sesuai konvensi di
 `00-Template-Docs.md`.

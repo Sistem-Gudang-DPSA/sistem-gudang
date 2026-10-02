@@ -20,3 +20,5 @@ Satu dokumen membahas satu pekerjaan atau satu keputusan besar. Lihat
 | [12-Pemesanan-Pembelian-dan-Histori-Harga-Supplier.md](12-Pemesanan-Pembelian-dan-Histori-Harga-Supplier.md) | Buat PO dan grid harga bulanan supplier disambungkan ke backend, dengan rumus pajak Imel dan nomor PO dari backend. |
 | [13-Penawaran-Harga-SPH.md](13-Penawaran-Harga-SPH.md) | Penawaran Harga dan Estimasi Penawaran Biaya buatan Imel disambungkan ke backend, dengan keputusan client dan projek terpisah serta Publish yang mengunci. |
 | [14-Test-Menyeluruh-Dashboard-dan-Ability.md](14-Test-Menyeluruh-Dashboard-dan-Ability.md) | Test untuk seluruh bagian aplikasi, dashboard tiap divisi dengan data asli, serta sidebar dan tombol yang mengikuti permission role. |
+| [15-Catatan-Refactoring.md](15-Catatan-Refactoring.md) | Hasil pengukuran kode dan daftar refactoring yang layak dikerjakan, berurut menurut nilai, beserta waktu yang disarankan. |
+
