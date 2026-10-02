@@ -32,20 +32,29 @@ memutuskan di halaman Detail Permintaan Pembelian: Setuju, Tolak, atau
 Revisi. Tolak dan Revisi wajib memakai catatan. Tombol Buat PO baru
 muncul setelah status Disetujui, dan halaman Buat PO menolak permintaan
 yang belum disetujui. PPIC hanya melihat status. Detail memakai
-`GET /approvals/{id}/actions`, karena backend tidak punya
-`GET /approvals/{id}`.
+`GET /approvals/{id}`, yang mengembalikan request beserta riwayat aksi.
 
 Alur ini bergantung pada workflow backend dua langkah, yaitu PPIC sebagai
-pemohon lalu Purchasing sebagai penyetuju. Sebelum aturan itu diubah,
-backend masih punya langkah Inventory di depan Purchasing.
+pemohon lalu Purchasing sebagai penyetuju. Aturan itu sudah berlaku di
+backend dan diuji end to end, lihat bagian Hasil Uji.
+
+## Hasil Uji
+
+Diuji lewat API terhadap backend lokal dengan akun seed `staf_ppic`,
+`koor_purchasing`, dan `koor_inventory`. Permintaan dari PPIC langsung
+`pending` di langkah 2 milik Purchasing. Purchasing bisa meminta revisi,
+PPIC kirim ulang sehingga `cycle` naik dan kembali `pending`, lalu
+Purchasing menyetujui. Aksi yang seharusnya ditolak memang ditolak:
+approve oleh PPIC atau Inventory, reject tanpa catatan, dan resubmit oleh
+selain pemohon. Inventory tidak lagi melihat daftar maupun detail request.
+Layar di browser belum diuji.
 
 ## Yang Belum Tersambung
 
 - PPIC belum bisa mengirim ulang dan mengubah permintaan yang statusnya
   Perlu Revisi. Backend mendukung resubmit dengan payload baru, tetapi
   layar edit belum dibuat.
-- Riwayat aksi dari `/actions` belum ditampilkan, karena skema item
-  riwayat belum didokumentasikan di OpenAPI.
+- Riwayat aksi sudah diterima dari backend dengan field `stepOrder`, `cycle`, `action`, `note`, dan `createdAt`, tetapi belum ditampilkan di layar.
 
 - Simpan PO masih di memori dan hilang saat halaman di-refresh, karena
   backend belum punya endpoint PO.
