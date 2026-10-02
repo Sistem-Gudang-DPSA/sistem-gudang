@@ -33,7 +33,7 @@ perlu disatukan lagi.
 
 ### Penyelarasan tampilan
 
-File di `src/domains/gudang/components/`. Elemen Cal yang dikembalikan:
+File di `src/domains/inventory/components/`. Elemen Cal yang dikembalikan:
 placeholder pencarian, footer pagination, tombol Edit, Tambah, dan Download
 di Permintaan Pembelian dan Stock Opname, tiga kartu ringkasan di Laporan
 Barang Masuk, gaya tombol Export dan kolom Check, serta input nama barang
@@ -92,7 +92,7 @@ diketahui.
 
 | File | Cakupan |
 |---|---|
-| `src/domains/gudang/quota.test.ts` | Approved saat kuota cukup termasuk pas, Perlu Approval saat kuota kurang atau habis, Belum Terdata saat tidak ada Dokubah. |
+| `src/domains/inventory/quota.test.ts` | Approved saat kuota cukup termasuk pas, Perlu Approval saat kuota kurang atau habis, Belum Terdata saat tidak ada Dokubah. |
 
 Total ada 23 tes unit yang lulus, ditambah `tsc` dan `next build` yang
 bersih. Perbandingan tampilan dengan `cal/updKamisGudang` dilakukan lewat

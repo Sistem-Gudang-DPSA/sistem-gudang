@@ -19,7 +19,7 @@ const setVal = (l: string, v: string) => fireEvent.change(screen.getByLabelText(
 
 describe('RekapMutasiBarang', () => {
   it('loads rows and backend summary totals', async () => {
-    const api = installFakeApi({ 'GET /api/v1/reports/mutations': paged(rows, { summary }) });
+    const api = installFakeApi({ 'GET /api/v1/locations': paged([{ id: 1, code: 'A-01', rackName: 'A', rackNumber: '01' }, { id: 2, code: 'B-02', rackName: 'B', rackNumber: '02' }]), 'GET /api/v1/reports/mutations': paged(rows, { summary }) });
     render(<RekapMutasiBarang />);
     expect(await screen.findByText('SPK-in-1')).toBeTruthy();
     expect(api.calls('GET /api/v1/reports/mutations')[0].query.get('pageSize')).toBe('20');
@@ -31,20 +31,20 @@ describe('RekapMutasiBarang', () => {
   });
 
   it('empty state with zero summary', async () => {
-    installFakeApi({ 'GET /api/v1/reports/mutations': paged([], { summary: { ...summary, totalTransaksi: 0, totalMasuk: 0, totalKeluar: 0 } }) });
+    installFakeApi({ 'GET /api/v1/locations': paged([{ id: 1, code: 'A-01', rackName: 'A', rackNumber: '01' }, { id: 2, code: 'B-02', rackName: 'B', rackNumber: '02' }]), 'GET /api/v1/reports/mutations': paged([], { summary: { ...summary, totalTransaksi: 0, totalMasuk: 0, totalKeluar: 0 } }) });
     render(<RekapMutasiBarang />);
     expect(await screen.findByText('Data tidak ditemukan.')).toBeTruthy();
     expect(screen.getByText('0 Transaksi')).toBeTruthy();
   });
 
   it('backend error', async () => {
-    installFakeApi({ 'GET /api/v1/reports/mutations': fail(403, 'Missing permission: report.view') });
+    installFakeApi({ 'GET /api/v1/locations': paged([{ id: 1, code: 'A-01', rackName: 'A', rackNumber: '01' }, { id: 2, code: 'B-02', rackName: 'B', rackNumber: '02' }]), 'GET /api/v1/reports/mutations': fail(403, 'Missing permission: report.view') });
     render(<RekapMutasiBarang />);
     expect(await screen.findByText('Missing permission: report.view')).toBeTruthy();
   });
 
   it('sends tipe, lokasi, dates and search to the API and resets to page 1', async () => {
-    const api = installFakeApi({ 'GET /api/v1/reports/mutations': paged(rows, { summary, total: 45 }) });
+    const api = installFakeApi({ 'GET /api/v1/locations': paged([{ id: 1, code: 'A-01', rackName: 'A', rackNumber: '01' }, { id: 2, code: 'B-02', rackName: 'B', rackNumber: '02' }]), 'GET /api/v1/reports/mutations': paged(rows, { summary, total: 45 }) });
     render(<RekapMutasiBarang />);
     await screen.findByText('SPK-in-1');
     const last = () => api.calls('GET /api/v1/reports/mutations').at(-1)!.query;
@@ -63,7 +63,7 @@ describe('RekapMutasiBarang', () => {
   });
 
   it('paginates on the server', async () => {
-    const api = installFakeApi({ 'GET /api/v1/reports/mutations': paged(rows, { summary, total: 45 }) });
+    const api = installFakeApi({ 'GET /api/v1/locations': paged([{ id: 1, code: 'A-01', rackName: 'A', rackNumber: '01' }, { id: 2, code: 'B-02', rackName: 'B', rackNumber: '02' }]), 'GET /api/v1/reports/mutations': paged(rows, { summary, total: 45 }) });
     render(<RekapMutasiBarang />);
     await screen.findByText('SPK-in-1');
     expect(screen.getByText('45')).toBeTruthy();
@@ -72,7 +72,7 @@ describe('RekapMutasiBarang', () => {
   });
 
   it('date inputs constrain each other (min/max)', async () => {
-    installFakeApi({ 'GET /api/v1/reports/mutations': paged(rows, { summary }) });
+    installFakeApi({ 'GET /api/v1/locations': paged([{ id: 1, code: 'A-01', rackName: 'A', rackNumber: '01' }, { id: 2, code: 'B-02', rackName: 'B', rackNumber: '02' }]), 'GET /api/v1/reports/mutations': paged(rows, { summary }) });
     render(<RekapMutasiBarang />);
     await screen.findByText('SPK-in-1');
     setVal('Periode Awal', '2026-04-01');
@@ -81,8 +81,8 @@ describe('RekapMutasiBarang', () => {
     expect((screen.getByLabelText('Periode Awal') as HTMLInputElement).max).toBe('2026-04-30');
   });
 
-  it('lists locations from the data', async () => {
-    installFakeApi({ 'GET /api/v1/reports/mutations': paged(rows, { summary }) });
+  it('lists locations from GET /locations', async () => {
+    installFakeApi({ 'GET /api/v1/locations': paged([{ id: 1, code: 'A-01', rackName: 'A', rackNumber: '01' }, { id: 2, code: 'B-02', rackName: 'B', rackNumber: '02' }]), 'GET /api/v1/reports/mutations': paged(rows, { summary }) });
     render(<RekapMutasiBarang />);
     await screen.findByText('SPK-in-1');
     const opts = Array.from((screen.getByLabelText('Lokasi') as HTMLSelectElement).options).map((o) => o.value);
@@ -90,7 +90,7 @@ describe('RekapMutasiBarang', () => {
   });
 
   it('checkbox select-all', async () => {
-    installFakeApi({ 'GET /api/v1/reports/mutations': paged(rows, { summary }) });
+    installFakeApi({ 'GET /api/v1/locations': paged([{ id: 1, code: 'A-01', rackName: 'A', rackNumber: '01' }, { id: 2, code: 'B-02', rackName: 'B', rackNumber: '02' }]), 'GET /api/v1/reports/mutations': paged(rows, { summary }) });
     render(<RekapMutasiBarang />);
     await screen.findByText('SPK-in-1');
     fireEvent.click(screen.getByLabelText('Centang semua'));
@@ -100,7 +100,7 @@ describe('RekapMutasiBarang', () => {
   });
 
   it('print window gets escaped rows', async () => {
-    installFakeApi({ 'GET /api/v1/reports/mutations': paged([m('in-1', '2026-03-05', 'Masuk', 5, 'A', '<i>x</i>')]) });
+    installFakeApi({ 'GET /api/v1/locations': paged([{ id: 1, code: 'A-01', rackName: 'A', rackNumber: '01' }, { id: 2, code: 'B-02', rackName: 'B', rackNumber: '02' }]), 'GET /api/v1/reports/mutations': paged([m('in-1', '2026-03-05', 'Masuk', 5, 'A', '<i>x</i>')]) });
     let written = '';
     let printed = false;
     window.open = (() => ({ document: { write: (h: string) => { written = h; }, close: () => {} }, focus: () => {}, print: () => { printed = true; } })) as unknown as typeof window.open;

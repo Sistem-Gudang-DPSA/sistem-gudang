@@ -3,13 +3,11 @@
 import { useCan } from '@/domains/auth/user-context';
 import React, { useEffect, useState } from 'react';
 import { Search, Calendar, Plus, Download } from 'lucide-react';
-import { createInbound, createInboundReturn, listInbound } from '@/domains/gudang/api';
-import type { StatusQc } from '@/domains/gudang/types';
-import { listItems } from '@/domains/inventory/api';
-import type { ItemListRow } from '@/domains/inventory/types';
+import { createInbound, createInboundReturn, listInbound, listItems } from '@/domains/inventory/api';
+import type { StatusQc, ItemListRow } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
 import type { Supplier } from '@/domains/purchasing/types';
-import { displayDate, todayIso, toDateRange } from '@/domains/gudang/date';
+import { displayDate, todayIso, toDateRange } from '@/domains/inventory/date';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';

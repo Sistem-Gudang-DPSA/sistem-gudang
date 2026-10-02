@@ -192,6 +192,8 @@ export interface ApprovalListParams {
   domainId?: number;
   startDate?: string;
   endDate?: string;
+  // Only purchase requests: whether at least one purchase order was made from the request.
+  hasPurchaseOrder?: boolean;
 }
 
 export type PenawaranApiStatus = "DRAFT" | "PUBLISH";

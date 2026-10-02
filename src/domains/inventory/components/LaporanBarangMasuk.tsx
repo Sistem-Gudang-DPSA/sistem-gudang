@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react';
 import { Search, Eye, Download, FileUp, Loader2, AlertCircle } from 'lucide-react';
-import { exportInboundReport, getInboundReport } from '@/domains/gudang/api';
-import type { InboundRow, InboundSource } from '@/domains/gudang/types';
+import { exportInboundReport, getInboundReport } from '@/domains/inventory/api';
+import type { InboundRow, InboundSource } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
