@@ -14,3 +14,4 @@ Satu dokumen membahas satu pekerjaan atau satu keputusan besar. Lihat
 | [06-Integrasi-Modul-Gudang.md](06-Integrasi-Modul-Gudang.md) | Transaksi dan laporan divisi Gudang disambungkan ke backend: barang masuk/keluar, stock opname, permintaan pembelian, rekap, dan export xlsx. |
 | [07-Integrasi-PPIC-Dokubah-dan-SPK-Internal.md](07-Integrasi-PPIC-Dokubah-dan-SPK-Internal.md) | Layar PPIC buatan imel disambungkan ke backend: Dokubah, SPK Internal, rekap mutasi, stok opname, dan pilihan dari tracking. |
 | [08-Tampilan-Gudang-dan-Detail-Rekap-Permintaan.md](08-Tampilan-Gudang-dan-Detail-Rekap-Permintaan.md) | Tampilan Gudang diselaraskan dengan Cal, dan Detail Rekap Permintaan membaca sisa kuota serta tanggal dari Dokubah. |
+| [09-Permintaan-Pembelian-PPIC-dan-Rekap-Pembelian.md](09-Permintaan-Pembelian-PPIC-dan-Rekap-Pembelian.md) | Permintaan Pembelian pindah dari Gudang ke PPIC karena permission, dan Rekap Pembelian PPIC serta Purchasing disambungkan ke backend. |

@@ -27,7 +27,7 @@ export interface NavDivision {
 
 // Links whose pages do not exist yet are left out on purpose (they used to 404):
 // ppic: laporan/barang-masuk, barang-keluar, barang-dikembalikan, stok-opname
-// purchasing: laporan/barang-masuk, barang-keluar, stok-opname, pembelian
+// purchasing: laporan/barang-masuk, barang-keluar, stok-opname
 export const NAV_DIVISIONS: NavDivision[] = [
   {
     key: "gudang",
@@ -49,11 +49,6 @@ export const NAV_DIVISIONS: NavDivision[] = [
           { href: "/dashboard/gudang/transaksi/barang-masuk", label: "Barang Masuk", anyOf: ["inbound.view"] },
           { href: "/dashboard/gudang/transaksi/barang-keluar", label: "Barang Keluar", anyOf: ["outbound.view"] },
           { href: "/dashboard/gudang/transaksi/stock-opname", label: "Stock Opname", anyOf: ["stock-opname.view"] },
-          {
-            href: "/dashboard/gudang/transaksi/permintaan-pembelian",
-            label: "Permintaan Pembelian",
-            anyOf: ["purchase-request.create", "purchase-request.approve"],
-          },
         ],
       },
       {
@@ -87,6 +82,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
         items: [
           { href: "/dashboard/ppic/transaksi/dokubah", label: "Dokubah", anyOf: ["dokubah.view"] },
           { href: "/dashboard/ppic/transaksi/spk-mutasi-internal", label: "SPK Internal & Mutasi Stok", anyOf: ["spk-internal.view"] },
+          { href: "/dashboard/ppic/transaksi/permintaan-pembelian", label: "Permintaan Pembelian", anyOf: ["purchase-request.create"] },
         ],
       },
       {
@@ -95,6 +91,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
           { href: "/dashboard/ppic/laporan/rekap-dokubah", label: "Rekap Dokubah", anyOf: ["dokubah.view"] },
           { href: "/dashboard/ppic/laporan/rekap-mutasi", label: "Rekap Mutasi Barang", anyOf: ["report.view"] },
           { href: "/dashboard/ppic/laporan/rekap-stock", label: "Rekap Stok Opname & Mutasi Stok", anyOf: ["report.view"] },
+          { href: "/dashboard/ppic/laporan/rekap-pembelian", label: "Rekap Pembelian", anyOf: ["purchase-request.create"] },
         ],
       },
     ],
@@ -111,6 +108,12 @@ export const NAV_DIVISIONS: NavDivision[] = [
         items: [
           { href: "/dashboard/purchasing/master/data-barang", label: "Data Barang", anyOf: ["item.view"] },
           { href: "/dashboard/purchasing/master/data-supplier", label: "Data Supplier", anyOf: ["supplier.view"] },
+        ],
+      },
+      {
+        title: "Laporan",
+        items: [
+          { href: "/dashboard/purchasing/laporan/rekap-pembelian", label: "Rekap Pembelian", anyOf: ["purchase-request.approve"] },
         ],
       },
     ],

@@ -1,5 +1,5 @@
-import { listApprovals } from '@/domains/gudang/api';
-import type { ApprovalRequest, ApprovalStatus } from '@/domains/gudang/types';
+import { listApprovals } from '@/domains/ppic/api';
+import type { ApprovalRequest, ApprovalStatus } from '@/domains/ppic/types';
 
 export type StatusPermintaan = 'Belum Disetujui' | 'Disetujui' | 'Perlu Revisi' | 'Ditolak';
 
