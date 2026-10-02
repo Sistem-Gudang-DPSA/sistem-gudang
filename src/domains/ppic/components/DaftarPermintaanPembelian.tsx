@@ -3,9 +3,9 @@
 import React, { useState } from 'react';
 import { Search, Plus, Calendar, Eye } from 'lucide-react';
 import Link from 'next/link';
-import { listApprovals } from '@/domains/gudang/api';
+import { listApprovals } from '@/domains/ppic/api';
 import { displayDate, toDateRange } from '@/domains/gudang/date';
-import type { ApprovalRequest, ApprovalStatus } from '@/domains/gudang/types';
+import type { ApprovalRequest, ApprovalStatus } from '@/domains/ppic/types';
 import { useApiData } from '@/shared/lib/use-api-data';
 
 const STATUS_LABEL: Record<ApprovalStatus, { label: string; cls: string }> = {
@@ -22,7 +22,7 @@ const summarize = (req: ApprovalRequest) => {
   return `${p.bagian} - ${p.items.length} barang (${names})`;
 };
 
-export default function PermintaanPembelianGudang() {
+export default function DaftarPermintaanPembelianPPIC() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterDay, setFilterDay] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
@@ -48,7 +48,7 @@ export default function PermintaanPembelianGudang() {
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       <div className="flex flex-col justify-start mb-8 gap-2">
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1 uppercase">PERMINTAAN PEMBELIAN</h1>
-        <p className="text-gray-500 text-sm">Kelola pengajuan permintaan pembelian barang dari gudang.</p>
+        <p className="text-gray-500 text-sm">Kelola pengajuan permintaan pembelian barang.</p>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
@@ -133,7 +133,7 @@ export default function PermintaanPembelianGudang() {
             </div>
           </div>
 
-          <Link href="/dashboard/gudang/transaksi/permintaan-pembelian/tambah" className="w-full lg:w-auto">
+          <Link href="/dashboard/ppic/transaksi/permintaan-pembelian/tambah" className="w-full lg:w-auto">
             <button className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0 w-full">
               <Plus className="w-4 h-4" />
               <span>Tambah Data</span>

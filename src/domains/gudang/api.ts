@@ -1,6 +1,6 @@
 import { apiClient, downloadFile, toQuery } from "@/shared/lib/api-client";
 import type { PaginatedResult } from "@/domains/inventory/types";
-import type { MaterialRequestDetail, RequestReport, RequestReportParams, ApprovalListParams, ApprovalRequest, PurchaseRequestPayload, CreateStockOpnameInput, StockOpnameDetail, StockOpnameListParams, StockOpnameRow, CreateOutboundInput, OutboundReport, OutboundReportParams, OutboundListParams, OutboundRow, CreateInboundInput, InboundReport, InboundReportParams, CreateInboundReturnInput, InboundListParams, InboundRow } from "./types";
+import type { MaterialRequestDetail, RequestReport, RequestReportParams, CreateStockOpnameInput, StockOpnameDetail, StockOpnameListParams, StockOpnameRow, CreateOutboundInput, OutboundReport, OutboundReportParams, OutboundListParams, OutboundRow, CreateInboundInput, InboundReport, InboundReportParams, CreateInboundReturnInput, InboundListParams, InboundRow } from "./types";
 
 export function listInbound(params?: InboundListParams) {
   return apiClient.get<PaginatedResult<InboundRow>>(`/api/v1/inbound${toQuery(params)}`);
@@ -53,14 +53,6 @@ export function getStockOpname(id: number) {
 
 export function createStockOpname(input: CreateStockOpnameInput) {
   return apiClient.post<StockOpnameDetail>("/api/v1/stock-opname", input);
-}
-
-export function listApprovals(params?: ApprovalListParams) {
-  return apiClient.get<PaginatedResult<ApprovalRequest>>(`/api/v1/approvals${toQuery(params)}`);
-}
-
-export function createPurchaseRequest(payload: PurchaseRequestPayload) {
-  return apiClient.post<ApprovalRequest>("/api/v1/approvals", { type: "purchase-request", payload });
 }
 
 export function getRequestsReport(params?: RequestReportParams) {

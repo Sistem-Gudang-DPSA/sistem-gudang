@@ -14,8 +14,7 @@ Selesai dan tersambung ke API asli:
   hapus.
 - Item, Location, dan Supplier (`02-Integrasi-Inventory-Item-Lokasi.md`,
   `03-Integrasi-Data-Supplier.md`).
-- Divisi Gudang: barang masuk, barang keluar, stock opname, permintaan
-  pembelian, laporan barang masuk, laporan barang keluar, dan rekap
+- Divisi Gudang: barang masuk, barang keluar, stock opname, laporan barang masuk, laporan barang keluar, dan rekap
   permintaan (`06-Integrasi-Modul-Gudang.md`).
 - Tampilan Gudang dari Cal, Rekap Stok Opname dan Rekap Dokubah di menu
   Laporan Gudang, serta Detail Rekap Permintaan dengan sisa kuota dari
@@ -23,6 +22,8 @@ Selesai dan tersambung ke API asli:
 - PPIC: Dokubah, SPK Internal, Rekap Dokubah, Rekap Mutasi Barang, dan
   Rekap Stok Opname PPIC, termasuk pilihan SPK dan Penanggung Jawab dari
   tracking (`07-Integrasi-PPIC-Dokubah-dan-SPK-Internal.md`).
+- Permintaan Pembelian di PPIC dan Rekap Pembelian PPIC serta Purchasing
+  (`09-Permintaan-Pembelian-PPIC-dan-Rekap-Pembelian.md`).
 
 Belum disentuh atau belum selesai:
 
@@ -67,4 +68,4 @@ Belum disentuh atau belum selesai:
 
 Divisi Gudang dan PPIC selesai tersambung, kecuali alur approval dan
 Penawaran Harga. Lanjutkan dari poin 1 di atas. Dokumen berikutnya beri
-nomor `09-<Judul-Singkat>.md` sesuai konvensi di `00-Template-Docs.md`.
+nomor `10-<Judul-Singkat>.md` sesuai konvensi di `00-Template-Docs.md`.
