@@ -3,6 +3,7 @@
 import React, { useRef, useState } from 'react';
 import { Search, ChevronDown, CalendarDays, FileUp, Download } from 'lucide-react';
 import { listMutations } from '@/domains/ppic/api';
+import { listLocations } from '@/domains/inventory/api';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
 
@@ -107,9 +108,9 @@ export default function RekapMutasiBarang() {
   const total = result?.total ?? 0;
   const { totalTransaksi, totalMasuk, totalKeluar } = result?.summary ?? { totalTransaksi: 0, totalMasuk: 0, totalKeluar: 0 };
 
-  // ponytail: location options come from the first 100 rows, no location-list endpoint
-  const { data: optionRows } = useApiData(() => listMutations({ pageSize: 100 }), 'lokasi', 'Gagal memuat lokasi.');
-  const lokasiOptions = Array.from(new Set((optionRows?.rows ?? []).map((d) => d.lokasi))).sort();
+  const { data: locations } = useApiData(() => listLocations({ pageSize: 100 }), 'lokasi', 'Gagal memuat lokasi.');
+  // The location filter of /reports/mutations uses the location code, same as `code` in GET /locations.
+  const lokasiOptions = (locations?.rows ?? []).map((l) => l.code).sort();
 
   const checkedRows = filteredData.filter((item) => selectedIds.has(item.id));
   const allChecked = filteredData.length > 0 && checkedRows.length === filteredData.length;

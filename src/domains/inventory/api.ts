@@ -9,8 +9,9 @@ import type {
   PaginatedResult,
 } from "./types";
 
+// `summary` covers every item matching the search, not just the requested page.
 export function listItems(params?: ListParams) {
-  return apiClient.get<PaginatedResult<ItemListRow>>(`/api/v1/items${toQuery(params)}`);
+  return apiClient.get<PaginatedResult<ItemListRow> & { summary?: { totalJenis: number; totalStock: number } }>(`/api/v1/items${toQuery(params)}`);
 }
 
 export function getItem(id: number) {

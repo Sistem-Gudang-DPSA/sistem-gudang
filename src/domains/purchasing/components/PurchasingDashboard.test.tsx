@@ -19,9 +19,11 @@ const card = (label: string) => screen.getByText(label).closest("div")!.parentEl
 
 const routes = (over: Record<string, unknown> = {}) => ({
   "GET /api/v1/approvals": (req: { query: URLSearchParams }) =>
-    req.query.get("status") === "approved"
-      ? paged([approval(1), approval(2), approval(3)])
-      : paged([approval(7, "Gudang")], { total: 9 }),
+    req.query.get("hasPurchaseOrder") === "false"
+      ? paged([], { total: 2 })
+      : req.query.get("status") === "approved"
+        ? paged([approval(1), approval(2), approval(3)])
+        : paged([approval(7, "Gudang")], { total: 9 }),
   "GET /api/v1/purchase-orders": (req: { query: URLSearchParams }) =>
     req.query.get("startDate") ? paged([], { total: 4 }) : paged([po(10, 2)]),
   "GET /api/v1/suppliers": paged([], { total: 33 }),
@@ -32,12 +34,14 @@ const user = (permissions: string[]): AuthUser =>
   ({ id: 1, username: "u", email: "u@x", roleId: 1, roleName: "r", isSuperadmin: false, permissions }) as AuthUser;
 
 describe("PurchasingDashboard", () => {
-  it("shows numbers from the API and computes approved requests without a PO", async () => {
-    installFakeApi(routes());
+  it("shows numbers from the API and reads the approved-without-PO count from the backend", async () => {
+    const api = installFakeApi(routes());
     render(<PurchasingDashboard />);
     expect(screen.getByText("Dashboard Purchasing")).toBeTruthy();
     expect(await within(card("Menunggu Persetujuan")).findByText("9")).toBeTruthy();
     expect(await within(card("Disetujui, Belum Dibuat PO")).findByText("2")).toBeTruthy();
+    const q = api.calls("GET /api/v1/approvals").map((c) => c.query).find((x) => x.get("hasPurchaseOrder"))!;
+    expect([q.get("type"), q.get("status"), q.get("hasPurchaseOrder"), q.get("pageSize")]).toEqual(["purchase-request", "approved", "false", "1"]);
     expect(await within(card("PO Bulan Ini")).findByText("4")).toBeTruthy();
     expect(await within(card("Total Supplier")).findByText("33")).toBeTruthy();
   });
