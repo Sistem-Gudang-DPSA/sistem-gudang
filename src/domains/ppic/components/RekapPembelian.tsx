@@ -3,13 +3,15 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Search } from 'lucide-react';
+import { useApiData } from '@/shared/lib/use-api-data';
 import { formatTanggal } from '@/domains/ppic/data/dokubah';
-import { getPermintaanList, lihatPermintaanPath } from '@/domains/ppic/data/pembelian';
+import { fetchPermintaanList, lihatPermintaanPath } from '@/domains/ppic/data/pembelian';
 
 const cellClass = 'px-4 py-3 border-b border-r border-gray-300';
 
 export default function RekapPembelian() {
-  const data = getPermintaanList();
+  const { data: rows, loading, error } = useApiData(fetchPermintaanList, '', 'Gagal memuat rekap pembelian.');
+  const data = rows ?? [];
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredData = data.filter((item) => {
@@ -70,7 +72,14 @@ export default function RekapPembelian() {
                         </td>
                     </tr>
                     ))}
-                    {filteredData.length === 0 && (
+                    {(loading || error) && (
+                    <tr>
+                        <td colSpan={5} className={`${cellClass} px-6 py-10 text-center ${error ? 'text-red-600' : 'text-gray-400 italic'}`}>
+                        {error || 'Memuat data...'}
+                        </td>
+                    </tr>
+                    )}
+                    {!loading && !error && filteredData.length === 0 && (
                     <tr>
                         <td colSpan={5} className={`${cellClass} px-6 py-10 text-center text-gray-400 italic`}>
                         Data tidak ditemukan.

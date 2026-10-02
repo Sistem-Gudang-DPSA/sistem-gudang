@@ -2,14 +2,14 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { formatAngka, formatTanggal } from '@/domains/ppic/data/dokubah';
-import { getPermintaanList, rekap_pembelian_path, setStatusPermintaan, type StatusPermintaan } from '@/domains/ppic/data/pembelian';
+import { fetchPermintaan, rekap_pembelian_path } from '@/domains/ppic/data/pembelian';
+import { useApiData } from '@/shared/lib/use-api-data';
 
 const cellClass = 'px-4 py-3 border-b border-r border-gray-300';
 const readOnlyFieldClass = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 bg-gray-50 cursor-default focus:outline-none';
-const orangeButtonClass = 'min-w-24 px-8 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm text-center';
 const dividerClass = 'border-t border-gray-400 my-6';
 
 function Field({ id, label, value }: { id: string; label: string; value: string }) {
@@ -38,8 +38,7 @@ function Lampiran({ label, file }: { label: string; file?: string }) {
 // `actions` mengganti tombol Revisi/Setuju (dipakai halaman purchasing)
 export default function PermintaanPembelianPPIC({ backPath = rekap_pembelian_path, actions }: { backPath?: string; actions?: React.ReactNode }) {
   const { id } = useParams<{ id: string }>();
-  const router = useRouter();
-  const permintaan = getPermintaanList().find((item) => String(item.id) === id);
+  const { data: permintaan, loading, error } = useApiData(() => fetchPermintaan(id), id, 'Gagal memuat permintaan pembelian.');
 
   const header = (
     <div className="flex items-center gap-3 mb-6">
@@ -55,16 +54,11 @@ export default function PermintaanPembelianPPIC({ backPath = rekap_pembelian_pat
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
         {header}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-6 py-10 text-center text-gray-400 italic">
-          Permintaan pembelian tidak ditemukan.
+          {loading ? 'Memuat data...' : error || 'Permintaan pembelian tidak ditemukan.'}
         </div>
       </div>
     );
   }
-
-  const handleKeputusan = (status: StatusPermintaan) => {
-    setStatusPermintaan(permintaan.id, status);
-    router.replace(backPath);
-  };
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -129,16 +123,11 @@ export default function PermintaanPembelianPPIC({ backPath = rekap_pembelian_pat
         </div>
       </div>
 
-      {/* Keputusan hanya bisa diberikan selama permintaan belum diproses */}
+      {/* ponytail: Revisi/Setuju menunggu alur approval (ditunda), sementara hanya menampilkan status */}
       <div className="flex items-center justify-end gap-4 mt-8">
-        {actions ?? (permintaan.status === 'Belum Disetujui' ? (
-          <>
-            <button type="button" onClick={() => handleKeputusan('Perlu Revisi')} className={orangeButtonClass}>Revisi</button>
-            <button type="button" onClick={() => handleKeputusan('Disetujui')} className={orangeButtonClass}>Setuju</button>
-          </>
-        ) : (
+        {actions ?? (
           <p className="text-sm text-gray-600">Status permintaan: <span className="font-bold text-gray-900">{permintaan.status}</span></p>
-        ))}
+        )}
       </div>
     </div>
   );

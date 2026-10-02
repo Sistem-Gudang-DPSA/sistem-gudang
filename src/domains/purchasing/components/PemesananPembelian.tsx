@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, ChevronDown } from 'lucide-react';
 import { formatAngka } from '@/domains/ppic/data/dokubah';
-import { getPermintaanList } from '@/domains/ppic/data/pembelian';
+import { fetchPermintaan, type PermintaanPembelian } from '@/domains/ppic/data/pembelian';
+import { useApiData } from '@/shared/lib/use-api-data';
 import { listSuppliers } from '@/domains/purchasing/api';
 import { addPo, lihatPermintaanPath, PEMESAN, rekap_pembelian_path } from '@/domains/purchasing/data/pembelian';
 import type { Supplier } from '@/domains/purchasing/types';
@@ -34,8 +35,18 @@ const toNumber = (value: string) => {
 
 export default function PemesananPembelianPurchasing() {
   const { id } = useParams<{ id: string }>();
+  const { data: permintaan, loading, error } = useApiData(() => fetchPermintaan(id), id, 'Gagal memuat permintaan pembelian.');
+
+  if (loading || error) {
+    return <div className="py-10 text-center text-sm text-gray-400 italic">{error || 'Memuat data...'}</div>;
+  }
+
+  // Formnya baru dibuat setelah permintaan siap, supaya baris harga awal sesuai jumlah barang.
+  return <FormPemesanan permintaan={permintaan ?? undefined} />;
+}
+
+function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
   const router = useRouter();
-  const permintaan = getPermintaanList().find((item) => String(item.id) === id);
 
   const [nomorPo, setNomorPo] = useState('');
   const [tanggalPo, setTanggalPo] = useState('');
