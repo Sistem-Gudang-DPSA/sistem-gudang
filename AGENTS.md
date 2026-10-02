@@ -5,7 +5,7 @@ Next.js 16 (App Router) + React 19 + TypeScript + Tailwind v4. Package manager: 
 ## Structure
 
 - `src/app` — routes (App Router). Dashboard sub-routes per domain: `ppic`, `purchasing`, `superadmin`, `gudang`.
-- `src/domains` — feature modules (`ppic`, `inventory`, `purchasing`, `superadmin`, `auth`), each with its own `components`. `inventory` holds the Gudang (warehouse) division screens as well as the shared item, location and supplier-independent stock API, because the backend calls that domain Inventory. The route and menu name stay `gudang` (`src/app/dashboard/gudang`).
+- `src/domains` — feature modules (`ppic`, `inventory`, `purchasing`, `superadmin`, `auth`), each with its own `components`. `inventory` holds the Gudang (warehouse) division screens and the item, location and stock transaction API shared with the other divisions, because the backend calls that domain Inventory. The route and menu name stay `gudang` (`src/app/dashboard/gudang`).
 - `src/shared/lib` — shared utilities.
 
 ## Commands
