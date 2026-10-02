@@ -18,6 +18,9 @@ const monthStart = () => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 };
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
 
 export default function RekapPermintaan(){
     const [searchQuery, setSearchQuery] = useState<string>('');
@@ -77,6 +80,75 @@ export default function RekapPermintaan(){
             setExporting(false);
         }
     };
+
+    const handlePrintPdf = () => {
+        const win = window.open('', '_blank');
+        if (!win) {
+            setActionError('Pop-up diblokir browser. Izinkan pop-up untuk mencetak PDF.');
+            return;
+        }
+        setActionError('');
+
+        const rowsToPrint = anySelected ? rows.filter((r) => selected.has(r.id)) : rows;
+        const statusText = filterStatus === 'ALL' ? 'Semua Status' : STATUS_LABEL[filterStatus].label;
+        const periodeText = `${startDate ? displayDate(startDate) : '-'} s/d ${endDate ? displayDate(endDate) : '-'}`;
+
+        const bodyRows = rowsToPrint.map((item, index) => `
+            <tr>
+            <td class="center">${index + 1}</td>
+            <td>${escapeHtml(displayDate(item.requestDate))}</td>
+            <td>${escapeHtml(item.spk)}</td>
+            <td>${escapeHtml(item.clientName)}</td>
+            <td>${escapeHtml(String(item.productionItem))}<div class="sub">${item.lineCount} barang</div></td>
+            <td class="center">${escapeHtml(String(item.toolGroup))}</td>
+            <td class="center">${escapeHtml(STATUS_LABEL[item.status].label)}</td>
+            </tr>`).join('');
+
+        const emptyRow = `<tr><td colspan="7" class="center">Tidak ada data permintaan.</td></tr>`;
+
+        win.document.write(`<!doctype html>
+            <html>
+            <head>
+                <title>Rekap Permintaan</title>
+                <style>
+                @page { size: A4 landscape; margin: 12mm; }
+                body { font-family: Arial, sans-serif; color: #111; }
+                h1 { font-size: 18px; margin: 0 0 4px; text-transform: uppercase; }
+                .meta { font-size: 12px; margin: 0 0 12px; color: #444; }
+                table { width: 100%; border-collapse: collapse; font-size: 11px; }
+                th, td { border: 1px solid #999; padding: 6px 8px; text-align: left; vertical-align: top; }
+                th { background: #eee; }
+                thead { display: table-header-group; }
+                tr { page-break-inside: avoid; }
+                .center { text-align: center; }
+                .sub { font-size: 10px; color: #555; }
+                </style>
+            </head>
+            <body>
+                <h1>Rekap Permintaan</h1>
+                <p class="meta">Periode: ${periodeText} &nbsp;|&nbsp; Status: ${escapeHtml(statusText)}${
+                searchQuery ? ` &nbsp;|&nbsp; Pencarian: ${escapeHtml(searchQuery)}` : ''
+                }${anySelected ? ` &nbsp;|&nbsp; ${rowsToPrint.length} baris dipilih` : ''}</p>
+                <table>
+                <thead>
+                    <tr>
+                    <th class="center">No</th>
+                    <th>Tgl Permintaan</th>
+                    <th>SPK</th>
+                    <th>Nama Klien</th>
+                    <th>Item Produksi</th>
+                    <th class="center">Group Tukang</th>
+                    <th class="center">Status</th>
+                    </tr>
+                </thead>
+                <tbody>${rowsToPrint.length ? bodyRows : emptyRow}</tbody>
+                </table>
+            </body>
+            </html>`);
+        win.document.close();
+        win.focus();
+        win.print();
+        };
 
     return(
         <div className='animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10'>
@@ -148,7 +220,7 @@ export default function RekapPermintaan(){
                     <div className="flex gap-2 items-end m-2 print:hidden">
                         <button
                         onClick={handleExport}
-                        disabled={exporting}
+                        disabled={exporting || loading || rows.length === 0}
                         title="Export Data ke CSV"
                         className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-60"
                         >
@@ -156,7 +228,8 @@ export default function RekapPermintaan(){
                         <span className="hidden sm:inline">{exporting ? 'Mengekspor...' : 'Export'}</span>
                         </button>
                         <button
-                        onClick={() => window.print()}
+                        onClick={handlePrintPdf}
+                        disabled={loading || rows.length === 0}
                         title="Print Data ke PDF"
                         className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-60"
                         >
