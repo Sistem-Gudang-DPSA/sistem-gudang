@@ -113,3 +113,45 @@ export interface StockOpnameSummary {
   totalItemSelisih: number;
   totalAdjustmentNilai: number;
 }
+
+export type ApprovalStatus = "pending" | "approved" | "rejected" | "revision_requested";
+
+export interface PurchaseRequestItem {
+  namaBarang: string;
+  qty: number;
+  satuan: string;
+  proyek: string;
+  noSpk: string;
+}
+
+export interface PurchaseRequestPayload {
+  bagian: string;
+  namaPemohon: string;
+  jabatan: string;
+  tanggalPengajuan: string;
+  items: PurchaseRequestItem[];
+  notes?: string;
+}
+
+export interface ApprovalRequest {
+  id: number;
+  type: string;
+  requestedBy: number;
+  requestedByDomainId: number;
+  payload: PurchaseRequestPayload | null;
+  currentStepOrder: number;
+  cycle: number;
+  status: ApprovalStatus;
+  createdAt: string;
+}
+
+export interface ApprovalListParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: ApprovalStatus;
+  type?: string;
+  domainId?: number;
+  startDate?: string;
+  endDate?: string;
+}
