@@ -34,7 +34,8 @@ export const NAV_DIVISIONS: NavDivision[] = [
     label: "Gudang",
     icon: Package,
     theme: "orange",
-    anyOf: ["inbound.view", "outbound.view", "stock-opname.view", "report.view", "location.view"],
+    // report.view is shared with PPIC reports, so it must not open the Gudang division by itself.
+    anyOf: ["inbound.view", "outbound.view", "stock-opname.view", "location.view"],
     groups: [
       {
         title: "Master",
