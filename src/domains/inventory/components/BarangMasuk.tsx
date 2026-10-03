@@ -12,6 +12,7 @@ import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
+import { ExportExcellButton } from '@/components/ui/Tombol';
 
 const emptyBaru = { itemId: "", itemName: "", supplierId: "", tanggal: todayIso(), jumlahKedatangan: "", jumlahRekap: "", statusQc: "PASS" as StatusQc };
 const emptyKembali = { itemId: "", itemName: "", tanggal: todayIso(), jumlah: "", clientName: "", spk: "" };
@@ -295,14 +296,7 @@ export default function BarangMasukGudang() {
 
       {/* Simpan/Download Button Outside */}
       <div className="flex justify-end mt-6">
-        <button
-          onClick={handleExportCsv}
-          className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
-          title="Export Data ke CSV"
-        >
-          <Download className="w-4 h-4" />
-          <span className="hidden sm:inline">Export</span>
-        </button>
+        <ExportExcellButton onClick={handleExportCsv} />
       </div>
 
       <datalist id="barang-masuk-items">

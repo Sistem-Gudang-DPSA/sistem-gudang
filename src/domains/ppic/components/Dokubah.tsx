@@ -14,6 +14,7 @@ import {
 import { listDokubah, statusToApi } from '@/domains/ppic/api';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
+import { ExportExcellButton, PrintPdfButton } from '@/components/ui/Tombol';
 
 export const STATUS_OPTIONS: StatusDokubah[] = ['Draft', 'Pending', 'Approved', 'Rejected'];
 
@@ -234,22 +235,8 @@ export default function DokubahPPIC() {
               </p>
             )}
             <div className="flex gap-2 items-end m-2 print:hidden">
-                <button
-                    onClick={handleExportExcel}
-                    className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
-                    title="Export Data ke CSV"
-                >
-                    <FileUp className="w-4 h-4" />
-                    <span className="hidden sm:inline">Export</span>
-                </button>
-                <button
-                    onClick={handlePrintPdf}
-                    className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
-                    title="Print Data ke PDF"
-                >
-                    <Download className="w-4 h-4" />
-                    <span className="hidden sm:inline">Print PDF</span>
-                </button>
+                <ExportExcellButton onClick={handleExportExcel} />
+                <PrintPdfButton onClick={handlePrintPdf} />
                 {canCreate && (
                   <Link href={buat_dokubah_path} className={orangeButtonClass}>
                     <Plus className="w-4 h-4" />
