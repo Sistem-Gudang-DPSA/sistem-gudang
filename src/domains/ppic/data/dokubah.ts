@@ -33,9 +33,9 @@ export const viewDokubahPath = (id: number | string) => `${dokubah_path}/view-do
 
 export const editMaterialPath = (id: number | string) => `${dokubah_path}/edit-material/${id}`;
 
-export const rekap_dokubah_path = '/dashboard/ppic/laporan/rekap-dokubah';
+export const rekap_dokubah_path = '/dashboard/gudang/laporan/dokubah';
 
-export const detailRekapDokubahPath = (id: number | string) => `${rekap_dokubah_path}/detail-rekap-dokubah/${id}`;
+export const detailRekapDokubahPath = (id: number | string) => `${rekap_dokubah_path}/detail-dokubah/${id}`;
 
 // YYYY-MM-DD -> DD/MM/YYYY tanpa lewat Date, supaya tidak bergeser karena timezone
 export const formatTanggal = (iso: string) => {

@@ -7,6 +7,7 @@ import type { OutboundRow, RecipientType, WarehouseType } from '@/domains/invent
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
+import { ExportExcellButton, PrintPdfButton } from '@/components/ui/Tombol';    
 
 const PAGE_SIZE = 20;
 
@@ -264,24 +265,8 @@ export default function LaporanBarangKeluar(){
                         <p className="text-xs font-semibold text-gray-500 uppercase m-2">Tabel Rekap Barang Keluar</p>
                     </div>
                     <div className="flex gap-2 items-end m-2 print:hidden">
-                    <button
-                        onClick={handleExport}
-                        disabled={exporting || loading || tableRows.length === 0}
-                        title="Export Data ke CSV"
-                        className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-60"
-                    >
-                        <FileUp className="w-4 h-4" />
-                        <span className="hidden sm:inline">{exporting ? 'Mengekspor...' : 'Export'}</span>
-                    </button>
-                    <button
-                        onClick={handlePrintPdf}
-                        disabled={loading || tableRows.length === 0}
-                        title="Print Data ke PDF"
-                        className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-60"
-                    >
-                        <Download className="w-4 h-4" />
-                        <span className="hidden sm:inline">Print PDF</span>
-                    </button>
+                        <ExportExcellButton onClick={handleExport} disabled={exporting || loading || rows.length === 0} />
+                        <PrintPdfButton onClick={handlePrintPdf} disabled={loading || rows.length === 0} />
                     </div>
                 </div>
                 {actionError && <p className="px-4 pb-2 text-sm text-red-500">{actionError}</p>}
