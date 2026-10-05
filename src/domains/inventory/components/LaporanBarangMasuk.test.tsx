@@ -77,7 +77,7 @@ describe('LaporanBarangMasuk', () => {
     vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:x'), revokeObjectURL: vi.fn() }));
     render(<LaporanBarangMasuk />);
     await screen.findByText('PO-001');
-    fireEvent.click(screen.getByTitle('Export Data ke CSV'));
+    fireEvent.click(screen.getByTitle('Export Excel'));
     await waitFor(() => expect(api.all().some((c) => c.path.endsWith('/export'))).toBe(true));
     const exp = api.calls('GET /api/v1/reports/inbound/export')[0].query;
     expect(exp.get('startDate')).toMatch(/^\d{4}-\d{2}-01$/);
@@ -91,7 +91,7 @@ describe('LaporanBarangMasuk', () => {
     vi.stubGlobal('open', vi.fn(() => win));
     render(<LaporanBarangMasuk />);
     await screen.findByText('<img onerror=x>');
-    fireEvent.click(screen.getByTitle('Print Data ke PDF'));
+    fireEvent.click(screen.getByTitle('Print PDF'));
     const html = write.mock.calls[0][0] as string;
     expect(html).not.toContain('<script>');
     expect(html).not.toContain('<img onerror');
