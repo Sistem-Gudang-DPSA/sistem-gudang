@@ -13200,7 +13200,8 @@
                       "BAHAN_BAKU",
                       "WIP",
                       "BARANG_JADI"
-                    ]
+                    ],
+                    "default": "BAHAN_BAKU"
                   },
                   "recipientType": {
                     "type": "string",
@@ -13248,7 +13249,6 @@
                   "date",
                   "spk",
                   "itemName",
-                  "warehouseType",
                   "recipientType",
                   "lines"
                 ]
