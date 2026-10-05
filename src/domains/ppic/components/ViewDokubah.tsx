@@ -1,10 +1,10 @@
 "use client";
 
-import React from 'react';
+import React, {useState} from 'react';
 import { useCan } from '@/domains/auth/user-context';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Printer } from 'lucide-react';
+import { ArrowLeft, Edit2, Printer } from 'lucide-react';
 import {
   dokubah_path,
   editMaterialPath,
@@ -15,7 +15,8 @@ import {
   viewDokubahPath,
 } from '@/domains/ppic/data/dokubah';
 import { approveDokubah, getDokubah, listDokubah, rejectDokubah, submitDokubah } from '@/domains/ppic/api';
-import type { DokubahItem } from '@/domains/ppic/data/dokubah';
+import type { BahanDokubah, DokubahItem } from '@/domains/ppic/data/dokubah';
+import { PrintPdfButton } from '@/components/ui/Tombol';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 
@@ -23,6 +24,9 @@ const cellClass = 'px-4 py-3 border-b border-r border-gray-200';
 const fieldClass = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors';
 const readOnlyFieldClass = `${fieldClass} bg-gray-50 cursor-default`;
 const cardClass = 'bg-white rounded-xl border border-gray-100 shadow-md p-6 min-h-32';
+
+type BahanDraft = Omit<BahanDokubah, 'kuota' | 'hargaSatuan'> & { kuota: string; hargaSatuan: string };
+const toDraft = (b: BahanDokubah): BahanDraft => ({ ...b, kuota: String(b.kuota), hargaSatuan: String(b.hargaSatuan) });
 
 function Field({ id, label, children }: { id: string; label: string; children: React.ReactNode }) {
   return (
@@ -53,6 +57,8 @@ export default function ViewDokubahPPIC() {
   const { data: fetched, loading, error } = useApiData(() => getDokubah(Number(id)), id, 'Gagal memuat Dokubah.');
 
   const dokubah = updated && updated.id === fetched?.id ? updated : fetched;
+
+  const [draft, setDraft] = useState<BahanDraft[]>(() => dokubah?.bahan.map(toDraft) ?? []);
 
   const header = (
     <div className="flex items-center gap-3 mb-6">
@@ -109,8 +115,12 @@ export default function ViewDokubahPPIC() {
     router.replace(viewDokubahPath(e.target.value));
   };
 
+  const handleHapus = (kodeBarang: string) => {
+    setDraft((prev) => prev.filter((b) => b.kodeBarang !== kodeBarang));
+  };
+
   // Buka jendela berisi dokubah saja lalu panggil dialog print (pilih "Save as PDF")
-  const handleCetak = () => {
+  const handlePrintPdf = () => {
     const win = window.open('', '_blank');
     if (!win) {
       alert('Pop-up diblokir browser. Izinkan pop-up untuk mencetak Dokubah.');
@@ -204,6 +214,7 @@ export default function ViewDokubahPPIC() {
           </p>
         )}
 
+
         {/* Ringkasan anggaran */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className={cardClass}>
@@ -220,6 +231,16 @@ export default function ViewDokubahPPIC() {
           </div>
         </div>
 
+        <div className='flex justify-end mb-3 me-2'>
+          <Link 
+            href={`${editMaterialPath(dokubah.id)}?from=dokubah`}
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] text-xs font-bold rounded-lg hover:bg-[#FF8A00]/20 transition-all duration-200 opacity-90 group-hover:opacity-100"
+          >
+            <Edit2 className="w-3.5 h-3.5"/>
+              Edit Dokubah
+          </Link>
+        </div>
+
         {/* Tabel bahan */}
         <div className="overflow-x-auto border-t border-l border-gray-200">
           <table className="w-full text-left text-sm whitespace-nowrap border-collapse">
@@ -231,7 +252,9 @@ export default function ViewDokubahPPIC() {
                 <th scope="col" className={cellClass}>Kuota Alokasi (Dokubah)</th>
                 <th scope="col" className={cellClass}>Realisasi Pengambilan</th>
                 <th scope="col" className={cellClass}>Sisa Jatah Kuota</th>
-                <th scope="col" className={`${cellClass} text-center`}>Aksi</th>
+                {canUpdate && dokubah.status !== 'Approved' && (
+                  <th scope="col" className={`${cellClass} text-center`}>Action</th>
+                )}
               </tr>
             </thead>
             <tbody className="text-gray-600">
@@ -245,17 +268,18 @@ export default function ViewDokubahPPIC() {
                     <td className={cellClass}>{formatAngka(b.kuota)} {b.satuan}</td>
                     <td className={cellClass}>{formatAngka(b.realisasi)} {b.satuan}</td>
                     <td className={`${cellClass} ${sisa < 0 ? 'text-red-600 font-semibold' : ''}`}>{formatAngka(sisa)} {b.satuan}</td>
-                    <td className={`${cellClass} text-center`}>
-                      {/* The API answers 409 when replacing the materials of an APPROVED dokubah */}
-                      {canUpdate && dokubah.status !== 'Approved' && (
-                        <Link
-                          href={editMaterialPath(dokubah.id)}
-                          className="inline-block px-4 py-1.5 bg-[#FF8A00] text-white text-xs font-semibold rounded-lg hover:bg-orange-600 transition-colors"
+                    {canUpdate && dokubah.status !== 'Approved' && (
+                      <td className={`${cellClass} text-center gap-0.5 flex justify-center`}>
+                        <button
+                          type="button"
+                          onClick={() => handleHapus(b.kodeBarang)}
+                          aria-label={`Hapus material ${b.kodeBarang}`}
+                          className="px-4 py-1.5 bg-[#FF8A00] text-white text-xs font-semibold rounded-lg hover:bg-orange-600 transition-colors"
                         >
-                          Edit
-                        </Link>
+                          Hapus Material
+                        </button>
+                      </td>
                       )}
-                    </td>
                   </tr>
                 );
               })}
@@ -339,14 +363,8 @@ export default function ViewDokubahPPIC() {
           </div>
         )}
 
-        <div className="flex justify-end mt-8">
-          <button
-            onClick={handleCetak}
-            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm"
-          >
-            <Printer className="w-4 h-4" />
-            <span>Cetak Dokubah</span>
-          </button>
+        <div className="flex gap-2 items-end m-2 print:hidden">
+          <PrintPdfButton onClick={handlePrintPdf} disabled={loading || dokubah.bahan.length === 0} />
         </div>
       </div>
     </div>

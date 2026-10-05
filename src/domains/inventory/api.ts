@@ -1,9 +1,18 @@
 import { apiClient, downloadFile, toQuery } from "@/shared/lib/api-client";
+import { apiClient, downloadFile, toQuery } from "@/shared/lib/api-client";
 import type {
+  CreateInboundInput,
+  CreateInboundReturnInput,
   CreateInboundInput,
   CreateInboundReturnInput,
   CreateItemInput,
   CreateLocationInput,
+  CreateOutboundInput,
+  CreateStockOpnameInput,
+  InboundListParams,
+  InboundReport,
+  InboundReportParams,
+  InboundRow,
   CreateOutboundInput,
   CreateStockOpnameInput,
   InboundListParams,
@@ -19,7 +28,17 @@ import type {
   OutboundReport,
   OutboundReportParams,
   OutboundRow,
+  MaterialRequestDetail,
+  OutboundListParams,
+  OutboundReport,
+  OutboundReportParams,
+  OutboundRow,
   PaginatedResult,
+  RequestReport,
+  RequestReportParams,
+  StockOpnameDetail,
+  StockOpnameListParams,
+  StockOpnameRow,
   RequestReport,
   RequestReportParams,
   StockOpnameDetail,
@@ -28,7 +47,9 @@ import type {
 } from "./types";
 
 // `summary` covers every item matching the search, not just the requested page.
+// `summary` covers every item matching the search, not just the requested page.
 export function listItems(params?: ListParams) {
+  return apiClient.get<PaginatedResult<ItemListRow> & { summary?: { totalJenis: number; totalStock: number } }>(`/api/v1/items${toQuery(params)}`);
   return apiClient.get<PaginatedResult<ItemListRow> & { summary?: { totalJenis: number; totalStock: number } }>(`/api/v1/items${toQuery(params)}`);
 }
 

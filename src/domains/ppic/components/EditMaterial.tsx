@@ -4,10 +4,11 @@ import React, { useState } from 'react';
 import { useCan } from '@/domains/auth/user-context';
 import NoPermission from './NoPermission';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import {
   dokubah_path,
+  formatAngka,
   viewDokubahPath,
   type BahanDokubah,
   type DokubahItem,
@@ -17,34 +18,74 @@ import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 
-// Angka disimpan sebagai teks selama diedit supaya kolomnya boleh dikosongkan dulu
-type BahanDraft = Omit<BahanDokubah, 'kuota' | 'hargaSatuan'> & { kuota: string; hargaSatuan: string };
+// Struktur data terpadu agar baris bawaan API dan baris baru dikelola dalam satu state tunggal
+type BahanDraftRow = {
+  id: string; // ID unik internal untuk kestabilan key rendering
+  isNew: boolean; // Penanda baris baru (agar bisa input kodeBarang & namaBahan)
+  kodeBarang: string;
+  namaBahan: string;
+  satuan: string;
+  kuota: string;
+  hargaSatuan: string;
+  keterangan: string;
+};
 
-const toDraft = (b: BahanDokubah): BahanDraft => ({ ...b, kuota: String(b.kuota), hargaSatuan: String(b.hargaSatuan) });
+const toDraftRow = (b: BahanDokubah): BahanDraftRow => ({
+  id: `existing-${b.kodeBarang}`,
+  isNew: false,
+  kodeBarang: b.kodeBarang,
+  namaBahan: b.namaBahan,
+  satuan: b.satuan,
+  kuota: String(b.kuota),
+  hargaSatuan: String(b.hargaSatuan),
+  keterangan: b.keterangan || '',
+});
+
+const createEmptyRow = (): BahanDraftRow => ({
+  id: `new-row-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+  isNew: true,
+  kodeBarang: '',
+  namaBahan: '',
+  satuan: '',
+  kuota: '',
+  hargaSatuan: '',
+  keterangan: '',
+});
 
 const isAngkaValid = (value: string) => value.trim() !== '' && Number.isFinite(Number(value)) && Number(value) >= 0;
+const isRowKosong = (row: BahanDraftRow) => 
+  row.kodeBarang.trim() === '' && row.namaBahan.trim() === '' && row.kuota.trim() === '' && row.satuan.trim() === '';
 
 const cellClass = 'px-4 py-3 border-b border-r border-gray-200';
 const inputCellClass = 'p-0 border-b border-r border-gray-200';
 const cellInputClass = 'w-full px-4 py-3 bg-transparent text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-orange-500/50';
 const readOnlyFieldClass = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 bg-gray-50 cursor-default focus:outline-none';
-const orangeButtonClass = 'px-8 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm text-center';
+const orangeButtonClass = 'px-8 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm text-center disabled:opacity-50 cursor-pointer';
 
-// Loads the dokubah, then mounts the form keyed by id so the draft starts from the loaded materials.
 export default function EditMaterialPPIC() {
   const { id } = useParams<{ id: string }>();
   const { data, loading, error } = useApiData(() => getDokubah(Number(id)), id, 'Gagal memuat Dokubah.');
   return <EditMaterialForm key={data?.id ?? 'loading'} dokubah={data} message={loading ? 'Memuat data...' : error || 'Dokubah tidak ditemukan.'} />;
 }
-
 function EditMaterialForm({ dokubah, message }: { dokubah?: DokubahItem; message: string }) {
   const router = useRouter();
   const canUpdate = useCan('dokubah.update');
-  const [draft, setDraft] = useState<BahanDraft[]>(() => dokubah?.bahan.map(toDraft) ?? []);
+  const [draft, setDraft] = useState<BahanDraftRow[]>(() => dokubah?.bahan.map(toDraftRow) ?? []);
   const [showError, setShowError] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [formError, setFormError] = useState('');
 
-  const backHref = dokubah ? viewDokubahPath(dokubah.id) : dokubah_path;
+  const searchParams = useSearchParams();
+  const from = searchParams.get('from');
+  const backHref = dokubah ? (from === 'edit-dokubah' ? viewDokubahPath(dokubah.id) : dokubah_path) : dokubah_path;
+
+  // Fungsi manajemen baris dinamis
+  const tambahBaris = () => setDraft((prev) => [...prev, createEmptyRow()]);
+  const hapusBaris = (id: string) => setDraft((prev) => prev.filter((b) => b.id !== id));
+
+  const handleRowChange = (id: string, field: keyof Omit<BahanDraftRow, 'id' | 'isNew'>, value: string) => {
+    setDraft((prev) => prev.map((b) => (b.id === id ? { ...b, [field]: value } : b)));
+  };
 
   const header = (
     <div className="flex items-center gap-3 mb-6">
@@ -68,16 +109,10 @@ function EditMaterialForm({ dokubah, message }: { dokubah?: DokubahItem; message
     );
   }
 
-  const hasInvalid = draft.some((b) => !isAngkaValid(b.kuota) || !isAngkaValid(b.hargaSatuan));
+  // Filter baris kosong agar tidak ikut memicu validasi error
+  const activeRows = draft.filter((b) => !b.isNew || !isRowKosong(b));
+  const hasInvalid = activeRows.some((b) => !isAngkaValid(b.kuota) || !isAngkaValid(b.hargaSatuan) || !b.kodeBarang.trim() || !b.namaBahan.trim());
   const invalidClass = (value: string) => (showError && !isAngkaValid(value) ? 'bg-red-50' : 'bg-white');
-
-  const handleChange = (kodeBarang: string, field: 'kuota' | 'hargaSatuan' | 'keterangan', value: string) => {
-    setDraft((prev) => prev.map((b) => (b.kodeBarang === kodeBarang ? { ...b, [field]: value } : b)));
-  };
-
-  const handleHapus = (kodeBarang: string) => {
-    setDraft((prev) => prev.filter((b) => b.kodeBarang !== kodeBarang));
-  };
 
   const handleSimpan = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,18 +120,26 @@ function EditMaterialForm({ dokubah, message }: { dokubah?: DokubahItem; message
       setShowError(true);
       return;
     }
-    if (draft.length === 0) {
+    if (activeRows.length === 0) {
       setSaveError('Dokubah harus punya minimal satu bahan.');
       return;
     }
+
+    // Cek duplikasi kode barang
+    const kodeList = activeRows.map((b) => b.kodeBarang.trim().toLowerCase());
+    if (new Set(kodeList).size !== kodeList.length) {
+      setSaveError('Kode Barang tidak boleh ada yang sama di dalam satu Dokubah.');
+      return;
+    }
+
     setSaveError('');
     try {
       await replaceDokubahMaterials(
         dokubah.id,
-        draft.map((b) => ({
-          kodeBarang: b.kodeBarang,
-          namaBahan: b.namaBahan,
-          satuan: b.satuan,
+        activeRows.map((b) => ({
+          kodeBarang: b.kodeBarang.trim(),
+          namaBahan: b.namaBahan.trim(),
+          satuan: b.satuan.trim() || 'Pcs',
           kuota: Number(b.kuota),
           hargaSatuan: Number(b.hargaSatuan),
           keterangan: b.keterangan.trim(),
@@ -134,90 +177,92 @@ function EditMaterialForm({ dokubah, message }: { dokubah?: DokubahItem; message
                 <th scope="col" className={cellClass}>Kode Barang</th>
                 <th scope="col" className={cellClass}>Nama &amp; Spesifikasi Bahan</th>
                 <th scope="col" className={cellClass}>Kuota Alokasi (Dokubah)</th>
-                <th scope="col" className={cellClass}>Estimasi Harga Bahan</th>
-                <th scope="col" className={cellClass}>Keterangan</th>
-                <th scope="col" className={`${cellClass} text-center`}>Aksi</th>
+                <th scope="col" className={cellClass}>Realisasi Pengambilan</th>
+                <th scope="col" className={cellClass}>Sisa Jatah Kuota</th>
               </tr>
             </thead>
             <tbody className="text-gray-600">
-              {draft.map((b, index) => (
-                <tr key={b.kodeBarang}>
-                  <td className={`${cellClass} bg-gray-50/60 text-center text-gray-700`}>{index + 1}</td>
-                  <td className={`${cellClass} bg-gray-50/60 font-semibold text-gray-900`}>{b.kodeBarang}</td>
-                  <td className={`${cellClass} bg-gray-50/60`}>{b.namaBahan}</td>
-                  <td className={`${inputCellClass} ${invalidClass(b.kuota)}`}>
-                    <div className="flex items-center">
+              {draft.map((row, index) => {
+                const nomor = index + 1;
+                const satuan = row.satuan.trim();
+                const kosong = isRowKosong(row);
+                return (
+                  <tr key={index}>
+                    <td className={`${cellClass} bg-gray-50/60 text-center text-gray-700`}>{nomor}</td>
+                    <td className={inputCellClass}>
                       <input
-                      {...INTEGER_INPUT}
-                      maxLength={9}
-                        value={b.kuota}
-                        onChange={(e) => handleChange(b.kodeBarang, 'kuota', digitsOnly(e.target.value))}
-                        placeholder="0"
-                        aria-label={`Kuota alokasi ${b.kodeBarang}`}
-                        className={`${cellInputClass} min-w-24`}
+                        type="text"
+                        value={row.kodeBarang}
+                        maxLength={191}
+                        onChange={(e) => handleRowChange(row.id, 'kodeBarang', e.target.value)}
+                        placeholder="Contoh: BRG-001"
+                        aria-label={`Kode barang baris ${nomor}`}
+                        className={`${cellInputClass} min-w-36`}
                       />
-                      <span className="pr-4 text-gray-500">{b.satuan}</span>
-                    </div>
-                  </td>
-                  <td className={`${inputCellClass} ${invalidClass(b.hargaSatuan)}`}>
-                    <div className="flex items-center">
-                      <span className="pl-4 text-gray-500">Rp</span>
+                    </td>
+                    <td className={inputCellClass}>
                       <input
-                      {...INTEGER_INPUT}
-                      maxLength={9}
-                        value={b.hargaSatuan}
-                        onChange={(e) => handleChange(b.kodeBarang, 'hargaSatuan', digitsOnly(e.target.value))}
-                        placeholder="0"
-                        aria-label={`Estimasi harga ${b.kodeBarang}`}
-                        className={`${cellInputClass} pl-2 min-w-32`}
+                        type="text"
+                        value={row.namaBahan}
+                        maxLength={191}
+                        onChange={(e) => handleRowChange(row.namaBahan, 'namaBahan', e.target.value)}
+                        placeholder="Nama & spesifikasi bahan"
+                        aria-label={`Nama dan spesifikasi bahan baris ${nomor}`}
+                        className={`${cellInputClass} min-w-64`}
                       />
-                    </div>
-                  </td>
-                  <td className={`${inputCellClass} bg-white`}>
-                    <input
-                      type="text"
-                      value={b.keterangan}
-                      maxLength={500}
-                      onChange={(e) => handleChange(b.kodeBarang, 'keterangan', e.target.value)}
-                      placeholder="Tambahkan keterangan"
-                      aria-label={`Keterangan ${b.kodeBarang}`}
-                      className={`${cellInputClass} min-w-56`}
-                    />
-                  </td>
-                  <td className={`${cellClass} text-center`}>
-                    <button
-                      type="button"
-                      onClick={() => handleHapus(b.kodeBarang)}
-                      aria-label={`Hapus material ${b.kodeBarang}`}
-                      className="px-4 py-1.5 bg-[#FF8A00] text-white text-xs font-semibold rounded-lg hover:bg-orange-600 transition-colors"
-                    >
-                      Hapus Material
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {draft.length === 0 && (
-                <tr>
-                  <td colSpan={7} className={`${cellClass} px-6 py-10 text-center text-gray-400 italic`}>
-                    Tidak ada material pada Dokubah ini.
-                  </td>
-                </tr>
-              )}
+                    </td>
+                    <td className={inputCellClass}>
+                      <div className="flex items-center">
+                        <input
+                        {...INTEGER_INPUT}
+                        maxLength={9}
+                          value={row.kuota}
+                          onChange={(e) => handleRowChange(row.kuota, 'kuota', digitsOnly(e.target.value))}
+                          placeholder="0"
+                          aria-label={`Kuota alokasi baris ${nomor}`}
+                          className={`${cellInputClass} min-w-24`}
+                        />
+                        <input
+                          type="text"
+                          value={row.satuan}
+                          maxLength={50}
+                          onChange={(e) => handleRowChange(row.satuan, 'satuan', e.target.value)}
+                          placeholder="satuan"
+                          aria-label={`Satuan baris ${nomor}`}
+                          className={`${cellInputClass} w-28 border-l border-gray-200`}
+                        />
+                      </div>
+                    </td>
+                    {/* Dokubah baru belum punya pengambilan, jadi realisasi 0 dan sisa = kuota */}
+                    <td className={`${cellClass} bg-gray-50/60`}>{kosong ? '' : `0 ${satuan}`}</td>
+                    <td className={`${cellClass} bg-gray-50/60`}>
+                      {isAngkaValid(row.kuota) ? `${formatAngka(Number(row.kuota))} ${satuan}` : ''}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
+        {/* Tombol Tambah Baris */}
+        <div className="flex justify-end me-2 mt-1">
+          <button
+            type="button"
+            onClick={tambahBaris}
+            className="inline-flex items-center gap-1.5 mt-3 text-sm font-semibold text-[#FF8A00] hover:text-orange-600 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Tambah Baris
+          </button>
+        </div>
 
-        {showError && hasInvalid && (
-          <p className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">
-            Kuota Alokasi dan Estimasi Harga Bahan wajib diisi dengan angka 0 atau lebih.
-          </p>
+        {formError && (
+          <p className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{formError}</p>
         )}
 
-        {saveError && <p className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{saveError}</p>}
-
-        <div className="flex justify-end gap-4 mt-10">
-          <Link href={backHref} replace className={orangeButtonClass}>Batal</Link>
-          <button type="submit" className={orangeButtonClass}>Simpan</button>
+        <div className="flex justify-end mt-6 items-center gap-3">
+          <Link href={backHref} replace className="text-sm text-gray-500 hover:underline">Batal</Link>
+          <button type="submit" className={orangeButtonClass}>Simpan Perubahan</button>
         </div>
       </form>
     </div>
