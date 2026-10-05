@@ -161,7 +161,8 @@ export interface CreateOutboundInput {
   date: string;
   spk: string;
   itemName: string;
-  warehouseType: WarehouseType;
+  // Defaults to BAHAN_BAKU on the API; WIP and Barang Jadi are not handled by the FE yet.
+  warehouseType?: WarehouseType;
   recipientType: RecipientType;
   notes?: string;
   lines: { itemId: number; qty: number; pic: string }[];
