@@ -32,6 +32,10 @@ export function listItems(params?: ListParams) {
   return apiClient.get<PaginatedResult<ItemListRow> & { summary?: { totalJenis: number; totalStock: number } }>(`/api/v1/items${toQuery(params)}`);
 }
 
+// Master lists of item categories and units; items reference them by name.
+export const listItemCategories = () => apiClient.get<{ id: number; name: string }[]>("/api/v1/items/categories");
+export const listItemUnits = () => apiClient.get<{ id: number; name: string }[]>("/api/v1/items/units");
+
 export function getItem(id: number) {
   return apiClient.get<Item>(`/api/v1/items/${id}`);
 }
