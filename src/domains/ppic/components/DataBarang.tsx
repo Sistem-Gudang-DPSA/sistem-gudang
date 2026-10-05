@@ -153,7 +153,7 @@ export default function DataBarangPPIC() {
           {canCreate && (
             <button
               onClick={handleMulaiTambah}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:shadow-purple-500/30 hover:-translate-y-0.5 transition-all font-medium text-sm"
+              className="flex items-center gap-2 px-4 py-2 bg-linear-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:shadow-purple-500/30 hover:-translate-y-0.5 transition-all font-medium text-sm"
             >
               <Plus className="w-4 h-4" />
               <span className="hidden sm:inline">Tambah Data</span>
