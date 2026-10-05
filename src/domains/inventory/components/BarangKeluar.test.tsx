@@ -124,7 +124,8 @@ describe('BarangKeluar create', () => {
     fireEvent.click(screen.getByText('Simpan'));
     await waitFor(() => expect(api.calls('POST /api/v1/outbound').length).toBe(1));
     const b = api.calls('POST /api/v1/outbound')[0].body as Record<string, unknown>;
-    expect(b).toMatchObject({ spk: 'SPK-9', itemName: 'Lemari', warehouseType: 'BAHAN_BAKU', recipientType: 'PRODUKSI' });
+    expect(b).toMatchObject({ spk: 'SPK-9', itemName: 'Lemari', recipientType: 'PRODUKSI' });
+    expect(b).not.toHaveProperty('warehouseType');
     expect(screen.queryByText('Asal Gudang')).toBeNull();
     expect(b).not.toHaveProperty('clientName');
     expect(b.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);

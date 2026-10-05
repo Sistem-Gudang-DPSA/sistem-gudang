@@ -86,8 +86,6 @@ export default function BarangKeluarGudang() {
         date: tanggal,
         spk,
         itemName: namaItem,
-        // Gudang Bahan Baku is the only warehouse so far; WIP and Barang Jadi come later with their own owners.
-        warehouseType: 'BAHAN_BAKU',
         recipientType,
         lines: filled.map((l) => ({ itemId: Number(l.itemId), qty: Number(l.qty), pic: l.pic })),
       });
