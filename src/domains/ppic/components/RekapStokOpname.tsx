@@ -5,6 +5,7 @@ import { ChevronDown, Download, FileUp } from 'lucide-react';
 import { getStockOpnameSummary, listMutations } from '@/domains/ppic/api';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
+import { ExportExcellButton, PrintPdfButton } from '@/components/ui/Tombol';
 
 type TipeMutasi = 'Masuk' | 'Keluar';
 
@@ -44,6 +45,7 @@ const formatPeriode = (periode: string) => {
 export default function RekapStokOpnameMutasiStok() {
   // State periode dipindah ke atas karena ringkasan mengikutinya
   const [filterPeriode, setFilterPeriode] = useState('');
+  const [exporting, setExporting] = useState(false);
 
   // ponytail: no period-list endpoint, so offer the last 24 months
   const periodeOptions = Array.from({ length: 24 }, (_, i) => {
@@ -101,6 +103,7 @@ export default function RekapStokOpnameMutasiStok() {
   };
 
   const handleExportExcel = async () => {
+    setExporting(true);
     const XLSX = await import('xlsx');
     const rows = rowsToExport.map((item, index) => ({
       'No.': index + 1,
@@ -218,22 +221,8 @@ export default function RekapStokOpnameMutasiStok() {
         <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
           <h2 className="text-base font-bold text-gray-900">Tabel Mutasi Barang</h2>
           <div className="flex gap-2 items-end m-2 print:hidden">
-              <button
-                  onClick={handleExportExcel}
-                  className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
-                  title="Export Data ke CSV"
-              >
-                  <FileUp className="w-4 h-4" />
-                  <span className="hidden sm:inline">Export</span>
-              </button>
-              <button
-                  onClick={handlePrintPdf}
-                  className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
-                  title="Print Data ke PDF"
-              >
-                  <Download className="w-4 h-4" />
-                  <span className="hidden sm:inline">Print PDF</span>
-              </button>
+              <ExportExcellButton onClick={handleExportExcel} disabled={exporting || loading || filteredData.length === 0} />
+              <PrintPdfButton onClick={handlePrintPdf} disabled={loading || filteredData.length === 0} />
           </div>
         </div>
 

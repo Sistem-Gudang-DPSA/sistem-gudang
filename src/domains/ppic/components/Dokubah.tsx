@@ -3,9 +3,10 @@
 import React, { useState } from 'react';
 import { useCan } from '@/domains/auth/user-context';
 import Link from 'next/link';
-import { Search, Funnel, Plus, Eye, CircleCheck, CircleX, Clock, FilePen, FileUp, Download } from 'lucide-react';
+import { Search, Funnel, Plus, Eye, CircleCheck, CircleX, Clock, FilePen, FileUp, Download, Edit2 } from 'lucide-react';
 import {
   buat_dokubah_path,
+  editMaterialPath,
   escapeHtml,
   formatTanggal,
   type StatusDokubah,
@@ -14,6 +15,7 @@ import {
 import { listDokubah, statusToApi } from '@/domains/ppic/api';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
+import { ExportExcellButton, PrintPdfButton } from '@/components/ui/Tombol';
 
 export const STATUS_OPTIONS: StatusDokubah[] = ['Draft', 'Pending', 'Approved', 'Rejected'];
 
@@ -234,22 +236,8 @@ export default function DokubahPPIC() {
               </p>
             )}
             <div className="flex gap-2 items-end m-2 print:hidden">
-                <button
-                    onClick={handleExportExcel}
-                    className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
-                    title="Export Data ke CSV"
-                >
-                    <FileUp className="w-4 h-4" />
-                    <span className="hidden sm:inline">Export</span>
-                </button>
-                <button
-                    onClick={handlePrintPdf}
-                    className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
-                    title="Print Data ke PDF"
-                >
-                    <Download className="w-4 h-4" />
-                    <span className="hidden sm:inline">Print PDF</span>
-                </button>
+                <ExportExcellButton onClick={handleExportExcel} />
+                <PrintPdfButton onClick={handlePrintPdf} />
                 {canCreate && (
                   <Link href={buat_dokubah_path} className={orangeButtonClass}>
                     <Plus className="w-4 h-4" />
@@ -299,7 +287,8 @@ export default function DokubahPPIC() {
                   <td className={cellClass}>{formatTanggal(item.tanggalMulai)}</td>
                   <td className={cellClass}>{formatTanggal(item.tanggalSelesai)}</td>
                   <td className={cellClass}>{getStatusBadge(item.status)}</td>
-                  <td className={`${cellClass} text-center`}>
+                  {item.status === 'Approved' && (
+                    <td className={`${cellClass} text-center`}>
                     <Link
                       href={viewDokubahPath(item.id)}
                       className="flex-1 lg:flex-none flex items-center justify-center gap-2 text-blue-600 hover:text-blue-800 font-medium text-xs bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded border border-blue-200 transition-colors"
@@ -308,6 +297,27 @@ export default function DokubahPPIC() {
                       View
                     </Link>
                   </td>
+                  )}
+                  {item.status !== 'Approved' && (
+                    <td className={`${cellClass} text-center`}>
+                      <span className="flex flex-col sm:flex-row items-center justify-center gap-2">
+                        <Link 
+                          href={`${editMaterialPath(item.id)}?from=dokubah`}
+                          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] text-xs font-bold rounded-lg hover:bg-[#FF8A00]/20 transition-all duration-200 opacity-90 group-hover:opacity-100"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" strokeWidth={2.5}/>
+                            Edit
+                        </Link>
+                        <Link
+                          href={viewDokubahPath(item.id)}
+                          className="flex-1 lg:flex-none flex items-center justify-center gap-2 text-blue-600 hover:text-blue-800 font-medium text-xs bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded border border-blue-200 transition-colors"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          View
+                        </Link>
+                      </span>
+                    </td>
+                  )}
                   <td className={`${lastCellClass} text-center`}>
                     <input
                       type="checkbox"

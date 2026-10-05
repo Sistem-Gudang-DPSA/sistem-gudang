@@ -9,6 +9,7 @@ import { detailRekapDokubahPath, escapeHtml, formatRupiah, type StatusDokubah } 
 import { listDokubahRows, STATUS_TO_UI, statusToApi } from '@/domains/ppic/api';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
+import { ExportExcellButton, PrintPdfButton } from '@/components/ui/Tombol';
 
 const cellClass = 'px-4 py-3 border-b border-r border-gray-300';
 const cardClass = 'bg-white rounded-sm border border-gray-100 shadow-md p-6 min-h-32';
@@ -23,6 +24,7 @@ export default function RekapDokubah() {
   const [filterDari, setFilterDari] = useState('');
   const [filterSampai, setFilterSampai] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [exporting, setExporting] = useState(false);
 
   const filters = {
     search: searchQuery.trim() || undefined,
@@ -81,6 +83,7 @@ export default function RekapDokubah() {
   };
 
   const handleExportExcel = async () => {
+    setExporting(true); 
     const XLSX = await import('xlsx');
     const rows = rowsToExport.map((item, index) => ({
       'No.': index + 1,
@@ -222,22 +225,8 @@ export default function RekapDokubah() {
         <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
           <h2 className="text-base font-bold text-gray-900">Tabel Rekapitulasi Dokubah per SPK</h2>
           <div className="flex gap-2 items-end m-2 print:hidden">
-              <button
-                  onClick={handleExportExcel}
-                  className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
-                  title="Export Data ke CSV"
-              >
-                  <FileUp className="w-4 h-4" />
-                  <span className="hidden sm:inline">Export</span>
-              </button>
-              <button
-                  onClick={handlePrintPdf}
-                  className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
-                  title="Print Data ke PDF"
-              >
-                  <Download className="w-4 h-4" />
-                  <span className="hidden sm:inline">Print PDF</span>
-              </button>
+              <ExportExcellButton onClick={handleExportExcel} disabled={exporting || loading || filteredData.length === 0} />
+                <PrintPdfButton onClick={handlePrintPdf} disabled={loading || filteredData.length === 0} />
           </div>
         </div>
         <div className="overflow-x-auto border-t border-l border-gray-300 rounded-sm">

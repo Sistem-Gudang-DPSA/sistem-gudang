@@ -11,6 +11,7 @@ import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
+import { ExportExcellButton } from '@/components/ui/Tombol';
 
 const emptyForm = { name: '', unit: '', category: '', price: '', supplierId: '' };
 
@@ -155,7 +156,7 @@ export default function DataBarangPPIC() {
           {canCreate && (
             <button
               onClick={handleMulaiTambah}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:shadow-purple-500/30 hover:-translate-y-0.5 transition-all font-medium text-sm"
+              className="flex items-center gap-2 px-4 py-2 bg-linear-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:shadow-purple-500/30 hover:-translate-y-0.5 transition-all font-medium text-sm"
             >
               <Plus className="w-4 h-4" />
               <span className="hidden sm:inline">Tambah Data</span>
@@ -181,17 +182,7 @@ export default function DataBarangPPIC() {
             />
           </div>
           <div className="flex items-center gap-2">
-            {/* Import Excel dinonaktifkan sementara: backend belum punya endpoint bulk-import,
-                jadi data hasil import tidak akan tersimpan di server. */}
-            <button
-              onClick={handleExportCSV}
-              className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
-              title="Export Data ke CSV"
-            >
-              <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">Export</span>
-            </button>
-
+            <ExportExcellButton onClick={handleExportCSV} disabled={loading || dataBarang.length === 0} />
             <button className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">
               <Filter className="w-4 h-4" />
               <span>Filter</span>

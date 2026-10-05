@@ -10,6 +10,7 @@ import type {
   InboundReport,
   InboundReportParams,
   InboundRow,
+
   Item,
   ItemListRow,
   ListParams,
@@ -19,16 +20,20 @@ import type {
   OutboundReport,
   OutboundReportParams,
   OutboundRow,
+
   PaginatedResult,
   RequestReport,
   RequestReportParams,
   StockOpnameDetail,
   StockOpnameListParams,
   StockOpnameRow,
+
 } from "./types";
 
 // `summary` covers every item matching the search, not just the requested page.
+// `summary` covers every item matching the search, not just the requested page.
 export function listItems(params?: ListParams) {
+  return apiClient.get<PaginatedResult<ItemListRow> & { summary?: { totalJenis: number; totalStock: number } }>(`/api/v1/items${toQuery(params)}`);
   return apiClient.get<PaginatedResult<ItemListRow> & { summary?: { totalJenis: number; totalStock: number } }>(`/api/v1/items${toQuery(params)}`);
 }
 
@@ -112,6 +117,11 @@ export function listOutbound(params?: OutboundListParams) {
 
 export function createOutbound(input: CreateOutboundInput) {
   return apiClient.post<OutboundRow>("/api/v1/outbound", input);
+}
+
+// Backend belum menyediakan endpoint ini (docs/api-1.json baru punya GET/POST), payload-nya sama dengan create.
+export function updateOutbound(id: number, input: CreateOutboundInput) {
+  return apiClient.put<OutboundRow>(`/api/v1/outbound/${id}`, input);
 }
 
 export function getOutboundReport(params?: OutboundReportParams) {

@@ -239,14 +239,16 @@ export default function BuatDokubahPPIC() {
           </table>
         </div>
 
-        <button
-          type="button"
-          onClick={tambahBaris}
-          className="inline-flex items-center gap-1.5 mt-3 text-sm font-semibold text-[#FF8A00] hover:text-orange-600 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Tambah Baris
-        </button>
+        <div className="flex justify-end me-2 mt-1">
+          <button
+            type="button"
+            onClick={tambahBaris}
+            className="inline-flex items-center gap-1.5 mt-3 text-sm font-semibold text-[#FF8A00] hover:text-orange-600 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Tambah Baris
+          </button>
+        </div>
 
         {formError && (
           <p className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{formError}</p>
