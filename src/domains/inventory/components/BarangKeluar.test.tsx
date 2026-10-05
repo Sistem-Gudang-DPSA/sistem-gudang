@@ -30,7 +30,7 @@ async function openForm(api: ReturnType<typeof installFakeApi>) {
   await screen.findAllByText('Klien 1');
   await waitFor(() => expect(api.calls('GET /api/v1/items').length).toBeGreaterThan(0));
   fireEvent.click(screen.getByText('Tambah Data'));
-  await screen.findByText('Pilih asal gudang', { selector: 'option' });
+  await screen.findByText('Pilih penerima', { selector: 'option' });
   await screen.findAllByText('Paku', { selector: 'option' });
   await screen.findByText('SPK-9 - PT Maju', { selector: 'option' });
 }
@@ -39,7 +39,6 @@ const sel = (placeholderOpt: string) => screen.getByText(placeholderOpt, { selec
 function fillHeader() {
   fireEvent.change(sel('Pilih SPK'), { target: { value: 'SPK-9' } });
   fireEvent.change(ph('Isi Nama Item'), { target: { value: 'Lemari' } });
-  fireEvent.change(sel('Pilih asal gudang'), { target: { value: 'BAHAN_BAKU' } });
   fireEvent.change(sel('Pilih penerima'), { target: { value: 'PRODUKSI' } });
 }
 // line inputs: qty = inputMode numeric inputs in the lines table, pic = text inputs after qty
@@ -126,6 +125,7 @@ describe('BarangKeluar create', () => {
     await waitFor(() => expect(api.calls('POST /api/v1/outbound').length).toBe(1));
     const b = api.calls('POST /api/v1/outbound')[0].body as Record<string, unknown>;
     expect(b).toMatchObject({ spk: 'SPK-9', itemName: 'Lemari', warehouseType: 'BAHAN_BAKU', recipientType: 'PRODUKSI' });
+    expect(screen.queryByText('Asal Gudang')).toBeNull();
     expect(b).not.toHaveProperty('clientName');
     expect(b.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(b.lines).toEqual([{ itemId: 1, qty: 4, pic: 'Andi' }, { itemId: 2, qty: 9, pic: 'Budi' }]);
