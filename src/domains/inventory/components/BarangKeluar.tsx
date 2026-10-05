@@ -709,7 +709,7 @@ export default function BarangKeluarGudang() {
 
       {/* Peringatan data sudah tidak bisa diedit */}
       {peringatan && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
           <div
             role="alertdialog"
             aria-modal="true"

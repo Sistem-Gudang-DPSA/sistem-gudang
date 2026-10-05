@@ -55,7 +55,7 @@ export default function LoginPage() {
       <div className="max-w-5xl w-full grid grid-cols-1 md:grid-cols-2 bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-100">
         
         {/* Left Side: Illustration & Welcome */}
-        <div className="hidden md:flex flex-col justify-between p-12 bg-gradient-to-br from-blue-700 to-indigo-900 text-white">
+        <div className="hidden md:flex flex-col justify-between p-12 bg-linear-to-br from-blue-700 to-indigo-900 text-white">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-white/20 backdrop-blur-md rounded-xl">
               <Package className="w-8 h-8 text-white" />

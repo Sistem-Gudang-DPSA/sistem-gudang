@@ -23,7 +23,7 @@ function InfoRow({ label, value, labelWidth = "w-[150px]" }: InfoRowProps) {
     <div className="flex items-center">
       <span className={`${labelWidth} shrink-0 text-sm text-gray-700`}>{label}</span>
       <span className="w-6 shrink-0 text-center text-gray-700">:</span>
-      <div className="flex min-h-[40px] flex-1 items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-900 shadow-sm">
+      <div className="flex min-h-10 flex-1 items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-900 shadow-sm">
         {value}
       </div>
     </div>
