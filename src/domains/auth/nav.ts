@@ -1,4 +1,4 @@
-import { Package, ShoppingCart, UserCog, type LucideIcon } from "lucide-react";
+import { Package, ShieldCheck, ShoppingCart, UserCog, type LucideIcon } from "lucide-react";
 import type { AuthUser } from "./types";
 
 export interface NavItem {
@@ -13,7 +13,7 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-export type NavTheme = "orange" | "purple" | "teal";
+export type NavTheme = "orange" | "purple" | "teal" | "indigo";
 
 export interface NavDivision {
   key: string;
@@ -22,6 +22,8 @@ export interface NavDivision {
   theme: NavTheme;
   // The division shows up for users with ANY of these permissions (superadmin sees all).
   anyOf: string[];
+  // Only superadmins see this division, whatever their permissions say.
+  superadminOnly?: boolean;
   groups: NavGroup[];
 }
 
@@ -29,6 +31,26 @@ export interface NavDivision {
 // ppic: laporan/barang-masuk, barang-keluar, barang-dikembalikan, stok-opname
 // purchasing: laporan/barang-masuk, barang-keluar, stok-opname
 export const NAV_DIVISIONS: NavDivision[] = [
+  {
+    // Master data managed from the Super Admin menu; pages live under /dashboard/superadmin.
+    key: "superadmin",
+    label: "Super Admin",
+    icon: ShieldCheck,
+    theme: "indigo",
+    superadminOnly: true,
+    anyOf: [],
+    groups: [
+      {
+        title: "Master Data",
+        items: [
+          { href: "/dashboard/superadmin/master/data-barang", label: "Data Barang" },
+          { href: "/dashboard/superadmin/master/data-lokasi", label: "Data Lokasi" },
+          { href: "/dashboard/superadmin/master/kategori", label: "Kategori" },
+          { href: "/dashboard/superadmin/master/data-supplier", label: "Data Supplier" },
+        ],
+      },
+    ],
+  },
   {
     key: "gudang",
     label: "Gudang",
@@ -126,7 +148,7 @@ const can = (user: AuthUser, anyOf?: string[]) =>
 
 // Divisions and items the user may see, with empty groups and divisions dropped.
 export function visibleNav(user: AuthUser): NavDivision[] {
-  return NAV_DIVISIONS.filter((d) => can(user, d.anyOf))
+  return NAV_DIVISIONS.filter((d) => (d.superadminOnly ? user.isSuperadmin : can(user, d.anyOf)))
     .map((d) => ({
       ...d,
       groups: d.groups

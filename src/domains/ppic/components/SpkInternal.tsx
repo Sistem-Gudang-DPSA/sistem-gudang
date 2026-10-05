@@ -118,6 +118,7 @@ export default function SpkInternalMutasiStokPPIC() {
                 <th scope="col" className={cellClass}>Periode Pembuatan</th>
                 <th scope="col" className={cellClass}>Total Stock</th>
                 <th scope="col" className={cellClass}>Total Stock Bisa Pakai</th>
+                <th scope="col" className={cellClass}>Status</th>
                 <th scope="col" className={cellClass}>Action</th>
               </tr>
             </thead>
@@ -130,14 +131,15 @@ export default function SpkInternalMutasiStokPPIC() {
                   <td className={cellClass}>{item.periode}</td>
                   <td className={cellClass}>{item.totalStock} pcs</td>
                   <td className={cellClass}>{item.totalBisaPakai} pcs</td>
+                  <td className={cellClass}> 
+                    <button type="button" className={`${actionButtonClass} ${statusButtonClass[item.status]}`}>
+                      {item.status}
+                    </button></td>
                   <td className={cellClass}>
                     <div className="flex items-center gap-2">
-                      <button type="button" className={`${actionButtonClass} ${statusButtonClass[item.status]}`}>
-                        {item.status}
-                      </button>
+                      
                       {canAllocate && (
                         <>
-                          <span className="text-gray-400">/</span>
                           <Link
                             href={alokasiBarangPath(item.id)}
                             className={`${actionButtonClass} border-[#FF8A00] bg-[#FF8A00] text-white hover:bg-orange-600`}

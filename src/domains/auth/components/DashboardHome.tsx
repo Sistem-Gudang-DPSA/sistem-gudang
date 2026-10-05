@@ -2,7 +2,6 @@
 
 import React from "react";
 import Link from "next/link";
-import { ShieldCheck } from "lucide-react";
 import { visibleNav, type NavTheme } from "../nav";
 import { useAuthUser } from "../user-context";
 
@@ -10,6 +9,7 @@ const THEME: Record<NavTheme, { icon: string; chip: string; border: string }> = 
   orange: { icon: "bg-orange-100 text-orange-600", chip: "hover:bg-orange-50 hover:text-orange-600", border: "hover:border-orange-200" },
   purple: { icon: "bg-purple-100 text-purple-600", chip: "hover:bg-purple-50 hover:text-purple-600", border: "hover:border-purple-200" },
   teal: { icon: "bg-teal-100 text-teal-600", chip: "hover:bg-teal-50 hover:text-teal-600", border: "hover:border-teal-200" },
+  indigo: { icon: "bg-indigo-100 text-indigo-600", chip: "hover:bg-indigo-50 hover:text-indigo-600", border: "hover:border-indigo-200" },
 };
 
 // Landing page of /dashboard: a greeting and shortcuts to exactly the divisions and pages this user may open.
@@ -35,21 +35,6 @@ export default function DashboardHome() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {user?.isSuperadmin && (
-          <Link
-            href="/dashboard/superadmin"
-            className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:border-blue-200 hover:shadow-md transition-all flex items-center gap-4"
-          >
-            <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
-              <ShieldCheck className="w-6 h-6" />
-            </div>
-            <div>
-              <h2 className="font-bold text-gray-800">Super Admin</h2>
-              <p className="text-sm text-gray-500">Kelola user, peran, dan akses.</p>
-            </div>
-          </Link>
-        )}
-
         {divisions.map((d) => {
           const t = THEME[d.theme];
           const Icon = d.icon;

@@ -9,7 +9,12 @@ const labels = (u: AuthUser) => visibleNav(u).map((d) => d.key);
 
 describe("visibleNav", () => {
   it("shows every division to a superadmin", () => {
-    expect(labels(user([], true))).toEqual(["gudang", "ppic", "purchasing"]);
+    expect(labels(user([], true))).toEqual(["superadmin", "gudang", "ppic", "purchasing"]);
+  });
+
+  it("keeps the Super Admin division away from non-superadmins, whatever their permissions", () => {
+    const everything = user(["item.view", "location.view", "supplier.view", "inbound.view", "purchase-request.create", "item.set-price"]);
+    expect(labels(everything)).not.toContain("superadmin");
   });
 
   it("shows only gudang to an inventory user, without pages outside their permissions", () => {
@@ -57,6 +62,8 @@ describe("canAccess", () => {
     expect(canAccess(inventory, "/dashboard/ppic/master/data-barang")).toBe(false);
     expect(canAccess(inventory, "/dashboard/superadmin/users")).toBe(false);
     expect(canAccess(user([], true), "/dashboard/superadmin/users")).toBe(true);
+    expect(canAccess(user(["item.view"]), "/dashboard/superadmin/master/data-barang")).toBe(false);
+    expect(canAccess(user([], true), "/dashboard/superadmin/master/kategori")).toBe(true);
   });
 
   it("lets unknown paths through so Next.js can answer 404", () => {

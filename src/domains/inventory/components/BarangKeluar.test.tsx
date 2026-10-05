@@ -151,6 +151,41 @@ describe('BarangKeluar create', () => {
   });
 });
 
+describe('BarangKeluar edit', () => {
+  const baru = () => ({ ...trx(1), createdAt: new Date().toISOString() });
+
+  it('opens the edit pop-up within 1 day and PUTs the whole transaction with the edited line', async () => {
+    const api = setup({ 'PUT /api/v1/outbound/1': { id: 1 } }, paged([baru()]));
+    await screen.findAllByText('Klien 1');
+    await waitFor(() => expect(api.calls('GET /api/v1/items').length).toBeGreaterThan(0));
+    fireEvent.click(screen.getByLabelText('Edit barang keluar 1 Paku'));
+    expect(label('Nama Client').value).toBe('Klien 1');
+    expect(label('Jumlah').value).toBe('9');
+    fireEvent.change(label('Nama Client'), { target: { value: 'PT Baru' } });
+    fireEvent.change(label('Jumlah'), { target: { value: '12' } });
+    fireEvent.click(screen.getByText('Simpan Perubahan'));
+    await waitFor(() => expect(api.calls('PUT /api/v1/outbound/1').length).toBe(1));
+    expect(api.calls('PUT /api/v1/outbound/1')[0].body).toEqual({
+      date: '2026-03-05', clientName: 'PT Baru', spk: 'SPK-1', itemName: 'Proyek 1', warehouseType: 'WIP', recipientType: 'KLIEN',
+      lines: [{ itemId: 1, qty: 4, pic: 'Andi' }, { itemId: 2, qty: 12, pic: 'Andi' }],
+    });
+    await waitFor(() => expect(screen.queryByText('Simpan Perubahan')).toBeNull());
+  });
+
+  it('locks Edit after 1 day and shows a warning instead of the form', async () => {
+    const api = setup({}, paged([trx(1)]));
+    await screen.findAllByText('Klien 1');
+    const tombol = screen.getByLabelText('Edit barang keluar 1 Triplex (terkunci)');
+    expect(tombol.getAttribute('aria-disabled')).toBe('true');
+    fireEvent.click(tombol);
+    expect(screen.getByText(/sudah tidak bisa diedit/)).not.toBeNull();
+    expect(screen.queryByText('Simpan Perubahan')).toBeNull();
+    fireEvent.click(screen.getByText('Mengerti'));
+    expect(screen.queryByText(/sudah tidak bisa diedit/)).toBeNull();
+    expect(api.calls('PUT /api/v1/outbound/1').length).toBe(0);
+  });
+});
+
 const who = (permissions: string[], isSuperadmin = false) => ({ id: 1, username: 'u', email: 'u@x.id', roleId: 2, roleName: 'Staff', isSuperadmin, permissions });
 
 describe('permissions', () => {
