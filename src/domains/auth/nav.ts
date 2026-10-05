@@ -1,4 +1,4 @@
-import { Package, ShoppingCart, UserCog, type LucideIcon } from "lucide-react";
+import { Package, ShieldCheck, ShoppingCart, UserCog, type LucideIcon } from "lucide-react";
 import type { AuthUser } from "./types";
 
 export interface NavItem {
@@ -13,7 +13,7 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-export type NavTheme = "orange" | "purple" | "teal";
+export type NavTheme = "orange" | "purple" | "teal" | "indigo";
 
 export interface NavDivision {
   key: string;
@@ -22,19 +22,42 @@ export interface NavDivision {
   theme: NavTheme;
   // The division shows up for users with ANY of these permissions (superadmin sees all).
   anyOf: string[];
+  // Only superadmins see this division, whatever their permissions say.
+  superadminOnly?: boolean;
   groups: NavGroup[];
 }
 
 // Links whose pages do not exist yet are left out on purpose (they used to 404):
 // ppic: laporan/barang-masuk, barang-keluar, barang-dikembalikan, stok-opname
-// purchasing: laporan/barang-masuk, barang-keluar, stok-opname, pembelian
+// purchasing: laporan/barang-masuk, barang-keluar, stok-opname
 export const NAV_DIVISIONS: NavDivision[] = [
+  {
+    // Master data managed from the Super Admin menu; pages live under /dashboard/superadmin.
+    key: "superadmin",
+    label: "Super Admin",
+    icon: ShieldCheck,
+    theme: "indigo",
+    superadminOnly: true,
+    anyOf: [],
+    groups: [
+      {
+        title: "Master Data",
+        items: [
+          { href: "/dashboard/superadmin/master/data-barang", label: "Data Barang" },
+          { href: "/dashboard/superadmin/master/data-lokasi", label: "Data Lokasi" },
+          { href: "/dashboard/superadmin/master/kategori", label: "Kategori" },
+          { href: "/dashboard/superadmin/master/data-supplier", label: "Data Supplier" },
+        ],
+      },
+    ],
+  },
   {
     key: "gudang",
     label: "Gudang",
     icon: Package,
     theme: "orange",
-    anyOf: ["inbound.view", "outbound.view", "stock-opname.view", "report.view", "location.view"],
+    // report.view is shared with PPIC reports, so it must not open the Gudang division by itself.
+    anyOf: ["inbound.view", "outbound.view", "stock-opname.view", "location.view"],
     groups: [
       {
         title: "Master",
@@ -49,11 +72,6 @@ export const NAV_DIVISIONS: NavDivision[] = [
           { href: "/dashboard/gudang/transaksi/barang-masuk", label: "Barang Masuk", anyOf: ["inbound.view"] },
           { href: "/dashboard/gudang/transaksi/barang-keluar", label: "Barang Keluar", anyOf: ["outbound.view"] },
           { href: "/dashboard/gudang/transaksi/stock-opname", label: "Stock Opname", anyOf: ["stock-opname.view"] },
-          {
-            href: "/dashboard/gudang/transaksi/permintaan-pembelian",
-            label: "Permintaan Pembelian",
-            anyOf: ["purchase-request.create", "purchase-request.approve"],
-          },
         ],
       },
       {
@@ -63,7 +81,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
           { href: "/dashboard/gudang/laporan/barang-keluar", label: "Rekap Data Barang Keluar", anyOf: ["report.view"] },
           { href: "/dashboard/gudang/laporan/rekap-permintaan", label: "Rekap Permintaan", anyOf: ["report.view"] },
           { href: "/dashboard/gudang/laporan/stock-opname", label: "Rekap Stok Opname", anyOf: ["report.view"] },
-          { href: "/dashboard/gudang/laporan/dokubah", label: "Rekap Dokubah", anyOf: ["report.view"] },
+          { href: "/dashboard/gudang/laporan/dokubah", label: "Rekap Dokubah", anyOf: ["dokubah.view"] },
         ],
       },
     ],
@@ -79,12 +97,25 @@ export const NAV_DIVISIONS: NavDivision[] = [
         title: "Master",
         items: [
           { href: "/dashboard/ppic/master/data-barang", label: "Data Barang", anyOf: ["item.view"] },
-          { href: "/dashboard/ppic/master/penawaran-harga", label: "Penawaran Harga" },
+          { href: "/dashboard/ppic/master/penawaran-harga", label: "Penawaran Harga", anyOf: ["penawaran-harga.view"] },
         ],
       },
       {
         title: "Transaksi",
-        items: [{ href: "/dashboard/ppic/transaksi/dokubah", label: "Dokubah" }],
+        items: [
+          { href: "/dashboard/ppic/transaksi/dokubah", label: "Dokubah", anyOf: ["dokubah.view"] },
+          { href: "/dashboard/ppic/transaksi/spk-mutasi-internal", label: "SPK Internal & Mutasi Stok", anyOf: ["spk-internal.view"] },
+          { href: "/dashboard/ppic/transaksi/permintaan-pembelian", label: "Permintaan Pembelian", anyOf: ["purchase-request.create"] },
+        ],
+      },
+      {
+        title: "Laporan",
+        items: [
+          { href: "/dashboard/ppic/laporan/rekap-dokubah", label: "Rekap Dokubah", anyOf: ["dokubah.view"] },
+          { href: "/dashboard/ppic/laporan/rekap-mutasi", label: "Rekap Mutasi Barang", anyOf: ["report.view"] },
+          { href: "/dashboard/ppic/laporan/rekap-stock", label: "Rekap Stok Opname & Mutasi Stok", anyOf: ["report.view"] },
+          { href: "/dashboard/ppic/laporan/rekap-pembelian", label: "Rekap Pembelian", anyOf: ["purchase-request.create"] },
+        ],
       },
     ],
   },
@@ -102,6 +133,12 @@ export const NAV_DIVISIONS: NavDivision[] = [
           { href: "/dashboard/purchasing/master/data-supplier", label: "Data Supplier", anyOf: ["supplier.view"] },
         ],
       },
+      {
+        title: "Laporan",
+        items: [
+          { href: "/dashboard/purchasing/laporan/rekap-pembelian", label: "Rekap Pembelian", anyOf: ["purchase-request.approve"] },
+        ],
+      },
     ],
   },
 ];
@@ -111,7 +148,7 @@ const can = (user: AuthUser, anyOf?: string[]) =>
 
 // Divisions and items the user may see, with empty groups and divisions dropped.
 export function visibleNav(user: AuthUser): NavDivision[] {
-  return NAV_DIVISIONS.filter((d) => can(user, d.anyOf))
+  return NAV_DIVISIONS.filter((d) => (d.superadminOnly ? user.isSuperadmin : can(user, d.anyOf)))
     .map((d) => ({
       ...d,
       groups: d.groups

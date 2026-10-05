@@ -1,21 +1,27 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
+import { useCan } from '@/domains/auth/user-context';
 import { Search, Plus, Download, Edit2, Trash2, Filter, MoreHorizontal } from 'lucide-react';
 import { listItems, createItem, deleteItem, listLocations, updateItem } from '@/domains/inventory/api';
 import type { ItemListRow, Location } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
 import type { Supplier } from '@/domains/purchasing/types';
 import { ApiError } from '@/shared/lib/api-client';
+import { useApiData } from '@/shared/lib/use-api-data';
+import Pagination from '@/shared/components/Pagination';
+import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
+import { ExportExcellButton } from '@/components/ui/Tombol';
 
 const emptyForm = { name: '', unit: '', category: '', price: '', supplierId: '' };
 
 export default function DataBarangPPIC() {
-  const [dataBarang, setDataBarang] = useState<ItemListRow[]>([]);
+  const canCreate = useCan("item.create");
+  const canUpdate = useCan("item.update");
+  const canDelete = useCan("item.delete");
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -24,21 +30,14 @@ export default function DataBarangPPIC() {
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState("");
 
-  const loadBarang = async (search: string) => {
-    setLoading(true);
-    try {
-      const result = await listItems({ search: search || undefined });
-      setDataBarang(result.rows);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Gagal memuat data barang.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadBarang(searchTerm);
-  }, [searchTerm]);
+  const [page, setPage] = useState(1);
+  const { data: loaded, loading, error: loadError, reload } = useApiData(
+    () => listItems({ search: searchTerm || undefined, page, pageSize: 20 }),
+    `${searchTerm}|${page}`,
+    "Gagal memuat data barang.",
+  );
+  const dataBarang = loaded?.rows ?? [];
+  const error = actionError || loadError;
 
   useEffect(() => {
     listSuppliers().then((res) => setSuppliers(res.rows)).catch(() => {});
@@ -70,7 +69,7 @@ export default function DataBarangPPIC() {
           supplierId: Number(formData.supplierId),
         });
       }
-      await loadBarang(searchTerm);
+      reload();
       setIsModalOpen(false);
       setEditingId(null);
       setFormData(emptyForm);
@@ -105,9 +104,9 @@ export default function DataBarangPPIC() {
     if (!window.confirm('Apakah Anda yakin ingin menghapus data ini?')) return;
     try {
       await deleteItem(id);
-      setDataBarang((prev) => prev.filter((item) => item.id !== id));
+      reload();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Gagal menghapus barang.");
+      setActionError(err instanceof ApiError ? err.message : "Gagal menghapus barang.");
     }
   };
 
@@ -151,13 +150,15 @@ export default function DataBarangPPIC() {
           <p className="text-gray-500 text-sm">Kelola master data barang, material, dan stok inventaris PPIC.</p>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={handleMulaiTambah}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:shadow-purple-500/30 hover:-translate-y-0.5 transition-all font-medium text-sm"
-          >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Tambah Data</span>
-          </button>
+          {canCreate && (
+            <button
+              onClick={handleMulaiTambah}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:shadow-purple-500/30 hover:-translate-y-0.5 transition-all font-medium text-sm"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Tambah Data</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -171,23 +172,14 @@ export default function DataBarangPPIC() {
             <input
               type="text"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              maxLength={100}
+              onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
               className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 sm:text-sm transition-all"
               placeholder="Cari kode atau nama barang..."
             />
           </div>
           <div className="flex items-center gap-2">
-            {/* Import Excel dinonaktifkan sementara: backend belum punya endpoint bulk-import,
-                jadi data hasil import tidak akan tersimpan di server. */}
-            <button
-              onClick={handleExportCSV}
-              className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
-              title="Export Data ke CSV"
-            >
-              <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">Export</span>
-            </button>
-
+            <ExportExcellButton onClick={handleExportCSV} disabled={loading || dataBarang.length === 0} />
             <button className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">
               <Filter className="w-4 h-4" />
               <span>Filter</span>
@@ -276,12 +268,16 @@ export default function DataBarangPPIC() {
                   {/* Aksi */}
                   <td className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => handleEdit(item)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit Data">
-                         <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => handleHapus(item.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Hapus Data">
-                         <Trash2 className="w-4 h-4" />
-                      </button>
+                      {canUpdate && (
+                        <button onClick={() => handleEdit(item)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit Data">
+                           <Edit2 className="w-4 h-4" />
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button onClick={() => handleHapus(item.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Hapus Data">
+                           <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                     {/* Fallback for mobile/non-hover */}
                     <button className="md:hidden p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg">
@@ -293,6 +289,7 @@ export default function DataBarangPPIC() {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} pageSize={20} total={loaded?.total ?? 0} onPageChange={setPage} activeClass="bg-purple-500 text-white border-purple-500" />
       </div>
 
       {/* Modal Tambah Data */}
@@ -307,6 +304,7 @@ export default function DataBarangPPIC() {
                 <input
                   type="text"
                   value={formData.name}
+                  maxLength={191}
                   onChange={(e) => setFormData({...formData, name: e.target.value})}
                   placeholder="Masukan nama barang"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all sm:text-sm text-gray-900 placeholder:text-gray-400"
@@ -349,9 +347,10 @@ export default function DataBarangPPIC() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Harga</label>
                   <input
-                    type="number"
+                  {...INTEGER_INPUT}
+                  maxLength={9}
                     value={formData.price}
-                    onChange={(e) => setFormData({...formData, price: e.target.value})}
+                    onChange={(e) => setFormData({...formData, price: digitsOnly(e.target.value)})}
                     placeholder="0"
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all sm:text-sm text-gray-900 placeholder:text-gray-400"
                   />

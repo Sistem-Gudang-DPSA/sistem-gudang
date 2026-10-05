@@ -1,1 +1,1 @@
-export { default } from "@/domains/gudang/components/RekapStokOpname";
+export { default } from "@/domains/inventory/components/RekapStokOpname";

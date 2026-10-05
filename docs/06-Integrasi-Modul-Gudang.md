@@ -25,7 +25,7 @@ Permintaan. Sebelumnya semua halaman ini memakai data dummy.
 
 ## Perubahan
 
-### `src/domains/gudang/api.ts`, `types.ts`, `date.ts`
+### `src/domains/inventory/api.ts`, `types.ts`, `date.ts`
 
 Fungsi dan tipe untuk `/inbound`, `/inbound/returns`, `/outbound`,
 `/stock-opname`, `/approvals` (purchase-request), `/reports/inbound`,
@@ -47,7 +47,6 @@ berubah dan mengabaikan respons yang sudah kedaluwarsa.
 | Barang Masuk | `/inbound`, `/inbound/returns` | Barang dan supplier dipilih dari dropdown (mengirim `itemId`, `supplierId`). Form Barang Baru punya input Status QC. Form Barang Kembali punya klien dan SPK opsional. |
 | Barang Keluar | `/outbound` | Form punya Asal Gudang dan Tujuan/Penerima (wajib). Tabel diratakan satu baris per barang. |
 | Stock Opname | `/stock-opname` | Daftar dengan filter bulan dan tahun dari server, dan detail berisi stok sistem, fisik, dan selisih. Form konfirmasi sebelum menyimpan karena stok disetel ke jumlah fisik. |
-| Permintaan Pembelian | `/approvals` | Daftar memakai `type=purchase-request` dan menampilkan status. Pencarian teks disaring di klien. |
 | Laporan Barang Masuk dan Keluar | `/reports/inbound`, `/reports/outbound` | Kartu total memakai `summary` dari backend (jumlah transaksi). Ada kolom Lokasi. |
 | Rekap Permintaan | `/reports/requests`, `/material-requests/{id}` | Export mendukung mode filter dan mode `ids`. |
 
@@ -82,3 +81,5 @@ menimpanya.
 
 Modul Gudang selesai tersambung. Berikutnya lihat
 `04-Rencana-Selanjutnya.md`.
+
+Permintaan Pembelian tidak lagi ada di Gudang. Halamannya pindah ke PPIC, lihat `09-Permintaan-Pembelian-PPIC-dan-Rekap-Pembelian.md`.

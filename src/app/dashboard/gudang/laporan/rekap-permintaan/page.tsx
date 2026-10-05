@@ -1,1 +1,1 @@
-export { default } from "@/domains/gudang/components/RekapPermintaan";
+export { default } from "@/domains/inventory/components/RekapPermintaan";

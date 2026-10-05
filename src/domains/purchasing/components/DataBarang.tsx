@@ -7,13 +7,20 @@ import type { ItemListRow, Location } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
 import type { Supplier } from '@/domains/purchasing/types';
 import { ApiError } from '@/shared/lib/api-client';
+import { useApiData } from '@/shared/lib/use-api-data';
+import { digitsOnly, INTEGER_INPUT } from '@/shared/lib/input';
+import { useCan } from '@/domains/auth/user-context';
+import Pagination from '@/shared/components/Pagination';
+import { ExportExcellButton } from '@/components/ui/Tombol';
 
 export default function DataBarangPurchasing() {
-  const [dataBarang, setDataBarang] = useState<ItemListRow[]>([]);
+  // PUT /items/:id needs item.update, and changing the price also needs item.set-price.
+  const canUpdateItem = useCan('item.update');
+  const canSetPrice = useCan('item.set-price');
+  const canEditPrice = canUpdateItem && canSetPrice;
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [Exporting, setExporting] = useState(false);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -23,21 +30,14 @@ export default function DataBarangPurchasing() {
 
   const [searchTerm, setSearchTerm] = useState('');
 
-  const loadBarang = async (search: string) => {
-    setLoading(true);
-    try {
-      const result = await listItems({ search: search || undefined });
-      setDataBarang(result.rows);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Gagal memuat data barang.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadBarang(searchTerm);
-  }, [searchTerm]);
+  const [page, setPage] = useState(1);
+  const { data: loaded, loading, error: loadError, reload } = useApiData(
+    () => listItems({ search: searchTerm || undefined, page, pageSize: 20 }),
+    `${searchTerm}|${page}`,
+    "Gagal memuat data barang.",
+  );
+  const dataBarang = loaded?.rows ?? [];
+  const error = loadError;
 
   useEffect(() => {
     listSuppliers().then((res) => setSuppliers(res.rows)).catch(() => {});
@@ -63,7 +63,7 @@ export default function DataBarangPurchasing() {
         price: Number(formData.price),
         supplierId: Number(formData.supplierId),
       });
-      await loadBarang(searchTerm);
+      reload();
       setIsModalOpen(false);
       setEditingId(null);
     } catch (err) {
@@ -74,6 +74,7 @@ export default function DataBarangPurchasing() {
   };
 
   const handleExportCSV = () => {
+    setExporting(true);
     const headers = ['No,Kode Barang,Nama Barang,Supplier,Jumlah Stok,Satuan,Kategori,Harga,Lokasi'];
     const csvData = dataBarang.map((item, index) =>
       `${index + 1},${item.code ?? '-'},"${item.name}","${supplierName(item.supplierId)}",${item.stock},${item.unit},${item.category},${item.price},${locationCode(item.locationId)}`
@@ -125,22 +126,15 @@ export default function DataBarangPurchasing() {
               <input
                 type="text"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                maxLength={100}
                 className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 sm:text-sm transition-all"
                 placeholder="Cari kode atau nama barang..."
               />
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleExportCSV}
-              className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
-              title="Export Data ke CSV"
-            >
-              <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">Export</span>
-            </button>
-
+            <ExportExcellButton onClick={handleExportCSV} disabled={Exporting || loading || dataBarang.length === 0} />
             <button className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">
               <Filter className="w-4 h-4" />
               <span>Filter</span>
@@ -228,19 +222,20 @@ export default function DataBarangPurchasing() {
 
                   {/* Aksi */}
                   <td className="px-6 py-4 text-center">
-                    <button
+                    {canEditPrice && <button
                       onClick={() => handleEdit(item)}
                       className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-[#FF8A00] hover:bg-orange-600 rounded-lg transition-all shadow-sm w-full max-w-[110px] mx-auto"
                     >
                        <Plus className="w-3.5 h-3.5" />
                        Lengkapi
-                    </button>
+                    </button>}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        <Pagination page={page} pageSize={20} total={loaded?.total ?? 0} onPageChange={setPage} activeClass="bg-teal-500 text-white border-teal-500" />
       </div>
 
       {/* Modal Lengkapi Data */}
@@ -267,9 +262,10 @@ export default function DataBarangPurchasing() {
               <div>
                 <label className="block text-[15px] font-medium text-gray-800 mb-2 font-sans">Harga</label>
                 <input
-                  type="number"
+                  {...INTEGER_INPUT}
                   value={formData.price}
-                  onChange={(e) => setFormData({...formData, price: e.target.value})}
+                  onChange={(e) => setFormData({...formData, price: digitsOnly(e.target.value)})}
+                  maxLength={9}
                   placeholder="Masukan Jumlah"
                   className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors font-sans"
                 />
