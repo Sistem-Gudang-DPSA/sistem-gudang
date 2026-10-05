@@ -82,7 +82,7 @@ describe('LaporanBarangKeluar', () => {
     fireEvent.change(container.querySelectorAll('select')[0], { target: { value: 'KLIEN' } });
     await waitFor(() => expect(lastQuery(api).get('recipientType')).toBe('KLIEN'));
     await screen.findByText('Triplex');
-    fireEvent.click(screen.getByTitle('Export Data ke CSV'));
+    fireEvent.click(screen.getByTitle('Export Excel'));
     await waitFor(() => expect(api.calls('GET /api/v1/reports/outbound/export')).toHaveLength(1));
     expect(api.calls('GET /api/v1/reports/outbound/export')[0].query.get('recipientType')).toBe('KLIEN');
   });
@@ -94,7 +94,7 @@ describe('LaporanBarangKeluar', () => {
     vi.stubGlobal('open', vi.fn(() => win));
     render(<LaporanBarangKeluar />);
     await screen.findByText('Triplex');
-    fireEvent.click(screen.getByTitle('Print Data ke PDF'));
+    fireEvent.click(screen.getByTitle('Print PDF'));
     const html = write.mock.calls[0][0] as string;
     expect(html).not.toContain('<script>');
     expect(html).toContain('&lt;script&gt;');

@@ -10,6 +10,7 @@ const replace = vi.fn();
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace, push: vi.fn(), back: vi.fn() }),
   useParams: () => ({ id: '7' }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 const detail = {

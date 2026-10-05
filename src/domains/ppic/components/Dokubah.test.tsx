@@ -29,13 +29,16 @@ describe('Dokubah list', () => {
     expect(api.calls('GET /api/v1/dokubah')[0].query.get('page')).toBe('1');
   });
 
-  it('offers only a View link per status (no edit/approve actions in the list)', async () => {
+  it('offers View on every row and Edit on rows that are not approved (no approve actions in the list)', async () => {
     installFakeApi({ 'GET /api/v1/dokubah': paged(rows) });
     render(<Dokubah />);
     await screen.findByText('SPK-1');
     const links = screen.getAllByText('View').map((el) => el.closest('a')?.getAttribute('href'));
     expect(links).toEqual([1, 2, 3, 4].map((i) => `/dashboard/ppic/transaksi/dokubah/view-dokubah/${i}`));
-    expect(screen.queryByText('Edit')).toBeNull();
+    // DRAFT, PENDING and REJECTED rows; the APPROVED row (id 3) is locked.
+    expect(screen.getAllByText('Edit').map((el) => el.closest('a')?.getAttribute('href'))).toEqual(
+      [1, 2, 4].map((i) => `/dashboard/ppic/transaksi/dokubah/edit-material/${i}?from=dokubah`),
+    );
   });
 
   it('links to the create screen', async () => {
@@ -133,6 +136,7 @@ describe('permissions', () => {
     render(withUser(<Dokubah />, ['dokubah.view']));
     await screen.findByText('SPK-1');
     expect(screen.queryByText('Buat Dokubah')).toBeNull();
+    expect(screen.queryAllByText('Edit')).toHaveLength(0);
   });
 
   it.each([

@@ -54,16 +54,16 @@ describe('ViewDokubah', () => {
     await screen.findByText('Triplex');
     const label = status[0] + status.slice(1).toLowerCase();
     expect((screen.getByLabelText('Status Dokubah') as HTMLInputElement).value).toBe(label);
-    expect(screen.getAllByText('Edit').map((a) => a.closest('a')?.getAttribute('href'))).toEqual(
-      Array(2).fill('/dashboard/ppic/transaksi/dokubah/edit-material/7'),
-    );
+    expect(screen.getAllByText('Edit Dokubah').map((a) => a.closest('a')?.getAttribute('href'))).toEqual([
+      '/dashboard/ppic/transaksi/dokubah/edit-material/7?from=dokubah',
+    ]);
   });
 
   it('APPROVED: no Edit link (backend answers 409)', async () => {
     installFakeApi({ 'GET /api/v1/dokubah/7': base, 'GET /api/v1/dokubah': listRoute });
     render(<ViewDokubah />);
     await screen.findByText('Triplex');
-    expect(screen.queryAllByText('Edit')).toHaveLength(0);
+    expect(screen.queryAllByText('Edit Dokubah')).toHaveLength(0);
   });
 
   it('loads the dokubah through GET /dokubah/{id}', async () => {
@@ -101,7 +101,7 @@ describe('permissions', () => {
     installFakeApi({ 'GET /api/v1/dokubah/7': { ...base, status: 'DRAFT' }, 'GET /api/v1/dokubah': listRoute });
     render(withUser(<ViewDokubah />, ['dokubah.view']));
     await screen.findByText('Triplex');
-    expect(screen.queryAllByText('Edit')).toHaveLength(0);
+    expect(screen.queryAllByText('Edit Dokubah')).toHaveLength(0);
   });
 
   it.each([
@@ -111,7 +111,7 @@ describe('permissions', () => {
     installFakeApi({ 'GET /api/v1/dokubah/7': { ...base, status: 'DRAFT' }, 'GET /api/v1/dokubah': listRoute });
     render(withUser(<ViewDokubah />, perms, isSuperadmin));
     await screen.findByText('Triplex');
-    expect(screen.getAllByText('Edit')).toHaveLength(2);
+    expect(screen.getAllByText('Edit Dokubah')).toHaveLength(1);
   });
 });
 

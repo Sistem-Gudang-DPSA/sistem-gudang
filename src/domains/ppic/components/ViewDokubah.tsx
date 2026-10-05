@@ -231,15 +231,17 @@ export default function ViewDokubahPPIC() {
           </div>
         </div>
 
-        <div className='flex justify-end mb-3 me-2'>
-          <Link 
-            href={`${editMaterialPath(dokubah.id)}?from=dokubah`}
-            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] text-xs font-bold rounded-lg hover:bg-[#FF8A00]/20 transition-all duration-200 opacity-90 group-hover:opacity-100"
-          >
-            <Edit2 className="w-3.5 h-3.5"/>
-              Edit Dokubah
-          </Link>
-        </div>
+        {canUpdate && dokubah.status !== 'Approved' && (
+          <div className='flex justify-end mb-3 me-2'>
+            <Link
+              href={`${editMaterialPath(dokubah.id)}?from=dokubah`}
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] text-xs font-bold rounded-lg hover:bg-[#FF8A00]/20 transition-all duration-200 opacity-90 group-hover:opacity-100"
+            >
+              <Edit2 className="w-3.5 h-3.5"/>
+                Edit Dokubah
+            </Link>
+          </div>
+        )}
 
         {/* Tabel bahan */}
         <div className="overflow-x-auto border-t border-l border-gray-200">
