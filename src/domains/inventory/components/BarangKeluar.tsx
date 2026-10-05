@@ -4,6 +4,7 @@ import { useCan } from '@/domains/auth/user-context';
 import React, { useEffect, useState } from 'react';
 import { Search, Calendar, Plus, AlertCircle } from 'lucide-react';
 import { createOutbound, listOutbound, listItems } from '@/domains/inventory/api';
+import { listTrackingSpk } from '@/domains/ppic/api';
 import type { RecipientType, WarehouseType, ItemListRow } from '@/domains/inventory/types';
 import { displayDate, todayIso, toDateRange } from '@/domains/inventory/date';
 import { ApiError } from '@/shared/lib/api-client';
@@ -13,7 +14,6 @@ import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 
 const emptyLine = { itemId: "", qty: "", pic: "" };
 const emptyForm = {
-  namaClient: "",
   spk: "",
   namaItem: "",
   tanggal: todayIso(),
@@ -50,6 +50,8 @@ export default function BarangKeluarGudang() {
   const rows = result?.rows ?? [];
   const total = result?.total ?? 0;
 
+  const { data: spkList } = useApiData(() => listTrackingSpk(), 'spk', 'Gagal memuat daftar SPK.');
+
   useEffect(() => {
     listItems({ pageSize: 100 }).then((res) => setItems(res.rows)).catch(() => {});
   }, []);
@@ -69,9 +71,9 @@ export default function BarangKeluarGudang() {
 
   const handleSimpan = async () => {
     const filled = lines.filter((l) => l.itemId || l.qty || l.pic);
-    const { namaClient, spk, namaItem, tanggal, warehouseType, recipientType } = modalData;
-    if (!namaClient || !spk || !namaItem || !tanggal || !warehouseType || !recipientType) {
-      setModalError("Lengkapi data client, SPK, item, tanggal, asal gudang, dan penerima.");
+    const { spk, namaItem, tanggal, warehouseType, recipientType } = modalData;
+    if (!spk || !namaItem || !tanggal || !warehouseType || !recipientType) {
+      setModalError("Lengkapi SPK, item, tanggal, asal gudang, dan penerima.");
       return;
     }
     if (filled.length === 0 || filled.some((l) => !l.itemId || !l.qty || !l.pic)) {
@@ -83,7 +85,6 @@ export default function BarangKeluarGudang() {
     try {
       await createOutbound({
         date: tanggal,
-        clientName: namaClient,
         spk,
         itemName: namaItem,
         warehouseType,
@@ -284,29 +285,16 @@ export default function BarangKeluarGudang() {
 
             <div className="flex flex-col gap-6 mb-8">
               {/* Row 1 */}
-              <div className="flex flex-col sm:flex-row gap-6">
-                <div className="flex-1 flex flex-col gap-2">
-                  <label className="text-[15px] font-medium text-gray-900">Nama Client</label>
-                  <input 
-                    type="text"
-                    placeholder="Isi nama client"
-                    value={modalData.namaClient}
-                    maxLength={191}
-                    onChange={(e) => setModalData({...modalData, namaClient: e.target.value})}
-                    className="w-full border border-gray-200 bg-gray-50/50 rounded-lg py-3 px-4 text-gray-700 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white transition-all duration-200"
-                  />
-                </div>
-                <div className="flex-1 flex flex-col gap-2">
-                  <label className="text-[15px] font-medium text-gray-900">SPK</label>
-                  <input 
-                    type="text"
-                    placeholder="Isi Nomor SPK"
-                    value={modalData.spk}
-                    maxLength={100}
-                    onChange={(e) => setModalData({...modalData, spk: e.target.value})}
-                    className="w-full border border-gray-200 bg-gray-50/50 rounded-lg py-3 px-4 text-gray-700 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white transition-all duration-200"
-                  />
-                </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-[15px] font-medium text-gray-900">SPK</label>
+                <select
+                  value={modalData.spk}
+                  onChange={(e) => setModalData({...modalData, spk: e.target.value})}
+                  className="w-full border border-gray-200 bg-gray-50/50 rounded-lg py-3 px-4 text-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white transition-all duration-200"
+                >
+                  <option value="" disabled>Pilih SPK</option>
+                  {(spkList ?? []).map((s) => <option key={s.noSpk} value={s.noSpk}>{s.noSpk} - {s.client}</option>)}
+                </select>
               </div>
 
               {/* Row 2 */}

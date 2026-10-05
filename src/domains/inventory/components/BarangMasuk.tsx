@@ -5,6 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { Search, Calendar, Plus, Download } from 'lucide-react';
 import { createInbound, createInboundReturn, listInbound, listItems } from '@/domains/inventory/api';
 import type { StatusQc, ItemListRow } from '@/domains/inventory/types';
+import { listTrackingSpk } from '@/domains/ppic/api';
 import { listSuppliers } from '@/domains/purchasing/api';
 import type { Supplier } from '@/domains/purchasing/types';
 import { displayDate, todayIso, toDateRange } from '@/domains/inventory/date';
@@ -14,7 +15,7 @@ import Pagination from '@/shared/components/Pagination';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 
 const emptyBaru = { itemId: "", itemName: "", supplierId: "", tanggal: todayIso(), jumlahKedatangan: "", jumlahRekap: "", statusQc: "PASS" as StatusQc };
-const emptyKembali = { itemId: "", itemName: "", tanggal: todayIso(), jumlah: "", clientName: "", spk: "" };
+const emptyKembali = { itemId: "", itemName: "", tanggal: todayIso(), jumlah: "", spk: "" };
 
 export default function BarangMasukGudang() {
   const canCreate = useCan('inbound.create');
@@ -46,6 +47,8 @@ export default function BarangMasukGudang() {
   );
   const rows = result?.rows ?? [];
   const total = result?.total ?? 0;
+
+  const { data: spkList } = useApiData(() => listTrackingSpk(), 'spk', 'Gagal memuat daftar SPK.');
 
   useEffect(() => {
     listItems({ pageSize: 100 }).then((res) => setItems(res.rows)).catch(() => {});
@@ -96,7 +99,7 @@ export default function BarangMasukGudang() {
   };
 
   const handleSimpanKembali = async () => {
-    const { itemId, tanggal, jumlah, clientName, spk } = modalKembaliData;
+    const { itemId, tanggal, jumlah, spk } = modalKembaliData;
     if (!itemId || !tanggal || !jumlah) {
       setModalError("Barang, tanggal, dan jumlah wajib diisi.");
       return;
@@ -108,7 +111,6 @@ export default function BarangMasukGudang() {
         itemId: Number(itemId),
         date: tanggal,
         qty: Number(jumlah),
-        clientName: clientName || undefined,
         spk: spk || undefined,
       });
       setIsModalKembaliOpen(false);
@@ -518,24 +520,15 @@ export default function BarangMasukGudang() {
               {/* Row 3 */}
               <div className="flex flex-col sm:flex-row gap-6">
                 <div className="flex-1 flex flex-col gap-2">
-                  <label className="text-[15px] font-medium text-gray-900">Nama Klien (opsional)</label>
-                  <input
-                    type="text"
-                    value={modalKembaliData.clientName}
-                    maxLength={191}
-                    onChange={(e) => setModalKembaliData({...modalKembaliData, clientName: e.target.value})}
-                    className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white text-sm"
-                  />
-                </div>
-                <div className="flex-1 flex flex-col gap-2">
                   <label className="text-[15px] font-medium text-gray-900">SPK (opsional)</label>
-                  <input
-                    type="text"
+                  <select
                     value={modalKembaliData.spk}
-                    maxLength={100}
                     onChange={(e) => setModalKembaliData({...modalKembaliData, spk: e.target.value})}
                     className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white text-sm"
-                  />
+                  >
+                    <option value="">Tanpa SPK</option>
+                    {(spkList ?? []).map((s) => <option key={s.noSpk} value={s.noSpk}>{s.noSpk} - {s.client}</option>)}
+                  </select>
                 </div>
               </div>
             </div>

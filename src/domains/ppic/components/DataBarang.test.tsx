@@ -18,6 +18,8 @@ function routes(extra: Record<string, unknown> = {}, rows = [item(1), item(2, { 
     'GET /api/v1/items': paged(rows, { total: 45 }),
     'GET /api/v1/suppliers': suppliers,
     'GET /api/v1/locations': locations,
+    'GET /api/v1/items/units': [{ id: 1, name: 'Lembar' }, { id: 2, name: 'Pcs' }],
+    'GET /api/v1/items/categories': [{ id: 1, name: 'Lembaran' }, { id: 2, name: 'Logam' }],
     'POST /api/v1/items': { id: 99 },
     'PUT /api/v1/items/1': { id: 1 },
     'DELETE /api/v1/items/1': { id: 1 },
