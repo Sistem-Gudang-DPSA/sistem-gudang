@@ -104,7 +104,6 @@ export interface CreateInboundReturnInput {
   itemId: number;
   date: string;
   qty: number;
-  clientName?: string;
   spk?: string;
   referenceNo?: string;
   notes?: string;
@@ -160,7 +159,6 @@ export interface OutboundListParams {
 
 export interface CreateOutboundInput {
   date: string;
-  clientName: string;
   spk: string;
   itemName: string;
   warehouseType: WarehouseType;

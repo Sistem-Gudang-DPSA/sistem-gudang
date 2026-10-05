@@ -16,6 +16,8 @@ const rows: Row[] = [
   ['suggestItemCode', [1, 9], 'GET /api/v1/items/1/suggest-code', { locationId: '9' }, undefined],
   ['assignItemLocation', [1, { code: 'A1', locationId: 9 }], 'PUT /api/v1/items/1/assign-location', {}, { code: 'A1', locationId: 9 }],
   ['adjustItemStock', [1, { delta: -2, reason: 'rusak' }], 'PATCH /api/v1/items/1/stock', {}, { delta: -2, reason: 'rusak' }],
+  ['listItemCategories', [], 'GET /api/v1/items/categories', {}, undefined],
+  ['listItemUnits', [], 'GET /api/v1/items/units', {}, undefined],
   ['listLocations', [{ page: 1 }], 'GET /api/v1/locations', { page: '1' }, undefined],
   ['createLocation', [{ name: 'L' }], 'POST /api/v1/locations', {}, { name: 'L' }],
   ['deleteLocation', [7], 'DELETE /api/v1/locations/7', {}, undefined],
