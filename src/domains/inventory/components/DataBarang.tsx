@@ -2,7 +2,7 @@
 
 import { useCan } from '@/domains/auth/user-context';
 import React, { useEffect, useState } from 'react';
-import { Search, Plus, Download, Filter, PackageSearch } from 'lucide-react';
+import { Search, Plus, Download, Filter, Edit2 } from 'lucide-react';
 import { adjustItemStock, assignItemLocation, listItems, listLocations, suggestItemCode } from '@/domains/inventory/api';
 import type { ItemListRow, Location } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
@@ -10,6 +10,7 @@ import type { Supplier } from '@/domains/purchasing/types';
 import { ApiError } from '@/shared/lib/api-client';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
+import { ExportExcellButton } from '@/components/ui/Tombol';
 
 export default function DataBarangGudang() {
   const canAssign = useCan('item.assign-location');
@@ -172,14 +173,7 @@ export default function DataBarangGudang() {
             />
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleExportExcel}
-              className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
-              title="Export Data ke Excel"
-            >
-              <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">Export</span>
-            </button>
+            <ExportExcellButton onClick={handleExportExcel} />
             <button className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">
               <Filter className="w-4 h-4" />
               <span>Filter</span>
@@ -276,7 +270,7 @@ export default function DataBarangGudang() {
                         className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-100 transition-all duration-200 opacity-90 group-hover:opacity-100"
                         title="Sesuaikan stok"
                       >
-                        <PackageSearch className="w-3.5 h-3.5" strokeWidth={2.5} />
+                        <Edit2 className="w-3.5 h-3.5" strokeWidth={2.5} />
                         Stok
                       </button>}
                     </div>

@@ -71,7 +71,7 @@ export default function SuperAdminDashboard() {
               href={div.path}
               className="group relative bg-white p-8 rounded-3xl shadow-sm border border-gray-100 hover:shadow-xl hover:shadow-blue-500/5 hover:-translate-y-1 transition-all duration-300"
             >
-              <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${div.color} flex items-center justify-center text-white mb-6 group-hover:scale-110 transition-transform`}>
+              <div className={`w-16 h-16 rounded-2xl bg-linear-to-br ${div.color} flex items-center justify-center text-white mb-6 group-hover:scale-110 transition-transform`}>
                 <Icon className="w-8 h-8" />
               </div>
               <h3 className="text-xl font-bold text-gray-800 mb-2">{div.name} Dashboard</h3>

@@ -32,12 +32,28 @@ const THEME: Record<NavTheme, { summary: string; icon: string; border: string; h
     active: "bg-teal-500 text-white font-medium shadow-sm",
     idle: "text-gray-500 hover:text-teal-600 hover:bg-teal-50",
   },
+  indigo: {
+    summary: "hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-100",
+    icon: "bg-indigo-100 text-indigo-600",
+    border: "border-indigo-50",
+    heading: "hover:text-indigo-600",
+    active: "bg-indigo-500 text-white font-medium shadow-sm",
+    idle: "text-gray-500 hover:text-indigo-600 hover:bg-indigo-50",
+  },
 };
 
 const topLink = (active: boolean) =>
   `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
     active ? "bg-blue-600 text-white shadow-md shadow-blue-200" : "text-gray-600 hover:bg-blue-50 hover:text-blue-600"
   }`;
+
+const checkActive = (currentPath: string, targetHref: string) => {
+  const cleanPath = currentPath.replace(/\/\$/, "");
+  const cleanTarget = targetHref.replace(/\/\$/, "");
+
+  if (cleanPath === cleanTarget) return true;
+  return cleanPath.startsWith(cleanTarget + '/');
+};
 
 interface Props {
   user: AuthUser;
@@ -56,7 +72,7 @@ export default function SidebarNav({ user, pathname, onNavigate }: Props) {
             <ShieldCheck className="w-5 h-5" />
             <span className="font-medium">Dashboard SA</span>
           </Link>
-          <Link href="/dashboard/superadmin/users" onClick={onNavigate} className={topLink(pathname === "/dashboard/superadmin/users")}>
+          <Link href="/dashboard/superadmin/users" onClick={onNavigate} className={topLink(checkActive(pathname, "/dashboard/superadmin/users"))}>
             <Users className="w-5 h-5" />
             <span className="font-medium">Kelola Data User</span>
           </Link>
@@ -100,16 +116,21 @@ export default function SidebarNav({ user, pathname, onNavigate }: Props) {
                     <ChevronDown className="w-3 h-3 transition-transform group-open/section:-rotate-180" />
                   </summary>
                   <div className="space-y-1">
-                    {group.items.map((item) => (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={onNavigate}
-                        className={`block text-sm py-2 px-3 rounded-lg transition-all ${pathname === item.href ? t.active : t.idle}`}
-                      >
-                        {item.label}
-                      </Link>
-                    ))}
+                    {group.items.map((item) => {
+                      // Menggunakan helper checkActive untuk menentukan status menu aktif
+                      const isActive = checkActive(pathname, item.href);
+                      
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={onNavigate}
+                          className={`block text-sm py-2 px-3 rounded-lg transition-all ${isActive ? t.active : t.idle}`}
+                        >
+                          {item.label}
+                        </Link>
+                      );
+                    })}
                   </div>
                 </details>
               ))}

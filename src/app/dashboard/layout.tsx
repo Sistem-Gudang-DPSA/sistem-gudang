@@ -50,7 +50,7 @@ export default function DashboardLayout({
         <div className="flex items-center justify-center h-20 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <Package className="w-8 h-8 text-blue-600" />
-            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">DPSA Sys</h1>
+            <h1 className="text-xl font-bold bg-linear-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">DPSA Sys</h1>
           </div>
         </div>
 
@@ -126,7 +126,7 @@ export default function DashboardLayout({
           </div>
 
           <div className="flex items-center gap-4">
-             <div className="flex flex-col items-end hidden md:flex">
+             <div className=" flex-col items-end hidden md:flex">
                 <span className="text-sm font-semibold text-gray-800">{userName || "User"}</span>
                 <span className="text-xs text-gray-500">{user.isSuperadmin ? "Super Admin" : user.roleName || "Guest"}</span>
              </div>
