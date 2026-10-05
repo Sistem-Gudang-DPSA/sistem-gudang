@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { Search, Calendar, Plus, AlertCircle } from 'lucide-react';
 import { createOutbound, listOutbound, listItems } from '@/domains/inventory/api';
 import { listTrackingSpk } from '@/domains/ppic/api';
-import type { RecipientType, WarehouseType, ItemListRow } from '@/domains/inventory/types';
+import type { RecipientType, ItemListRow } from '@/domains/inventory/types';
 import { displayDate, todayIso, toDateRange } from '@/domains/inventory/date';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
@@ -17,7 +17,6 @@ const emptyForm = {
   spk: "",
   namaItem: "",
   tanggal: todayIso(),
-  warehouseType: "" as WarehouseType | "",
   recipientType: "" as RecipientType | "",
 };
 
@@ -71,9 +70,9 @@ export default function BarangKeluarGudang() {
 
   const handleSimpan = async () => {
     const filled = lines.filter((l) => l.itemId || l.qty || l.pic);
-    const { spk, namaItem, tanggal, warehouseType, recipientType } = modalData;
-    if (!spk || !namaItem || !tanggal || !warehouseType || !recipientType) {
-      setModalError("Lengkapi SPK, item, tanggal, asal gudang, dan penerima.");
+    const { spk, namaItem, tanggal, recipientType } = modalData;
+    if (!spk || !namaItem || !tanggal || !recipientType) {
+      setModalError("Lengkapi SPK, item, tanggal, dan penerima.");
       return;
     }
     if (filled.length === 0 || filled.some((l) => !l.itemId || !l.qty || !l.pic)) {
@@ -87,7 +86,8 @@ export default function BarangKeluarGudang() {
         date: tanggal,
         spk,
         itemName: namaItem,
-        warehouseType,
+        // Gudang Bahan Baku is the only warehouse so far; WIP and Barang Jadi come later with their own owners.
+        warehouseType: 'BAHAN_BAKU',
         recipientType,
         lines: filled.map((l) => ({ itemId: Number(l.itemId), qty: Number(l.qty), pic: l.pic })),
       });
@@ -333,19 +333,6 @@ export default function BarangKeluarGudang() {
 
               {/* Row 3 */}
               <div className="flex flex-col sm:flex-row gap-6">
-                <div className="flex-1 flex flex-col gap-2">
-                  <label className="text-[15px] font-medium text-gray-900">Asal Gudang</label>
-                  <select
-                    value={modalData.warehouseType}
-                    onChange={(e) => setModalData({...modalData, warehouseType: e.target.value as WarehouseType})}
-                    className="w-full border border-gray-200 bg-gray-50/50 rounded-lg py-3 px-4 text-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white transition-all duration-200"
-                  >
-                    <option value="" disabled>Pilih asal gudang</option>
-                    <option value="BAHAN_BAKU">Gudang Bahan Baku</option>
-                    <option value="WIP">Gudang WIP</option>
-                    <option value="BARANG_JADI">Gudang Barang Jadi</option>
-                  </select>
-                </div>
                 <div className="flex-1 flex flex-col gap-2">
                   <label className="text-[15px] font-medium text-gray-900">Tujuan / Penerima</label>
                   <select
