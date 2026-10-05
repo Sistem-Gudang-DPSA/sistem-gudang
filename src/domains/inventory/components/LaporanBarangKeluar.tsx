@@ -3,18 +3,12 @@
 import React, { useState } from 'react';
 import { Search, FileUp, Download, Eye, Loader2, AlertCircle } from 'lucide-react';
 import { exportOutboundReport, getOutboundReport } from '@/domains/inventory/api';
-import type { OutboundRow, RecipientType, WarehouseType } from '@/domains/inventory/types';
+import type { OutboundRow, RecipientType } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
 
 const PAGE_SIZE = 20;
-
-const GUDANG_LABEL: Record<WarehouseType, string> = {
-    BAHAN_BAKU: 'Gudang Bahan Baku',
-    WIP: 'Gudang WIP',
-    BARANG_JADI: 'Gudang Barang Jadi',
-};
 
 const RECIPIENT_LABEL: Record<RecipientType, string> = {
     PRODUKSI: 'Tukang / Produksi',
@@ -28,14 +22,11 @@ const monthStart = () => {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 };
 
-const emptySummary = { bahanBaku: 0, wip: 0, barangJadi: 0 };
-
 const escapeHtml = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 export default function LaporanBarangKeluar(){
     const [searchQuery, setSearchQuery] = useState<string>('');
-    const [filterGudang, setFilterGudang] = useState<'ALL' | WarehouseType>('ALL');
     const [filterPenerima, setFilterPenerima] = useState<'ALL' | RecipientType>('ALL');
     const [startDate, setStartDate] = useState<string>(monthStart());
     const [endDate, setEndDate] = useState<string>(new Date().toISOString().slice(0, 10));
@@ -48,7 +39,6 @@ export default function LaporanBarangKeluar(){
       q: searchQuery || undefined,
       startDate: startDate || undefined,
       endDate: endDate || undefined,
-      warehouseType: filterGudang === 'ALL' ? undefined : filterGudang,
       recipientType: filterPenerima === 'ALL' ? undefined : filterPenerima,
     };
 
@@ -83,7 +73,6 @@ export default function LaporanBarangKeluar(){
         }
         setActionError('');
 
-        const gudangText = filterGudang === 'ALL' ? 'Semua Jenis Gudang' : GUDANG_LABEL[filterGudang];
         const penerimaText = filterPenerima === 'ALL' ? 'Semua Penerima' : RECIPIENT_LABEL[filterPenerima];
         const periodeText = `${startDate ? displayDate(startDate) : '-'} s/d ${endDate ? displayDate(endDate) : '-'}`;
 
@@ -103,7 +92,6 @@ export default function LaporanBarangKeluar(){
             <tr>
                 <td class="center">${index + 1}</td>
                 <td>${barang}</td>
-                <td>${escapeHtml(GUDANG_LABEL[trx.warehouseType])}</td>
                 <td>${penerima}</td>
                 <td>${escapeHtml(trx.spk)}</td>
                 <td class="center">${escapeHtml(displayDate(trx.date))}</td>
@@ -135,20 +123,17 @@ export default function LaporanBarangKeluar(){
             </head>
             <body>
                 <h1>Rekap Barang Keluar (halaman ini)</h1>
-                <p class="meta">Periode: ${periodeText} &nbsp;|&nbsp; Asal Gudang: ${escapeHtml(gudangText)} &nbsp;|&nbsp; Penerima: ${escapeHtml(penerimaText)}${
+                <p class="meta">Periode: ${periodeText} &nbsp;|&nbsp; Penerima: ${escapeHtml(penerimaText)}${
                 searchQuery ? ` &nbsp;|&nbsp; Pencarian: ${escapeHtml(searchQuery)}` : ''
                 }</p>
                 <p class="summary">
-                <span><b>Bahan Baku:</b> ${summary.bahanBaku.toLocaleString('id-ID')} Transaksi</span>
-                <span><b>WIP:</b> ${summary.wip.toLocaleString('id-ID')} Transaksi</span>
-                <span><b>Barang Jadi:</b> ${summary.barangJadi.toLocaleString('id-ID')} Transaksi</span>
+                <span><b>Total:</b> ${totalTransaksi.toLocaleString('id-ID')} Transaksi</span>
                 </p>
                 <table>
                 <thead>
                     <tr>
                     <th class="center">No</th>
                     <th>Informasi Barang</th>
-                    <th>Asal Gudang</th>
                     <th>Tujuan / Penerima</th>
                     <th>SPK</th>
                     <th class="center">Tanggal</th>
@@ -165,7 +150,8 @@ export default function LaporanBarangKeluar(){
         };
 
     const rows = report?.rows ?? [];
-    const summary = report?.summary ?? emptySummary;
+    // The API splits the count per warehouse; only Gudang Bahan Baku exists so far, so show the total.
+    const totalTransaksi = Object.values(report?.summary ?? {}).reduce((sum, n) => sum + n, 0);
     // The table shows one row per item line, the API returns one row per transaction.
     const tableRows = rows.flatMap((trx) => trx.lines.map((line) => ({ trx, line })));
 
@@ -176,19 +162,9 @@ export default function LaporanBarangKeluar(){
                 <p className="text-gray-500 text-sm">Arsip pencatatan riwayat pengeluaran fisik barang dari gudang</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
-                    <p className="text-xs font-semibold text-gray-500 uppercase">Total Bahan Baku Keluar</p>
-                    <p className="text-2xl font-bold text-gray-900 mt-1">{summary.bahanBaku.toLocaleString('id-ID')} Transaksi</p>
-                </div>
-                <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
-                    <p className="text-xs font-semibold text-gray-500 uppercase">Total Pengeluaran Item WIP</p>
-                    <p className="text-2xl font-bold text-blue-600 mt-1">{summary.wip.toLocaleString('id-ID')} Transaksi</p>
-                </div>
-                <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
-                    <p className="text-xs font-semibold text-gray-500 uppercase">Total Barang Jadi Keluar</p>
-                    <p className="text-2xl font-bold text-green-600 mt-1">{summary.barangJadi.toLocaleString('id-ID')} Transaksi</p>
-                </div>
+            <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
+                <p className="text-xs font-semibold text-gray-500 uppercase">Total Barang Keluar</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{totalTransaksi.toLocaleString('id-ID')} Transaksi</p>
             </div>
 
             <div className='flex flex-wrap justify-between items-center bg-white p-4 border border-gray-200 rounded-lg shadow-sm gap-4 mt-5 print:hidden'>
@@ -208,20 +184,6 @@ export default function LaporanBarangKeluar(){
                             <Search className="text-black w-4 h-4" />
                         </button>
                         </span>
-                    </div>
-
-                    <div>
-                        <label className="block text-xs text-black mb-1">Asal Gudang</label>
-                        <select
-                        value={filterGudang}
-                        onChange={(e) => setFilterGudang(e.target.value as 'ALL' | WarehouseType)}
-                        className="border border-gray-300 rounded-md px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500c text-black"
-                        >
-                        <option value="ALL" className='text-black'>Semua Jenis Gudang</option>
-                        <option value="BAHAN_BAKU" className='text-black'>Gudang Bahan Baku</option>
-                        <option value="WIP" className='text-black'>Gudang WIP</option>
-                        <option value="BARANG_JADI" className='text-black'>Gudang Barang Jadi</option>
-                        </select>
                     </div>
 
                     <div>
@@ -290,7 +252,6 @@ export default function LaporanBarangKeluar(){
                     <tr>
                         <th className="px-4 py-3 text-center w-12">No</th>
                         <th className="px-4 py-3 text-left">Informasi Barang</th>
-                        <th className="px-4 py-3 text-left">Asal Gudang</th>
                         <th className="px-4 py-3 text-left">Tujuan / Penerima</th>
                         <th className="px-4 py-3 text-right">SPK</th>
                         <th className="px-4 py-3 text-center">Tanggal</th>
@@ -301,7 +262,7 @@ export default function LaporanBarangKeluar(){
                     <tbody className="divide-y divide-gray-200">
                         {loading ? (
                         <tr>
-                            <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                            <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
                             <div className="flex items-center justify-center gap-2">
                                 <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
                                 <span>Memuat data laporan barang keluar...</span>
@@ -310,7 +271,7 @@ export default function LaporanBarangKeluar(){
                         </tr>
                         ) : error ? (
                         <tr>
-                            <td colSpan={8} className="px-4 py-8 text-center text-red-500">
+                            <td colSpan={7} className="px-4 py-8 text-center text-red-500">
                             <div className="flex flex-col items-center justify-center gap-2">
                                 <AlertCircle className="w-6 h-6 text-red-500" />
                                 <span className="font-semibold">{error}</span>
@@ -319,7 +280,7 @@ export default function LaporanBarangKeluar(){
                         </tr>
                         ) : tableRows.length === 0 ? (
                         <tr>
-                            <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                            <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
                             Tidak ada data barang keluar ditemukan.
                             </td>
                         </tr>
@@ -333,7 +294,6 @@ export default function LaporanBarangKeluar(){
                                     {line.itemCode ?? '-'}{line.locationCode ? ` (${line.locationCode})` : ''}
                                 </span>
                             </td>
-                            <td className="px-4 py-3 text-gray-700">{GUDANG_LABEL[trx.warehouseType]}</td>
                             <td className="px-4 py-3">
                                 <span className="font-medium text-gray-900">{RECIPIENT_LABEL[trx.recipientType]}</span>
                                 <span className="block text-xs text-gray-500">{trx.clientName}{line.pic ? ` - PIC ${line.pic}` : ''}</span>
@@ -383,10 +343,6 @@ export default function LaporanBarangKeluar(){
                             <div className="flex justify-between py-1 border-b border-gray-50">
                                 <span className="text-gray-500">Client / Item</span>
                                 <span className="font-medium text-gray-800">{selectedDetail.clientName} / {selectedDetail.itemName}</span>
-                            </div>
-                            <div className="flex justify-between py-1 border-b border-gray-50">
-                                <span className="text-gray-500">Asal Gudang</span>
-                                <span className="font-medium text-gray-800">{GUDANG_LABEL[selectedDetail.warehouseType]}</span>
                             </div>
                             <div className="flex justify-between py-1 border-b border-gray-50">
                                 <span className="text-gray-500">Tujuan / Penerima</span>
