@@ -10,7 +10,6 @@ const THEME: Record<NavTheme, { icon: string; chip: string; border: string }> = 
   orange: { icon: "bg-orange-100 text-orange-600", chip: "hover:bg-orange-50 hover:text-orange-600", border: "hover:border-orange-200" },
   purple: { icon: "bg-purple-100 text-purple-600", chip: "hover:bg-purple-50 hover:text-purple-600", border: "hover:border-purple-200" },
   teal: { icon: "bg-teal-100 text-teal-600", chip: "hover:bg-teal-50 hover:text-teal-600", border: "hover:border-teal-200" },
-  indigo : { icon: "bg-indigo-100 text-indigo-600", chip: "hover:bg-indigo-50 hover:text-indigo-600", border: "hover:border-indigo-200" },
 };
 
 // Landing page of /dashboard: a greeting and shortcuts to exactly the divisions and pages this user may open.

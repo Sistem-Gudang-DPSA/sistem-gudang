@@ -1,48 +1,159 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Search, Plus, Edit2, Trash2, CheckCircle, XCircle, Clock, Download, Calendar } from 'lucide-react';
+import { useCan } from '@/domains/auth/user-context';
+import Link from 'next/link';
+import { Search, Funnel, Plus, Eye, CircleCheck, CircleX, Clock, FilePen, FileUp, Download, Edit2 } from 'lucide-react';
+import {
+  buat_dokubah_path,
+  editMaterialPath,
+  escapeHtml,
+  formatTanggal,
+  type StatusDokubah,
+  viewDokubahPath,
+} from '@/domains/ppic/data/dokubah';
+import { listDokubah, statusToApi } from '@/domains/ppic/api';
+import Pagination from '@/shared/components/Pagination';
+import { useApiData } from '@/shared/lib/use-api-data';
+import { ExportExcellButton, PrintPdfButton } from '@/components/ui/Tombol';
+
+export const STATUS_OPTIONS: StatusDokubah[] = ['Draft', 'Pending', 'Approved', 'Rejected'];
+
+export const getStatusBadge =(status: StatusDokubah) => {
+  switch (status) {
+    case 'Draft':
+      return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200"><FilePen className="w-3 h-3" /> Draft</span>;
+    case 'Approved':
+      return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 border border-green-200"><CircleCheck className="w-3 h-3" /> Approved</span>;
+    case 'Rejected':
+      return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-200"><CircleX className="w-3 h-3" /> Rejected</span>;
+    default:
+      return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700 border border-amber-200"><Clock className="w-3 h-3" /> Pending</span>;
+  }
+};
+
+const cellClass = 'px-4 py-3 border-b border-r border-gray-200';
+const lastCellClass = 'px-4 py-3 border-b border-gray-200';
+const checkboxClass = 'w-4 h-4 accent-[#FF8A00] cursor-pointer disabled:cursor-not-allowed';
+const orangeButtonClass = 'flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed';
+const filterInputClass = 'border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00]';
 
 export default function DokubahPPIC() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterMonth, setFilterMonth] = useState("");
-  const [filterYear, setFilterYear] = useState("");
+  const canCreate = useCan('dokubah.create');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showFilter, setShowFilter] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<StatusDokubah | ''>('');
+  const [filterDari, setFilterDari] = useState('');
+  const [filterSampai, setFilterSampai] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
-  const dataDokubah = [
-    { id: 1, client: 'PT Bintang Raya', spk: 'SPK-2026-001', noRekap: 'RKP/04/001', approval: 'Approved' },
-    { id: 2, client: 'CV Indo Makmur', spk: 'SPK-2026-002', noRekap: 'RKP/04/002', approval: 'Pending' },
-    { id: 3, client: 'Global Mas', spk: 'SPK-2026-003', noRekap: 'RKP/04/003', approval: 'Rejected' },
-  ];
+  const isFilterActive = filterStatus !== '' || filterDari !== '' || filterSampai !== '';
 
-  const filteredData = dataDokubah.filter(item => {
-    if (searchQuery === "" && filterMonth === "" && filterYear === "") return true;
+  const filters = {
+    search: searchQuery.trim() || undefined,
+    status: filterStatus ? statusToApi(filterStatus) : undefined,
+    startDate: filterDari || undefined,
+    endDate: filterSampai || undefined,
+  };
+  const filterKey = JSON.stringify(filters);
+  const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
+  const page = pageState.key === filterKey ? pageState.page : 1;
+  const setPage = (next: number) => setPageState({ key: filterKey, page: next });
+  const { data: result, loading, error } = useApiData(
+    () => listDokubah({ ...filters, page, pageSize: 20 }),
+    `${filterKey}|${page}`,
+    'Gagal memuat daftar Dokubah.',
+  );
+  const filteredData = result?.rows ?? [];
+  const total = result?.total ?? 0;
 
-    const searches = searchQuery.toLowerCase();
-    const matchesSearch = searchQuery === "" || 
-      item.client.toLowerCase().includes(searches) ||
-      item.spk.toLowerCase().includes(searches) ||
-      item.noRekap.toLowerCase().includes(searches);
+  const checkedRows = filteredData.filter((item) => selectedIds.has(item.id));
+  const allChecked = filteredData.length > 0 && checkedRows.length === filteredData.length;
 
-    // Scan Month in noRekap (format RKP/04/001)
-    const matchesMonth = filterMonth === "" || item.noRekap.split('/')[1] === filterMonth;
-    
-    // Scan Year in spk (format SPK-2026-001)
-    const matchesYear = filterYear === "" || item.spk.includes(filterYear);
+  // Export & print pakai baris yang dicentang; kalau tidak ada yang dicentang, semua baris di halaman ini
+  const rowsToExport = checkedRows.length > 0 ? checkedRows : filteredData;
 
-    return matchesSearch && matchesMonth && matchesYear;
-  });
+  const resetFilter = () => {
+    setFilterStatus('');
+    setFilterDari('');
+    setFilterSampai('');
+  };
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const toggleAll = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      filteredData.forEach((item) => (allChecked ? next.delete(item.id) : next.add(item.id)));
+      return next;
+    });
+  };
 
-  const getApprovalBadge = (status: string) => {
-    switch (status) {
-      case 'Approved':
-        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 border border-green-200"><CheckCircle className="w-3 h-3" /> Approved</span>;
-      case 'Rejected':
-        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-200"><XCircle className="w-3 h-3" /> Rejected</span>;
-      default:
-        return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700 border border-amber-200"><Clock className="w-3 h-3" /> Pending</span>;
+  const toggleOne = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleExportExcel = async () => {
+    const XLSX = await import('xlsx');
+    const rows = rowsToExport.map((item, index) => ({
+      'No.': index + 1,
+      'No. SPK / Proyek': item.noSpk,
+      'Nama Client': item.client,
+      'Tanggal Mulai': formatTanggal(item.tanggalMulai),
+      'Tanggal Selesai': formatTanggal(item.tanggalSelesai),
+      'Status': item.status,
+    }));
+    const sheet = XLSX.utils.json_to_sheet(rows);
+    const book = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(book, sheet, 'Dokubah');
+    XLSX.writeFile(book, 'Dokubah_PPIC.xlsx');
+  };
+
+  // Buka jendela berisi tabel saja lalu panggil dialog print (pilih "Save as PDF")
+  const handlePrintPdf = () => {
+    const win = window.open('', '_blank');
+    if (!win) {
+      alert('Pop-up diblokir browser. Izinkan pop-up untuk mencetak PDF.');
+      return;
     }
+    const bodyRows = rowsToExport.map((item, index) => `
+      <tr>
+        <td class="center">${(page - 1) * 20 + index + 1}</td>
+        <td>${escapeHtml(item.noSpk)}</td>
+        <td>${escapeHtml(item.client)}</td>
+        <td>${formatTanggal(item.tanggalMulai)}</td>
+        <td>${formatTanggal(item.tanggalSelesai)}</td>
+        <td>${item.status}</td>
+      </tr>`).join('');
+    win.document.write(`<!doctype html>
+      <html>
+        <head>
+          <title>Dokubah PPIC</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 24px; color: #111; }
+            h1 { font-size: 18px; margin: 0 0 16px; }
+            table { width: 100%; border-collapse: collapse; font-size: 12px; }
+            th, td { border: 1px solid #999; padding: 6px 8px; text-align: left; }
+            th { background: #eee; }
+            .center { text-align: center; }
+          </style>
+        </head>
+        <body>
+          <h1>Dokubah PPIC</h1>
+          <table>
+            <thead>
+              <tr><th class="center">No.</th><th>No. SPK / Proyek</th><th>Nama Client</th><th>Tanggal Mulai</th><th>Tanggal Selesai</th><th>Status</th></tr>
+            </thead>
+            <tbody>${bodyRows}</tbody>
+          </table>
+        </body>
+      </html>`);
+    win.document.close();
+    win.focus();
+    win.print();
   };
 
   return (
