@@ -1,11 +1,5 @@
 "use client";
 
-<<<<<<< HEAD:src/domains/gudang/components/DetailRekapPermintaan.tsx
-import React, { useState } from "react";
-import { ArrowLeft } from "lucide-react";
-import { useRouter } from "next/navigation";
-import type { RekapPermintaanItems } from "../types";
-=======
 import React, { useEffect, useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
@@ -17,7 +11,6 @@ import type { DokubahItem } from "@/domains/ppic/data/dokubah";
 import { getMaterialRequest } from "../api";
 import { getQuotaStatus } from "../quota";
 import type { MaterialRequestDetail } from "../types";
->>>>>>> 57a09a7a1d83afe9056698d497f4205f76edaf5c:src/domains/inventory/components/DetailRekapPermintaan.tsx
 
 interface InfoRowProps {
   label: string;
@@ -39,11 +32,7 @@ function InfoRow({ label, value, labelWidth = "w-[150px]" }: InfoRowProps) {
 
 const formatTanggal = (value?: string) =>
   value
-<<<<<<< HEAD:src/domains/gudang/components/DetailRekapPermintaan.tsx
-    ? new Date(value).toLocaleDateString("id-ID", {
-=======
     ? new Date(value.length === 10 ? `${value}T00:00:00` : value).toLocaleDateString("id-ID", {
->>>>>>> 57a09a7a1d83afe9056698d497f4205f76edaf5c:src/domains/inventory/components/DetailRekapPermintaan.tsx
         day: "numeric",
         month: "long",
         year: "numeric",
@@ -52,12 +41,6 @@ const formatTanggal = (value?: string) =>
 
 export default function DetailRekapPermintaan() {
   const router = useRouter();
-<<<<<<< HEAD:src/domains/gudang/components/DetailRekapPermintaan.tsx
-  const [data, setData] = useState<RekapPermintaanItems[]>([]);
-
-  // Header diambil dari baris pertama (kosong jika data belum ada)
-  const header = data[0];
-=======
   const params = useParams<{ id: string }>();
   const requestId = Number(params.id);
 
@@ -103,7 +86,6 @@ export default function DetailRekapPermintaan() {
     }, [detail, stock, dokubah]);
 
     const header = detail;
->>>>>>> 57a09a7a1d83afe9056698d497f4205f76edaf5c:src/domains/inventory/components/DetailRekapPermintaan.tsx
 
   return (
     <div className="flex flex-col bg-white min-h-screen p-6">
@@ -126,33 +108,19 @@ export default function DetailRekapPermintaan() {
       {/* Informasi permintaan */}
       <div className="grid grid-cols-1 gap-x-16 gap-y-4 lg:grid-cols-2 mb-8">
         <div className="flex flex-col gap-4">
-<<<<<<< HEAD:src/domains/gudang/components/DetailRekapPermintaan.tsx
-          <InfoRow label="Kepala Group Tukang" value={header?.grupTukang} />
-          <InfoRow label="Item Pekerjaan" value={header?.itemProduksi} />
-          <InfoRow label="Nama Proyek" value={header?.namaKlien} />
-=======
           <InfoRow label="Kepala Group Tukang" value={header?.toolGroup} />
           <InfoRow label="Item Pekerjaan" value={header?.productionItem} />
           <InfoRow label="Nama Proyek" value={header?.clientName} />
->>>>>>> 57a09a7a1d83afe9056698d497f4205f76edaf5c:src/domains/inventory/components/DetailRekapPermintaan.tsx
         </div>
         <div className="flex flex-col gap-4">
           <InfoRow
             label="Tanggal Mulai"
-<<<<<<< HEAD:src/domains/gudang/components/DetailRekapPermintaan.tsx
-            value={formatTanggal(header?.tanggalMulai)}
-=======
             value={formatTanggal(dokubah?.tanggalMulai)}
->>>>>>> 57a09a7a1d83afe9056698d497f4205f76edaf5c:src/domains/inventory/components/DetailRekapPermintaan.tsx
             labelWidth="w-[110px]"
           />
           <InfoRow
             label="Tanggal Selesai"
-<<<<<<< HEAD:src/domains/gudang/components/DetailRekapPermintaan.tsx
-            value={formatTanggal(header?.tanggalSelesai)}
-=======
             value={formatTanggal(dokubah?.tanggalSelesai)}
->>>>>>> 57a09a7a1d83afe9056698d497f4205f76edaf5c:src/domains/inventory/components/DetailRekapPermintaan.tsx
             labelWidth="w-[110px]"
           />
         </div>
@@ -173,37 +141,6 @@ export default function DetailRekapPermintaan() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-<<<<<<< HEAD:src/domains/gudang/components/DetailRekapPermintaan.tsx
-            {data.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                  Belum ada data bahan.
-                </td>
-              </tr>
-            ) : (
-              data.map((item, index) => (
-                <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 text-center text-gray-500">{index + 1}</td>
-                  <td className="px-4 py-3 text-gray-700 font-medium">{item.ItemBahan}</td>
-                  <td className="px-4 py-3 text-center">{item.jumlahPermintaan}</td>
-                  {/* <td className="px-4 py-3 text-center">{item.}</td>
-                  <td className="px-4 py-3 text-center">{item.stokGudang}</td>
-                  <td className="px-4 py-3 text-center">
-                    <span className={`inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none rounded-full ${
-                      item.status === 'Approved' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }`}>
-                      {item.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <button className="text-blue-500 hover:text-blue-700">
-                      Edit
-                    </button>
-                  </td>  */}
-                </tr>
-              ))
-            )}
-=======
             {loading ? (
                 <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">Memuat data...</td></tr>
                 ) : error ? (
@@ -231,7 +168,6 @@ export default function DetailRekapPermintaan() {
                     </tr>
                 ))
                 )}
->>>>>>> 57a09a7a1d83afe9056698d497f4205f76edaf5c:src/domains/inventory/components/DetailRekapPermintaan.tsx
           </tbody>
         </table>
       </div>
