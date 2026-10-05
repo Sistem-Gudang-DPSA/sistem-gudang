@@ -110,6 +110,11 @@ export function createOutbound(input: CreateOutboundInput) {
   return apiClient.post<OutboundRow>("/api/v1/outbound", input);
 }
 
+// Backend belum menyediakan endpoint ini (docs/api-1.json baru punya GET/POST), payload-nya sama dengan create.
+export function updateOutbound(id: number, input: CreateOutboundInput) {
+  return apiClient.put<OutboundRow>(`/api/v1/outbound/${id}`, input);
+}
+
 export function getOutboundReport(params?: OutboundReportParams) {
   return apiClient.get<OutboundReport>(`/api/v1/reports/outbound${toQuery(params)}`);
 }

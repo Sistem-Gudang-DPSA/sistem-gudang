@@ -70,7 +70,7 @@ describe('dashboard layout guard', () => {
     installFakeApi({ 'POST /api/v1/auth/refresh': me([], { isSuperadmin: true, roleName: 'Superadmin' }) });
     renderLayout();
     expect(await screen.findByText('ISI HALAMAN')).not.toBeNull();
-    expect(screen.getByText('Super Admin')).not.toBeNull();
+    expect(screen.getByText('Super Admin', { selector: 'span.text-xs' })).not.toBeNull();
   });
 
   it('always lets any logged-in user open /dashboard', async () => {

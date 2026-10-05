@@ -32,6 +32,14 @@ const THEME: Record<NavTheme, { summary: string; icon: string; border: string; h
     active: "bg-teal-500 text-white font-medium shadow-sm",
     idle: "text-gray-500 hover:text-teal-600 hover:bg-teal-50",
   },
+  indigo: {
+    summary: "hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-100",
+    icon: "bg-indigo-100 text-indigo-600",
+    border: "border-indigo-50",
+    heading: "hover:text-indigo-600",
+    active: "bg-indigo-500 text-white font-medium shadow-sm",
+    idle: "text-gray-500 hover:text-indigo-600 hover:bg-indigo-50",
+  },
 };
 
 const topLink = (active: boolean) =>
