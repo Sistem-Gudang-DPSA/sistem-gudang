@@ -4,11 +4,19 @@
 import { useRef, useState } from 'react';
 import { FileDown, FileSpreadsheet, Upload, X } from 'lucide-react';
 
+type PreviewColumn<T> = {
+  header: string;
+  value: (row: T) => string | number;
+};
+
+type ParsedRow<T> = { rowNumber: number; data: T };
+
 type Props<T> = {
   title?: string;
   templateHeaders: string[];
   templateExample?: (string | number)[];
   templateFilename: string;
+  previewColumns: PreviewColumn<T>[];
   parseRow: (row: Record<string, unknown>, rowNumber: number) => T;
   onSave: (rows: T[]) => Promise<void>;
   onSuccess?: () => void;
@@ -19,13 +27,14 @@ export function ImportExcelButton<T>({
   templateHeaders,
   templateExample,
   templateFilename,
+  previewColumns,
   parseRow,
   onSave,
   onSuccess,
 }: Props<T>) {
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
-  const [rows, setRows] = useState<T[]>([]);
+  const [rows, setRows] = useState<ParsedRow<T>[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -74,13 +83,14 @@ export function ImportExcelButton<T>({
         return;
       }
 
-      const parsed: T[] = [];
+      const parsed: ParsedRow<T>[] = [];
       const errs: string[] = [];
       raw.forEach((r, i) => {
+        const rowNumber = i + 2; // baris 1 = header
         try {
-          parsed.push(parseRow(r, i + 2)); // +2: baris 1 = header
+          parsed.push({ rowNumber, data: parseRow(r, rowNumber) });
         } catch (e) {
-          errs.push(e instanceof Error ? e.message : `Baris ${i + 2} tidak valid`);
+          errs.push(e instanceof Error ? e.message : `Baris ${rowNumber} tidak valid`);
         }
       });
       setRows(parsed);
@@ -93,7 +103,7 @@ export function ImportExcelButton<T>({
   const handleSave = async () => {
     setSaving(true);
     try {
-      await onSave(rows);
+      await onSave(rows.map((r) => r.data));
       onSuccess?.();
       close();
     } catch (e) {
@@ -118,7 +128,11 @@ export function ImportExcelButton<T>({
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl" role="dialog" aria-modal="true">
+          <div
+            className="w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-xl"
+            role="dialog"
+            aria-modal="true"
+          >
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <h2 className="font-bold text-gray-900">{title}</h2>
               <button type="button" onClick={close} aria-label="Tutup" className="text-gray-400 hover:text-gray-600">
@@ -127,7 +141,6 @@ export function ImportExcelButton<T>({
             </div>
 
             <div className="p-5 space-y-4">
-              {/* Langkah 1 */}
               <div className="flex items-center justify-between gap-3 p-3 border border-gray-200 rounded-xl">
                 <div>
                   <p className="text-sm font-semibold text-gray-800">1. Download template</p>
@@ -142,7 +155,6 @@ export function ImportExcelButton<T>({
                 </button>
               </div>
 
-              {/* Langkah 2 */}
               <div className="p-3 border border-gray-200 rounded-xl">
                 <p className="text-sm font-semibold text-gray-800 mb-2">2. Pilih file</p>
                 <input
@@ -158,6 +170,39 @@ export function ImportExcelButton<T>({
                   </p>
                 )}
               </div>
+
+              {rows.length > 0 && (
+                <div>
+                  <p className="text-sm font-semibold text-gray-800 mb-2">
+                    3. Preview data ({rows.length} baris)
+                  </p>
+                  <div className="max-h-64 overflow-auto border border-gray-200 rounded-xl">
+                    <table className="w-full text-xs text-left whitespace-nowrap border-collapse">
+                      <thead className="bg-gray-100 text-gray-700 font-semibold sticky top-0">
+                        <tr>
+                          {previewColumns.map((c) => (
+                            <th key={c.header} className="px-3 py-2 border-b border-gray-200">{c.header}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="text-gray-600">
+                        {rows.slice(0, 50).map((r) => (
+                          <tr key={r.rowNumber} className="hover:bg-orange-50/30">
+                            {previewColumns.map((c) => (
+                              <td key={c.header} className="px-3 py-2 border-b border-gray-100">
+                                {c.value(r.data)}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {rows.length > 50 && (
+                    <p className="mt-1 text-xs text-gray-500">Menampilkan 50 dari {rows.length} baris.</p>
+                  )}
+                </div>
+              )}
 
               {errors.length > 0 && (
                 <ul className="max-h-32 overflow-y-auto p-3 text-xs text-red-700 bg-red-50 border border-red-200 rounded-xl list-disc list-inside">
