@@ -3,17 +3,30 @@
 import { useCan } from '@/domains/auth/user-context';
 import React, { useState } from 'react';
 import { Search, Plus } from 'lucide-react';
-import { createLocation, listLocations } from '@/domains/inventory/api';
+import { createLocation, deleteLocation, listLocations } from '@/domains/inventory/api';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 
 export default function DataLokasiGudang() {
+  const canDelete = useCan('location.delete');
   const canCreate = useCan('location.create');
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalData, setModalData] = useState({ namaRak: "", nomerRak: "" });
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [actionError, setActionError] = useState("");
+
+  React.useEffect(() => {
+    if (formError || actionError) {
+      const timer = setTimeout(() => {
+        setFormError("");
+        setActionError("");
+      }, 4000); 
+
+      return () => clearTimeout(timer); 
+    }
+  }, [formError, actionError]);
 
   const { data: loaded, loading, error: loadError, reload } = useApiData(
     () => listLocations({ search: searchQuery || undefined }),
@@ -21,7 +34,7 @@ export default function DataLokasiGudang() {
     "Gagal memuat data lokasi.",
   );
   const dataLokasi = loaded?.rows ?? [];
-  const error = formError || loadError;
+  const error = formError || loadError || actionError;
 
   const handleSimpan = async () => {
     if (!modalData.namaRak || !modalData.nomerRak) {
@@ -45,6 +58,16 @@ export default function DataLokasiGudang() {
       setSaving(false);
     }
   };
+
+  const handleHapus = async (id: number) => {
+      if (!window.confirm('Apakah Anda yakin ingin menghapus data ini?')) return;
+      try {
+        await deleteLocation(id);
+        reload();
+      } catch (err) {
+        setActionError(err instanceof ApiError ? err.message : "Gagal menghapus supplier.");
+      }
+    };
 
   return (
     <div className="flex flex-col bg-white min-h-screen p-6">
@@ -93,6 +116,9 @@ export default function DataLokasiGudang() {
                   <th className="px-6 py-4 whitespace-nowrap w-1/3">Kode Lokasi</th>
                   <th className="px-6 py-4 whitespace-nowrap w-1/3">Nama Rak</th>
                   <th className="px-6 py-4 whitespace-nowrap w-1/3">Nomer Rak</th>
+                  {dataLokasi.length !== 0 && (
+                    <th className="px-6 py-4 whitespace-nowrap w-1/3">Aksi</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -107,6 +133,11 @@ export default function DataLokasiGudang() {
                     <td className="px-6 py-4 h-[52px] text-gray-700 font-medium">{item.code}</td>
                     <td className="px-6 py-4 text-gray-600">{item.rackName}</td>
                     <td className="px-6 py-4 text-gray-600">{item.rackNumber}</td>
+                    <td className="px-6 py-4 text-gray-600 ">
+                      {canDelete && <button onClick={() => handleHapus(item.id)} className=" px-3 py-1 bg-red-50 text-red-600 font-bold rounded-lg text-xs hover:bg-red-100 transition-all border border-red-100">
+                        Hapus
+                      </button>}
+                    </td>
                   </tr>
                 ))}
               </tbody>

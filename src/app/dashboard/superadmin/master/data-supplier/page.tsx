@@ -1,1 +1,1 @@
-export { default } from "@/domains/purchasing/components/DataSupplier";
+export { default } from "@/domains/superadmin/components/DataSupplier";

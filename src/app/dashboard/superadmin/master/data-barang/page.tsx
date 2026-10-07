@@ -1,1 +1,1 @@
-export { default } from "@/domains/inventory/components/DataBarang";
+export { default } from "@/domains/superadmin/components/DataBarang";
