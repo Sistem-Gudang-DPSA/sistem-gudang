@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { Search, Download } from 'lucide-react';
 import Link from 'next/link';
 import { formatAngka } from '@/domains/ppic/data/dokubah';
@@ -30,6 +30,9 @@ export default function DetailDataBarang() {
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+
+  const searchParams = useSearchParams();
+  const fromParam = searchParams.get('from');
 
   const { data, loading, error, reload } = useApiData(() => getSupplierPrices(id, tahun), `${id}|${tahun}`, 'Gagal memuat harga supplier.');
   // The previous year is only fetched for its average column.
@@ -236,7 +239,9 @@ export default function DetailDataBarang() {
           <Download className="w-4 h-4" />
           Download PDF
         </button>
-        <Link href="/dashboard/purchasing/master/data-supplier" className="flex items-center justify-center px-8 py-2.5 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-all text-xs uppercase tracking-wider">
+        <Link href={
+            fromParam === 'purchasing' ? "/dashboard/purchasing/master/data-supplier" : "/dashboard/superadmin/master/data-supplier"
+        } className="flex items-center justify-center px-8 py-2.5 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-all text-xs uppercase tracking-wider">
           Kembali
         </Link>
         {canUpdate && <button
