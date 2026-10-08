@@ -14,7 +14,7 @@ const rows: Row[] = [
   ['deleteUser', [5], 'DELETE /api/v1/superadmin/users/5', {}, undefined],
 ];
 // ponytail: the import* helpers POST to Next routes through fetch, not apiClient, so the fake API does not cover them
-const FETCH_ONLY = ['importMasterData', 'importLocationData'];
+const FETCH_ONLY = ['importLocationData'];
 
 describe('superadmin api', () => {
   it('covers every export', () => {

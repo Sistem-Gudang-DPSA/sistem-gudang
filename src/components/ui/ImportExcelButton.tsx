@@ -20,6 +20,7 @@ type Props<T> = {
   parseRow: (row: Record<string, unknown>, rowNumber: number) => T;
   onSave: (rows: T[]) => Promise<void>;
   onSuccess?: () => void;
+  saveLabel?: string;
 };
 
 export function ImportExcelButton<T>({
@@ -31,6 +32,7 @@ export function ImportExcelButton<T>({
   parseRow,
   onSave,
   onSuccess,
+  saveLabel = 'Simpan',
 }: Props<T>) {
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -222,7 +224,7 @@ export function ImportExcelButton<T>({
                 disabled={!canSave}
                 className="px-5 py-2 text-sm font-semibold text-white bg-[#FF8A00] rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {saving ? 'Menyimpan...' : 'Simpan'}
+                {saving ? 'Menyimpan...' : saveLabel}
               </button>
             </div>
           </div>
