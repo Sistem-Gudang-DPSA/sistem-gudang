@@ -157,16 +157,16 @@ export default function DataBarangGudang() {
 
   const handleExportExcel = () => {
     const headers = ['No,Kode Barang,Nama Barang,Supplier,Jumlah Stok,Satuan,Kategori,Lokasi'];
-    const csvData = dataBarang.map((item, index) =>
+    const xlsxData = dataBarang.map((item, index) =>
       `${index + 1},${item.code ?? '-'},"${item.name}","${supplierName(item.supplierId)}",${item.stock},${item.unit},${item.category},${locationCode(item.locationId)}`
     );
-    const csvString = [...headers, ...csvData].join('\n');
+    const xlsxString = [...headers, ...xlsxData].join('\n');
 
-    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([xlsxString], { type: 'text/xlsx;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', 'Data_Barang_Gudang.csv');
+    link.setAttribute('download', 'Data_Barang_Gudang.xlsx');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

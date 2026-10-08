@@ -41,7 +41,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
     anyOf: [],
     groups: [
       {
-        title: "Master Data",
+        title: "Master",
         items: [
           { href: "/dashboard/superadmin/master/data-barang", label: "Data Barang" },
           { href: "/dashboard/superadmin/master/data-lokasi", label: "Data Lokasi" },

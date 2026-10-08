@@ -130,7 +130,7 @@ export default function DataLokasiGudang() {
                 )}
                 {!loading && dataLokasi.map((item) => (
                   <tr key={item.id} className="bg-white hover:bg-orange-50/30 transition-colors duration-200">
-                    <td className="px-6 py-4 h-[52px] text-gray-700 font-medium">{item.code}</td>
+                    <td className="px-6 py-4 h-13 text-gray-700 font-medium">{item.code}</td>
                     <td className="px-6 py-4 text-gray-600">{item.rackName}</td>
                     <td className="px-6 py-4 text-gray-600">{item.rackNumber}</td>
                     <td className="px-6 py-4 text-gray-600 ">
@@ -149,7 +149,7 @@ export default function DataLokasiGudang() {
       {/* Modal Tambah Data Lokasi */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md transition-opacity duration-300">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[550px] p-8 border border-white/20 relative animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-137.5 p-8 border border-white/20 relative animate-in zoom-in-95 duration-200">
             {/* Close Button at top-right */}
             <button
               onClick={() => { setIsModalOpen(false); setFormError(""); }}
