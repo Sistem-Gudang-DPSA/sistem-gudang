@@ -29,6 +29,18 @@ describe('dashboard layout guard', () => {
     expect(screen.queryByText('ISI HALAMAN')).toBeNull();
   });
 
+  it('keeps the desktop sidebar pinned to the viewport so it stays put while the page scrolls', async () => {
+    installFakeApi({ 'POST /api/v1/auth/refresh': me(['purchase-request.create']) });
+    pathname = '/dashboard/ppic/transaksi/permintaan-pembelian';
+    const { container } = renderLayout();
+    await screen.findByText('ISI HALAMAN');
+    const aside = container.querySelector('aside')!;
+    expect(aside.className).toContain('md:sticky');
+    expect(aside.className).toContain('md:top-0');
+    expect(aside.className).toContain('md:h-screen');
+    expect(aside.className).not.toContain('min-h-screen'); // min-h membuatnya ikut memanjang dan ikut tergulung bersama halaman
+  });
+
   it('redirects unauthenticated users to login with the current path as next', async () => {
     installFakeApi({ 'POST /api/v1/auth/refresh': fail(401, 'Unauthorized') });
     window.history.pushState({}, '', '/dashboard/ppic/master/data-barang');

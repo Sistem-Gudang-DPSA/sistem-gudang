@@ -46,7 +46,7 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row font-sans">
       {/* Sidebar for Desktop */}
-      <aside className="hidden md:flex flex-col w-64 bg-white shadow-xl min-h-screen border-r border-gray-100 z-10 transition-all duration-300">
+      <aside className="hidden md:flex flex-col w-64 shrink-0 bg-white shadow-xl border-r border-gray-100 z-10 md:sticky md:top-0 md:h-screen self-start">
         <div className="flex items-center justify-center h-20 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <Package className="w-8 h-8 text-blue-600" />
