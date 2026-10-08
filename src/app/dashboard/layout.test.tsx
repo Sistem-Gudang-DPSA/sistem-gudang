@@ -70,7 +70,8 @@ describe('dashboard layout guard', () => {
     installFakeApi({ 'POST /api/v1/auth/refresh': me([], { isSuperadmin: true, roleName: 'Superadmin' }) });
     renderLayout();
     expect(await screen.findByText('ISI HALAMAN')).not.toBeNull();
-    expect(screen.getByText('Super Admin')).not.toBeNull();
+    // Shown twice: as the role label in the header and as the superadmin-only division in the sidebar.
+    expect(screen.getAllByText('Super Admin').length).toBeGreaterThanOrEqual(1);
   });
 
   it('always lets any logged-in user open /dashboard', async () => {

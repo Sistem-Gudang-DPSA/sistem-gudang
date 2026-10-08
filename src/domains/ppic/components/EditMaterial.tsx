@@ -48,7 +48,7 @@ const createEmptyRow = (): BahanDraftRow => ({
   namaBahan: '',
   satuan: '',
   kuota: '',
-  hargaSatuan: '',
+  hargaSatuan: '0',
   keterangan: '',
 });
 
@@ -73,7 +73,6 @@ function EditMaterialForm({ dokubah, message }: { dokubah?: DokubahItem; message
   const [draft, setDraft] = useState<BahanDraftRow[]>(() => dokubah?.bahan.map(toDraftRow) ?? []);
   const [showError, setShowError] = useState(false);
   const [saveError, setSaveError] = useState('');
-  const [formError, setFormError] = useState('');
 
   const searchParams = useSearchParams();
   const from = searchParams.get('from');
@@ -116,6 +115,7 @@ function EditMaterialForm({ dokubah, message }: { dokubah?: DokubahItem; message
 
   const handleSimpan = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSaveError('');
     if (hasInvalid) {
       setShowError(true);
       return;
@@ -179,6 +179,7 @@ function EditMaterialForm({ dokubah, message }: { dokubah?: DokubahItem; message
                 <th scope="col" className={cellClass}>Kuota Alokasi (Dokubah)</th>
                 <th scope="col" className={cellClass}>Realisasi Pengambilan</th>
                 <th scope="col" className={cellClass}>Sisa Jatah Kuota</th>
+                <th scope="col" className={cellClass}><span className="sr-only">Aksi</span></th>
               </tr>
             </thead>
             <tbody className="text-gray-600">
@@ -205,7 +206,7 @@ function EditMaterialForm({ dokubah, message }: { dokubah?: DokubahItem; message
                         type="text"
                         value={row.namaBahan}
                         maxLength={191}
-                        onChange={(e) => handleRowChange(row.namaBahan, 'namaBahan', e.target.value)}
+                        onChange={(e) => handleRowChange(row.id, 'namaBahan', e.target.value)}
                         placeholder="Nama & spesifikasi bahan"
                         aria-label={`Nama dan spesifikasi bahan baris ${nomor}`}
                         className={`${cellInputClass} min-w-64`}
@@ -217,7 +218,7 @@ function EditMaterialForm({ dokubah, message }: { dokubah?: DokubahItem; message
                         {...INTEGER_INPUT}
                         maxLength={9}
                           value={row.kuota}
-                          onChange={(e) => handleRowChange(row.kuota, 'kuota', digitsOnly(e.target.value))}
+                          onChange={(e) => handleRowChange(row.id, 'kuota', digitsOnly(e.target.value))}
                           placeholder="0"
                           aria-label={`Kuota alokasi baris ${nomor}`}
                           className={`${cellInputClass} min-w-24`}
@@ -226,7 +227,7 @@ function EditMaterialForm({ dokubah, message }: { dokubah?: DokubahItem; message
                           type="text"
                           value={row.satuan}
                           maxLength={50}
-                          onChange={(e) => handleRowChange(row.satuan, 'satuan', e.target.value)}
+                          onChange={(e) => handleRowChange(row.id, 'satuan', e.target.value)}
                           placeholder="satuan"
                           aria-label={`Satuan baris ${nomor}`}
                           className={`${cellInputClass} w-28 border-l border-gray-200`}
@@ -237,6 +238,9 @@ function EditMaterialForm({ dokubah, message }: { dokubah?: DokubahItem; message
                     <td className={`${cellClass} bg-gray-50/60`}>{kosong ? '' : `0 ${satuan}`}</td>
                     <td className={`${cellClass} bg-gray-50/60`}>
                       {isAngkaValid(row.kuota) ? `${formatAngka(Number(row.kuota))} ${satuan}` : ''}
+                    </td>
+                    <td className={`${cellClass} text-center`}>
+                      <button type="button" onClick={() => hapusBaris(row.id)} aria-label={`Hapus baris ${nomor}`} className="text-sm text-red-600 hover:underline">Hapus</button>
                     </td>
                   </tr>
                 );
@@ -256,8 +260,8 @@ function EditMaterialForm({ dokubah, message }: { dokubah?: DokubahItem; message
           </button>
         </div>
 
-        {formError && (
-          <p className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{formError}</p>
+        {saveError && (
+          <p className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{saveError}</p>
         )}
 
         <div className="flex justify-end mt-6 items-center gap-3">

@@ -3,6 +3,8 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { installFakeApi, paged, fail } from '@/test/fake-api';
 import RekapDokubah from './RekapDokubah';
 
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }) }));
+
 vi.setConfig({ testTimeout: 30000 });
 
 const KEY = 'GET /api/v1/dokubah';
@@ -23,9 +25,9 @@ describe('RekapDokubah', () => {
     render(<RekapDokubah />);
     expect(await screen.findByText('SPK-1')).toBeTruthy();
     expect(screen.getByText('Klien 2')).toBeTruthy();
-    expect(screen.getByText('57 SPK')).toBeTruthy();
-    expect(screen.getByText('3 SPK')).toBeTruthy();
-    expect(screen.getByText(/95\.0% dari anggaran/)).toBeTruthy();
+    expect(screen.getByText('40 Proyek')).toBeTruthy();
+    expect(screen.getByText('3 Proyek')).toBeTruthy();
+    expect(screen.getByText(/95 % dari total material/)).toBeTruthy();
   });
 
   it('paginates on the server (page=2) and resets to page 1 when a filter changes', async () => {
@@ -35,7 +37,7 @@ describe('RekapDokubah', () => {
     expect(lastQuery(api).get('pageSize')).toBe('20');
     fireEvent.click(screen.getByRole('button', { name: '2' }));
     await waitFor(() => expect(lastQuery(api).get('page')).toBe('2'));
-    fireEvent.change(screen.getByPlaceholderText(/Cari No. SPK/), { target: { value: 'x' } });
+    fireEvent.change(screen.getByPlaceholderText(/No. SPK atau klien/), { target: { value: 'x' } });
     await waitFor(() => expect(lastQuery(api).get('search')).toBe('x'));
     expect(lastQuery(api).get('page')).toBe('1');
   });
@@ -46,13 +48,13 @@ describe('RekapDokubah', () => {
     render(<RekapDokubah />);
     await screen.findByText('SPK-1');
     fireEvent.click(screen.getByTitle('Print PDF'));
-    expect(write.mock.calls[0][0]).toContain('halaman ini (1 dari 45 data)');
+    expect(write.mock.calls[0][0]).toContain('Halaman ini (1 dari 45 data)');
   });
 
   it('shows empty state and API error', async () => {
     installFakeApi({ [KEY]: paged([]) });
     const a = render(<RekapDokubah />);
-    expect(await screen.findByText('Tidak ada data dokubah ditemukan.')).toBeTruthy();
+    expect(await screen.findByText('Data tidak ditemukan.')).toBeTruthy();
     a.unmount();
     installFakeApi({ [KEY]: fail(500, 'Gagal laporan') });
     render(<RekapDokubah />);
@@ -69,8 +71,8 @@ describe('RekapDokubah', () => {
     const [from, to] = Array.from(container.querySelectorAll('input[type=date]'));
     fireEvent.change(from, { target: { value: '2026-09-01' } });
     fireEvent.change(to, { target: { value: '2026-09-30' } });
-    fireEvent.change(screen.getByPlaceholderText(/Cari No. SPK/), { target: { value: 'hotel' } });
-    fireEvent.change(container.querySelector('select')!, { target: { value: 'PENDING' } });
+    fireEvent.change(screen.getByPlaceholderText(/No. SPK atau klien/), { target: { value: 'hotel' } });
+    fireEvent.change(container.querySelector('select')!, { target: { value: 'Pending' } });
     await waitFor(() => expect(lastQuery(api).get('status')).toBe('PENDING'));
     const q = lastQuery(api);
     expect(q.get('startDate')).toBe('2026-09-01');

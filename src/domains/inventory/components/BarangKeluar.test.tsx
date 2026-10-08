@@ -15,10 +15,11 @@ const trx = (id: number) => ({
   warehouseType: 'WIP', recipientType: 'KLIEN', notes: null, createdBy: 1, createdAt: '2026-03-05T00:00:00.000Z',
   lines: [{ itemId: 1, itemCode: 'BRG-1', itemName: 'Triplex', qty: 4, pic: 'Andi' }, { itemId: 2, itemCode: 'BRG-2', itemName: 'Paku', qty: 9, pic: 'Andi' }],
 });
+const tracking = { 'GET /api/v1/tracking/spk': [{ noSpk: 'SPK-1', client: 'Klien 1' }, { noSpk: 'SPK-9', client: 'PT Maju' }, { noSpk: 'SPK-7', client: 'PT Jaya' }] };
 const items = paged([{ id: 1, code: 'BRG-1', name: 'Triplex' }, { id: 2, code: 'BRG-2', name: 'Paku' }]);
 
 function setup(extra: Record<string, unknown> = {}, rows: unknown = paged([trx(1)])) {
-  const api = installFakeApi({ 'GET /api/v1/outbound': rows, 'GET /api/v1/items': items, ...extra });
+  const api = installFakeApi({ 'GET /api/v1/outbound': rows, 'GET /api/v1/items': items, ...tracking, ...extra });
   render(<BarangKeluar />);
   return api;
 }
@@ -30,19 +31,18 @@ async function openForm(api: ReturnType<typeof installFakeApi>) {
   await screen.findAllByText('Klien 1');
   await waitFor(() => expect(api.calls('GET /api/v1/items').length).toBeGreaterThan(0));
   fireEvent.click(screen.getByText('Barang Keluar'));
-  await screen.findByText('Pilih asal gudang', { selector: 'option' });
+  await screen.findByText('Pilih penerima', { selector: 'option' });
   await screen.findAllByText('Paku', { selector: 'option' });
+  await screen.findAllByText('SPK-9', { selector: 'option' });
 }
 
 function fillHeader() {
   fireEvent.change(label('Nama Pengambil'), { target: { value: 'Rudi' } });
-  fireEvent.change(label('Asal Gudang'), { target: { value: 'BAHAN_BAKU' } });
   fireEvent.change(label('Tujuan / Penerima'), { target: { value: 'PRODUKSI' } });
 }
 
-function fillRow(row: number, v: { spk: string; client: string; item: string; itemId: string; qty: string; pic: string }) {
+function fillRow(row: number, v: { spk: string; item: string; itemId: string; qty: string; pic: string }) {
   fireEvent.change(cell('No. SPK', row), { target: { value: v.spk } });
-  fireEvent.change(cell('Nama client', row), { target: { value: v.client } });
   fireEvent.change(cell('Nama item/project', row), { target: { value: v.item } });
   fireEvent.change(cell('Nama barang', row), { target: { value: v.itemId } });
   fireEvent.change(cell('Jumlah', row), { target: { value: v.qty } });
@@ -93,10 +93,10 @@ describe('BarangKeluar create', () => {
     expect(screen.getByText(/Lengkapi nama pengambil/)).not.toBeNull();
     fillHeader();
     fireEvent.click(screen.getByText('Simpan'));
-    expect(screen.getByText(/Isi No\. SPK, nama client/)).not.toBeNull();
+    expect(screen.getByText(/Isi No\. SPK, nama item/)).not.toBeNull();
     fireEvent.change(cell('Nama barang', 1), { target: { value: '1' } });
     fireEvent.click(screen.getByText('Simpan'));
-    expect(screen.getByText(/Isi No\. SPK, nama client/)).not.toBeNull();
+    expect(screen.getByText(/Isi No\. SPK, nama item/)).not.toBeNull();
     expect(api.calls('POST /api/v1/outbound').length).toBe(0);
   });
 
@@ -104,8 +104,6 @@ describe('BarangKeluar create', () => {
     const api = setup();
     await openForm(api);
     expect(label('Nama Pengambil').maxLength).toBe(191);
-    expect(cell('No. SPK', 1).maxLength).toBe(100);
-    expect(cell('Nama client', 1).maxLength).toBe(191);
     expect(cell('Nama item/project', 1).maxLength).toBe(191);
     const q = cell('Jumlah', 1);
     fireEvent.change(q, { target: { value: 'e-1.5' } });
@@ -118,16 +116,18 @@ describe('BarangKeluar create', () => {
     const api = setup({ 'POST /api/v1/outbound': { id: 5 } });
     await openForm(api);
     fillHeader();
-    fillRow(1, { spk: 'SPK-9', client: 'PT Maju', item: 'Lemari', itemId: '1', qty: '4', pic: 'Andi' });
-    fillRow(2, { spk: 'SPK-9', client: 'PT Maju', item: 'Lemari', itemId: '2', qty: '9', pic: 'Budi' });
-    fillRow(3, { spk: 'SPK-7', client: 'PT Jaya', item: 'Meja', itemId: '1', qty: '1', pic: 'Cici' });
+    fillRow(1, { spk: 'SPK-9', item: 'Lemari', itemId: '1', qty: '4', pic: 'Andi' });
+    fillRow(2, { spk: 'SPK-9', item: 'Lemari', itemId: '2', qty: '9', pic: 'Budi' });
+    fillRow(3, { spk: 'SPK-7', item: 'Meja', itemId: '1', qty: '1', pic: 'Cici' });
     fireEvent.click(screen.getByText('Simpan'));
     await waitFor(() => expect(api.calls('POST /api/v1/outbound').length).toBe(2));
     const [a, b] = api.calls('POST /api/v1/outbound').map((c) => c.body as Record<string, unknown>);
-    expect(a).toMatchObject({ clientName: 'PT Maju', spk: 'SPK-9', itemName: 'Lemari', warehouseType: 'BAHAN_BAKU', recipientType: 'PRODUKSI', notes: 'Pengambil: Rudi' });
+    expect(a).toMatchObject({ spk: 'SPK-9', itemName: 'Lemari', recipientType: 'PRODUKSI', notes: 'Pengambil: Rudi' });
+    expect(a).not.toHaveProperty('clientName');
+    expect(a).not.toHaveProperty('warehouseType');
     expect(a.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(a.lines).toEqual([{ itemId: 1, qty: 4, pic: 'Andi' }, { itemId: 2, qty: 9, pic: 'Budi' }]);
-    expect(b).toMatchObject({ clientName: 'PT Jaya', spk: 'SPK-7', itemName: 'Meja' });
+    expect(b).toMatchObject({ spk: 'SPK-7', itemName: 'Meja' });
     expect(b.lines).toEqual([{ itemId: 1, qty: 1, pic: 'Cici' }]);
     await waitFor(() => expect(screen.queryByText('Simpan')).toBeNull());
   });
@@ -143,7 +143,7 @@ describe('BarangKeluar create', () => {
     const api = setup({ 'POST /api/v1/outbound': fail(409, 'Stok tidak cukup') });
     await openForm(api);
     fillHeader();
-    fillRow(1, { spk: 'SPK-9', client: 'PT Maju', item: 'Lemari', itemId: '1', qty: '4', pic: 'Andi' });
+    fillRow(1, { spk: 'SPK-9', item: 'Lemari', itemId: '1', qty: '4', pic: 'Andi' });
     fireEvent.click(screen.getByText('Simpan'));
     expect((screen.getByText('Simpan') as HTMLButtonElement).disabled).toBe(true);
     expect(await screen.findByText('Stok tidak cukup')).not.toBeNull();
@@ -161,12 +161,13 @@ describe('BarangKeluar edit', () => {
     fireEvent.click(screen.getByLabelText('Edit barang keluar 1 Paku'));
     expect(label('Nama Client').value).toBe('Klien 1');
     expect(label('Jumlah').value).toBe('9');
-    fireEvent.change(label('Nama Client'), { target: { value: 'PT Baru' } });
+    fireEvent.change(label('SPK'), { target: { value: 'SPK-9' } });
+    expect(label('Nama Client').value).toBe('PT Maju');
     fireEvent.change(label('Jumlah'), { target: { value: '12' } });
     fireEvent.click(screen.getByText('Simpan Perubahan'));
     await waitFor(() => expect(api.calls('PUT /api/v1/outbound/1').length).toBe(1));
     expect(api.calls('PUT /api/v1/outbound/1')[0].body).toEqual({
-      date: '2026-03-05', clientName: 'PT Baru', spk: 'SPK-1', itemName: 'Proyek 1', warehouseType: 'WIP', recipientType: 'KLIEN',
+      date: '2026-03-05', spk: 'SPK-9', itemName: 'Proyek 1', recipientType: 'KLIEN',
       lines: [{ itemId: 1, qty: 4, pic: 'Andi' }, { itemId: 2, qty: 12, pic: 'Andi' }],
     });
     await waitFor(() => expect(screen.queryByText('Simpan Perubahan')).toBeNull());
@@ -190,7 +191,7 @@ const who = (permissions: string[], isSuperadmin = false) => ({ id: 1, username:
 
 describe('permissions', () => {
   const open = async (user: ReturnType<typeof who>) => {
-    installFakeApi({ 'GET /api/v1/outbound': paged([trx(1)]), 'GET /api/v1/items': items });
+    installFakeApi({ 'GET /api/v1/outbound': paged([trx(1)]), 'GET /api/v1/items': items, ...tracking });
     render(<AuthUserProvider user={user}><BarangKeluar /></AuthUserProvider>);
     await screen.findAllByText('Klien 1');
   };
@@ -202,9 +203,14 @@ describe('permissions', () => {
   });
 
   it('shows them to a user with the permissions', async () => {
-    await open(who(['outbound.create', 'report.view']));
+    await open(who(['outbound.create', 'outbound.update', 'report.view']));
     expect(screen.getByText('Barang Keluar')).not.toBeNull();
     expect(screen.getByText('Download')).not.toBeNull();
+  });
+
+  it('shows Edit only to a user with outbound.update', async () => {
+    await open(who(['outbound.create']));
+    expect(screen.queryAllByText('Edit')).toHaveLength(0);
   });
 
   it('shows them to a superadmin', async () => {
