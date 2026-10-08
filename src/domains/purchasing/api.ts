@@ -1,8 +1,8 @@
 import { apiClient, toQuery } from "@/shared/lib/api-client";
-import type { PaginatedResult, ListParams } from "@/domains/inventory/types";
-import type { CreatePurchaseOrderInput, CreateSupplierInput, PurchaseOrder, Supplier, SupplierPriceChange, SupplierPrices } from "./types";
+import type { PaginatedResult, ListParams, SortParams } from "@/domains/inventory/types";
+import type { CreatePurchaseOrderInput, CreateSupplierInput, Pajak, PurchaseOrder, Supplier, SupplierPriceChange, SupplierPrices } from "./types";
 
-export function listSuppliers(params?: ListParams) {
+export function listSuppliers(params?: ListParams & SortParams & { pajak?: Pajak }) {
   return apiClient.get<PaginatedResult<Supplier>>(`/api/v1/suppliers${toQuery(params)}`);
 }
 
