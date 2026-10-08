@@ -4,11 +4,16 @@ import React, { useState } from 'react';
 import { Search, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { createSupplier, deleteSupplier, listSuppliers, updateSupplier } from '@/domains/purchasing/api';
-import type { Pajak, Supplier } from '@/domains/purchasing/types';
+import type { Pajak } from '@/domains/purchasing/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { useCan } from '@/domains/auth/user-context';
 import Pagination from '@/shared/components/Pagination';
+import SortableTh, { useSort } from '@/shared/components/SortableTh';
+import EditModeBar, { useBatchEdit } from '@/shared/components/EditModeBar';
+
+// kolom teks yang bisa diubah langsung di tabel pada mode edit (batas panjang mengikuti kolom BE)
+type TextKey = 'code' | 'name' | 'bank' | 'npwp' | 'phone' | 'address';
 
 const emptyForm: { code: string; name: string; bank: string; npwp: string; phone: string; address: string; pajak: Pajak } = {
   code: '', name: '', bank: '', npwp: '', phone: '', address: '', pajak: 'NON_PKP',
@@ -20,35 +25,35 @@ export default function DataSupplierPurchasing() {
   const canDelete = useCan('supplier.delete');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState(emptyForm);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const edit = useBatchEdit();
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState("");
 
   const [actionError, setActionError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [filterPajak, setFilterPajak] = useState<Pajak | ''>('');
+  const { sort, toggle, reset: resetSort, params: sortParams } = useSort();
 
   const [page, setPage] = useState(1);
   const { data: loaded, loading, error: loadError, reload } = useApiData(
-    () => listSuppliers({ search: searchTerm || undefined, page, pageSize: 20 }),
-    `${searchTerm}|${page}`,
+    () => listSuppliers({ search: searchTerm || undefined, pajak: filterPajak || undefined, page, pageSize: 20, ...sortParams }),
+    `${searchTerm}|${filterPajak}|${JSON.stringify(sortParams)}|${page}`,
     "Gagal memuat data supplier.",
   );
   const dataSupplier = loaded?.rows ?? [];
   const error = actionError || loadError;
 
   const handleMulaiTambah = () => {
-    setEditingId(null);
     setFormData(emptyForm);
     setModalError("");
     setIsModalOpen(true);
   };
 
-  const handleEdit = (item: Supplier) => {
-    setEditingId(item.id);
-    setFormData({ code: item.code, name: item.name, bank: item.bank, npwp: item.npwp, phone: item.phone, address: item.address, pajak: item.pajak });
-    setModalError("");
-    setIsModalOpen(true);
-  };
+  const simpanSemua = () =>
+    edit.save((id, patch) => {
+      if (Object.values(patch).some((v) => v.trim() === '')) return Promise.reject(new Error('Kolom tidak boleh kosong.'));
+      return updateSupplier(id, patch as Partial<typeof emptyForm>).then(() => undefined);
+    }, reload);
 
   const handleHapus = async (id: number) => {
     if (!window.confirm('Apakah Anda yakin ingin menghapus data ini?')) return;
@@ -68,14 +73,9 @@ export default function DataSupplierPurchasing() {
     setSaving(true);
     setModalError("");
     try {
-      if (editingId) {
-        await updateSupplier(editingId, formData);
-      } else {
-        await createSupplier(formData);
-      }
+      await createSupplier(formData);
       reload();
       setIsModalOpen(false);
-      setEditingId(null);
       setFormData(emptyForm);
     } catch (err) {
       setModalError(err instanceof ApiError ? err.message : "Gagal menyimpan supplier.");
@@ -108,8 +108,23 @@ export default function DataSupplierPurchasing() {
                 placeholder="Cari supplier, npwp, atau kode..."
               />
             </div>
+            <select
+              aria-label="Filter pajak"
+              value={filterPajak}
+              onChange={(e) => { setFilterPajak(e.target.value as Pajak | ''); setPage(1); }}
+              className="py-2.5 pl-3 pr-8 border border-gray-200 rounded-xl bg-white text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] shadow-sm"
+            >
+              <option value="">Semua pajak</option>
+              <option value="PKP">PKP</option>
+              <option value="NON_PKP">Non PKP</option>
+            </select>
+            {(searchTerm || filterPajak || sort) && (
+              <button type="button" onClick={() => { setSearchTerm(''); setFilterPajak(''); resetSort(); setPage(1); }} className="text-sm text-gray-500 hover:underline">Reset</button>
+            )}
           </div>
 
+          <div className="flex items-center gap-2">
+          {canUpdate && <EditModeBar editing={edit.editing} dirty={edit.dirty} saving={edit.saving} onToggle={edit.toggle} onSave={simpanSemua} onCancel={edit.cancel} />}
           {canCreate && <button
             onClick={handleMulaiTambah}
             className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0 w-full lg:w-auto"
@@ -117,6 +132,7 @@ export default function DataSupplierPurchasing() {
             <Plus className="w-4 h-4" />
             <span>Tambah Data</span>
           </button>}
+          </div>
         </div>
 
         {error && (
@@ -128,13 +144,13 @@ export default function DataSupplierPurchasing() {
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
               <tr>
-                <th scope="col" className="px-6 py-4 w-20 text-center">Kode</th>
-                <th scope="col" className="px-6 py-4">Nama Supplier</th>
-                <th scope="col" className="px-6 py-4 text-center">Bank</th>
-                <th scope="col" className="px-6 py-4 text-center">NPWP</th>
-                <th scope="col" className="px-6 py-4 text-center">Pajak</th>
-                <th scope="col" className="px-6 py-4 text-center">Kontak</th>
-                <th scope="col" className="px-6 py-4">Alamat</th>
+                <SortableTh label="Kode" sortKey="code" sort={sort} onSort={toggle} align="center" className="px-6 py-4 w-20" />
+                <SortableTh label="Nama Supplier" sortKey="name" sort={sort} onSort={toggle} />
+                <SortableTh label="Bank" sortKey="bank" sort={sort} onSort={toggle} align="center" />
+                <SortableTh label="NPWP" sortKey="npwp" sort={sort} onSort={toggle} align="center" />
+                <SortableTh label="Pajak" sortKey="pajak" sort={sort} onSort={toggle} align="center" />
+                <SortableTh label="Kontak" sortKey="phone" sort={sort} onSort={toggle} align="center" />
+                <SortableTh label="Alamat" sortKey="address" sort={sort} onSort={toggle} />
                 <th scope="col" className="px-6 py-4 text-center">Aksi</th>
               </tr>
             </thead>
@@ -145,30 +161,43 @@ export default function DataSupplierPurchasing() {
               {!loading && dataSupplier.length === 0 && (
                 <tr><td colSpan={7} className="px-6 py-6 text-center text-gray-400">Belum ada data supplier.</td></tr>
               )}
-              {!loading && dataSupplier.map((item) => (
-                <tr key={item.id} className="hover:bg-[#FF8A00]/5 transition-colors group">
-                  <td className="px-6 py-4 text-gray-500 text-center font-medium">{item.code}</td>
-                  <td className="px-6 py-4 font-bold text-gray-900">{item.name}</td>
-                  <td className="px-6 py-4 text-center">{item.bank}</td>
-                  <td className="px-6 py-4 text-center font-mono text-xs">{item.npwp}</td>
-                  <td className="px-6 py-4 text-center text-xs">{item.pajak === 'PKP' ? 'PKP' : 'Non PKP'}</td>
-                  <td className="px-6 py-4 text-center text-xs">{item.phone}</td>
-                  <td className="px-6 py-4 max-w-xs truncate" title={item.address}>{item.address}</td>
+              {!loading && dataSupplier.map((item, i) => {
+                const cell = "w-full min-w-28 border border-gray-200 rounded-lg py-1.5 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
+                const text = (key: TextKey, max: number) => edit.editing ? (
+                  <input aria-label={`${key} ${item.name}`} className={cell} maxLength={max} value={edit.value(item.id, key, item[key])} onChange={(e) => edit.set(item.id, key, e.target.value, item[key])} />
+                ) : item[key];
+                return (
+                <tr key={item.id} className={`${edit.isDirty(item.id) ? "bg-amber-50" : i % 2 ? "bg-gray-50" : "bg-white"} hover:bg-[#FF8A00]/5 transition-colors group`}>
+                  <td className="px-6 py-4 text-gray-500 text-center font-medium">{text('code', 20)}</td>
+                  <td className="px-6 py-4 font-bold text-gray-900">
+                    {text('name', 191)}
+                    {edit.errors[item.id] && <p className="text-xs font-normal text-red-600">{edit.errors[item.id]}</p>}
+                  </td>
+                  <td className="px-6 py-4 text-center">{text('bank', 100)}</td>
+                  <td className="px-6 py-4 text-center font-mono text-xs">{text('npwp', 50)}</td>
+                  <td className="px-6 py-4 text-center text-xs">
+                    {edit.editing ? (
+                      <select aria-label={`pajak ${item.name}`} className={cell} value={edit.value(item.id, 'pajak', item.pajak)} onChange={(e) => edit.set(item.id, 'pajak', e.target.value, item.pajak)}>
+                        <option value="PKP">PKP</option>
+                        <option value="NON_PKP">Non PKP</option>
+                      </select>
+                    ) : item.pajak === 'PKP' ? 'PKP' : 'Non PKP'}
+                  </td>
+                  <td className="px-6 py-4 text-center text-xs">{text('phone', 30)}</td>
+                  <td className="px-6 py-4 max-w-xs truncate" title={item.address}>{text('address', 255)}</td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center gap-2">
                        <Link href={`/dashboard/purchasing/master/data-supplier/${item.id}/detail`} className="px-3 py-1 bg-green-50 text-green-600 font-bold rounded-lg text-xs hover:bg-green-100 transition-all border border-green-100">
                         Detail Barang
                       </Link>
-                      {canUpdate && <button onClick={() => handleEdit(item)} className="px-3 py-1 bg-amber-50 text-amber-600 font-bold rounded-lg text-xs hover:bg-amber-100 transition-all border border-amber-100">
-                        Edit
-                      </button>}
                       {canDelete && <button onClick={() => handleHapus(item.id)} className="px-3 py-1 bg-red-50 text-red-600 font-bold rounded-lg text-xs hover:bg-red-100 transition-all border border-red-100">
                         Hapus
                       </button>}
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
