@@ -46,6 +46,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
           { href: "/dashboard/superadmin/master/data-barang", label: "Data Barang" },
           { href: "/dashboard/superadmin/master/data-lokasi", label: "Data Lokasi" },
           { href: "/dashboard/superadmin/master/kategori", label: "Kategori" },
+          { href: "/dashboard/superadmin/master/satuan", label: "Satuan" },
           { href: "/dashboard/superadmin/master/data-supplier", label: "Data Supplier" },
         ],
       },

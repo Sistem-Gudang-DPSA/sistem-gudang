@@ -3,7 +3,6 @@ import type { PaginatedResult, ListParams } from "@/domains/inventory/types";
 import type { CreatedUser, CreateUserInput, Role, UpdateUserInput, UserAccount } from "./types";
 import { MasterDataImportRow } from "./components/DataBarang";
 import { LocationDataImportRow } from "./components/DataLokasi";
-import { CategoryDataImportRow } from "./components/Kategori";
 
 export function listRoles() {
   return apiClient.get<Role[]>("/api/v1/superadmin/roles");
@@ -25,10 +24,6 @@ export function deleteUser(id: number) {
   return apiClient.delete<void>(`/api/v1/superadmin/users/${id}`);
 }
 
-export function deleteCategory(id: number) {
-  return apiClient.delete<void>(`/api/v1/superadmin/Kategori/${id}`);
-}
-
 export async function importMasterData(rows: MasterDataImportRow[]) {
   const res = await fetch('/api/master-data/import', {
     method: 'POST',
@@ -43,18 +38,6 @@ export async function importMasterData(rows: MasterDataImportRow[]) {
 
 export async function importLocationData(rows: LocationDataImportRow[]) {
   const res = await fetch('/api/location-data/import', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ rows }),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new Error(body?.message ?? 'Gagal mengimpor data.');
-  }
-}
-
-export async function importCategoryData(rows: CategoryDataImportRow[]) {
-  const res = await fetch('/api/category/import', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ rows }),
