@@ -22,4 +22,4 @@ Satu dokumen membahas satu pekerjaan atau satu keputusan besar. Lihat
 | [14-Test-Menyeluruh-Dashboard-dan-Ability.md](14-Test-Menyeluruh-Dashboard-dan-Ability.md) | Test untuk seluruh bagian aplikasi, dashboard tiap divisi dengan data asli, serta sidebar dan tombol yang mengikuti permission role. |
 | [15-Catatan-Refactoring.md](15-Catatan-Refactoring.md) | Hasil pengukuran kode dan daftar refactoring yang layak dikerjakan, berurut menurut nilai, beserta waktu yang disarankan. |
 | [16-Alur-Approval-Dokubah.md](16-Alur-Approval-Dokubah.md) | Alur kirim, setujui, dan tolak Dokubah di layar View Dokubah dengan alasan penolakan wajib, kirim ulang, dan riwayat aksi. |
-
+| [17-Rencana-Audit-Log.md](17-Rencana-Audit-Log.md) | Catatan kondisi audit log, apa yang belum tercatat, dan pembagian tugas backend dan frontend untuk layar Log Aktivitas, belum dikerjakan. |
