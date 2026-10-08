@@ -52,6 +52,7 @@ const checkActive = (currentPath: string, targetHref: string) => {
   const cleanTarget = targetHref.replace(/\/\$/, "");
 
   if (cleanPath === cleanTarget) return true;
+  if (cleanTarget === '/dashboard') return false;
   return cleanPath.startsWith(cleanTarget + '/');
 };
 
@@ -67,17 +68,17 @@ export default function SidebarNav({ user, pathname, onNavigate }: Props) {
   return (
     <nav className="space-y-2">
       {user.isSuperadmin && (
-        <>
-          <Link href="/dashboard/superadmin" onClick={onNavigate} className={topLink(pathname === "/dashboard/superadmin")}>
-            <ShieldCheck className="w-5 h-5" />
-            <span className="font-medium">Dashboard SA</span>
-          </Link>
-          <Link href="/dashboard/superadmin/users" onClick={onNavigate} className={topLink(checkActive(pathname, "/dashboard/superadmin/users"))}>
-            <Users className="w-5 h-5" />
-            <span className="font-medium">Kelola Data User</span>
-          </Link>
-        </>
-      )}
+          <>
+            <Link href="/dashboard/superadmin" onClick={onNavigate} className={topLink(pathname === "/dashboard/superadmin")}>
+              <ShieldCheck className="w-5 h-5" />
+              <span className="font-medium">Dashboard SA</span>
+            </Link>
+            <Link href="/dashboard/superadmin/users" onClick={onNavigate} className={topLink(checkActive(pathname , "/dashboard/superadmin/users"))}>
+              <Users className="w-5 h-5" />
+              <span className="font-medium">Kelola Data User</span>
+            </Link>
+            </>
+          )}
 
       <Link href="/dashboard" onClick={onNavigate} className={topLink(pathname === "/dashboard")}>
         <LayoutDashboard className="w-5 h-5" />
@@ -117,7 +118,6 @@ export default function SidebarNav({ user, pathname, onNavigate }: Props) {
                   </summary>
                   <div className="space-y-1">
                     {group.items.map((item) => {
-                      // Menggunakan helper checkActive untuk menentukan status menu aktif
                       const isActive = checkActive(pathname, item.href);
                       
                       return (
