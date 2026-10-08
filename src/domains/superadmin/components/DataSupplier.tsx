@@ -187,7 +187,7 @@ export default function DataSupplierPurchasing() {
                   <td className="px-6 py-4 max-w-xs truncate" title={item.address}>{text('address', 255)}</td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center gap-2">
-                       <Link href={`/dashboard/purchasing/master/data-supplier/${item.id}/detail`} className="px-3 py-1 bg-green-50 text-green-600 font-bold rounded-lg text-xs hover:bg-green-100 transition-all border border-green-100">
+                       <Link href={`/dashboard/purchasing/master/data-supplier/${item.id}/detail?from=superadmin`} className="px-3 py-1 bg-green-50 text-green-600 font-bold rounded-lg text-xs hover:bg-green-100 transition-all border border-green-100">
                         Detail Barang
                       </Link>
                       {canDelete && <button onClick={() => handleHapus(item.id)} className="px-3 py-1 bg-red-50 text-red-600 font-bold rounded-lg text-xs hover:bg-red-100 transition-all border border-red-100">
