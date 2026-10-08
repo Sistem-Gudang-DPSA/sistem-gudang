@@ -191,7 +191,7 @@ export default function DataLokasiGudang() {
                   const sel = "w-full border border-gray-200 rounded-lg py-1.5 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
                   return (
                     <tr key={item.id} className={`${edit.isDirty(item.id) ? "bg-amber-50" : i % 2 ? "bg-gray-50" : "bg-white"} hover:bg-orange-50/50 transition-colors duration-200`}>
-                      <td className="px-6 py-4 h-[52px] text-gray-700 font-medium">
+                      <td className="px-6 py-4 h-13 text-gray-700 font-medium">
                         {edit.editing ? `${nama}${nomor}` : item.code}
                         {edit.errors[item.id] && <p className="text-xs font-normal text-red-600">{edit.errors[item.id]}</p>}
                       </td>
@@ -233,7 +233,7 @@ export default function DataLokasiGudang() {
       {/* Modal Tambah Data Lokasi */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md transition-opacity duration-300">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[550px] p-8 border border-white/20 relative animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-137.5 p-8 border border-white/20 relative animate-in zoom-in-95 duration-200">
             {/* Close Button at top-right */}
             <button
               onClick={() => { setIsModalOpen(false); setFormError(""); }}

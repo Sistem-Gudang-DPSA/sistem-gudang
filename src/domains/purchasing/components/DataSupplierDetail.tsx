@@ -130,22 +130,22 @@ export default function DetailDataBarang() {
             <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
               <tr>
                 <th rowSpan={2} className="px-4 py-3 border-r border-gray-100 text-center align-middle w-12">No</th>
-                <th rowSpan={2} className="px-4 py-3 border-r border-gray-100 align-middle min-w-[100px]">Kode Barang</th>
-                <th rowSpan={2} className="px-4 py-3 border-r border-gray-100 align-middle min-w-[140px] whitespace-normal uppercase font-bold text-gray-900">Nama Barang</th>
+                <th rowSpan={2} className="px-4 py-3 border-r border-gray-100 align-middle min-w-25">Kode Barang</th>
+                <th rowSpan={2} className="px-4 py-3 border-r border-gray-100 align-middle min-w-35 whitespace-normal uppercase font-bold text-gray-900">Nama Barang</th>
                 <th rowSpan={2} className="px-4 py-3 border-r border-gray-100 text-center align-middle whitespace-normal w-20">Pajak Vendor</th>
                 <th rowSpan={2} className="px-4 py-3 border-r border-gray-100 align-middle w-16 text-center">Satuan</th>
                 <th rowSpan={2} className="px-4 py-3 border-r border-gray-100 align-middle w-20 text-center">Kategori</th>
                 <th colSpan={12} className="px-4 py-3 border-r border-gray-100 text-center font-bold text-[#FF8A00] bg-orange-50/30">Harga (Belum Termasuk PPN)</th>
-                <th rowSpan={2} className="px-4 py-3 border-l border-gray-100 text-center align-middle whitespace-normal w-24 min-w-[96px] sticky right-[96px] bg-amber-50/90 text-amber-900 font-bold z-20">
+                <th rowSpan={2} className="px-4 py-3 border-l border-gray-100 text-center align-middle whitespace-normal w-24 min-w-24 sticky right-24 bg-amber-50/90 text-amber-900 font-bold z-20">
                   Rata-rata {tahun}
                 </th>
-                <th rowSpan={2} className="px-4 py-3 border-l border-gray-100 text-center align-middle whitespace-normal w-24 min-w-[96px] sticky right-0 bg-blue-50/90 text-blue-900 font-bold z-20">
+                <th rowSpan={2} className="px-4 py-3 border-l border-gray-100 text-center align-middle whitespace-normal w-24 min-w-24 sticky right-0 bg-blue-50/90 text-blue-900 font-bold z-20">
                   Rata-rata {tahun - 1}
                 </th>
               </tr>
               <tr className="bg-orange-50/10">
                 {months.map((m) => (
-                  <th key={m} className="px-3 py-2 border-r border-gray-100 font-bold text-center min-w-[100px] text-[11px] uppercase tracking-wider">{m}</th>
+                  <th key={m} className="px-3 py-2 border-r border-gray-100 font-bold text-center min-w-25 text-[11px] uppercase tracking-wider">{m}</th>
                 ))}
               </tr>
             </thead>
@@ -178,7 +178,7 @@ export default function DetailDataBarang() {
                     const nilai = nilaiSel(item.itemId, bulan, tersimpan);
                     const berubah = drafts[key] !== undefined;
                     return (
-                      <td key={month} className={`border-r border-gray-100 text-gray-900 cursor-pointer transition-colors group/cell p-0 relative min-w-[100px] ${berubah ? 'bg-yellow-50' : ''}`}>
+                      <td key={month} className={`border-r border-gray-100 text-gray-900 cursor-pointer transition-colors group/cell p-0 relative min-w-25 ${berubah ? 'bg-yellow-50' : ''}`}>
                         {editingCell === key ? (
                           <input
                             {...INTEGER_INPUT}
@@ -192,7 +192,7 @@ export default function DetailDataBarang() {
                               if (e.key === 'Enter') simpanSel(item.itemId, bulan, tersimpan);
                               if (e.key === 'Escape') setEditingCell(null);
                             }}
-                            className="w-full h-full min-h-[48px] px-2 border-2 border-[#FF8A00] font-bold focus:outline-none bg-white z-10 relative text-center text-sm"
+                            className="w-full h-full min-h-12 px-2 border-2 border-[#FF8A00] font-bold focus:outline-none bg-white z-10 relative text-center text-sm"
                           />
                         ) : (
                           <div
@@ -200,7 +200,7 @@ export default function DetailDataBarang() {
                               setEditingCell(key);
                               setInputHarga(nilai === null ? '' : String(nilai));
                             } : undefined}
-                            className="w-full h-full min-h-[48px] flex justify-center items-center px-1 font-bold text-gray-700 hover:bg-[#FF8A00]/10 transition-colors"
+                            className="w-full h-full min-h-12 flex justify-center items-center px-1 font-bold text-gray-700 hover:bg-[#FF8A00]/10 transition-colors"
                             title={canUpdate ? `Klik untuk edit harga ${month}` : undefined}
                           >
                             {nilai !== null ? (
@@ -214,7 +214,7 @@ export default function DetailDataBarang() {
                     );
                   })}
 
-                  <td className="px-4 py-4 font-bold text-amber-600 text-center sticky right-[96px] bg-amber-50/50 group-hover:bg-amber-100/50 z-10 transition-colors border-l border-gray-100">
+                  <td className="px-4 py-4 font-bold text-amber-600 text-center sticky right-24 bg-amber-50/50 group-hover:bg-amber-100/50 z-10 transition-colors border-l border-gray-100">
                     {item.rataRata === null ? '-' : formatAngka(item.rataRata)}
                   </td>
                   <td className="px-4 py-4 font-bold text-blue-600 text-center sticky right-0 bg-blue-50/50 group-hover:bg-blue-100/50 z-10 transition-colors border-l border-gray-100">
@@ -249,7 +249,7 @@ export default function DetailDataBarang() {
       </div>
 
       {isConfirmModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm transition-opacity">
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm transition-opacity">
           <div className="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95 duration-200 border border-gray-100">
             <div className="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center mb-6 mx-auto">
               <Download className="w-8 h-8 text-[#FF8A00] rotate-180" />

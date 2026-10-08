@@ -190,7 +190,7 @@ export default function StockOpnameMasterGudang() {
       </div>
       {detail && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[900px] max-h-[90vh] overflow-y-auto p-8 relative">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-225 max-h-[90vh] overflow-y-auto p-8 relative">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-[20px] font-extrabold text-gray-900 uppercase">{periodeLabel(detail.month, detail.year)}</h2>
               <button onClick={() => setDetail(null)} className="text-gray-400 hover:text-gray-600 font-bold text-xl px-2">✕</button>

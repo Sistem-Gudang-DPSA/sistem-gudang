@@ -48,7 +48,7 @@ export default function RekapStokOpname() {
                 <p className="text-gray-500 text-sm">Monitor dan kelola jumlah barang sistem dan fisik.</p>
             </div>
 
-            <div className='flex flex-wrap justify-between items-center bg-white p-4 border border-gray-200 rounded-lg shadow-sm gap-4 mt-5 block'>
+            <div className='flex flex-wrap justify-between items-center bg-white p-4 border border-gray-200 rounded-lg shadow-sm gap-4 mt-5'>
                 <div className="flex flex-wrap gap-3 items-center">
                     <div>
                         <label className="block text-xs text-black mb-1">Pencarian</label>

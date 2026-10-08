@@ -154,7 +154,7 @@ export default function BarangMasukGudang() {
                 <select
                   value={filterDay}
                   onChange={(e) => setFilterDay(e.target.value)}
-                  className="appearance-none w-[70px] border border-gray-200 rounded-xl py-2.5 pl-3 pr-8 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] text-sm text-gray-700 bg-white transition-all duration-200 cursor-pointer"
+                  className="appearance-none w-17.5 border border-gray-200 rounded-xl py-2.5 pl-3 pr-8 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] text-sm text-gray-700 bg-white transition-all duration-200 cursor-pointer"
                 >
                   <option value="">Tgl</option>
                   {Array.from({ length: 31 }, (_, i) => (
@@ -170,7 +170,7 @@ export default function BarangMasukGudang() {
                 <select
                   value={filterMonth}
                   onChange={(e) => setFilterMonth(e.target.value)}
-                  className="appearance-none w-[110px] border border-gray-200 rounded-xl py-2.5 pl-3 pr-8 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-orange-500 text-sm text-gray-700 bg-white transition-all duration-200 cursor-pointer"
+                  className="appearance-none w-27.5 border border-gray-200 rounded-xl py-2.5 pl-3 pr-8 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-orange-500 text-sm text-gray-700 bg-white transition-all duration-200 cursor-pointer"
                 >
                   <option value="">Bulan</option>
                   {[
@@ -191,7 +191,7 @@ export default function BarangMasukGudang() {
                 <select
                   value={filterYear}
                   onChange={(e) => setFilterYear(e.target.value)}
-                  className="appearance-none w-[90px] border border-gray-200 rounded-xl py-2.5 pl-3 pr-8 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-orange-500 text-sm text-gray-700 bg-white transition-all duration-200 cursor-pointer"
+                  className="appearance-none w-22.5 border border-gray-200 rounded-xl py-2.5 pl-3 pr-8 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-orange-500 text-sm text-gray-700 bg-white transition-all duration-200 cursor-pointer"
                 >
                   <option value="">Tahun</option>
                   {["2024", "2025", "2026"].map(y => (
@@ -308,7 +308,7 @@ export default function BarangMasukGudang() {
       {/* Modal Form Barang Masuk */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md transition-opacity duration-300 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[750px] p-8 border border-white/20 relative animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-187.5 p-8 border border-white/20 relative animate-in zoom-in-95 duration-200">
             <button 
               onClick={() => setIsModalOpen(false)}
               className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
@@ -440,7 +440,7 @@ export default function BarangMasukGudang() {
       {/* Modal Form Barang Kembali */}
       {isModalKembaliOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md transition-opacity duration-300 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[750px] p-8 border border-white/20 relative animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-187.5 p-8 border border-white/20 relative animate-in zoom-in-95 duration-200">
             <button 
               onClick={() => setIsModalKembaliOpen(false)}
               className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
