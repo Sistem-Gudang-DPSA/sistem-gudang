@@ -10,7 +10,7 @@ import type { Supplier } from '@/domains/purchasing/types';
 import { ApiError } from '@/shared/lib/api-client';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
-import { ExportExcellButton } from '@/components/ui/Tombol';
+import { ExportExcellButton } from '@/shared/components/Tombol';
 
 export default function DataBarangGudang() {
   const canAssign = useCan('item.assign-location');

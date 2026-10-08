@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Search, Plus } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Eye } from 'lucide-react';
 import Link from 'next/link';
 import { createSupplier, deleteSupplier, listSuppliers, updateSupplier } from '@/domains/purchasing/api';
 import type { Pajak, Supplier } from '@/domains/purchasing/types';
@@ -9,6 +9,10 @@ import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { useCan } from '@/domains/auth/user-context';
 import Pagination from '@/shared/components/Pagination';
+
+import { DataTable, type Column } from '@/shared/components/DataTable';
+
+const PAGE_SIZE = 20;
 
 const emptyForm: { code: string; name: string; bank: string; npwp: string; phone: string; address: string; pajak: Pajak } = {
   code: '', name: '', bank: '', npwp: '', phone: '', address: '', pajak: 'NON_PKP',
@@ -29,12 +33,12 @@ export default function DataSupplierPurchasing() {
 
   const [page, setPage] = useState(1);
   const { data: loaded, loading, error: loadError, reload } = useApiData(
-    () => listSuppliers({ search: searchTerm || undefined, page, pageSize: 20 }),
+    () => listSuppliers({ search: searchTerm || undefined, page, pageSize: PAGE_SIZE }),
     `${searchTerm}|${page}`,
     "Gagal memuat data supplier.",
   );
+  const total = loaded?.total ?? 0;
   const dataSupplier = loaded?.rows ?? [];
-  const error = actionError || loadError;
 
   const handleMulaiTambah = () => {
     setEditingId(null);
@@ -84,6 +88,78 @@ export default function DataSupplierPurchasing() {
     }
   };
 
+  const columns: Column<Supplier>[] = [
+    {
+      key: 'no',
+      header: 'No',
+      className: 'text-gray-500',
+      render: (_, i) => (page - 1) * PAGE_SIZE + i + 1,
+    },
+    {
+      key: 'code',
+      header: 'Kode',
+      className: 'font-mono text-gray-600',
+      render: (item) => item.code,
+    },
+    {
+      key: 'name',
+      header: 'Nama Supplier',
+      render: (item) => <span className="font-bold text-gray-900">{item.name}</span>,
+    },
+    { key: 'bank', header: 'Bank', render: (item) => item.bank },
+    { key: 'npwp', header: 'NPWP', render: (item) => item.npwp },
+    { key: 'phone', header: 'Telepon', render: (item) => item.phone },
+    {
+      key: 'address',
+      header: 'Alamat',
+      className: 'max-w-xs truncate',
+      render: (item) => item.address,
+    },
+    {
+      key: 'pajak',
+      header: 'Pajak',
+      render: (item) => (
+        <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
+          {item.pajak}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Aksi',
+      align: 'center',
+      render: (item) => (
+        <div className="flex items-center justify-center gap-2">
+          <Link
+            href={`/dashboard/purchasing/master/data-supplier/${item.id}/detail?from=purchasing`}
+            title="Detail barang supplier"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 text-gray-700 text-xs font-bold rounded-lg hover:bg-gray-100 border border-gray-200 transition-colors"
+          >
+            <Eye className="w-3.5 h-3.5" strokeWidth={2.5} /> Detail
+          </Link>
+          {canUpdate && (
+            <button
+              onClick={() => handleEdit(item)}
+              title="Edit"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-100 transition-colors"
+            >
+              <Edit2 className="w-3.5 h-3.5" strokeWidth={2.5} /> Edit
+            </button>
+          )}
+          {canDelete && (
+            <button
+              onClick={() => handleHapus(item.id)}
+              title="Hapus"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 text-xs font-bold rounded-lg hover:bg-red-100 transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" strokeWidth={2.5} /> Hapus
+            </button>
+          )}
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       <div className="flex flex-col justify-start mb-8 gap-2">
@@ -119,60 +195,19 @@ export default function DataSupplierPurchasing() {
           </button>}
         </div>
 
-        {error && (
-          <div className="mx-5 mt-5 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>
+        {actionError && (
+          <div className="mx-5 mt-5 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{actionError}</div>
         )}
 
-        {/* Table Container */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
-              <tr>
-                <th scope="col" className="px-6 py-4 w-20 text-center">Kode</th>
-                <th scope="col" className="px-6 py-4">Nama Supplier</th>
-                <th scope="col" className="px-6 py-4 text-center">Bank</th>
-                <th scope="col" className="px-6 py-4 text-center">NPWP</th>
-                <th scope="col" className="px-6 py-4 text-center">Pajak</th>
-                <th scope="col" className="px-6 py-4 text-center">Kontak</th>
-                <th scope="col" className="px-6 py-4">Alamat</th>
-                <th scope="col" className="px-6 py-4 text-center">Aksi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50 text-gray-600">
-              {loading && (
-                <tr><td colSpan={8} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
-              )}
-              {!loading && dataSupplier.length === 0 && (
-                <tr><td colSpan={7} className="px-6 py-6 text-center text-gray-400">Belum ada data supplier.</td></tr>
-              )}
-              {!loading && dataSupplier.map((item) => (
-                <tr key={item.id} className="hover:bg-[#FF8A00]/5 transition-colors group">
-                  <td className="px-6 py-4 text-gray-500 text-center font-medium">{item.code}</td>
-                  <td className="px-6 py-4 font-bold text-gray-900">{item.name}</td>
-                  <td className="px-6 py-4 text-center">{item.bank}</td>
-                  <td className="px-6 py-4 text-center font-mono text-xs">{item.npwp}</td>
-                  <td className="px-6 py-4 text-center text-xs">{item.pajak === 'PKP' ? 'PKP' : 'Non PKP'}</td>
-                  <td className="px-6 py-4 text-center text-xs">{item.phone}</td>
-                  <td className="px-6 py-4 max-w-xs truncate" title={item.address}>{item.address}</td>
-                  <td className="px-6 py-4 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                       <Link href={`/dashboard/purchasing/master/data-supplier/${item.id}/detail`} className="px-3 py-1 bg-green-50 text-green-600 font-bold rounded-lg text-xs hover:bg-green-100 transition-all border border-green-100">
-                        Detail Barang
-                      </Link>
-                      {canUpdate && <button onClick={() => handleEdit(item)} className="px-3 py-1 bg-amber-50 text-amber-600 font-bold rounded-lg text-xs hover:bg-amber-100 transition-all border border-amber-100">
-                        Edit
-                      </button>}
-                      {canDelete && <button onClick={() => handleHapus(item.id)} className="px-3 py-1 bg-red-50 text-red-600 font-bold rounded-lg text-xs hover:bg-red-100 transition-all border border-red-100">
-                        Hapus
-                      </button>}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <Pagination page={page} pageSize={20} total={loaded?.total ?? 0} onPageChange={setPage} activeClass="bg-teal-500 text-white border-teal-500" />
+        <DataTable
+          columns={columns}
+          rows={dataSupplier}
+          rowKey={(item) => item.id}
+          loading={loading}
+          error={loadError}
+          emptyText="Belum ada data supplier."
+        />
+        <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
       </div>
 
       {/* Modal Tambah/Edit Data */}

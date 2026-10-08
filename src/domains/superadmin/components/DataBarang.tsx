@@ -10,9 +10,13 @@ import type { Supplier } from '@/domains/purchasing/types';
 import { ApiError } from '@/shared/lib/api-client';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
-import { ExportExcellButton } from '@/components/ui/Tombol';
-import { ImportExcelButton } from '@/components/ui/ImportExcelButton';
+import { ExportExcellButton } from '@/shared/components/Tombol';
+import { ImportExcelButton } from '@/shared/components/ImportExcelButton';
 import { importMasterData } from '../api';
+import { DataTable, type Column, CategoryBadge, StockCell } from '@/shared/components/DataTable';
+
+const PAGE_SIZE = 20;
+
 export type MasterDataImportRow = {
   InformasiBarang: string;
   Supplier: string;
@@ -25,11 +29,6 @@ export type MasterDataImportRow = {
 export const mstrDataTemplateHeaders = ['Informasi Barang', 'Supplier', 'Stok', 'Satuan', 'Kategori', 'Lokasi'];
 export const mstrDataTemplateExample = ['BB 18', 'PT Makmur', 100, 'lembar', 'Lembaran', 'A01'];
 
-// const toDateString = (v: unknown, label: string, rowNumber: number) => {
-//   const d = v instanceof Date ? v : new Date(String(v));
-//   if (Number.isNaN(d.getTime())) throw new Error(`Baris ${rowNumber}: ${label} tidak valid`);
-//   return d.toISOString().slice(0, 10);
-// };
 
 export function MasterData(r: Record<string, unknown>, rowNumber: number): MasterDataImportRow {
   const InformasiBarang = String(r['Informasi Barang'] ?? '').trim();
@@ -156,18 +155,6 @@ export default function DataBarangGudang() {
     }
   };
 
-  const getCategoryColor = (kategori: string) => {
-    if (!kategori) return 'bg-gray-100 text-gray-700 border-gray-200/50';
-    switch(kategori.toLowerCase()) {
-      case 'lembaran': return 'bg-blue-100 text-blue-700 border-blue-200/50';
-      case 'kayu solid': return 'bg-amber-100 text-amber-700 border-amber-200/50';
-      case 'logam': return 'bg-slate-100 text-slate-700 border-slate-200/50';
-      case 'finishing': return 'bg-teal-100 text-teal-700 border-teal-200/50';
-      case 'aksesoris': return 'bg-pink-100 text-pink-700 border-pink-200/50';
-      default: return 'bg-purple-100 text-purple-700 border-purple-200/50';
-    }
-  };
-
   const handleExportExcel = () => {
     const headers = ['No,Kode Barang,Nama Barang,Supplier,Jumlah Stok,Satuan,Kategori,Lokasi'];
     const csvData = dataBarang.map((item, index) =>
@@ -184,6 +171,85 @@ export default function DataBarangGudang() {
     link.click();
     document.body.removeChild(link);
   };
+
+  const columns: Column<ItemListRow>[] = [
+    {
+      key: 'no',
+      header: 'No',
+      className: 'text-gray-500',
+      render: (_, i) => (page - 1) * PAGE_SIZE + i + 1,
+    },
+    {
+      key: 'info',
+      header: 'Informasi Barang',
+      render: (item) => (
+        <div className="flex flex-col">
+          <span className="font-bold text-gray-900">{item.name}</span>
+          <span className="text-xs font-mono text-gray-500 mt-0.5">{item.code ?? '-'}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'supplier',
+      header: 'Supplier',
+      render: (item) => (
+        <div className="flex items-center gap-2 text-gray-600">
+          <div className="w-6 h-6 rounded-md bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500">
+            {supplierName(item.supplierId).charAt(0)}
+          </div>
+          <span>{supplierName(item.supplierId)}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'stock',
+      header: 'Stok & Satuan',
+      render: (item) => <StockCell stock={item.stock} unit={item.unit} />,
+    },
+    {
+      key: 'category',
+      header: 'Kategori',
+      render: (item) => <CategoryBadge category={item.category} />,
+    },
+    {
+      key: 'location',
+      header: 'Lokasi',
+      render: (item) => (
+        <span className="inline-flex items-center gap-1 text-gray-600 font-medium">
+          <div className="w-1.5 h-1.5 rounded-full bg-[#FF8A00]" />
+          {locationCode(item.locationId)}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Aksi',
+      align: 'center',
+      render: (item) => (
+        <div className="flex items-center justify-center gap-2">
+          {item.locationId === null && canAssign && (
+            <button
+              onClick={() => openAssignModal(item)}
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] text-xs font-bold rounded-lg hover:bg-[#FF8A00]/20 transition-all duration-200 opacity-90 group-hover:opacity-100"
+            >
+              <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
+              Tambah
+            </button>
+          )}
+          {canAdjust && (
+            <button
+              onClick={() => openStockModal(item)}
+              title="Sesuaikan stok"
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-100 transition-all duration-200 opacity-90 group-hover:opacity-100"
+            >
+              <Edit2 className="w-3.5 h-3.5" strokeWidth={2.5} />
+              Stok
+            </button>
+          )}
+        </div>
+      ),
+    },
+  ];
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -237,106 +303,17 @@ export default function DataBarangGudang() {
           </div>
         </div>
 
-        {error && (
-          <div className="mx-5 mt-5 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>
-        )}
-
         {/* Table Container */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
-              <tr>
-                <th scope="col" className="px-6 py-4">No</th>
-                <th scope="col" className="px-6 py-4">Informasi Barang</th>
-                <th scope="col" className="px-6 py-4">Supplier</th>
-                <th scope="col" className="px-6 py-4">Stok & Satuan</th>
-                <th scope="col" className="px-6 py-4">Kategori</th>
-                <th scope="col" className="px-6 py-4">Lokasi</th>
-                <th scope="col" className="px-6 py-4 text-center">Aksi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {loading && (
-                <tr><td colSpan={7} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
-              )}
-              {!loading && dataBarang.length === 0 && (
-                <tr><td colSpan={7} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
-              )}
-              {!loading && dataBarang.map((item, index) => (
-                <tr key={item.id} className="hover:bg-[#FF8A00]/5 transition-colors group">
-                  <td className="px-6 py-4 text-gray-500">{index + 1}</td>
-
-                  {/* Informasi Barang */}
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col">
-                      <span className="font-bold text-gray-900">{item.name}</span>
-                      <span className="text-xs font-mono text-gray-500 mt-0.5">{item.code ?? '-'}</span>
-                    </div>
-                  </td>
-
-                  {/* Supplier */}
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <div className="w-6 h-6 rounded-md bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500">
-                        {supplierName(item.supplierId).charAt(0)}
-                      </div>
-                      <span>{supplierName(item.supplierId)}</span>
-                    </div>
-                  </td>
-
-                  {/* Stok & Satuan */}
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                       <span className={`font-bold ${item.stock < 20 ? 'text-red-600' : item.stock < 50 ? 'text-amber-600' : 'text-gray-800'}`}>
-                         {item.stock}
-                       </span>
-                       <span className="text-gray-500 text-xs bg-gray-100 px-2 py-0.5 rounded-md">{item.unit}</span>
-                    </div>
-                  </td>
-
-                  {/* Kategori */}
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getCategoryColor(item.category)}`}>
-                      {item.category || '-'}
-                    </span> 
-                  </td>
-
-                  {/* Lokasi */}
-                  <td className="px-6 py-4">
-                    <span className="inline-flex items-center gap-1 text-gray-600 font-medium">
-                      <div className="w-1.5 h-1.5 rounded-full bg-[#FF8A00]"></div>
-                      {locationCode(item.locationId)}
-                    </span>
-                  </td>
-
-                  {/* Aksi */}
-                  <td className="px-6 py-4 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      {item.locationId === null && canAssign ? (
-                        <button
-                          onClick={() => openAssignModal(item)}
-                          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] text-xs font-bold rounded-lg hover:bg-[#FF8A00]/20 transition-all duration-200 opacity-90 group-hover:opacity-100"
-                        >
-                          <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
-                          Tambah
-                        </button>
-                      ) : null}
-                      {canAdjust && <button
-                        onClick={() => openStockModal(item)}
-                        className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-100 transition-all duration-200 opacity-90 group-hover:opacity-100"
-                        title="Sesuaikan stok"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" strokeWidth={2.5} />
-                        Stok
-                      </button>}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <DataTable 
+            columns={columns}
+            rows={dataBarang}
+            rowKey={(item) => item.id}
+            loading={loading}
+            error={error}
+            emptyText="Belum ada data barang."
+          />
         </div>
-
         <Pagination page={page} pageSize={20} total={total} onPageChange={setPage} />
       </div>
 

@@ -5,7 +5,7 @@ import { Plus, Search, Tags } from "lucide-react";
 import { listItems } from "@/domains/inventory/api";
 import type { ItemListRow } from "@/domains/inventory/types";
 import { useApiData } from "@/shared/lib/use-api-data";
-import { ImportExcelButton } from '@/components/ui/ImportExcelButton';
+import { ImportExcelButton } from '@/shared/components/ImportExcelButton';
 import { deleteCategory, importCategoryData } from '../api';
 import { useCan } from "@/domains/auth/user-context";
 import { ApiError } from '@/shared/lib/api-client';
@@ -166,54 +166,51 @@ export default function Kategori() {
               {categories.length} kategori
             </span>
           </div>
-          
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-gray-50/80 text-gray-500 uppercase tracking-wider text-xs font-semibold border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-4 w-16">No</th>
-                <th className="px-6 py-4">Kategori</th>
-                <th className="px-6 py-4 text-right">Jenis Barang</th>
-                <th className="px-6 py-4 text-right">Total Stok</th>
-                {items?.length !== 0 && (
-                  <th className="px-6 py-4 text-right">Aksi</th>
-                )}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {loading && (
-                <tr><td colSpan={5} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
-              )}
-              {actionError && (
-                <tr><td colSpan={5} className="px-6 py-3 text-center text-red-500">{actionError}</td></tr>
-              )}
-              {!loading && error && (
-                <tr><td colSpan={5} className="px-6 py-6 text-center text-red-500">{error}</td></tr>
-              )}
-              {!loading && !error && shown.length === 0 && (
-                <tr><td colSpan={5} className="px-6 py-6 text-center text-gray-400">Belum ada kategori.</td></tr>
-              )}
-              {!loading && !error && shown.map((c, i) => (
-                <tr key={c.name} className="hover:bg-indigo-50/30 transition-colors">
-                  <td className="px-6 py-4 text-gray-500">{i + 1}</td>
-                  <td className="px-6 py-4">
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border bg-indigo-50 text-indigo-700 border-indigo-200/50">
-                      {c.name}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right text-gray-700 font-medium">{c.jenis}</td>
-                  <td className="px-6 py-4 text-right text-gray-700 font-medium">{c.stock.toLocaleString("id-ID")}</td>
-                  <td className="px-6 py-4 text-right text-gray-700 font-medium">
-                      {canDelete && <button onClick={() => handleHapus(c.jenis)} className=" px-3 py-1 bg-red-50 text-red-600 font-bold rounded-lg text-xs hover:bg-red-100 transition-all border border-red-100">
-                        Hapus
-                      </button>}
-                  </td>
+        <div className="overflow-hidden w-full max-w-2xl bg-white rounded-xl shadow-sm border border-gray-200/80 mx-5 mb-4">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm border-collapse">
+              <thead className="bg-gray-50/80 text-gray-500 uppercase tracking-wider text-xs font-semibold border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-4 w-16">No</th>
+                  <th className="px-6 py-4">Kategori</th>
+                  {items?.length !== 0 && (
+                    <th className="px-6 py-4 text-right">Aksi</th>
+                  )}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {loading && (
+                  <tr><td colSpan={3} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
+                )}
+                {actionError && (
+                  <tr><td colSpan={3} className="px-6 py-3 text-center text-red-500">{actionError}</td></tr>
+                )}
+                {!loading && error && (
+                  <tr><td colSpan={3} className="px-6 py-6 text-center text-red-500">{error}</td></tr>
+                )}
+                {!loading && !error && shown.length === 0 && (
+                  <tr><td colSpan={3} className="px-6 py-6 text-center text-gray-400">Belum ada kategori.</td></tr>
+                )}
+                {!loading && !error && shown.map((c, i) => (
+                  <tr key={c.name} className="hover:bg-indigo-50/30 transition-colors">
+                    <td className="px-6 py-4 text-gray-500">{i + 1}</td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border bg-indigo-50 text-indigo-700 border-indigo-200/50">
+                        {c.name}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right text-gray-700 font-medium">
+                        {canDelete && <button onClick={() => handleHapus(c.jenis)} className=" px-3 py-1 bg-red-50 text-red-600 font-bold rounded-lg text-xs hover:bg-red-100 transition-all border border-red-100">
+                          Hapus
+                        </button>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 

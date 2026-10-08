@@ -8,7 +8,7 @@ import type { MaterialRequestDetail, MaterialRequestStatus } from '@/domains/inv
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
-import { ExportExcellButton, PrintPdfButton } from '@/components/ui/Tombol';
+import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';
 
 const STATUS_LABEL: Record<MaterialRequestStatus, { label: string; cls: string }> = {
     PENDING: { label: 'Menunggu PPIC', cls: 'bg-yellow-100 text-yellow-800 border-yellow-200' },

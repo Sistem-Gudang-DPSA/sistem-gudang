@@ -6,7 +6,7 @@ import { Search, Plus } from 'lucide-react';
 import { createLocation, deleteLocation, listLocations } from '@/domains/inventory/api';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
-import { ImportExcelButton } from '@/components/ui/ImportExcelButton';
+import { ImportExcelButton } from '@/shared/components/ImportExcelButton';
 import { importLocationData } from '../api';
 export type LocationDataImportRow = {
     NamaRak: string;
