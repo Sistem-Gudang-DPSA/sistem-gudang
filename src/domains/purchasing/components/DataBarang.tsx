@@ -224,7 +224,7 @@ export default function DataBarangPurchasing() {
                   <td className="px-6 py-4 text-center">
                     {canEditPrice && <button
                       onClick={() => handleEdit(item)}
-                      className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-[#FF8A00] hover:bg-orange-600 rounded-lg transition-all shadow-sm w-full max-w-[110px] mx-auto"
+                      className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-[#FF8A00] hover:bg-orange-600 rounded-lg transition-all shadow-sm w-full max-w-27.5 mx-auto"
                     >
                        <Plus className="w-3.5 h-3.5" />
                        Lengkapi
