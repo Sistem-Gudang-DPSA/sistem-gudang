@@ -24,11 +24,13 @@ const detail = {
 };
 const input = (l: string) => screen.getByLabelText(l) as HTMLInputElement;
 const type = (l: string, v: string) => fireEvent.change(screen.getByLabelText(l), { target: { value: v } });
+const OK = ['dokubah.update'];
+const body = (api: ReturnType<typeof installFakeApi>) => api.calls('PUT /api/v1/dokubah/7/materials')[0].body;
 
 async function load(extra: Record<string, unknown> = {}) {
   const api = installFakeApi({ 'GET /api/v1/dokubah/7': detail, 'PUT /api/v1/dokubah/7/materials': detail, ...extra });
-  render(<EditMaterial />);
-  await screen.findByText('Triplex');
+  render(withUser(<EditMaterial />, OK));
+  await screen.findByDisplayValue('Triplex');
   return api;
 }
 
@@ -39,81 +41,90 @@ describe('EditMaterial', () => {
     await load();
     expect(input('Nomor SPK :').value).toBe('SPK-007');
     expect(input('Nama Client :').value).toBe('PT Maju');
-    expect(input('Kuota alokasi A-1').value).toBe('20');
-    expect(input('Estimasi harga A-1').value).toBe('1500');
-    expect(input('Keterangan A-1').value).toBe('cat');
+    expect(input('Kode barang baris 1').value).toBe('A-1');
+    expect(input('Kuota alokasi baris 1').value).toBe('20');
+    expect(input('Satuan baris 1').value).toBe('lembar');
   });
 
   it('shows backend error when load fails', async () => {
     installFakeApi({ 'GET /api/v1/dokubah/7': fail(404, 'Dokubah tidak ada') });
-    render(<EditMaterial />);
+    render(withUser(<EditMaterial />, OK));
     expect(await screen.findByText('Dokubah tidak ada')).toBeTruthy();
   });
 
-  it('PUTs all materials with integer numbers and trimmed keterangan, then goes to view', async () => {
+  it('PUTs all materials with integer numbers, keeps harga and keterangan, then goes to view', async () => {
     const api = await load();
-    type('Kuota alokasi A-1', '30');
-    type('Estimasi harga B-2', '2500');
-    type('Keterangan B-2', '  baru ');
-    fireEvent.click(screen.getByText('Simpan'));
+    type('Kuota alokasi baris 1', '30');
+    type('Satuan baris 2', 'dus');
+    fireEvent.click(screen.getByText('Simpan Perubahan'));
     await waitFor(() => expect(replace).toHaveBeenCalledWith('/dashboard/ppic/transaksi/dokubah/view-dokubah/7'));
-    expect(api.calls('PUT /api/v1/dokubah/7/materials')[0].body).toEqual({
+    expect(body(api)).toEqual({
       bahan: [
         { kodeBarang: 'A-1', namaBahan: 'Triplex', satuan: 'lembar', kuota: 30, hargaSatuan: 1500, keterangan: 'cat' },
-        { kodeBarang: 'B-2', namaBahan: 'Paku', satuan: 'kg', kuota: 5, hargaSatuan: 2500, keterangan: 'baru' },
+        { kodeBarang: 'B-2', namaBahan: 'Paku', satuan: 'dus', kuota: 5, hargaSatuan: 0, keterangan: '' },
       ],
     });
   });
 
-  it('Hapus Material removes the row from the PUT', async () => {
+  it('Tambah Baris adds a row that saves with harga 0', async () => {
     const api = await load();
-    fireEvent.click(screen.getByLabelText('Hapus material A-1'));
-    fireEvent.click(screen.getByText('Simpan'));
+    fireEvent.click(screen.getByText('Tambah Baris'));
+    type('Kode barang baris 3', 'C-3');
+    type('Nama dan spesifikasi bahan baris 3', 'Cat');
+    type('Kuota alokasi baris 3', '7');
+    fireEvent.click(screen.getByText('Simpan Perubahan'));
     await waitFor(() => expect(replace).toHaveBeenCalled());
-    const body = api.calls('PUT /api/v1/dokubah/7/materials')[0].body as { bahan: { kodeBarang: string }[] };
-    expect(body.bahan.map((b) => b.kodeBarang)).toEqual(['B-2']);
+    expect((body(api) as { bahan: unknown[] }).bahan[2]).toEqual({ kodeBarang: 'C-3', namaBahan: 'Cat', satuan: 'Pcs', kuota: 7, hargaSatuan: 0, keterangan: '' });
+  });
+
+  it('Hapus removes the row from the PUT', async () => {
+    const api = await load();
+    fireEvent.click(screen.getByLabelText('Hapus baris 1'));
+    fireEvent.click(screen.getByText('Simpan Perubahan'));
+    await waitFor(() => expect(replace).toHaveBeenCalled());
+    expect((body(api) as { bahan: { kodeBarang: string }[] }).bahan.map((b) => b.kodeBarang)).toEqual(['B-2']);
   });
 
   it('refuses to save an emptied dokubah', async () => {
     const api = await load();
-    fireEvent.click(screen.getByLabelText('Hapus material A-1'));
-    fireEvent.click(screen.getByLabelText('Hapus material B-2'));
-    expect(screen.getByText('Tidak ada material pada Dokubah ini.')).toBeTruthy();
-    fireEvent.click(screen.getByText('Simpan'));
+    fireEvent.click(screen.getByLabelText('Hapus baris 1'));
+    fireEvent.click(screen.getByLabelText('Hapus baris 1'));
+    fireEvent.click(screen.getByText('Simpan Perubahan'));
     expect(await screen.findByText('Dokubah harus punya minimal satu bahan.')).toBeTruthy();
     expect(api.calls('PUT /api/v1/dokubah/7/materials')).toHaveLength(0);
   });
 
-  it('blank kuota or harga is rejected with a message and no request', async () => {
+  it('refuses duplicate kode barang and blank kuota, with no request', async () => {
     const api = await load();
-    type('Kuota alokasi A-1', '');
-    fireEvent.click(screen.getByText('Simpan'));
-    expect(await screen.findByText(/wajib diisi dengan angka 0 atau lebih/)).toBeTruthy();
+    type('Kode barang baris 2', 'a-1');
+    fireEvent.click(screen.getByText('Simpan Perubahan'));
+    expect(await screen.findByText(/Kode Barang tidak boleh ada yang sama/)).toBeTruthy();
+    type('Kode barang baris 2', 'B-2');
+    type('Kuota alokasi baris 1', '');
+    fireEvent.click(screen.getByText('Simpan Perubahan'));
+    await waitFor(() => expect(screen.queryByText(/Kode Barang tidak boleh/)).toBeNull());
     expect(api.calls('PUT /api/v1/dokubah/7/materials')).toHaveLength(0);
   });
 
   it('shows backend error on save', async () => {
     await load({ 'PUT /api/v1/dokubah/7/materials': fail(409, 'Dokubah sudah APPROVED') });
-    fireEvent.click(screen.getByText('Simpan'));
+    fireEvent.click(screen.getByText('Simpan Perubahan'));
     expect(await screen.findByText('Dokubah sudah APPROVED')).toBeTruthy();
     expect(replace).not.toHaveBeenCalled();
   });
 
-  it('integer inputs keep digits only; text limits', async () => {
+  it('kuota keeps digits only and has the backend limit', async () => {
     await load();
-    for (const f of ['Kuota alokasi A-1', 'Estimasi harga A-1']) {
-      for (const bad of ['1e5', '-3', '2.5']) {
-        type(f, bad);
-        expect(input(f).value).toBe(bad.replace(/\D/g, ''));
-      }
-      expect(input(f).maxLength).toBe(9);
+    for (const bad of ['1e5', '-3', '2.5']) {
+      type('Kuota alokasi baris 1', bad);
+      expect(input('Kuota alokasi baris 1').value).toBe(bad.replace(/\D/g, ''));
     }
-    expect(input('Keterangan A-1').maxLength).toBe(500);
+    expect(input('Kuota alokasi baris 1').maxLength).toBe(9);
   });
 
-  it('Batal links back to the view page', async () => {
+  it('Batal links back to the list page', async () => {
     await load();
-    expect(screen.getByText('Batal').closest('a')?.getAttribute('href')).toBe('/dashboard/ppic/transaksi/dokubah/view-dokubah/7');
+    expect(screen.getByText('Batal').closest('a')?.getAttribute('href')).toBe('/dashboard/ppic/transaksi/dokubah');
   });
 });
 
@@ -122,9 +133,8 @@ describe('permissions', () => {
   it('a view-only user keeps the screen but not the actions', async () => {
     installFakeApi({ 'GET /api/v1/dokubah/7': detail });
     render(withUser(<EditMaterial />, ['dokubah.view']));
-    await screen.findByText(/Anda tidak punya izin|Triplex/);
-    expect(screen.getByText(/Anda tidak punya izin/)).toBeTruthy();
-    expect(screen.queryByText('Simpan')).toBeNull();
+    expect(await screen.findByText(/Anda tidak punya izin/)).toBeTruthy();
+    expect(screen.queryByText('Simpan Perubahan')).toBeNull();
   });
 
   it.each([
@@ -133,7 +143,7 @@ describe('permissions', () => {
   ])('a user who %s sees the actions', async (_label, perms, isSuperadmin) => {
     installFakeApi({ 'GET /api/v1/dokubah/7': detail });
     render(withUser(<EditMaterial />, perms, isSuperadmin));
-    await screen.findByText(/Anda tidak punya izin|Triplex/);
-    expect(screen.getByText('Simpan')).toBeTruthy();
+    await screen.findByDisplayValue('Triplex');
+    expect(screen.getByText('Simpan Perubahan')).toBeTruthy();
   });
 });

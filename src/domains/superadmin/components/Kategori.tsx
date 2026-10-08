@@ -109,7 +109,7 @@ export default function Kategori() {
       await deleteCategory(id);
       reload();
     } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : "Gagal menghapus supplier.");
+      setActionError(err instanceof ApiError ? err.message : "Gagal menghapus kategori.");
     }
   };
 
@@ -185,6 +185,9 @@ export default function Kategori() {
             <tbody className="divide-y divide-gray-100">
               {loading && (
                 <tr><td colSpan={5} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
+              )}
+              {actionError && (
+                <tr><td colSpan={5} className="px-6 py-3 text-center text-red-500">{actionError}</td></tr>
               )}
               {!loading && error && (
                 <tr><td colSpan={5} className="px-6 py-6 text-center text-red-500">{error}</td></tr>

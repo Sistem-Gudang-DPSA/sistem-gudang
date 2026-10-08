@@ -52,6 +52,7 @@ const orangeButtonClass = 'flex items-center justify-center gap-2 px-5 py-2.5 bg
 
 export default function BarangKeluarGudang() {
   const canCreate = useCan('outbound.create');
+  const canUpdate = useCan('outbound.update');
   const canExport = useCan('report.view');
   const [searchQuery, setSearchQuery] = useState("");
   const [filterTanggal, setFilterTanggal] = useState("");
@@ -351,7 +352,7 @@ export default function BarangKeluarGudang() {
                   <td className={cellClass}>{line.itemName}</td>
                   <td className={`${cellClass} text-right`}>{line.qty}</td>
                   <td className={cellClass}>
-                    {canCreate && (bisaEdit(trx, now) ? (
+                    {canUpdate && (bisaEdit(trx, now) ? (
                       <button
                         type="button"
                         onClick={() => openEdit(trx, lineIndex)}
