@@ -1,5 +1,8 @@
-import { apiClient, downloadFile, toQuery } from "@/shared/lib/api-client";
+import { ApiError, apiClient, downloadFile, toQuery } from "@/shared/lib/api-client";
 import type {
+  ItemFilterParams,
+  SortParams,
+  UpdateItemInput,
   CreateInboundInput,
   CreateInboundReturnInput,
   CreateItemInput,
@@ -32,14 +35,46 @@ import type {
 
 // `summary` covers every item matching the search, not just the requested page.
 // `summary` covers every item matching the search, not just the requested page.
-export function listItems(params?: ListParams) {
+export function listItems(params?: ListParams & SortParams & ItemFilterParams) {
   return apiClient.get<PaginatedResult<ItemListRow> & { summary?: { totalJenis: number; totalStock: number } }>(`/api/v1/items${toQuery(params)}`);
   return apiClient.get<PaginatedResult<ItemListRow> & { summary?: { totalJenis: number; totalStock: number } }>(`/api/v1/items${toQuery(params)}`);
 }
 
 // Master lists of item categories and units; items reference them by name.
-export const listItemCategories = () => apiClient.get<{ id: number; name: string }[]>("/api/v1/items/categories");
-export const listItemUnits = () => apiClient.get<{ id: number; name: string }[]>("/api/v1/items/units");
+// `itemCount` is how many items use the name; a name still in use cannot be deleted (409).
+export type ItemLookup = { id: number; name: string; itemCount?: number };
+export const listItemCategories = () => apiClient.get<ItemLookup[]>("/api/v1/items/categories");
+export const listItemUnits = () => apiClient.get<ItemLookup[]>("/api/v1/items/units");
+export const createItemCategory = (name: string) => apiClient.post<ItemLookup>("/api/v1/items/categories", { name });
+export const createItemUnit = (name: string) => apiClient.post<ItemLookup>("/api/v1/items/units", { name });
+export const renameItemCategory = (id: number, name: string) => apiClient.put<ItemLookup>(`/api/v1/items/categories/${id}`, { name });
+export const renameItemUnit = (id: number, name: string) => apiClient.put<ItemLookup>(`/api/v1/items/units/${id}`, { name });
+export const deleteItemCategory = (id: number) => apiClient.delete<void>(`/api/v1/items/categories/${id}`);
+export const deleteItemUnit = (id: number) => apiClient.delete<void>(`/api/v1/items/units/${id}`);
+
+export type BulkItemRow = {
+  code?: string; name: string; detail?: string; supplier?: string; category?: string; unit?: string;
+  price: number; stock: number; locationCode?: string;
+};
+export type BulkItemsResult = { dryRun: boolean; created: number; skipped: { row: number; name: string; code: string | null; reason: string }[] };
+
+// All-or-nothing: one bad row rejects the whole request. The BE reports `errors` keyed "items.<row>.<field>" (row starts at 1).
+export async function importItems(body: { defaults: { category?: string; unit?: string }; items: BulkItemRow[] }) {
+  try {
+    // Empty cells mean "not given": the BE treats a blank code/detail/locationCode as invalid, not as absent.
+    const items = body.items.map((r) => Object.fromEntries(Object.entries(r).filter(([, v]) => v !== "")) as BulkItemRow);
+    return await apiClient.post<BulkItemsResult>("/api/v1/items/bulk", { ...body, items });
+  } catch (err) {
+    const entries = err instanceof ApiError && err.errors ? Object.entries(err.errors) : [];
+    if (entries.length === 0) throw err;
+    const lines = entries.map(([key, msgs]) => {
+      const [, row, field] = /^items\.(\d+)\.?(.*)$/.exec(key) ?? [];
+      const name = row ? body.items[Number(row) - 1]?.name : undefined;
+      return `${row ? `Baris ${row}${name ? ` "${name}"` : ""}${field ? ` (${field})` : ""}` : key}: ${msgs.join(", ")}`;
+    });
+    throw new Error(lines.slice(0, 10).join("; ") + (lines.length > 10 ? `; dan ${lines.length - 10} error lain` : ""));
+  }
+}
 
 export function getItem(id: number) {
   return apiClient.get<Item>(`/api/v1/items/${id}`);
@@ -49,7 +84,7 @@ export function createItem(input: CreateItemInput) {
   return apiClient.post<Item>("/api/v1/items", input);
 }
 
-export function updateItem(id: number, input: Partial<CreateItemInput>) {
+export function updateItem(id: number, input: UpdateItemInput) {
   return apiClient.put<Item>(`/api/v1/items/${id}`, input);
 }
 
@@ -73,12 +108,16 @@ export function adjustItemStock(id: number, input: { delta: number; reason: stri
   return apiClient.patch<Item>(`/api/v1/items/${id}/stock`, input);
 }
 
-export function listLocations(params?: ListParams) {
+export function listLocations(params?: ListParams & SortParams) {
   return apiClient.get<PaginatedResult<Location>>(`/api/v1/locations${toQuery(params)}`);
 }
 
 export function createLocation(input: CreateLocationInput) {
   return apiClient.post<Location>("/api/v1/locations", input);
+}
+
+export function updateLocation(id: number, input: Partial<CreateLocationInput>) {
+  return apiClient.put<Location>(`/api/v1/locations/${id}`, input);
 }
 
 export function deleteLocation(id: number) {

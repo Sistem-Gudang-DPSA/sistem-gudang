@@ -97,7 +97,7 @@ export default function DataBarangPPIC() {
       unit: item.unit,
       category: item.category,
       price: String(item.price),
-      supplierId: String(item.supplierId),
+      supplierId: item.supplierId === null ? '' : String(item.supplierId),
     });
     setModalError("");
     setIsModalOpen(true);
@@ -142,7 +142,7 @@ export default function DataBarangPPIC() {
     }
   };
 
-  const supplierName = (id: number) => suppliers.find((s) => s.id === id)?.name ?? '-';
+  const supplierName = (id: number | null) => suppliers.find((s) => s.id === id)?.name ?? '-';
   const locationCode = (id: number | null) => (id === null ? '-' : locations.find((loc) => loc.id === id)?.code ?? `#${id}`);
 
   return (

@@ -4197,6 +4197,33 @@
             "required": false,
             "name": "search",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "code",
+                "rackName",
+                "rackNumber",
+                "description"
+              ]
+            },
+            "required": false,
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            },
+            "required": false,
+            "name": "sortDir",
+            "in": "query"
           }
         ],
         "responses": {
@@ -4235,13 +4262,19 @@
                               },
                               "rackNumber": {
                                 "type": "string"
+                              },
+                              "description": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Optional note on what the code means"
                               }
                             },
                             "required": [
                               "id",
                               "code",
                               "rackName",
-                              "rackNumber"
+                              "rackNumber",
+                              "description"
                             ]
                           }
                         },
@@ -4415,6 +4448,7 @@
           "Location"
         ],
         "summary": "Create a location",
+        "description": "description is optional, at most 255 characters after trimming; an empty string is stored as null. A code that already exists is a 409 'Kode lokasi sudah ada'.",
         "security": [
           {
             "bearerAuth": []
@@ -4440,6 +4474,11 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 10
+                  },
+                  "description": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 255
                   }
                 },
                 "required": [
@@ -4482,13 +4521,19 @@
                         },
                         "rackNumber": {
                           "type": "string"
+                        },
+                        "description": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "Optional note on what the code means"
                         }
                       },
                       "required": [
                         "id",
                         "code",
                         "rackName",
-                        "rackNumber"
+                        "rackNumber",
+                        "description"
                       ]
                     }
                   },
@@ -4727,13 +4772,19 @@
                         },
                         "rackNumber": {
                           "type": "string"
+                        },
+                        "description": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "Optional note on what the code means"
                         }
                       },
                       "required": [
                         "id",
                         "code",
                         "rackName",
-                        "rackNumber"
+                        "rackNumber",
+                        "description"
                       ]
                     }
                   },
@@ -4889,6 +4940,7 @@
           "Location"
         ],
         "summary": "Update a location",
+        "description": "Changes code, rackName, rackNumber or description (null or an empty string clears it). A code that another location has is a 409 'Kode lokasi sudah ada'. items.code values already filled from the old location code are not changed.",
         "security": [
           {
             "bearerAuth": []
@@ -4925,6 +4977,11 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 10
+                  },
+                  "description": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 255
                   }
                 }
               }
@@ -4962,13 +5019,19 @@
                         },
                         "rackNumber": {
                           "type": "string"
+                        },
+                        "description": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "Optional note on what the code means"
                         }
                       },
                       "required": [
                         "id",
                         "code",
                         "rackName",
-                        "rackNumber"
+                        "rackNumber",
+                        "description"
                       ]
                     }
                   },
@@ -5379,6 +5442,48 @@
             },
             "required": false,
             "name": "search",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "code",
+                "name",
+                "bank",
+                "npwp",
+                "phone",
+                "address",
+                "pajak"
+              ]
+            },
+            "required": false,
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            },
+            "required": false,
+            "name": "sortDir",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PKP",
+                "NON_PKP"
+              ]
+            },
+            "required": false,
+            "name": "pajak",
             "in": "query"
           }
         ],
@@ -8274,6 +8379,107 @@
             "required": false,
             "name": "search",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "code",
+                "name",
+                "detail",
+                "category",
+                "unit",
+                "price",
+                "stock",
+                "supplierName",
+                "locationCode"
+              ]
+            },
+            "required": false,
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            },
+            "required": false,
+            "name": "sortDir",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "required": false,
+            "name": "category",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 50
+            },
+            "required": false,
+            "name": "unit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "none"
+                  ]
+                },
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "exclusiveMinimum": true
+                }
+              ]
+            },
+            "required": false,
+            "name": "supplierId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "none"
+                  ]
+                },
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "exclusiveMinimum": true
+                }
+              ]
+            },
+            "required": false,
+            "name": "locationId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "empty"
+              ]
+            },
+            "required": false,
+            "name": "stock",
+            "in": "query"
           }
         ],
         "responses": {
@@ -8311,6 +8517,10 @@
                               "name": {
                                 "type": "string"
                               },
+                              "detail": {
+                                "type": "string",
+                                "nullable": true
+                              },
                               "category": {
                                 "type": "string"
                               },
@@ -8332,16 +8542,19 @@
                                 "nullable": true
                               },
                               "supplierId": {
-                                "type": "number"
+                                "type": "number",
+                                "nullable": true
                               },
                               "supplierName": {
-                                "type": "string"
+                                "type": "string",
+                                "nullable": true
                               }
                             },
                             "required": [
                               "id",
                               "code",
                               "name",
+                              "detail",
                               "category",
                               "unit",
                               "price",
@@ -8577,6 +8790,11 @@
                     "type": "integer",
                     "minimum": 0,
                     "exclusiveMinimum": true
+                  },
+                  "detail": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
                   }
                 },
                 "required": [
@@ -8619,6 +8837,10 @@
                         "name": {
                           "type": "string"
                         },
+                        "detail": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "category": {
                           "type": "string"
                         },
@@ -8629,14 +8851,17 @@
                           "type": "number"
                         },
                         "stock": {
-                          "type": "number"
+                          "type": "number",
+                          "description": "Up to two decimals"
                         },
                         "locationId": {
                           "type": "number",
                           "nullable": true
                         },
                         "supplierId": {
-                          "type": "number"
+                          "type": "number",
+                          "nullable": true,
+                          "description": "null until Purchasing sets it"
                         },
                         "createdAt": {
                           "type": "string",
@@ -8651,6 +8876,7 @@
                         "id",
                         "code",
                         "name",
+                        "detail",
                         "category",
                         "unit",
                         "price",
@@ -8896,6 +9122,10 @@
                         "name": {
                           "type": "string"
                         },
+                        "detail": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "category": {
                           "type": "string"
                         },
@@ -8906,14 +9136,17 @@
                           "type": "number"
                         },
                         "stock": {
-                          "type": "number"
+                          "type": "number",
+                          "description": "Up to two decimals"
                         },
                         "locationId": {
                           "type": "number",
                           "nullable": true
                         },
                         "supplierId": {
-                          "type": "number"
+                          "type": "number",
+                          "nullable": true,
+                          "description": "null until Purchasing sets it"
                         },
                         "createdAt": {
                           "type": "string",
@@ -8928,6 +9161,7 @@
                         "id",
                         "code",
                         "name",
+                        "detail",
                         "category",
                         "unit",
                         "price",
@@ -9091,7 +9325,7 @@
           "Item"
         ],
         "summary": "Update a item",
-        "description": "Changing price needs the item.set-price permission (Purchasing), otherwise 403. Resending the unchanged price is accepted, and omitting price keeps the current one. category and unit must be names from GET /api/v1/items/categories and /units, 400 otherwise.",
+        "description": "Changing price needs the item.set-price permission (Purchasing), otherwise 403. Changing supplierId, including null to clear it, needs item.set-supplier (Purchasing), otherwise 403; resending the unchanged supplierId is accepted. detail null clears the detail. Resending the unchanged price is accepted, and omitting price keeps the current one. category and unit must be names from GET /api/v1/items/categories and /units, 400 otherwise.",
         "security": [
           {
             "bearerAuth": []
@@ -9135,8 +9369,15 @@
                   },
                   "supplierId": {
                     "type": "integer",
+                    "nullable": true,
                     "minimum": 0,
                     "exclusiveMinimum": true
+                  },
+                  "detail": {
+                    "type": "string",
+                    "nullable": true,
+                    "minLength": 1,
+                    "maxLength": 255
                   }
                 }
               }
@@ -9173,6 +9414,10 @@
                         "name": {
                           "type": "string"
                         },
+                        "detail": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "category": {
                           "type": "string"
                         },
@@ -9183,14 +9428,17 @@
                           "type": "number"
                         },
                         "stock": {
-                          "type": "number"
+                          "type": "number",
+                          "description": "Up to two decimals"
                         },
                         "locationId": {
                           "type": "number",
                           "nullable": true
                         },
                         "supplierId": {
-                          "type": "number"
+                          "type": "number",
+                          "nullable": true,
+                          "description": "null until Purchasing sets it"
                         },
                         "createdAt": {
                           "type": "string",
@@ -9205,6 +9453,7 @@
                         "id",
                         "code",
                         "name",
+                        "detail",
                         "category",
                         "unit",
                         "price",
@@ -9625,11 +9874,16 @@
                           },
                           "name": {
                             "type": "string"
+                          },
+                          "itemCount": {
+                            "type": "number",
+                            "description": "Items that use this name"
                           }
                         },
                         "required": [
                           "id",
-                          "name"
+                          "name",
+                          "itemCount"
                         ]
                       }
                     }
@@ -10026,6 +10280,487 @@
         }
       }
     },
+    "/api/v1/items/categories/{id}": {
+      "put": {
+        "tags": [
+          "Item"
+        ],
+        "summary": "Rename one of the item categories",
+        "description": "Needs item.update. Items use the name through a foreign key with ON UPDATE CASCADE, so every item takes the new name. Old documents (purchase order lines, dokubah, penawaran) keep the name they were made with. Changing only the letter case of its own name is allowed. 404 when the id does not exist, 409 when another row has the name.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 50
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Renamed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A unique field already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Item"
+        ],
+        "summary": "Delete one of the item categories",
+        "description": "Needs item.delete. 404 when the id does not exist. 409 with the number of items when an item still uses the name.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A unique field already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/items/units": {
       "get": {
         "tags": [
@@ -10064,11 +10799,16 @@
                           },
                           "name": {
                             "type": "string"
+                          },
+                          "itemCount": {
+                            "type": "number",
+                            "description": "Items that use this name"
                           }
                         },
                         "required": [
                           "id",
-                          "name"
+                          "name",
+                          "itemCount"
                         ]
                       }
                     }
@@ -10465,6 +11205,837 @@
         }
       }
     },
+    "/api/v1/items/units/{id}": {
+      "put": {
+        "tags": [
+          "Item"
+        ],
+        "summary": "Rename one of the units",
+        "description": "Needs item.update. Items use the name through a foreign key with ON UPDATE CASCADE, so every item takes the new name. Old documents (purchase order lines, dokubah, penawaran) keep the name they were made with. Changing only the letter case of its own name is allowed. 404 when the id does not exist, 409 when another row has the name.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 50
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Renamed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A unique field already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Item"
+        ],
+        "summary": "Delete one of the units",
+        "description": "Needs item.delete. 404 when the id does not exist. 409 with the number of items when an item still uses the name.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A unique field already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/items/bulk": {
+      "post": {
+        "tags": [
+          "Item"
+        ],
+        "summary": "Import many items in one transaction",
+        "description": "Names, not ids: category, unit and locationCode are resolved case-insensitively, and a row falls back to defaults for category and unit. supplier is optional per row (no defaults.supplier): a name is matched case-insensitively to suppliers.name, a name that matches no supplier or more than one is a row error under items.<row>.supplier, and left out means supplierId null until Purchasing sets one with PUT /api/v1/items/{id}. It is the first mapping only. Nothing is auto-created. An unknown or ambiguous name, a missing value, or a missing permission fails the whole request. Needs item.create, plus item.set-price when any price is not 0, item.adjust-stock when any stock is above 0, item.assign-location when any row has code or locationCode, and item.set-supplier when any row has supplier (otherwise 403). Superadmin passes all of them. A row already in the database (same code, or same name when the row has no code and the stored item has no code) or repeated earlier in the file is skipped and listed in skipped, so the same file can be imported again. Initial stock is recorded as an audit entry with reason 'Initial import'. With dryRun true nothing is written and items[].id is null. Validation failure is 400 with errors keyed like items.4.category, where the row number starts at 1.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "dryRun": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "defaults": {
+                    "type": "object",
+                    "properties": {
+                      "category": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 191
+                      },
+                      "unit": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 191
+                      }
+                    },
+                    "default": {}
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 191
+                        },
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 191
+                        },
+                        "detail": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        },
+                        "supplier": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 191
+                        },
+                        "category": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 191
+                        },
+                        "unit": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 191
+                        },
+                        "price": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "default": 0
+                        },
+                        "stock": {
+                          "type": "number",
+                          "minimum": 0,
+                          "default": 0
+                        },
+                        "locationCode": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 20
+                        }
+                      },
+                      "required": [
+                        "name"
+                      ]
+                    },
+                    "minItems": 1,
+                    "maxItems": 1000
+                  }
+                },
+                "required": [
+                  "items"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Imported, or validated when dryRun is true",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "dryRun": {
+                          "type": "boolean"
+                        },
+                        "created": {
+                          "type": "number"
+                        },
+                        "skipped": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "row": {
+                                "type": "number"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "code": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "reason": {
+                                "type": "string",
+                                "enum": [
+                                  "duplicate_in_db",
+                                  "duplicate_in_file"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "row",
+                              "name",
+                              "code",
+                              "reason"
+                            ]
+                          }
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "row": {
+                                "type": "number"
+                              },
+                              "id": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "code": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "stock": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "row",
+                              "id",
+                              "name",
+                              "code",
+                              "stock"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "dryRun",
+                        "created",
+                        "skipped",
+                        "items"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/items/unassigned": {
       "get": {
         "tags": [
@@ -10508,6 +12079,10 @@
                           "name": {
                             "type": "string"
                           },
+                          "detail": {
+                            "type": "string",
+                            "nullable": true
+                          },
                           "category": {
                             "type": "string"
                           },
@@ -10518,14 +12093,17 @@
                             "type": "number"
                           },
                           "stock": {
-                            "type": "number"
+                            "type": "number",
+                            "description": "Up to two decimals"
                           },
                           "locationId": {
                             "type": "number",
                             "nullable": true
                           },
                           "supplierId": {
-                            "type": "number"
+                            "type": "number",
+                            "nullable": true,
+                            "description": "null until Purchasing sets it"
                           },
                           "createdAt": {
                             "type": "string",
@@ -10540,6 +12118,7 @@
                           "id",
                           "code",
                           "name",
+                          "detail",
                           "category",
                           "unit",
                           "price",
@@ -10986,6 +12565,10 @@
                         "name": {
                           "type": "string"
                         },
+                        "detail": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "category": {
                           "type": "string"
                         },
@@ -10996,14 +12579,17 @@
                           "type": "number"
                         },
                         "stock": {
-                          "type": "number"
+                          "type": "number",
+                          "description": "Up to two decimals"
                         },
                         "locationId": {
                           "type": "number",
                           "nullable": true
                         },
                         "supplierId": {
-                          "type": "number"
+                          "type": "number",
+                          "nullable": true,
+                          "description": "null until Purchasing sets it"
                         },
                         "createdAt": {
                           "type": "string",
@@ -11018,6 +12604,7 @@
                         "id",
                         "code",
                         "name",
+                        "detail",
                         "category",
                         "unit",
                         "price",
@@ -11253,6 +12840,10 @@
                         "name": {
                           "type": "string"
                         },
+                        "detail": {
+                          "type": "string",
+                          "nullable": true
+                        },
                         "category": {
                           "type": "string"
                         },
@@ -11263,14 +12854,17 @@
                           "type": "number"
                         },
                         "stock": {
-                          "type": "number"
+                          "type": "number",
+                          "description": "Up to two decimals"
                         },
                         "locationId": {
                           "type": "number",
                           "nullable": true
                         },
                         "supplierId": {
-                          "type": "number"
+                          "type": "number",
+                          "nullable": true,
+                          "description": "null until Purchasing sets it"
                         },
                         "createdAt": {
                           "type": "string",
@@ -11285,6 +12879,7 @@
                         "id",
                         "code",
                         "name",
+                        "detail",
                         "category",
                         "unit",
                         "price",
@@ -20898,7 +22493,7 @@
                           "exclusiveMinimum": true
                         },
                         "physicalQty": {
-                          "type": "integer",
+                          "type": "number",
                           "minimum": 0
                         },
                         "note": {

@@ -46,7 +46,7 @@ export default function DataBarangPurchasing() {
 
   const handleEdit = (item: ItemListRow) => {
     setEditingId(item.id);
-    setFormData({ supplierId: String(item.supplierId), price: String(item.price) });
+    setFormData({ supplierId: item.supplierId === null ? '' : String(item.supplierId), price: String(item.price) });
     setModalError("");
     setIsModalOpen(true);
   };
@@ -103,7 +103,7 @@ export default function DataBarangPurchasing() {
     }
   };
 
-  const supplierName = (id: number) => suppliers.find((s) => s.id === id)?.name ?? '-';
+  const supplierName = (id: number | null) => suppliers.find((s) => s.id === id)?.name ?? '-';
   const locationCode = (id: number | null) => (id === null ? '-' : locations.find((loc) => loc.id === id)?.code ?? `#${id}`);
 
   return (

@@ -2,12 +2,13 @@ export interface Item {
   id: number;
   code: string | null;
   name: string;
+  detail?: string | null;
   category: string;
   unit: string;
   price: number;
   stock: number;
   locationId: number | null;
-  supplierId: number;
+  supplierId: number | null;
   createdAt: string | null;
   updatedAt: string | null;
 }
@@ -15,7 +16,7 @@ export interface Item {
 // Row shape of GET /items (list): joined with location and supplier, no timestamps.
 export type ItemListRow = Omit<Item, "createdAt" | "updatedAt"> & {
   locationCode: string | null;
-  supplierName: string;
+  supplierName: string | null;
 };
 
 export interface CreateItemInput {
@@ -31,12 +32,14 @@ export interface Location {
   code: string;
   rackName: string;
   rackNumber: string;
+  description?: string | null;
 }
 
 export interface CreateLocationInput {
   code: string;
   rackName: string;
   rackNumber: string;
+  description?: string | null;
 }
 
 export interface PaginatedResult<T> {
@@ -44,6 +47,30 @@ export interface PaginatedResult<T> {
   total: number;
   page: number;
   pageSize: number;
+}
+
+// Server-side ordering; the BE accepts only whitelisted columns per list.
+export interface SortParams {
+  sortBy?: string;
+  sortDir?: "asc" | "desc";
+}
+
+// Filters of GET /items; "none" means items that have no supplier / location yet.
+export interface ItemFilterParams {
+  category?: string;
+  unit?: string;
+  supplierId?: number | "none";
+  locationId?: number | "none";
+  stock?: "empty";
+}
+
+export interface UpdateItemInput {
+  name?: string;
+  detail?: string | null;
+  category?: string;
+  unit?: string;
+  price?: number;
+  supplierId?: number | null;
 }
 
 export interface ListParams {

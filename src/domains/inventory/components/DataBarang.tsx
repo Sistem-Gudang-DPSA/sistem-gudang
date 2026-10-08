@@ -49,7 +49,7 @@ export default function DataBarangGudang() {
     listSuppliers().then((res) => setSuppliers(res.rows)).catch(() => {});
   }, []);
 
-  const supplierName = (id: number) => suppliers.find((s) => s.id === id)?.name ?? '-';
+  const supplierName = (id: number | null) => suppliers.find((s) => s.id === id)?.name ?? '-';
   const locationCode = (id: number | null) => (id === null ? '-' : locations.find((loc) => loc.id === id)?.code ?? `#${id}`);
 
   const openAssignModal = (item: ItemListRow) => {
