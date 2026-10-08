@@ -4,7 +4,8 @@ import { useCan } from '@/domains/auth/user-context';
 import React, { useEffect, useRef, useState } from 'react';
 import { Search, Calendar, Plus, AlertCircle, Download, X, ChevronDown, Pencil, Lock } from 'lucide-react';
 import { createOutbound, exportOutboundReport, listOutbound, listItems, updateOutbound } from '@/domains/inventory/api';
-import type { RecipientType, WarehouseType, ItemListRow, OutboundRow } from '@/domains/inventory/types';
+import { listTrackingSpk } from '@/domains/ppic/api';
+import type { RecipientType, ItemListRow, OutboundRow } from '@/domains/inventory/types';
 import { displayDate, todayIso } from '@/domains/inventory/date';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
@@ -13,14 +14,13 @@ import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 
 // Satu baris di tabel form. SPK, client, dan item/project ada per baris di desain, sedangkan API
 // menyimpannya per transaksi, jadi saat simpan baris dikelompokkan menjadi satu transaksi per kombinasi itu.
-type BarisForm = { spk: string; namaClient: string; namaItem: string; itemId: string; qty: string; pic: string };
+type BarisForm = { spk: string; namaItem: string; itemId: string; qty: string; pic: string };
 
-const barisKosong = (): BarisForm => ({ spk: "", namaClient: "", namaItem: "", itemId: "", qty: "", pic: "" });
+const barisKosong = (): BarisForm => ({ spk: "", namaItem: "", itemId: "", qty: "", pic: "" });
 
 const formKosong = () => ({
   namaPengambil: "",
   tanggal: todayIso(),
-  warehouseType: "" as WarehouseType | "",
   recipientType: "" as RecipientType | "",
   baris: [barisKosong(), barisKosong(), barisKosong()],
 });
@@ -40,7 +40,7 @@ const tampilWaktu = (ms: number) => {
 };
 
 type EditTarget = { trx: OutboundRow; lineIndex: number };
-type EditForm = { tanggal: string; namaClient: string; spk: string; namaItem: string; itemId: string; qty: string };
+type EditForm = { tanggal: string; spk: string; namaItem: string; itemId: string; qty: string };
 
 const cellClass = 'px-3 py-2.5 border-b border-r border-gray-300';
 const formCellClass = 'border-b border-r border-gray-300';
@@ -90,6 +90,10 @@ export default function BarangKeluarGudang() {
   const rows = result?.rows ?? [];
   const total = result?.total ?? 0;
 
+  // The client comes from the tracking system through the SPK; the API ignores a client name from the FE.
+  const { data: spkList } = useApiData(() => listTrackingSpk(), 'spk', 'Gagal memuat daftar SPK.');
+  const clientOf = (spk: string) => spkList?.find((t) => t.noSpk === spk)?.client ?? '';
+
   useEffect(() => {
     listItems({ pageSize: 100 }).then((res) => setItems(res.rows)).catch(() => {});
   }, []);
@@ -107,7 +111,6 @@ export default function BarangKeluarGudang() {
     setEditTarget({ trx, lineIndex });
     setEditForm({
       tanggal: trx.date.slice(0, 10),
-      namaClient: trx.clientName,
       spk: trx.spk,
       namaItem: trx.itemName,
       itemId: String(line.itemId),
@@ -135,9 +138,9 @@ export default function BarangKeluarGudang() {
       setPeringatan(PESAN_TIDAK_BISA_EDIT);
       return;
     }
-    const { tanggal, namaClient, spk, namaItem, itemId, qty } = editForm;
-    if (!tanggal || !namaClient.trim() || !spk.trim() || !namaItem.trim() || !itemId || !qty || Number(qty) <= 0) {
-      setEditError("Isi tanggal, nama client, SPK, nama item/projek, nama barang, dan jumlah.");
+    const { tanggal, spk, namaItem, itemId, qty } = editForm;
+    if (!tanggal || !spk || !namaItem.trim() || !itemId || !qty || Number(qty) <= 0) {
+      setEditError("Isi tanggal, SPK, nama item/projek, nama barang, dan jumlah.");
       return;
     }
 
@@ -147,10 +150,8 @@ export default function BarangKeluarGudang() {
       // API menyimpan per transaksi, jadi baris lain di transaksi yang sama ikut dikirim apa adanya
       await updateOutbound(trx.id, {
         date: tanggal,
-        clientName: namaClient.trim(),
-        spk: spk.trim(),
+        spk,
         itemName: namaItem.trim(),
-        warehouseType: trx.warehouseType,
         recipientType: trx.recipientType,
         notes: trx.notes ?? undefined,
         lines: trx.lines.map((l, i) =>
@@ -193,21 +194,21 @@ export default function BarangKeluarGudang() {
 
   const handleSimpan = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const { namaPengambil, tanggal, warehouseType, recipientType } = form;
+    const { namaPengambil, tanggal, recipientType } = form;
     // Baris yang belum diisi sama sekali diabaikan
     const terisi = form.baris.filter((b) => Object.values(b).some((v) => v.trim() !== ""));
-    if (!namaPengambil.trim() || !tanggal || !warehouseType || !recipientType) {
-      setModalError("Lengkapi nama pengambil, tanggal, asal gudang, dan penerima.");
+    if (!namaPengambil.trim() || !tanggal || !recipientType) {
+      setModalError("Lengkapi nama pengambil, tanggal, dan penerima.");
       return;
     }
-    if (terisi.length === 0 || terisi.some((b) => !b.spk.trim() || !b.namaClient.trim() || !b.namaItem.trim() || !b.itemId || !b.qty || !b.pic.trim())) {
-      setModalError("Isi No. SPK, nama client, nama item/project, barang, jumlah, dan PIC di setiap baris yang dipakai.");
+    if (terisi.length === 0 || terisi.some((b) => !b.spk || !b.namaItem.trim() || !b.itemId || !b.qty || !b.pic.trim())) {
+      setModalError("Isi No. SPK, nama item/project, barang, jumlah, dan PIC di setiap baris yang dipakai.");
       return;
     }
 
     const kelompok = new Map<string, BarisForm[]>();
     for (const b of terisi) {
-      const kunci = JSON.stringify([b.spk.trim(), b.namaClient.trim(), b.namaItem.trim()]);
+      const kunci = JSON.stringify([b.spk, b.namaItem.trim()]);
       kelompok.set(kunci, [...(kelompok.get(kunci) ?? []), b]);
     }
 
@@ -219,10 +220,8 @@ export default function BarangKeluarGudang() {
         const [pertama] = lines;
         await createOutbound({
           date: tanggal,
-          clientName: pertama.namaClient.trim(),
-          spk: pertama.spk.trim(),
+          spk: pertama.spk,
           itemName: pertama.namaItem.trim(),
-          warehouseType,
           recipientType,
           // API belum punya kolom nama pengambil, jadi dicatat di notes
           notes: `Pengambil: ${namaPengambil.trim()}`,
@@ -470,23 +469,6 @@ export default function BarangKeluarGudang() {
                 </div>
               </div>
               <div>
-                <label htmlFor="form-bk-gudang" className={labelClass}>Asal Gudang</label>
-                <div className="relative">
-                  <select
-                    id="form-bk-gudang"
-                    value={form.warehouseType}
-                    onChange={(e) => setForm((prev) => ({ ...prev, warehouseType: e.target.value as WarehouseType }))}
-                    className={`${fieldClass} appearance-none cursor-pointer`}
-                  >
-                    <option value="" disabled>Pilih asal gudang</option>
-                    <option value="BAHAN_BAKU">Gudang Bahan Baku</option>
-                    <option value="WIP">Gudang WIP</option>
-                    <option value="BARANG_JADI">Gudang Barang Jadi</option>
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
-                </div>
-              </div>
-              <div>
                 <label htmlFor="form-bk-penerima" className={labelClass}>Tujuan / Penerima</label>
                 <div className="relative">
                   <select
@@ -524,10 +506,13 @@ export default function BarangKeluarGudang() {
                     <tr key={i}>
                       <td className={`${formCellClass} text-center text-gray-700`}>{i + 1}</td>
                       <td className={formCellClass}>
-                        <input type="text" value={b.spk} maxLength={100} onChange={(e) => updateBaris(i, { spk: e.target.value })} aria-label={`No. SPK baris ${i + 1}`} className={formInputClass} />
+                        <select value={b.spk} onChange={(e) => updateBaris(i, { spk: e.target.value })} aria-label={`No. SPK baris ${i + 1}`} className={`${formInputClass} cursor-pointer`}>
+                          <option value="">Pilih SPK</option>
+                          {(spkList ?? []).map((t) => <option key={t.noSpk} value={t.noSpk}>{t.noSpk}</option>)}
+                        </select>
                       </td>
                       <td className={formCellClass}>
-                        <input type="text" value={b.namaClient} maxLength={191} onChange={(e) => updateBaris(i, { namaClient: e.target.value })} aria-label={`Nama client baris ${i + 1}`} className={formInputClass} />
+                        <span className="block px-2 py-2 text-sm text-gray-600">{clientOf(b.spk)}</span>
                       </td>
                       <td className={formCellClass}>
                         <input type="text" value={b.namaItem} maxLength={191} onChange={(e) => updateBaris(i, { namaItem: e.target.value })} aria-label={`Nama item/project baris ${i + 1}`} className={formInputClass} />
@@ -624,11 +609,14 @@ export default function BarangKeluarGudang() {
               </div>
               <div>
                 <label htmlFor="edit-bk-spk" className={labelClass}>SPK</label>
-                <input id="edit-bk-spk" type="text" value={editForm.spk} maxLength={100} onChange={(e) => updateEdit({ spk: e.target.value })} className={fieldClass} />
+                <select id="edit-bk-spk" value={editForm.spk} onChange={(e) => updateEdit({ spk: e.target.value })} className={fieldClass}>
+                  <option value="">Pilih SPK</option>
+                  {(spkList ?? []).map((t) => <option key={t.noSpk} value={t.noSpk}>{t.noSpk}</option>)}
+                </select>
               </div>
               <div>
                 <label htmlFor="edit-bk-client" className={labelClass}>Nama Client</label>
-                <input id="edit-bk-client" type="text" value={editForm.namaClient} maxLength={191} onChange={(e) => updateEdit({ namaClient: e.target.value })} className={fieldClass} />
+                <input id="edit-bk-client" type="text" readOnly value={clientOf(editForm.spk)} className={fieldClass} />
               </div>
               <div>
                 <label htmlFor="edit-bk-item" className={labelClass}>Nama Item/Projek</label>

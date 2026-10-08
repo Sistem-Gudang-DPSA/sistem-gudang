@@ -25,9 +25,8 @@ describe('LaporanBarangKeluar', () => {
     expect(await screen.findByText('Triplex')).toBeTruthy();
     expect(screen.getByText('Paku')).toBeTruthy();
     expect(screen.getAllByText('SPK-1')).toHaveLength(2);
-    expect(screen.getByText('11 Transaksi')).toBeTruthy();
-    expect(screen.getByText('22 Transaksi')).toBeTruthy();
-    expect(screen.getByText('33 Transaksi')).toBeTruthy();
+    expect(screen.getByText('66 Transaksi')).toBeTruthy();
+    expect(screen.queryByText('Asal Gudang')).toBeNull();
   });
 
   it('shows the empty state', async () => {
@@ -51,18 +50,17 @@ describe('LaporanBarangKeluar', () => {
     expect(lastQuery(api).get('page')).toBe('1');
 
     const [from, to] = Array.from(container.querySelectorAll('input[type=date]'));
-    const [gudang, penerima] = Array.from(container.querySelectorAll('select'));
+    const [penerima] = Array.from(container.querySelectorAll('select'));
     fireEvent.change(from, { target: { value: '2026-09-01' } });
     fireEvent.change(to, { target: { value: '2026-09-30' } });
     fireEvent.change(screen.getByPlaceholderText(/Cari Client/), { target: { value: 'spk-1' } });
-    fireEvent.change(gudang, { target: { value: 'WIP' } });
     fireEvent.change(penerima, { target: { value: 'KLIEN' } });
     await waitFor(() => expect(lastQuery(api).get('recipientType')).toBe('KLIEN'));
     const q = lastQuery(api);
     expect(q.get('startDate')).toBe('2026-09-01');
     expect(q.get('endDate')).toBe('2026-09-30');
     expect(q.get('q')).toBe('spk-1');
-    expect(q.get('warehouseType')).toBe('WIP');
+    expect(q.get('warehouseType')).toBeNull();
   });
 
   it('paginates on the server and resets to page 1 when a filter changes', async () => {
@@ -71,8 +69,8 @@ describe('LaporanBarangKeluar', () => {
     await screen.findByText('Triplex');
     fireEvent.click(screen.getByText('Selanjutnya'));
     await waitFor(() => expect(lastQuery(api).get('page')).toBe('2'));
-    fireEvent.change(container.querySelector('select')!, { target: { value: 'WIP' } });
-    await waitFor(() => expect(lastQuery(api).get('warehouseType')).toBe('WIP'));
+    fireEvent.change(container.querySelector('select')!, { target: { value: 'KLIEN' } });
+    await waitFor(() => expect(lastQuery(api).get('recipientType')).toBe('KLIEN'));
     expect(lastQuery(api).get('page')).toBe('1');
   });
 
@@ -81,12 +79,12 @@ describe('LaporanBarangKeluar', () => {
     vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:x'), revokeObjectURL: vi.fn() }));
     const { container } = render(<LaporanBarangKeluar />);
     await screen.findByText('Triplex');
-    fireEvent.change(container.querySelectorAll('select')[0], { target: { value: 'WIP' } });
-    await waitFor(() => expect(lastQuery(api).get('warehouseType')).toBe('WIP'));
+    fireEvent.change(container.querySelectorAll('select')[0], { target: { value: 'KLIEN' } });
+    await waitFor(() => expect(lastQuery(api).get('recipientType')).toBe('KLIEN'));
     await screen.findByText('Triplex');
-    fireEvent.click(screen.getByTitle('Export Data ke CSV'));
+    fireEvent.click(screen.getByTitle('Export Excel'));
     await waitFor(() => expect(api.calls('GET /api/v1/reports/outbound/export')).toHaveLength(1));
-    expect(api.calls('GET /api/v1/reports/outbound/export')[0].query.get('warehouseType')).toBe('WIP');
+    expect(api.calls('GET /api/v1/reports/outbound/export')[0].query.get('recipientType')).toBe('KLIEN');
   });
 
   it('print PDF escapes HTML', async () => {
@@ -96,7 +94,7 @@ describe('LaporanBarangKeluar', () => {
     vi.stubGlobal('open', vi.fn(() => win));
     render(<LaporanBarangKeluar />);
     await screen.findByText('Triplex');
-    fireEvent.click(screen.getByTitle('Print Data ke PDF'));
+    fireEvent.click(screen.getByTitle('Print PDF'));
     const html = write.mock.calls[0][0] as string;
     expect(html).not.toContain('<script>');
     expect(html).toContain('&lt;script&gt;');

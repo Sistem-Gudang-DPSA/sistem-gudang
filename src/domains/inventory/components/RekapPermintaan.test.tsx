@@ -73,7 +73,7 @@ describe('RekapPermintaan', () => {
     render(<RekapPermintaan />);
     await screen.findByText('SPK-1');
 
-    fireEvent.click(screen.getByTitle('Export Data ke CSV'));
+    fireEvent.click(screen.getByTitle('Export Excel'));
     await waitFor(() => expect(api.calls(EXPORT)).toHaveLength(1));
     expect(api.calls(EXPORT)[0].query.get('ids')).toBeNull();
     expect(api.calls(EXPORT)[0].query.get('startDate')).toMatch(/^\d{4}-\d{2}-01$/);
@@ -82,7 +82,7 @@ describe('RekapPermintaan', () => {
     fireEvent.click(boxes[1]); // SPK-1 (boxes[0] is select-all)
     fireEvent.click(boxes[2]); // SPK-2
     expect(screen.getByText(/2 dipilih/)).toBeTruthy();
-    fireEvent.click(screen.getByTitle('Export Data ke CSV'));
+    fireEvent.click(screen.getByTitle('Export Excel'));
     await waitFor(() => expect(api.calls(EXPORT)).toHaveLength(2));
     const q = api.calls(EXPORT)[1].query;
     expect(q.get('ids')).toBe('1,2');
@@ -107,7 +107,7 @@ describe('RekapPermintaan', () => {
     installFakeApi({ [KEY]: report([req(1)]), [EXPORT]: fail(500, 'Export gagal') });
     render(<RekapPermintaan />);
     await screen.findByText('SPK-1');
-    fireEvent.click(screen.getByTitle('Export Data ke CSV'));
+    fireEvent.click(screen.getByTitle('Export Excel'));
     expect(await screen.findByText('Export gagal')).toBeTruthy();
   });
 
@@ -117,7 +117,7 @@ describe('RekapPermintaan', () => {
     render(<RekapPermintaan />);
     await screen.findByText('SPK-2');
 
-    fireEvent.click(screen.getByTitle('Print Data ke PDF'));
+    fireEvent.click(screen.getByTitle('Print PDF'));
     let html = write.mock.calls[0][0] as string;
     expect(html).not.toContain('<script>');
     expect(html).toContain('&lt;script&gt;');
@@ -125,7 +125,7 @@ describe('RekapPermintaan', () => {
 
     const boxes = screen.getAllByRole('checkbox');
     fireEvent.click(boxes[2]); // SPK-2
-    fireEvent.click(screen.getByTitle('Print Data ke PDF'));
+    fireEvent.click(screen.getByTitle('Print PDF'));
     html = write.mock.calls[1][0] as string;
     expect(html).toContain('SPK-2');
     expect(html).not.toContain('SPK-1');
@@ -138,7 +138,7 @@ describe('RekapPermintaan', () => {
     vi.stubGlobal('open', vi.fn(() => null));
     render(<RekapPermintaan />);
     await screen.findByText('SPK-1');
-    fireEvent.click(screen.getByTitle('Print Data ke PDF'));
+    fireEvent.click(screen.getByTitle('Print PDF'));
     expect(await screen.findByText(/Pop-up diblokir/)).toBeTruthy();
   });
 

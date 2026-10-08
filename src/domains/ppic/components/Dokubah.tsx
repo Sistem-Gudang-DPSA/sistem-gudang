@@ -40,6 +40,7 @@ const filterInputClass = 'border border-gray-200 rounded-lg px-3 py-2 text-sm te
 
 export default function DokubahPPIC() {
   const canCreate = useCan('dokubah.create');
+  const canUpdate = useCan('dokubah.update');
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilter, setShowFilter] = useState(false);
   const [filterStatus, setFilterStatus] = useState<StatusDokubah | ''>('');
@@ -301,13 +302,15 @@ export default function DokubahPPIC() {
                   {item.status !== 'Approved' && (
                     <td className={`${cellClass} text-center`}>
                       <span className="flex flex-col sm:flex-row items-center justify-center gap-2">
-                        <Link 
-                          href={`${editMaterialPath(item.id)}?from=dokubah`}
-                          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] text-xs font-bold rounded-lg hover:bg-[#FF8A00]/20 transition-all duration-200 opacity-90 group-hover:opacity-100"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" strokeWidth={2.5}/>
-                            Edit
-                        </Link>
+                        {canUpdate && (
+                          <Link
+                            href={`${editMaterialPath(item.id)}?from=dokubah`}
+                            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] text-xs font-bold rounded-lg hover:bg-[#FF8A00]/20 transition-all duration-200 opacity-90 group-hover:opacity-100"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" strokeWidth={2.5}/>
+                              Edit
+                          </Link>
+                        )}
                         <Link
                           href={viewDokubahPath(item.id)}
                           className="flex-1 lg:flex-none flex items-center justify-center gap-2 text-blue-600 hover:text-blue-800 font-medium text-xs bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded border border-blue-200 transition-colors"

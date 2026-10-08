@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useCan } from '@/domains/auth/user-context';
 import { Search, Plus, Download, Edit2, Trash2, Filter, MoreHorizontal } from 'lucide-react';
-import { listItems, createItem, deleteItem, listLocations, updateItem } from '@/domains/inventory/api';
+import { listItems, createItem, deleteItem, listLocations, updateItem, listItemCategories, listItemUnits } from '@/domains/inventory/api';
 import type { ItemListRow, Location } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
 import type { Supplier } from '@/domains/purchasing/types';
@@ -38,6 +38,9 @@ export default function DataBarangPPIC() {
   );
   const dataBarang = loaded?.rows ?? [];
   const error = actionError || loadError;
+
+  const { data: units } = useApiData(() => listItemUnits(), 'units', 'Gagal memuat daftar satuan.');
+  const { data: categories } = useApiData(() => listItemCategories(), 'categories', 'Gagal memuat daftar kategori.');
 
   useEffect(() => {
     listSuppliers().then((res) => setSuppliers(res.rows)).catch(() => {});
@@ -320,10 +323,7 @@ export default function DataBarangPPIC() {
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all appearance-none sm:text-sm text-gray-700 bg-white"
                   >
                     <option value="" disabled className="text-gray-400">Pilih satuan</option>
-                    <option value="Lembar">Lembar</option>
-                    <option value="Batang">Batang</option>
-                    <option value="Kaleng">Kaleng</option>
-                    <option value="Pcs">Pcs</option>
+                    {(units ?? []).map((u) => <option key={u.id} value={u.name}>{u.name}</option>)}
                   </select>
                 </div>
                 <div>
@@ -334,11 +334,7 @@ export default function DataBarangPPIC() {
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all appearance-none sm:text-sm text-gray-700 bg-white"
                   >
                     <option value="" disabled className="text-gray-400">Pilih Kategori</option>
-                    <option value="Lembaran">Lembaran</option>
-                    <option value="Kayu Solid">Kayu Solid</option>
-                    <option value="Logam">Logam</option>
-                    <option value="Finishing">Finishing</option>
-                    <option value="Aksesoris">Aksesoris</option>
+                    {(categories ?? []).map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
                   </select>
                 </div>
               </div>

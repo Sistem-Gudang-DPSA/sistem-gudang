@@ -104,7 +104,6 @@ export interface CreateInboundReturnInput {
   itemId: number;
   date: string;
   qty: number;
-  clientName?: string;
   spk?: string;
   referenceNo?: string;
   notes?: string;
@@ -160,10 +159,10 @@ export interface OutboundListParams {
 
 export interface CreateOutboundInput {
   date: string;
-  clientName: string;
   spk: string;
   itemName: string;
-  warehouseType: WarehouseType;
+  // Defaults to BAHAN_BAKU on the API; WIP and Barang Jadi are not handled by the FE yet.
+  warehouseType?: WarehouseType;
   recipientType: RecipientType;
   notes?: string;
   lines: { itemId: number; qty: number; pic: string }[];
