@@ -45,7 +45,7 @@ describe('RekapDokubah', () => {
     const write = stubPrint();
     render(<RekapDokubah />);
     await screen.findByText('SPK-1');
-    fireEvent.click(screen.getByTitle('Print Data ke PDF'));
+    fireEvent.click(screen.getByTitle('Print PDF'));
     expect(write.mock.calls[0][0]).toContain('halaman ini (1 dari 45 data)');
   });
 
@@ -84,14 +84,14 @@ describe('RekapDokubah', () => {
     render(<RekapDokubah />);
     await screen.findByText('SPK-2');
 
-    fireEvent.click(screen.getByTitle('Print Data ke PDF'));
+    fireEvent.click(screen.getByTitle('Print PDF'));
     let html = write.mock.calls[0][0] as string;
     expect(html).not.toContain('<script>');
     expect(html).toContain('&lt;script&gt;');
     expect(html).toContain('SPK-3');
 
     fireEvent.click(screen.getAllByRole('checkbox')[2]); // SPK-2
-    fireEvent.click(screen.getByTitle('Print Data ke PDF'));
+    fireEvent.click(screen.getByTitle('Print PDF'));
     html = write.mock.calls[1][0] as string;
     expect(html).toContain('SPK-2');
     expect(html).not.toContain('SPK-1');

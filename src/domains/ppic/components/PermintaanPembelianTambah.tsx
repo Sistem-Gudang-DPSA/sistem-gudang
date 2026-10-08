@@ -5,10 +5,11 @@ import { useCan } from '@/domains/auth/user-context';
 import NoPermission from './NoPermission';
 import { ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { createPurchaseRequest, resubmitApproval } from '@/domains/ppic/api';
+import { createPurchaseRequest, resubmitApproval, listTrackingSpk } from '@/domains/ppic/api';
 import type { PermintaanPembelian } from '@/domains/ppic/data/pembelian';
 import { todayIso } from '@/domains/inventory/date';
 import { ApiError } from '@/shared/lib/api-client';
+import { useApiData } from '@/shared/lib/use-api-data';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 
 const emptyRow = { namaBarang: "", qty: "", satuan: "", proyek: "", noSpk: "" };
@@ -30,6 +31,9 @@ export default function TambahPermintaanPembelianPPIC({ permintaan }: { perminta
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  // Server errors per row, keyed by the row index in tableData.
+  const [rowErrors, setRowErrors] = useState<Record<number, string>>({});
+  const { data: spkList } = useApiData(() => listTrackingSpk(), 'spk', 'Gagal memuat daftar SPK.');
 
   const handleChange = (index: number, field: keyof typeof emptyRow, value: string) => {
     setTableData((prev) => prev.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
@@ -48,6 +52,7 @@ export default function TambahPermintaanPembelianPPIC({ permintaan }: { perminta
     }
     setSaving(true);
     setError("");
+    setRowErrors({});
     try {
       const payload = {
         bagian,
@@ -61,6 +66,16 @@ export default function TambahPermintaanPembelianPPIC({ permintaan }: { perminta
       else await createPurchaseRequest(payload);
       router.push('/dashboard/ppic/transaksi/permintaan-pembelian');
     } catch (err) {
+      if (err instanceof ApiError && err.errors) {
+        // The API indexes errors by the submitted (filled) rows; map them back to table rows.
+        const filledIndexes = tableData.flatMap((row, i) => (Object.values(row).some(Boolean) ? [i] : []));
+        const mapped: Record<number, string> = {};
+        for (const [key, msgs] of Object.entries(err.errors)) {
+          const m = /^items\.(\d+)\.noSpk$/.exec(key);
+          if (m) mapped[filledIndexes[Number(m[1])]] = msgs[0];
+        }
+        setRowErrors(mapped);
+      }
       setError(err instanceof ApiError ? err.message : "Gagal mengirim permintaan pembelian.");
     } finally {
       setSaving(false);
@@ -157,7 +172,10 @@ export default function TambahPermintaanPembelianPPIC({ permintaan }: { perminta
                         <input type="text" value={row.proyek} maxLength={191} placeholder="Isi nama proyek" onChange={(e) => handleChange(i, 'proyek', e.target.value)} className="w-full h-full px-4 text-center bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 placeholder-gray-300 not-italic" />
                       </td>
                       <td className="p-0">
-                        <input type="text" value={row.noSpk} maxLength={100} placeholder="000/SPK/..." onChange={(e) => handleChange(i, 'noSpk', e.target.value)} className="w-full h-full px-4 text-center bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 placeholder-gray-300 not-italic" />
+                        <select aria-label="No SPK" value={row.noSpk} onChange={(e) => handleChange(i, 'noSpk', e.target.value)} title={rowErrors[i]} className={`w-full h-full px-2 text-center bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 not-italic ${rowErrors[i] ? 'ring-1 ring-inset ring-red-500 text-red-600' : ''}`}>
+                          <option value="">Pilih SPK</option>
+                          {(spkList ?? []).map((s) => <option key={s.noSpk} value={s.noSpk}>{s.noSpk}</option>)}
+                        </select>
                       </td>
                     </tr>
                   ))}
@@ -169,6 +187,7 @@ export default function TambahPermintaanPembelianPPIC({ permintaan }: { perminta
 
         {/* Submit Action */}
         {error && <p className="text-sm text-red-500 text-right mb-3">{error}</p>}
+        {Object.entries(rowErrors).map(([i, msg]) => <p key={i} className="text-sm text-red-500 text-right mb-1">Baris {Number(i) + 1}: {msg}</p>)}
         <div className="flex justify-end w-full">
           <button onClick={handleSubmit} disabled={saving} className="disabled:opacity-60 px-8 py-2.5 bg-[#ff8a00] text-white rounded-lg hover:bg-[#eb7d00] transition-all duration-200 font-semibold text-[14px] shadow-sm hover:shadow-md hover:-translate-y-0.5">
             {saving ? 'Mengirim...' : permintaan ? 'Kirim Ulang' : 'Submit'}

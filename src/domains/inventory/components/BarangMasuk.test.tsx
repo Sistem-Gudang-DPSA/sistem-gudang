@@ -10,12 +10,13 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/gudang/barang-masuk',
 }));
 
+const tracking = { 'GET /api/v1/tracking/spk': [{ noSpk: 'SPK-1', client: 'Budi' }] };
 const inbound = (id: number, over = {}) => ({ id, date: '2026-03-05T00:00:00.000Z', itemCode: `BRG-${id}`, itemName: `Triplex ${id}`, supplierName: 'PT Kayu', clientName: null, source: 'SUPPLIER', qtyArrived: 10, qtyPurchased: 12, ...over });
 const items = paged([{ id: 1, code: 'BRG-1', name: 'Triplex 1' }]);
 const suppliers = paged([{ id: 7, name: 'PT Kayu' }]);
 
 function setup(extra: Record<string, unknown> = {}, rows: unknown = paged([inbound(1), inbound(2, { supplierName: null, source: 'KLIEN', clientName: 'Budi' })])) {
-  const api = installFakeApi({ 'GET /api/v1/inbound': rows, 'GET /api/v1/items': items, 'GET /api/v1/suppliers': suppliers, ...extra });
+  const api = installFakeApi({ 'GET /api/v1/inbound': rows, 'GET /api/v1/items': items, 'GET /api/v1/suppliers': suppliers, ...tracking, ...extra });
   const view = render(<BarangMasuk />);
   return { api, view };
 }
@@ -137,6 +138,7 @@ describe('BarangMasuk create return', () => {
     await waitFor(() => expect(api.calls('GET /api/v1/items').length).toBeGreaterThan(0));
     fireEvent.click(screen.getByText('Barang Kembali'));
     await screen.findByText('FORM BARANG KEMBALI');
+    await screen.findByText('SPK-1 - Budi', { selector: 'option' });
   }
 
   it('validates, enforces limits and posts', async () => {
@@ -145,24 +147,19 @@ describe('BarangMasuk create return', () => {
     fireEvent.click(screen.getByText('Simpan'));
     expect(screen.getByText('Barang, tanggal, dan jumlah wajib diisi.')).not.toBeNull();
 
-    const byLabel = (l: string) => screen.getByText(l).parentElement!.querySelector('input') as HTMLInputElement;
-    const client = byLabel('Nama Klien (opsional)');
-    const spk = byLabel('SPK (opsional)');
-    expect(client.maxLength).toBe(191);
-    expect(spk.maxLength).toBe(100);
-    expect(client).toBeTruthy();
-    expect(spk).toBeTruthy();
+    const spk = screen.getByText('SPK (opsional)').parentElement!.querySelector('select') as HTMLSelectElement;
+    expect(screen.queryByText('Nama Klien (opsional)')).toBeNull();
     const qty = screen.getByPlaceholderText('0') as HTMLInputElement;
     fireEvent.change(qty, { target: { value: '-3.e4' } });
     expect(qty.value).toBe('34');
 
     fireEvent.change(textbox('Isi Nama Barang'), { target: { value: 'Triplex 1' } });
-    fireEvent.change(client, { target: { value: 'Budi' } });
     fireEvent.change(spk, { target: { value: 'SPK-1' } });
     fireEvent.click(screen.getByText('Simpan'));
     await waitFor(() => expect(api.calls('POST /api/v1/inbound/returns').length).toBe(1));
     const body = api.calls('POST /api/v1/inbound/returns')[0].body as Record<string, unknown>;
-    expect(body).toMatchObject({ itemId: 1, qty: 34, clientName: 'Budi', spk: 'SPK-1' });
+    expect(body).toMatchObject({ itemId: 1, qty: 34, spk: 'SPK-1' });
+    expect(body).not.toHaveProperty('clientName');
     await waitFor(() => expect(screen.queryByText('FORM BARANG KEMBALI')).toBeNull());
   });
 
@@ -174,7 +171,6 @@ describe('BarangMasuk create return', () => {
     fireEvent.click(screen.getByText('Simpan'));
     expect(await screen.findByText('Stok tidak valid')).not.toBeNull();
     const body = api.calls('POST /api/v1/inbound/returns')[0].body as Record<string, unknown>;
-    expect(body.clientName).toBeUndefined();
     expect(body.spk).toBeUndefined();
     expect(screen.getByText('FORM BARANG KEMBALI')).not.toBeNull();
   });

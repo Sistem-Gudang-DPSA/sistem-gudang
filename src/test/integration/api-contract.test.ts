@@ -46,6 +46,8 @@ const UNUSED_ALLOWLIST: Record<string, string> = {
   "patch /api/v1/material-requests/{param}/status": "not needed yet",
   "get /api/v1/reports/inbound/{param}": "not needed yet",
   "get /api/v1/reports/outbound/{param}": "not needed yet",
+  "post /api/v1/items/categories": "no add-new-option UI yet, the item form only picks from the list",
+  "post /api/v1/items/units": "no add-new-option UI yet, the item form only picks from the list",
   "get /health": "infra health check, not an FE call",
 };
 
