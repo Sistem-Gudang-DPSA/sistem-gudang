@@ -1,10 +1,10 @@
 "use client";
 
 import { useCan } from '@/domains/auth/user-context';
-import React, { useEffect, useState } from 'react';
-import { Search, Plus, Filter, Edit2 } from 'lucide-react';
-import { adjustItemStock, assignItemLocation, listItems, listLocations, suggestItemCode } from '@/domains/inventory/api';
-import type { ItemListRow, Location } from '@/domains/inventory/types';
+import React, { useEffect, useRef, useState } from 'react';
+import { Search, Filter, Edit2 } from 'lucide-react';
+import { adjustItemStock, assignItemLocation, listItemCategories, listItemUnits, listItems, listLocations, suggestItemCode, updateItem } from '@/domains/inventory/api';
+import type { ItemListRow, Location, UpdateItemInput } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
 import type { Supplier } from '@/domains/purchasing/types';
 import { ApiError } from '@/shared/lib/api-client';
@@ -12,56 +12,62 @@ import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { ExportExcellButton } from '@/components/ui/Tombol';
 import { ImportExcelButton } from '@/components/ui/ImportExcelButton';
-import { importMasterData } from '../api';
+import ImportBarangMapping from './ImportBarangMapping';
+import BarangFilterPanel, { countActiveFilters, emptyBarangFilters, toItemFilterParams } from './BarangFilterPanel';
+import SortableTh, { useSort } from '@/shared/components/SortableTh';
+import EditModeBar, { useBatchEdit } from '@/shared/components/EditModeBar';
+// Supplier, kategori, satuan dan lokasi dipetakan di langkah kedua (ImportBarangMapping), bukan di Excel.
 export type MasterDataImportRow = {
-  InformasiBarang: string;
-  Supplier: string;
-  Stok: number;
-  Satuan: string;
-  Kategori: string;   // 'YYYY-MM-DD'
-  Lokasi: string;
+  code: string;
+  name: string;
+  detail: string;
+  price: number;
+  stock: number;
 };
 
-export const mstrDataTemplateHeaders = ['Informasi Barang', 'Supplier', 'Stok', 'Satuan', 'Kategori', 'Lokasi'];
-export const mstrDataTemplateExample = ['BB 18', 'PT Makmur', 100, 'lembar', 'Lembaran', 'A01'];
+export const mstrDataTemplateHeaders = ['Nama Barang', 'Kode Barang', 'Detail Barang', 'Harga', 'Stok'];
+export const mstrDataTemplateExample = ['Light Green', 'TH 039 AA', 'TACO TH', 150000, 31.5];
 
-// const toDateString = (v: unknown, label: string, rowNumber: number) => {
-//   const d = v instanceof Date ? v : new Date(String(v));
-//   if (Number.isNaN(d.getTime())) throw new Error(`Baris ${rowNumber}: ${label} tidak valid`);
-//   return d.toISOString().slice(0, 10);
-// };
+const text = (v: unknown) => String(v ?? '').trim();
+// Kosong dianggap 0; angka tidak valid atau negatif ditolak. Stok maks 2 desimal (kolom BE decimal(14,2)), harga bilangan bulat.
+const amount = (v: unknown, label: string, rowNumber: number, decimals: 0 | 2) => {
+  const n = v === '' || v == null ? 0 : Number(v);
+  if (!Number.isFinite(n) || n < 0) throw new Error(`Baris ${rowNumber}: ${label} tidak valid`);
+  const f = 10 ** decimals;
+  return Math.round(n * f) / f;
+};
 
 export function MasterData(r: Record<string, unknown>, rowNumber: number): MasterDataImportRow {
-  const InformasiBarang = String(r['Informasi Barang'] ?? '').trim();
-  const Supplier = String(r['Supplier'] ?? '').trim();
-  const stokRaw = r['Stok'];
-  const Stok = stokRaw === '' || stokRaw == null ? NaN : Number(stokRaw);
-  const Satuan = String(r['Satuan'] ?? '').trim();
-  const Kategori = String(r['Kategori'] ?? '').trim();
-  const Lokasi = String(r['Lokasi'] ?? '').trim();
-
-  if (!InformasiBarang) throw new Error(`Baris ${rowNumber}: Informasi Barang wajib diisi`);
-  if (!Supplier) throw new Error(`Baris ${rowNumber}: Supplier wajib diisi`);
-  if (Number.isNaN(Stok) || Stok < 0) throw new Error(`Baris ${rowNumber}: Stok tidak valid`);
-  if (!Satuan) throw new Error(`Baris ${rowNumber}: Satuan wajib diisi`);
-  if (!Kategori) throw new Error(`Baris ${rowNumber}: Kategori wajib diisi`);
-  if (!Lokasi) throw new Error(`Baris ${rowNumber}: Lokasi wajib diisi`);
-
-  return { InformasiBarang, Supplier, Stok, Satuan, Kategori, Lokasi };
+  const name = text(r['Nama Barang']);
+  if (!name) throw new Error(`Baris ${rowNumber}: Nama Barang wajib diisi`);
+  return {
+    code: text(r['Kode Barang']),
+    name,
+    detail: text(r['Detail Barang']),
+    price: amount(r['Harga'], 'Harga', rowNumber, 0),
+    stock: amount(r['Stok'], 'Stok', rowNumber, 2),
+  };
 }
 
 export default function DataBarangGudang() {
   const canCreate = useCan('item.create');
   const canAssign = useCan('item.assign-location');
   const canAdjust = useCan('item.adjust-stock');
+  const canUpdate = useCan('item.update');
+  const canSetPrice = useCan('item.set-price');
+  const canSetSupplier = useCan('item.set-supplier');
+  const { sort, toggle, params: sortParams } = useSort();
+  const edit = useBatchEdit();
+  const seen = useRef(new Map<number, ItemListRow>()); // semua baris yang pernah tampil, untuk menyimpan perubahan dari halaman lain
+  const [filters, setFilters] = useState(emptyBarangFilters);
+  const [showFilter, setShowFilter] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [activeItem, setActiveItem] = useState<ItemListRow | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [modalData, setModalData] = useState({ locationId: "", code: "" });
-  const [saving, setSaving] = useState(false);
-  const [modalError, setModalError] = useState("");
+  const [categories, setCategories] = useState<string[]>([]);
+  const [units, setUnits] = useState<string[]>([]);
+  const [pendingImport, setPendingImport] = useState<MasterDataImportRow[]>([]);
+  const [importNote, setImportNote] = useState('');
 
   const [isStockModalOpen, setIsStockModalOpen] = useState(false);
   const [stockItem, setStockItem] = useState<ItemListRow | null>(null);
@@ -70,64 +76,53 @@ export default function DataBarangGudang() {
   const [stockSaving, setStockSaving] = useState(false);
   const [stockError, setStockError] = useState("");
 
-  const filterKey = JSON.stringify([searchQuery]);
+  const filterKey = JSON.stringify([searchQuery, filters, sortParams]);
   const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
   const page = pageState.key === filterKey ? pageState.page : 1;
   const setPage = (next: number) => setPageState({ key: filterKey, page: next });
   const { data: loaded, loading, error, reload } = useApiData(
-    () => listItems({ page, pageSize: 20, search: searchQuery || undefined }),
+    () => listItems({ page, pageSize: 20, search: searchQuery || undefined, ...toItemFilterParams(filters), ...sortParams }),
     `${filterKey}|${page}`,
     "Gagal memuat data barang.",
   );
   const dataBarang = loaded?.rows ?? [];
   const total = loaded?.total ?? 0;
+  useEffect(() => {
+    loaded?.rows.forEach((r) => seen.current.set(r.id, r));
+  }, [loaded]);
 
   useEffect(() => {
     listLocations().then((res) => setLocations(res.rows)).catch(() => {});
     listSuppliers().then((res) => setSuppliers(res.rows)).catch(() => {});
+    listItemCategories().then((res) => setCategories(res.map((c) => c.name))).catch(() => {});
+    listItemUnits().then((res) => setUnits(res.map((u) => u.name))).catch(() => {});
   }, []);
 
-  const supplierName = (id: number) => suppliers.find((s) => s.id === id)?.name ?? '-';
+  const supplierName = (id: number | null) => suppliers.find((s) => s.id === id)?.name ?? '-';
   const locationCode = (id: number | null) => (id === null ? '-' : locations.find((loc) => loc.id === id)?.code ?? `#${id}`);
 
-  const openAssignModal = (item: ItemListRow) => {
-    setActiveItem(item);
-    setModalData({ locationId: "", code: "" });
-    setModalError("");
-    setIsModalOpen(true);
-  };
-
-  const handlePilihLokasi = async (locationId: string) => {
-    setModalData({ locationId, code: "" });
-    if (!activeItem || !locationId) return;
-    try {
-      const suggestion = await suggestItemCode(activeItem.id, Number(locationId));
-      setModalData({ locationId, code: suggestion.code });
-    } catch (err) {
-      setModalError(err instanceof ApiError ? err.message : "Gagal mengambil saran kode.");
-    }
-  };
-
-  const handleSimpanLokasi = async () => {
-    if (!activeItem || !modalData.locationId || !modalData.code) {
-      setModalError("Pilih lokasi dan pastikan kode terisi.");
-      return;
-    }
-    setSaving(true);
-    setModalError("");
-    try {
-      await assignItemLocation(activeItem.id, {
-        code: modalData.code,
-        locationId: Number(modalData.locationId),
-      });
-      reload();
-      setIsModalOpen(false);
-    } catch (err) {
-      setModalError(err instanceof ApiError ? err.message : "Gagal menyimpan lokasi barang.");
-    } finally {
-      setSaving(false);
-    }
-  };
+  // Simpan perubahan satu barang: data master lewat PUT /items/:id, lokasi lewat assign-location.
+  // Kode barang yang sudah ada (mis. kode resmi hasil import) dipertahankan; hanya barang tanpa kode yang memakai saran kode.
+  const simpanSemua = () =>
+    edit.save(async (id, patch) => {
+      const row = seen.current.get(id);
+      if (!row) return;
+      const input: UpdateItemInput = {};
+      if ('name' in patch) input.name = patch.name.trim();
+      if ('detail' in patch) input.detail = patch.detail.trim() || null;
+      if ('category' in patch) input.category = patch.category;
+      if ('unit' in patch) input.unit = patch.unit;
+      if ('price' in patch) input.price = Number(patch.price);
+      if ('supplierId' in patch) input.supplierId = patch.supplierId === '' ? null : Number(patch.supplierId);
+      if (input.name === '') throw new Error('Nama barang wajib diisi.');
+      if (input.price !== undefined && (!Number.isInteger(input.price) || input.price < 0)) throw new Error('Harga harus bilangan bulat 0 atau lebih.');
+      if (Object.keys(input).length > 0) await updateItem(id, input);
+      if ('locationId' in patch && patch.locationId) {
+        const locationId = Number(patch.locationId);
+        const code = row.code ?? (await suggestItemCode(id, locationId)).code;
+        await assignItemLocation(id, { code, locationId });
+      }
+    }, reload);
 
   const openStockModal = (item: ItemListRow) => {
     setStockItem(item);
@@ -218,24 +213,52 @@ export default function DataBarangGudang() {
                     templateFilename="Template_Import_Barang.xlsx"
                     parseRow={MasterData}
                     previewColumns={[
-                        { header: 'Informasi Barang', value: (r) => r.InformasiBarang },
-                        { header: 'Supplier', value: (r) => r.Supplier },
-                        { header: 'Stok', value: (r) => r.Stok },
-                        { header: 'Satuan', value: (r) => r.Satuan },
-                        { header: 'Kategori', value: (r) => r.Kategori },
-                        { header: 'Lokasi', value: (r) => r.Lokasi },
+                        { header: 'Nama Barang', value: (r) => r.name },
+                        { header: 'Kode Barang', value: (r) => r.code },
+                        { header: 'Detail Barang', value: (r) => r.detail },
+                        { header: 'Harga', value: (r) => r.price },
+                        { header: 'Stok', value: (r) => r.stock },
                     ]}
-                    onSave={importMasterData}
-                    onSuccess={() => reload()}
+                    saveLabel="Lanjut ke Mapping"
+                    onSave={async (rows) => setPendingImport(rows)}
                     />
                 )}
             <ExportExcellButton onClick={handleExportExcel} />
-            <button className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">
+            {(canUpdate || canAssign) && <EditModeBar editing={edit.editing} dirty={edit.dirty} saving={edit.saving} onToggle={edit.toggle} onSave={simpanSemua} onCancel={edit.cancel} />}
+            <button
+              type="button"
+              onClick={() => setShowFilter((v) => !v)}
+              aria-expanded={showFilter}
+              className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors text-sm font-medium ${showFilter || countActiveFilters(filters) > 0 ? 'bg-orange-50 border-orange-300 text-orange-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+            >
               <Filter className="w-4 h-4" />
-              <span>Filter</span>
+              <span>Filter{countActiveFilters(filters) > 0 ? ` (${countActiveFilters(filters)})` : ''}</span>
             </button>
           </div>
         </div>
+
+        {showFilter && (
+          <BarangFilterPanel
+            value={filters}
+            onChange={setFilters}
+            categories={categories}
+            units={units}
+            suppliers={suppliers}
+            locations={locations}
+          />
+        )}
+
+        {pendingImport.length > 0 && (
+          <ImportBarangMapping
+            rows={pendingImport}
+            canSetSupplier={canSetSupplier}
+            options={{ suppliers: suppliers.map((x) => x.name), categories, units, locations: locations.map((l) => l.code) }}
+            onClose={() => setPendingImport([])}
+            onDone={(note) => { setPendingImport([]); setImportNote(note); reload(); }}
+          />
+        )}
+
+        {importNote && <div className="mx-5 mt-5 p-3 bg-green-50 text-green-700 text-sm rounded-lg">{importNote}</div>}
 
         {error && (
           <div className="mx-5 mt-5 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>
@@ -247,41 +270,69 @@ export default function DataBarangGudang() {
             <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
               <tr>
                 <th scope="col" className="px-6 py-4">No</th>
-                <th scope="col" className="px-6 py-4">Informasi Barang</th>
-                <th scope="col" className="px-6 py-4">Supplier</th>
-                <th scope="col" className="px-6 py-4">Stok & Satuan</th>
-                <th scope="col" className="px-6 py-4">Kategori</th>
-                <th scope="col" className="px-6 py-4">Lokasi</th>
-                <th scope="col" className="px-6 py-4 text-center">Aksi</th>
+                <SortableTh label="Informasi Barang" sortKey="name" sort={sort} onSort={toggle} />
+                <SortableTh label="Detail" sortKey="detail" sort={sort} onSort={toggle} />
+                <SortableTh label="Supplier" sortKey="supplierName" sort={sort} onSort={toggle} />
+                <SortableTh label="Stok & Satuan" sortKey="stock" sort={sort} onSort={toggle} />
+                <SortableTh label="Kategori" sortKey="category" sort={sort} onSort={toggle} />
+                <SortableTh label="Harga" sortKey="price" sort={sort} onSort={toggle} />
+                <SortableTh label="Lokasi" sortKey="locationCode" sort={sort} onSort={toggle} />
+                {canAdjust && <th scope="col" className="px-6 py-4 text-center">Aksi</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody>
               {loading && (
-                <tr><td colSpan={7} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
+                <tr><td colSpan={9} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
               )}
               {!loading && dataBarang.length === 0 && (
-                <tr><td colSpan={7} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
+                <tr><td colSpan={9} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
               )}
-              {!loading && dataBarang.map((item, index) => (
-                <tr key={item.id} className="hover:bg-[#FF8A00]/5 transition-colors group">
-                  <td className="px-6 py-4 text-gray-500">{index + 1}</td>
+              {!loading && dataBarang.map((item, index) => {
+                const v = (key: string, original: string) => edit.value(item.id, key, original);
+                const setF = (key: string, original: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => edit.set(item.id, key, e.target.value, original);
+                const cell = 'w-full min-w-28 border border-gray-200 rounded-lg py-1.5 px-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500';
+                const supplierId = item.supplierId === null ? '' : String(item.supplierId);
+                const locationId = item.locationId === null ? '' : String(item.locationId);
+                const editableLokasi = edit.editing && canAssign;
+                return (
+                <tr key={item.id} className={`${edit.isDirty(item.id) ? 'bg-amber-50' : index % 2 ? 'bg-gray-50' : 'bg-white'} hover:bg-[#FF8A00]/5 transition-colors group`}>
+                  <td className="px-6 py-4 text-gray-500">{(page - 1) * 20 + index + 1}</td>
 
                   {/* Informasi Barang */}
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
-                      <span className="font-bold text-gray-900">{item.name}</span>
+                      {edit.editing && canUpdate ? (
+                        <input aria-label={`Nama ${item.name}`} className={cell} maxLength={191} value={v('name', item.name)} onChange={setF('name', item.name)} />
+                      ) : (
+                        <span className="font-bold text-gray-900">{item.name}</span>
+                      )}
                       <span className="text-xs font-mono text-gray-500 mt-0.5">{item.code ?? '-'}</span>
+                      {edit.errors[item.id] && <span className="text-xs text-red-600 mt-0.5 whitespace-normal">{edit.errors[item.id]}</span>}
                     </div>
+                  </td>
+
+                  {/* Detail */}
+                  <td className="px-6 py-4 text-gray-600">
+                    {edit.editing && canUpdate ? (
+                      <input aria-label={`Detail ${item.name}`} className={cell} maxLength={255} value={v('detail', item.detail ?? '')} onChange={setF('detail', item.detail ?? '')} />
+                    ) : (item.detail || '-')}
                   </td>
 
                   {/* Supplier */}
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <div className="w-6 h-6 rounded-md bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500">
-                        {supplierName(item.supplierId).charAt(0)}
+                    {edit.editing && canSetSupplier ? (
+                      <select aria-label={`Supplier ${item.name}`} className={cell} value={v('supplierId', supplierId)} onChange={setF('supplierId', supplierId)}>
+                        <option value="">Belum ada supplier</option>
+                        {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                    ) : (
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <div className="w-6 h-6 rounded-md bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500">
+                          {supplierName(item.supplierId).charAt(0)}
+                        </div>
+                        <span>{supplierName(item.supplierId)}</span>
                       </div>
-                      <span>{supplierName(item.supplierId)}</span>
-                    </div>
+                    )}
                   </td>
 
                   {/* Stok & Satuan */}
@@ -290,117 +341,73 @@ export default function DataBarangGudang() {
                        <span className={`font-bold ${item.stock < 20 ? 'text-red-600' : item.stock < 50 ? 'text-amber-600' : 'text-gray-800'}`}>
                          {item.stock}
                        </span>
-                       <span className="text-gray-500 text-xs bg-gray-100 px-2 py-0.5 rounded-md">{item.unit}</span>
+                       {edit.editing && canUpdate ? (
+                         <select aria-label={`Satuan ${item.name}`} className={`${cell} min-w-24`} value={v('unit', item.unit)} onChange={setF('unit', item.unit)}>
+                           {[...new Set([item.unit, ...units])].map((u) => <option key={u} value={u}>{u}</option>)}
+                         </select>
+                       ) : (
+                         <span className="text-gray-500 text-xs bg-gray-100 px-2 py-0.5 rounded-md">{item.unit}</span>
+                       )}
                     </div>
                   </td>
 
                   {/* Kategori */}
                   <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getCategoryColor(item.category)}`}>
-                      {item.category || '-'}
-                    </span> 
+                    {edit.editing && canUpdate ? (
+                      <select aria-label={`Kategori ${item.name}`} className={cell} value={v('category', item.category)} onChange={setF('category', item.category)}>
+                        {[...new Set([item.category, ...categories])].map((c) => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    ) : (
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getCategoryColor(item.category)}`}>
+                        {item.category || '-'}
+                      </span>
+                    )}
                   </td>
 
-                  {/* Lokasi */}
+                  {/* Harga */}
+                  <td className="px-6 py-4 text-gray-700">
+                    {edit.editing && canSetPrice ? (
+                      <input aria-label={`Harga ${item.name}`} inputMode="numeric" className={`${cell} min-w-24`} maxLength={9} value={v('price', String(item.price))} onChange={(e) => edit.set(item.id, 'price', e.target.value.replace(/\D/g, ''), String(item.price))} />
+                    ) : item.price.toLocaleString('id-ID')}
+                  </td>
+
+                  {/* Lokasi: dipilih langsung di barisnya */}
                   <td className="px-6 py-4">
-                    <span className="inline-flex items-center gap-1 text-gray-600 font-medium">
-                      <div className="w-1.5 h-1.5 rounded-full bg-[#FF8A00]"></div>
-                      {locationCode(item.locationId)}
-                    </span>
+                    {editableLokasi ? (
+                      <select aria-label={`Lokasi ${item.name}`} className={cell} value={v('locationId', locationId)} onChange={setF('locationId', locationId)}>
+                        {item.locationId === null && <option value="">Belum ada lokasi</option>}
+                        {locations.map((loc) => <option key={loc.id} value={loc.id} title={loc.description ?? undefined}>{loc.description ? `${loc.code} · ${loc.description}` : loc.code}</option>)}
+                      </select>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-gray-600 font-medium">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#FF8A00]"></div>
+                        {locationCode(item.locationId)}
+                      </span>
+                    )}
                   </td>
 
                   {/* Aksi */}
-                  <td className="px-6 py-4 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      {item.locationId === null && canAssign ? (
-                        <button
-                          onClick={() => openAssignModal(item)}
-                          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] text-xs font-bold rounded-lg hover:bg-[#FF8A00]/20 transition-all duration-200 opacity-90 group-hover:opacity-100"
-                        >
-                          <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
-                          Tambah
-                        </button>
-                      ) : null}
-                      {canAdjust && <button
+                  {canAdjust && (
+                    <td className="px-6 py-4 text-center">
+                      <button
                         onClick={() => openStockModal(item)}
                         className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-100 transition-all duration-200 opacity-90 group-hover:opacity-100"
                         title="Sesuaikan stok"
                       >
                         <Edit2 className="w-3.5 h-3.5" strokeWidth={2.5} />
                         Stok
-                      </button>}
-                    </div>
-                  </td>
+                      </button>
+                    </td>
+                  )}
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
 
         <Pagination page={page} pageSize={20} total={total} onPageChange={setPage} />
       </div>
-
-      {/* Modal Tambah Lokasi */}
-      {isModalOpen && activeItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl w-full max-w-lg p-6 sm:p-8 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-900 uppercase tracking-wide">
-                TAMBAH LOKASI · {activeItem.name}
-              </h2>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-6 mb-6">
-              <div className="flex-1">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Lokasi</label>
-                <select
-                  className="w-full border border-gray-200 bg-gray-50/50 rounded-xl py-2.5 pl-4 pr-10 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] focus:bg-white appearance-none text-sm transition-all duration-200"
-                  value={modalData.locationId}
-                  onChange={(e) => handlePilihLokasi(e.target.value)}
-                >
-                  <option value="" disabled>Pilih Lokasi</option>
-                  {locations.map((loc) => (
-                    <option key={loc.id} value={loc.id}>{loc.code}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex-1">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Kode Barang</label>
-                <input
-                  type="text"
-                  placeholder="Kode akan disarankan otomatis"
-                  className="w-full border border-gray-200 bg-gray-50/50 rounded-xl py-2.5 px-4 text-gray-700 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] focus:bg-white transition-all duration-200"
-                  value={modalData.code}
-                  maxLength={191}
-                  onChange={(e) => setModalData({ ...modalData, code: e.target.value })}
-                />
-              </div>
-            </div>
-
-            {modalError && (
-              <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{modalError}</div>
-            )}
-
-            <div className="flex justify-end gap-3 mt-4">
-              <button
-                onClick={handleSimpanLokasi}
-                disabled={saving}
-                className="px-6 py-2.5 bg-[#FF8A00] text-white font-medium rounded-xl hover:bg-[#E67A00] shadow-sm shadow-[#FF8A00]/20 transition-all text-sm disabled:opacity-60"
-              >
-                {saving ? "Menyimpan..." : "Simpan"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Modal Sesuaikan Stok */}
       {isStockModalOpen && stockItem && (
