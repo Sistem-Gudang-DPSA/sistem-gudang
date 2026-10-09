@@ -1,25 +1,33 @@
 "use client";
 
 import { useCan } from '@/domains/auth/user-context';
-import React, { useEffect, useState } from 'react';
-import { Search, Plus, Download, Filter, Edit2 } from 'lucide-react';
-import { adjustItemStock, assignItemLocation, listItems, listLocations, suggestItemCode } from '@/domains/inventory/api';
+import React, { useEffect, useRef, useState } from 'react';
+import { Search, Plus, Filter, Edit2 } from 'lucide-react';
+import { adjustItemStock, assignItemLocation, listItemCategories, listItems, listItemUnits, listLocations, suggestItemCode } from '@/domains/inventory/api';
 import type { ItemListRow, Location } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
 import type { Supplier } from '@/domains/purchasing/types';
 import { ApiError } from '@/shared/lib/api-client';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
-import { ExportExcellButton } from '@/components/ui/Tombol';
+import { ExportExcellButton } from '@/shared/components/Tombol';
+import BarangFilterPanel, { countActiveFilters, emptyBarangFilters, toItemFilterParams } from '@/domains/superadmin/components/BarangFilterPanel';
+import SortableTh, { useSort } from '@/shared/components/SortableTh';
 
 export default function DataBarangGudang() {
   const canAssign = useCan('item.assign-location');
   const canAdjust = useCan('item.adjust-stock');
+  const { sort, toggle, params: sortParams } = useSort();
+  const seen = useRef(new Map<number, ItemListRow>());
+  const [filters, setFilters] = useState(emptyBarangFilters);
+  const [showFilter, setShowFilter] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeItem, setActiveItem] = useState<ItemListRow | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [units, setUnits] = useState<string[]>([]);
   const [modalData, setModalData] = useState({ locationId: "", code: "" });
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState("");
@@ -32,12 +40,12 @@ export default function DataBarangGudang() {
   const [stockSaving, setStockSaving] = useState(false);
   const [stockError, setStockError] = useState("");
 
-  const filterKey = JSON.stringify([searchQuery]);
+  const filterKey = JSON.stringify([searchQuery, filters, sortParams]);
   const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
   const page = pageState.key === filterKey ? pageState.page : 1;
   const setPage = (next: number) => setPageState({ key: filterKey, page: next });
   const { data: loaded, loading, error, reload } = useApiData(
-    () => listItems({ page, pageSize: 20, search: searchQuery || undefined }),
+    () => listItems({ page, pageSize: 20, search: searchQuery || undefined, ...toItemFilterParams(filters), ...sortParams }),
     `${filterKey}|${page}`,
     "Gagal memuat data barang.",
   );
@@ -45,8 +53,14 @@ export default function DataBarangGudang() {
   const total = loaded?.total ?? 0;
 
   useEffect(() => {
+    loaded?.rows.forEach((r) => seen.current.set(r.id, r));
+  }, [loaded]);
+
+  useEffect(() => {
     listLocations().then((res) => setLocations(res.rows)).catch(() => {});
     listSuppliers().then((res) => setSuppliers(res.rows)).catch(() => {});
+    listItemCategories().then((res) => setCategories(res.map((c) => c.name))).catch(() => {});
+    listItemUnits().then((res) => setUnits(res.map((u) => u.name))).catch(() => {});
   }, []);
 
   const supplierName = (id: number | null) => suppliers.find((s) => s.id === id)?.name ?? '-';
@@ -174,12 +188,28 @@ export default function DataBarangGudang() {
           </div>
           <div className="flex items-center gap-2">
             <ExportExcellButton onClick={handleExportExcel} />
-            <button className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">
+            <button
+              type="button"
+              onClick={() => setShowFilter((v) => !v)}
+              aria-expanded={showFilter}
+              className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors text-sm font-medium ${showFilter || countActiveFilters(filters) > 0 ? 'bg-orange-50 border-orange-300 text-orange-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+            >
               <Filter className="w-4 h-4" />
-              <span>Filter</span>
-            </button>
+              <span>Filter{countActiveFilters(filters) > 0 ? ` (${countActiveFilters(filters)})` : ''}</span>
+            </button>     
           </div>
         </div>
+
+        {showFilter && (
+          <BarangFilterPanel
+            value={filters}
+            onChange={setFilters}
+            categories={categories}
+            units={units}
+            suppliers={suppliers}
+            locations={locations}
+          />
+        )}
 
         {error && (
           <div className="mx-5 mt-5 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>
@@ -191,20 +221,21 @@ export default function DataBarangGudang() {
             <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
               <tr>
                 <th scope="col" className="px-6 py-4">No</th>
-                <th scope="col" className="px-6 py-4">Informasi Barang</th>
-                <th scope="col" className="px-6 py-4">Supplier</th>
-                <th scope="col" className="px-6 py-4">Stok & Satuan</th>
-                <th scope="col" className="px-6 py-4">Kategori</th>
-                <th scope="col" className="px-6 py-4">Lokasi</th>
-                <th scope="col" className="px-6 py-4 text-center">Aksi</th>
+                <SortableTh label="Informasi Barang" sortKey="name" sort={sort} onSort={toggle} />
+                <SortableTh label="Detail" sortKey="detail" sort={sort} onSort={toggle} />
+                <SortableTh label="Supplier" sortKey="supplierName" sort={sort} onSort={toggle} />
+                <SortableTh label="Stok & Satuan" sortKey="stock" sort={sort} onSort={toggle} />
+                <SortableTh label="Kategori" sortKey="category" sort={sort} onSort={toggle} />
+                <SortableTh label="Lokasi" sortKey="locationCode" sort={sort} onSort={toggle} />
+                {canAdjust && <th scope="col" className="px-6 py-4 text-center">Aksi</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading && (
-                <tr><td colSpan={7} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
+                <tr><td colSpan={8} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
               )}
               {!loading && dataBarang.length === 0 && (
-                <tr><td colSpan={7} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
+                <tr><td colSpan={8} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
               )}
               {!loading && dataBarang.map((item, index) => (
                 <tr key={item.id} className="hover:bg-[#FF8A00]/5 transition-colors group">
@@ -215,6 +246,15 @@ export default function DataBarangGudang() {
                     <div className="flex flex-col">
                       <span className="font-bold text-gray-900">{item.name}</span>
                       <span className="text-xs font-mono text-gray-500 mt-0.5">{item.code ?? '-'}</span>
+                    </div>
+                  </td>
+
+                  {/* Detail Barang */}
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col">
+                      <span>
+                        
+                      </span>
                     </div>
                   </td>
 

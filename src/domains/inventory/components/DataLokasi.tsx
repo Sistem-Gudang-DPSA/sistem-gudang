@@ -3,16 +3,25 @@
 import { useCan } from '@/domains/auth/user-context';
 import React, { useState } from 'react';
 import { Search, Plus } from 'lucide-react';
-import { createLocation, deleteLocation, listLocations } from '@/domains/inventory/api';
+import { createLocation, deleteLocation, listLocations, updateLocation } from '@/domains/inventory/api';
 import { ApiError } from '@/shared/lib/api-client';
+import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import { useApiData } from '@/shared/lib/use-api-data';
+import { importLocationData } from '@/domains/superadmin/api';
+import EditModeBar, { useBatchEdit } from '@/shared/components/EditModeBar';
+
+const RAK_NAMA = ['A', 'B', 'C'];
+const RAK_NOMOR = ['01', '02', '03', '04'];
 
 export default function DataLokasiGudang() {
   const canDelete = useCan('location.delete');
   const canCreate = useCan('location.create');
+  const canUpdate = useCan('location.update');
+  const { sort, toggle, params: sortParams } = useSort();
+  const edit = useBatchEdit();
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalData, setModalData] = useState({ namaRak: "", nomerRak: "" });
+  const [modalData, setModalData] = useState({ namaRak: "", nomerRak: "", keterangan: ""});
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState("");
@@ -29,8 +38,8 @@ export default function DataLokasiGudang() {
   }, [formError, actionError]);
 
   const { data: loaded, loading, error: loadError, reload } = useApiData(
-    () => listLocations({ search: searchQuery || undefined }),
-    searchQuery,
+    () => listLocations({ search: searchQuery || undefined, ...sortParams }),
+    `${searchQuery}|${JSON.stringify(sortParams)}`,
     "Gagal memuat data lokasi.",
   );
   const dataLokasi = loaded?.rows ?? [];
@@ -44,13 +53,15 @@ export default function DataLokasiGudang() {
     setSaving(true);
     setFormError("");
     try {
-      await createLocation({
+      const input = {
         code: `${modalData.namaRak}${modalData.nomerRak}`,
         rackName: modalData.namaRak,
         rackNumber: modalData.nomerRak,
-      });
+        ...(modalData.keterangan.trim() && { description: modalData.keterangan.trim() }),
+      };
+      await createLocation(input);
       setIsModalOpen(false);
-      setModalData({ namaRak: "", nomerRak: "" });
+      setModalData({ namaRak: "", nomerRak: "", keterangan: ""});
       reload();
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "Gagal menyimpan lokasi.");
@@ -58,6 +69,16 @@ export default function DataLokasiGudang() {
       setSaving(false);
     }
   };
+
+    const simpanSemua = () =>
+      edit.save((id, patch) => {
+        const row = dataLokasi.find((l) => l.id === id);
+        if (!row) return Promise.resolve();
+        const rackName = patch.rackName ?? row.rackName;
+        const rackNumber = patch.rackNumber ?? row.rackNumber;
+        const description = 'description' in patch ? patch.description.trim() || null : undefined;
+        return updateLocation(id, { code: `${rackName}${rackNumber}`, rackName, rackNumber, ...(description !== undefined && { description }) }).then(() => undefined);
+      }, reload);
 
   const handleHapus = async (id: number) => {
       if (!window.confirm('Apakah Anda yakin ingin menghapus data ini?')) return;
@@ -70,17 +91,16 @@ export default function DataLokasiGudang() {
     };
 
   return (
-    <div className="flex flex-col bg-white min-h-screen p-6">
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       {/* Title */}
-      <div className="mb-4">
-        <h1 className="text-lg font-extrabold text-black tracking-wide">
-          DATA LOKASI
-        </h1>
+      <div className="flex flex-col justify-start mb-8 gap-2">
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1 uppercase">DATA LOKASI</h1>
+        <p className="text-gray-500 text-sm">Kelola kode lokasi rak penyimpanan beserta keterangannya.</p>
       </div>
 
-      <div className="w-full max-w-2xl">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
         {/* Toolbar */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="p-5 border-b border-gray-100 bg-gray-50/50 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="relative w-64 lg:w-72">
             <input
               type="text"
@@ -108,38 +128,66 @@ export default function DataLokasiGudang() {
         )}
 
         {/* Table */}
-        <div className="overflow-hidden w-full bg-white rounded-xl shadow-sm border border-gray-200/80">
+        <div className="overflow-hidden w-full ">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm border-collapse">
-              <thead className="bg-gray-50/80 text-gray-500 uppercase tracking-wider text-xs font-semibold border-b border-gray-200">
+            <table className="w-full text-left text-sm whitespace-nowrap">
+              <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
                 <tr>
-                  <th className="px-6 py-4 whitespace-nowrap w-1/3">Kode Lokasi</th>
-                  <th className="px-6 py-4 whitespace-nowrap w-1/3">Nama Rak</th>
-                  <th className="px-6 py-4 whitespace-nowrap w-1/3">Nomer Rak</th>
+                  <SortableTh label="Kode Lokasi" sortKey="code" sort={sort} onSort={toggle} className="px-6 py-4 w-40" />
+                  <SortableTh label="Nama Rak" sortKey="rackName" sort={sort} onSort={toggle} className="px-6 py-4 w-40" />
+                  <SortableTh label="Nomer Rak" sortKey="rackNumber" sort={sort} onSort={toggle} className="px-6 py-4 w-40" />
+                  <SortableTh label="Keterangan" sortKey="description" sort={sort} onSort={toggle} />
                   {dataLokasi.length !== 0 && (
-                    <th className="px-6 py-4 whitespace-nowrap w-1/3">Aksi</th>
+                    <th className="px-6 py-4 w-28 text-center">Aksi</th>
                   )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {loading && (
-                  <tr><td colSpan={3} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
+                  <tr><td colSpan={5} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
                 )}
                 {!loading && dataLokasi.length === 0 && (
-                  <tr><td colSpan={3} className="px-6 py-6 text-center text-gray-400">Belum ada data lokasi.</td></tr>
+                  <tr><td colSpan={5} className="px-6 py-6 text-center text-gray-400">Belum ada data lokasi.</td></tr>
                 )}
-                {!loading && dataLokasi.map((item) => (
-                  <tr key={item.id} className="bg-white hover:bg-orange-50/30 transition-colors duration-200">
-                    <td className="px-6 py-4 h-13 text-gray-700 font-medium">{item.code}</td>
-                    <td className="px-6 py-4 text-gray-600">{item.rackName}</td>
-                    <td className="px-6 py-4 text-gray-600">{item.rackNumber}</td>
-                    <td className="px-6 py-4 text-gray-600 ">
-                      {canDelete && <button onClick={() => handleHapus(item.id)} className=" px-3 py-1 bg-red-50 text-red-600 font-bold rounded-lg text-xs hover:bg-red-100 transition-all border border-red-100">
-                        Hapus
-                      </button>}
-                    </td>
-                  </tr>
-                ))}
+                {!loading && dataLokasi.map((item, i) => {
+                  const nama = edit.value(item.id, "rackName", item.rackName);
+                  const nomor = edit.value(item.id, "rackNumber", item.rackNumber);
+                  const sel = "w-full border border-gray-200 rounded-lg py-1.5 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
+                  return (
+                    <tr key={item.id} className={`${edit.isDirty(item.id) ? "bg-amber-50" : i % 2 ? "bg-gray-50" : "bg-white"} hover:bg-orange-50/50 transition-colors duration-200`}>
+                      <td className="px-6 py-4 h-13 text-gray-700 font-medium">
+                        {edit.editing ? `${nama}${nomor}` : item.code}
+                        {edit.errors[item.id] && <p className="text-xs font-normal text-red-600">{edit.errors[item.id]}</p>}
+                      </td>
+                      <td className="px-6 py-3 text-gray-600">
+                        {edit.editing ? (
+                          <select aria-label={`Nama rak ${item.code}`} className={sel} value={nama} onChange={(e) => edit.set(item.id, "rackName", e.target.value, item.rackName)}>
+                            {[...new Set([item.rackName, ...RAK_NAMA])].map((v) => <option key={v} value={v}>{v}</option>)}
+                          </select>
+                        ) : item.rackName}
+                      </td>
+                      <td className="px-6 py-3 text-gray-600">
+                        {edit.editing ? (
+                          <select aria-label={`Nomer rak ${item.code}`} className={sel} value={nomor} onChange={(e) => edit.set(item.id, "rackNumber", e.target.value, item.rackNumber)}>
+                            {[...new Set([item.rackNumber, ...RAK_NOMOR])].map((v) => <option key={v} value={v}>{v}</option>)}
+                          </select>
+                        ) : item.rackNumber}
+                      </td>
+                      <td className="px-6 py-3 text-gray-600 max-w-sm">
+                        {edit.editing ? (
+                          <input aria-label={`Keterangan ${item.code}`} className={sel} maxLength={255} placeholder="Opsional" value={edit.value(item.id, "description", item.description ?? "")} onChange={(e) => edit.set(item.id, "description", e.target.value, item.description ?? "")} />
+                        ) : (
+                          <span className="block truncate" title={item.description ?? undefined}>{item.description || "-"}</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-gray-600 text-center">
+                        {canDelete && <button onClick={() => handleHapus(item.id)} className=" px-3 py-1 bg-red-50 text-red-600 font-bold rounded-lg text-xs hover:bg-red-100 transition-all border border-red-100">
+                          Hapus
+                        </button>}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
