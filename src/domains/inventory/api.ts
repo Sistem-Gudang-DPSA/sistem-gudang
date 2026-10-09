@@ -104,6 +104,13 @@ export function assignItemLocation(id: number, input: { code: string; locationId
   return apiClient.put<Item>(`/api/v1/items/${id}/assign-location`, input);
 }
 
+// Multipart field `photo`; replaces any existing photo. Only Superadmin and PPIC hold `item.upload-photo`.
+export function uploadItemPhoto(id: number, file: File) {
+  const form = new FormData();
+  form.append("photo", file);
+  return apiClient.upload<Item>(`/api/v1/items/${id}/photo`, form);
+}
+
 export function adjustItemStock(id: number, input: { delta: number; reason: string }) {
   return apiClient.patch<Item>(`/api/v1/items/${id}/stock`, input);
 }

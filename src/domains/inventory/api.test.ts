@@ -16,7 +16,9 @@ const rows: Row[] = [
   ['suggestItemCode', [1, 9], 'GET /api/v1/items/1/suggest-code', { locationId: '9' }, undefined],
   ['assignItemLocation', [1, { code: 'A1', locationId: 9 }], 'PUT /api/v1/items/1/assign-location', {}, { code: 'A1', locationId: 9 }],
   ['adjustItemStock', [1, { delta: -2, reason: 'rusak' }], 'PATCH /api/v1/items/1/stock', {}, { delta: -2, reason: 'rusak' }],
-  ['listItemCategories', [], 'GET /api/v1/items/categories', {}, undefined],
+  // Multipart body (FormData) is not parsed by the fake API; ItemPhoto.test checks its contents.
+  ['uploadItemPhoto', [1, new File(['x'], 'a.png', { type: 'image/png' })], 'POST /api/v1/items/1/photo', {}, undefined],
+  ['listItemCategories', [],'GET /api/v1/items/categories', {}, undefined],
   ['listItemUnits', [], 'GET /api/v1/items/units', {}, undefined],
   ['createItemCategory', ['Kayu'], 'POST /api/v1/items/categories', {}, { name: 'Kayu' }],
   ['createItemUnit', ['Pcs'], 'POST /api/v1/items/units', {}, { name: 'Pcs' }],

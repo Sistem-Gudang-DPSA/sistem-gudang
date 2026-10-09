@@ -85,6 +85,20 @@ describe('purchasing DataBarang', () => {
 });
 
 describe('permissions', () => {
+  it('shows item photos without an upload button, even for a superadmin', async () => {
+    installFakeApi({
+      'GET /api/v1/items': paged([item(1, { photoUrl: '/uploads/items/1.jpg' }), item(2)]),
+      'GET /api/v1/suppliers': paged([]),
+      'GET /api/v1/locations': paged([]),
+    });
+    render(<AuthUserProvider user={{ id: 1, username: 'u', email: 'u@x.id', roleId: 1, roleName: 'Role', isSuperadmin: true, permissions: [] }}><DataBarang /></AuthUserProvider>);
+    await screen.findByText('Triplex 1');
+    expect(screen.getByAltText('Foto Triplex 1')).toBeTruthy();
+    expect(screen.getByLabelText('Belum ada foto Triplex 2')).toBeTruthy();
+    expect(screen.queryByText('Upload')).toBeNull();
+    expect(screen.queryByText('Ganti')).toBeNull();
+  });
+
   const user = (permissions: string[], isSuperadmin = false) => ({ id: 1, username: 'u', email: 'u@x.id', roleId: 1, roleName: 'R', isSuperadmin, permissions });
   const renderAs = (u: ReturnType<typeof user>) => {
     installFakeApi({
