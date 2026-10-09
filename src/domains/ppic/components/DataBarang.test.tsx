@@ -183,4 +183,18 @@ describe('permissions', () => {
     expect(screen.getAllByTitle('Edit Data')).toHaveLength(2);
     expect(screen.getAllByTitle('Hapus Data')).toHaveLength(2);
   });
+
+  it('only a user holding item.upload-photo can upload item photos', async () => {
+    installFakeApi(routes({}, [item(1, { photoUrl: '/uploads/items/1.jpg' }), item(2)]));
+    const { unmount } = render(withUser(<DataBarang />, ['item.view']));
+    await screen.findByText('Barang 1');
+    expect(screen.getByAltText('Foto Barang 1')).toBeTruthy();
+    expect(screen.queryByLabelText('Upload foto Barang 1')).toBeNull();
+    unmount();
+
+    render(withUser(<DataBarang />, ['item.view', 'item.upload-photo']));
+    await screen.findByText('Barang 1');
+    expect(screen.getByText('Ganti')).toBeTruthy(); // Barang 1 sudah punya foto
+    expect(screen.getByText('Upload')).toBeTruthy(); // Barang 2 belum
+  });
 });
