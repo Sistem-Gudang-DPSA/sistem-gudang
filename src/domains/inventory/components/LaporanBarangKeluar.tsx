@@ -7,7 +7,7 @@ import type { OutboundRow, RecipientType } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
-import { ExportExcellButton, PrintPdfButton } from '@/components/ui/Tombol';    
+import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';    
 
 const PAGE_SIZE = 20;
 

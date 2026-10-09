@@ -6,7 +6,7 @@ import { listMutations } from '@/domains/ppic/api';
 import { listLocations } from '@/domains/inventory/api';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
-import { ExportExcellButton, PrintPdfButton } from '@/components/ui/Tombol';
+import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';
 
 type TipeMutasi = 'Masuk' | 'Keluar';
 

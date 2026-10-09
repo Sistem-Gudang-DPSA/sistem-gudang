@@ -15,7 +15,7 @@ import {
 import { listDokubah, statusToApi } from '@/domains/ppic/api';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
-import { ExportExcellButton, PrintPdfButton } from '@/components/ui/Tombol';
+import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';
 
 export const STATUS_OPTIONS: StatusDokubah[] = ['Draft', 'Pending', 'Approved', 'Rejected'];
 

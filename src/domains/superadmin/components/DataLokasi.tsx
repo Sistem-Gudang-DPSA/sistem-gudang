@@ -11,7 +11,7 @@ const RAK_NAMA = ['A', 'B', 'C'];
 const RAK_NOMOR = ['01', '02', '03', '04'];
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
-import { ImportExcelButton } from '@/components/ui/ImportExcelButton';
+import { ImportExcelButton } from '@/shared/components/ImportExcelButton';
 import { importLocationData } from '../api';
 export type LocationDataImportRow = {
     NamaRak: string;
