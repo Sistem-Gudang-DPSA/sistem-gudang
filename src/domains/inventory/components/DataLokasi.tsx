@@ -98,7 +98,7 @@ export default function DataLokasiGudang() {
         <p className="text-gray-500 text-sm">Kelola kode lokasi rak penyimpanan beserta keterangannya.</p>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+      <div className="bg-white w-5xl rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
         {/* Toolbar */}
         <div className="p-5 border-b border-gray-100 bg-gray-50/50 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="relative w-64 lg:w-72">
@@ -128,26 +128,26 @@ export default function DataLokasiGudang() {
         )}
 
         {/* Table */}
-        <div className="overflow-hidden w-full ">
+        <div className="overflow-hidden w-full">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm whitespace-nowrap">
+            <table className="w-4xl m-auto text-left text-sm table-fixed md:table-auto">
               <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
                 <tr>
-                  <SortableTh label="Kode Lokasi" sortKey="code" sort={sort} onSort={toggle} className="px-6 py-4 w-40" />
-                  <SortableTh label="Nama Rak" sortKey="rackName" sort={sort} onSort={toggle} className="px-6 py-4 w-40" />
-                  <SortableTh label="Nomer Rak" sortKey="rackNumber" sort={sort} onSort={toggle} className="px-6 py-4 w-40" />
-                  <SortableTh label="Keterangan" sortKey="description" sort={sort} onSort={toggle} />
-                  {dataLokasi.length !== 0 && (
-                    <th className="px-6 py-4 w-28 text-center">Aksi</th>
-                  )}
+                  <SortableTh label="Kode Lokasi" sortKey="code" sort={sort} onSort={toggle} className="px-6 py-4 w-40 whitespace-nowrap" />
+                  <SortableTh label="Nama Rak" sortKey="rackName" sort={sort} onSort={toggle} className="px-6 py-4 w-40 whitespace-nowrap" />
+                  <SortableTh label="Nomer Rak" sortKey="rackNumber" sort={sort} onSort={toggle} className="px-6 py-4 w-40 whitespace-nowrap" />
+                  <SortableTh label="Keterangan" sortKey="description" sort={sort} onSort={toggle} className="px-3 py-4 text-left min-w-30" />
+                  {/* {dataLokasi.length !== 0 && (
+                    <th className="px-6 py-4 w-28 text-center whitespace-nowrap">Aksi</th>
+                  )} */}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-50">
                 {loading && (
-                  <tr><td colSpan={5} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
+                  <tr><td colSpan={4} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
                 )}
                 {!loading && dataLokasi.length === 0 && (
-                  <tr><td colSpan={5} className="px-6 py-6 text-center text-gray-400">Belum ada data lokasi.</td></tr>
+                  <tr><td colSpan={4} className="px-6 py-6 text-center text-gray-400">Belum ada data lokasi.</td></tr>
                 )}
                 {!loading && dataLokasi.map((item, i) => {
                   const nama = edit.value(item.id, "rackName", item.rackName);
@@ -155,36 +155,38 @@ export default function DataLokasiGudang() {
                   const sel = "w-full border border-gray-200 rounded-lg py-1.5 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
                   return (
                     <tr key={item.id} className={`${edit.isDirty(item.id) ? "bg-amber-50" : i % 2 ? "bg-gray-50" : "bg-white"} hover:bg-orange-50/50 transition-colors duration-200`}>
-                      <td className="px-6 py-4 h-13 text-gray-700 font-medium">
+                      <td className="px-6 py-4 h-13 text-gray-700 font-medium whitespace-nowrap">
                         {edit.editing ? `${nama}${nomor}` : item.code}
                         {edit.errors[item.id] && <p className="text-xs font-normal text-red-600">{edit.errors[item.id]}</p>}
                       </td>
-                      <td className="px-6 py-3 text-gray-600">
+                      <td className="px-6 py-3 text-gray-600 whitespace-nowrap">
                         {edit.editing ? (
                           <select aria-label={`Nama rak ${item.code}`} className={sel} value={nama} onChange={(e) => edit.set(item.id, "rackName", e.target.value, item.rackName)}>
                             {[...new Set([item.rackName, ...RAK_NAMA])].map((v) => <option key={v} value={v}>{v}</option>)}
                           </select>
                         ) : item.rackName}
                       </td>
-                      <td className="px-6 py-3 text-gray-600">
+                      <td className="px-6 py-3 text-gray-600 whitespace-nowrap">
                         {edit.editing ? (
                           <select aria-label={`Nomer rak ${item.code}`} className={sel} value={nomor} onChange={(e) => edit.set(item.id, "rackNumber", e.target.value, item.rackNumber)}>
                             {[...new Set([item.rackNumber, ...RAK_NOMOR])].map((v) => <option key={v} value={v}>{v}</option>)}
                           </select>
                         ) : item.rackNumber}
                       </td>
-                      <td className="px-6 py-3 text-gray-600 max-w-sm">
+                      <td className="px-3 py-2 text-gray-600 max-w-50 min-w-30 w-auto">
                         {edit.editing ? (
-                          <input aria-label={`Keterangan ${item.code}`} className={sel} maxLength={255} placeholder="Opsional" value={edit.value(item.id, "description", item.description ?? "")} onChange={(e) => edit.set(item.id, "description", e.target.value, item.description ?? "")} />
+                          <input aria-label={`Keterangan ${item.code}`} className={`${sel} w-full text-sm px-2 py-1`} maxLength={255} placeholder="Opsional" value={edit.value(item.id, "description", item.description ?? "")} onChange={(e) => edit.set(item.id, "description", e.target.value, item.description ?? "")} />
                         ) : (
-                          <span className="block truncate" title={item.description ?? undefined}>{item.description || "-"}</span>
+                          <span className="block text-sm wrap-break-word whitespace-normal">
+                            {item.description || "-"}
+                          </span>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-gray-600 text-center">
+                      {/* <td className="px-6 py-4 text-gray-600 text-center whitespace-nowrap">
                         {canDelete && <button onClick={() => handleHapus(item.id)} className=" px-3 py-1 bg-red-50 text-red-600 font-bold rounded-lg text-xs hover:bg-red-100 transition-all border border-red-100">
                           Hapus
                         </button>}
-                      </td>
+                      </td> */}
                     </tr>
                   );
                 })}

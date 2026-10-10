@@ -117,7 +117,7 @@ export default function DataLokasiGudang() {
         <p className="text-gray-500 text-sm">Kelola kode lokasi rak penyimpanan beserta keterangannya.</p>
       </div>
 
-      <div className="bg-white w-4xl rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+      <div className="bg-white w-5xl rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
         {/* Toolbar */}
         <div className="p-5 border-b border-gray-100 bg-gray-50/50 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="relative w-64 lg:w-72">
@@ -166,7 +166,7 @@ export default function DataLokasiGudang() {
         {/* Table */}
         <div className="overflow-hidden w-full">
           <div className="overflow-x-auto">
-            <table className="w-4xl text-left text-sm table-fixed md:table-auto">
+            <table className="w-4xl m-auto text-left text-sm table-fixed md:table-auto">
               <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
                 <tr>
                   <SortableTh label="Kode Lokasi" sortKey="code" sort={sort} onSort={toggle} className="px-6 py-4 w-40 whitespace-nowrap" />
