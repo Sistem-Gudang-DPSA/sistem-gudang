@@ -222,11 +222,11 @@ export default function DataBarangGudang() {
               <tr>
                 <th scope="col" className="px-6 py-4">No</th>
                 <SortableTh label="Informasi Barang" sortKey="name" sort={sort} onSort={toggle} />
-                <SortableTh label="Detail" sortKey="detail" sort={sort} onSort={toggle} />
                 <SortableTh label="Supplier" sortKey="supplierName" sort={sort} onSort={toggle} />
                 <SortableTh label="Stok & Satuan" sortKey="stock" sort={sort} onSort={toggle} />
                 <SortableTh label="Kategori" sortKey="category" sort={sort} onSort={toggle} />
                 <SortableTh label="Lokasi" sortKey="locationCode" sort={sort} onSort={toggle} />
+                <SortableTh label="Detail" sortKey="detail" sort={sort} onSort={toggle} />
                 {canAdjust && <th scope="col" className="px-6 py-4 text-center">Aksi</th>}
               </tr>
             </thead>
@@ -246,15 +246,6 @@ export default function DataBarangGudang() {
                     <div className="flex flex-col">
                       <span className="font-bold text-gray-900">{item.name}</span>
                       <span className="text-xs font-mono text-gray-500 mt-0.5">{item.code ?? '-'}</span>
-                    </div>
-                  </td>
-
-                  {/* Detail Barang */}
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col">
-                      <span>
-                        
-                      </span>
                     </div>
                   </td>
 
@@ -293,6 +284,15 @@ export default function DataBarangGudang() {
                     </span>
                   </td>
 
+                  {/* Detail Barang */}
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col">
+                      <span>
+                        {item.detail || '-'} 
+                      </span>
+                    </div>
+                  </td>
+
                   {/* Aksi */}
                   <td className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center gap-2">
@@ -302,17 +302,25 @@ export default function DataBarangGudang() {
                           className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] text-xs font-bold rounded-lg hover:bg-[#FF8A00]/20 transition-all duration-200 opacity-90 group-hover:opacity-100"
                         >
                           <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
-                          Tambah
+                         Tambah Lokasi
                         </button>
-                      ) : null}
-                      {canAdjust && <button
+                      ) : canAssign && (
+                        <button
+                          onClick={() => openAssignModal(item)}
+                          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] text-xs font-bold rounded-lg hover:bg-[#FF8A00]/20 transition-all duration-200 opacity-90 group-hover:opacity-100"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" strokeWidth={2.5} />
+                         Edit Lokasi
+                        </button>
+                      )}
+                      {/* {canAdjust && <button
                         onClick={() => openStockModal(item)}
                         className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-100 transition-all duration-200 opacity-90 group-hover:opacity-100"
                         title="Sesuaikan stok"
                       >
                         <Edit2 className="w-3.5 h-3.5" strokeWidth={2.5} />
                         Stok
-                      </button>}
+                      </button>} */}
                     </div>
                   </td>
                 </tr>

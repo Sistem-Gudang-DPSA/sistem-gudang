@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { Search, Plus, Download, Filter } from 'lucide-react';
+import { Search, Plus, Filter } from 'lucide-react';
 import { listItems, listLocations, updateItem } from '@/domains/inventory/api';
 import type { ItemListRow, Location } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
@@ -12,6 +12,8 @@ import { digitsOnly, INTEGER_INPUT } from '@/shared/lib/input';
 import { useCan } from '@/domains/auth/user-context';
 import Pagination from '@/shared/components/Pagination';
 import { ExportExcellButton } from '@/shared/components/Tombol';
+import SortableTh, { useSort } from '@/shared/components/SortableTh';
+import BarangFilterPanel, {countActiveFilters, emptyBarangFilters} from '@/domains/superadmin/components/BarangFilterPanel'
 
 export default function DataBarangPurchasing() {
   // PUT /items/:id needs item.update, and changing the price also needs item.set-price.
@@ -20,7 +22,13 @@ export default function DataBarangPurchasing() {
   const canEditPrice = canUpdateItem && canSetPrice;
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [units, setUnits] = useState<string[]>([]);
   const [Exporting, setExporting] = useState(false);
+  const [filters, setFilters] = useState(emptyBarangFilters);
+  const [showFilter, setShowFilter] = useState(false);
+
+  const { sort, toggle } = useSort();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -135,13 +143,29 @@ export default function DataBarangPurchasing() {
           </div>
           <div className="flex items-center gap-2">
             <ExportExcellButton onClick={handleExportCSV} disabled={Exporting || loading || dataBarang.length === 0} />
-            <button className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">
+            <button
+              type="button"
+              onClick={() => setShowFilter((v) => !v)}
+              aria-expanded={showFilter}
+              className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors text-sm font-medium ${showFilter || countActiveFilters(filters) > 0 ? 'bg-orange-50 border-orange-300 text-orange-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+            >
               <Filter className="w-4 h-4" />
-              <span>Filter</span>
+              <span>Filter{countActiveFilters(filters) > 0 ? ` (${countActiveFilters(filters)})` : ''}</span>
             </button>
           </div>
         </div>
 
+        {showFilter && (
+          <BarangFilterPanel
+            value={filters}
+            onChange={setFilters}
+            categories={categories}
+            units={units}
+            suppliers={suppliers}
+            locations={locations}
+          />
+        )}
+        
         {error && (
           <div className="mx-5 mt-5 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>
         )}
@@ -151,22 +175,23 @@ export default function DataBarangPurchasing() {
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
               <tr>
-                <th scope="col" className="px-6 py-4">No</th>
-                <th scope="col" className="px-6 py-4">Informasi Barang</th>
-                <th scope="col" className="px-6 py-4">Supplier</th>
-                <th scope="col" className="px-6 py-4">Stok & Satuan</th>
-                <th scope="col" className="px-6 py-4">Kategori</th>
-                <th scope="col" className="px-6 py-4 text-right">Harga (Rp)</th>
-                <th scope="col" className="px-6 py-4">Lokasi</th>
-                <th scope="col" className="px-6 py-4 text-center">Aksi</th>
+                  <th scope="col" className="px-6 py-4">No</th>
+                  <SortableTh label="Informasi Barang" sortKey="name" sort={sort} onSort={toggle} />
+                  <SortableTh label="Supplier" sortKey="supplierName" sort={sort} onSort={toggle} />
+                  <SortableTh label="Stok & Satuan" sortKey="stock" sort={sort} onSort={toggle} />
+                  <SortableTh label="Kategori" sortKey="category" sort={sort} onSort={toggle} />
+                  <SortableTh label="Harga" sortKey="price" sort={sort} onSort={toggle} />
+                  <SortableTh label="Lokasi" sortKey="locationCode" sort={sort} onSort={toggle} />
+                  <SortableTh label="Detail" sortKey="detail" sort={sort} onSort={toggle} />
+                  {canSetPrice && <th scope="col" className="px-6 py-4 text-center">Aksi</th>}                              
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading && (
-                <tr><td colSpan={8} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
+                <tr><td colSpan={9} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
               )}
               {!loading && dataBarang.length === 0 && (
-                <tr><td colSpan={8} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
+                <tr><td colSpan={9} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
               )}
               {!loading && dataBarang.map((item, index) => (
                 <tr key={item.id} className="hover:bg-purple-50/30 transition-colors group">
@@ -218,6 +243,15 @@ export default function DataBarangPurchasing() {
                       <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
                       {locationCode(item.locationId)}
                     </span>
+                  </td>
+
+                  {/* Detail Barang */}
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col">
+                      <span>
+                        {item.detail || '-'} 
+                      </span>
+                    </div>
                   </td>
 
                   {/* Aksi */}

@@ -12,6 +12,7 @@ import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 import { ExportExcellButton } from '@/shared/components/Tombol';
+import SortableTh, {useSort} from '@/shared/components/SortableTh';
 
 const emptyForm = { name: '', unit: '', category: '', price: '', supplierId: '' };
 
@@ -23,6 +24,7 @@ export default function DataBarangPPIC() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [actionError, setActionError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const { sort, toggle, params: sortParams } = useSort();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState(emptyForm);
@@ -152,17 +154,6 @@ export default function DataBarangPPIC() {
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1">Data Barang</h1>
           <p className="text-gray-500 text-sm">Kelola master data barang, material, dan stok inventaris PPIC.</p>
         </div>
-        <div className="flex items-center gap-3">
-          {canCreate && (
-            <button
-              onClick={handleMulaiTambah}
-              className="flex items-center gap-2 px-4 py-2 bg-linear-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:shadow-purple-500/30 hover:-translate-y-0.5 transition-all font-medium text-sm"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">Tambah Data</span>
-            </button>
-          )}
-        </div>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
@@ -187,6 +178,15 @@ export default function DataBarangPPIC() {
               <Filter className="w-4 h-4" />
               <span>Filter</span>
             </button>
+            {canCreate && (
+              <button
+                onClick={handleMulaiTambah}
+                className="flex items-center gap-2 px-5 py-2.5 bg-[#ff8a00] text-white rounded-lg hover:bg-[#eb7d00] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm shadow-sm"    
+              >
+                <Plus className="w-4 h-4" />
+                <span className="hidden sm:inline">Tambah Data</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -200,13 +200,14 @@ export default function DataBarangPPIC() {
             <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
               <tr>
                 <th scope="col" className="px-6 py-4">No</th>
-                <th scope="col" className="px-6 py-4">Informasi Barang</th>
-                <th scope="col" className="px-6 py-4">Supplier</th>
-                <th scope="col" className="px-6 py-4">Stok & Satuan</th>
-                <th scope="col" className="px-6 py-4">Kategori</th>
-                <th scope="col" className="px-6 py-4 text-right">Harga (Rp)</th>
-                <th scope="col" className="px-6 py-4">Lokasi</th>
-                <th scope="col" className="px-6 py-4 text-center">Aksi</th>
+                  <SortableTh label="Informasi Barang" sortKey="name" sort={sort} onSort={toggle} />
+                  <SortableTh label="Supplier" sortKey="supplierName" sort={sort} onSort={toggle} />
+                  <SortableTh label="Stok & Satuan" sortKey="stock" sort={sort} onSort={toggle} />
+                  <SortableTh label="Kategori" sortKey="category" sort={sort} onSort={toggle} />
+                  <SortableTh label="Harga" sortKey="price" sort={sort} onSort={toggle} />
+                  <SortableTh label="Lokasi" sortKey="locationCode" sort={sort} onSort={toggle} />
+                  <SortableTh label="Detail" sortKey="detail" sort={sort} onSort={toggle} />
+                  {canUpdate && canDelete && <th scope="col" className="px-6 py-4 text-center">Aksi</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -266,6 +267,15 @@ export default function DataBarangPPIC() {
                       <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
                       {locationCode(item.locationId)}
                     </span>
+                  </td>
+
+                  {/* Detail Barang */}
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col">
+                      <span>
+                        {item.detail || '-'} 
+                      </span>
+                    </div>
                   </td>
 
                   {/* Aksi */}
