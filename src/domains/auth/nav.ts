@@ -125,7 +125,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
     label: "Purchasing",
     icon: ShoppingCart,
     theme: "teal",
-    anyOf: ["item.set-price", "supplier.create", "supplier.update"],
+    anyOf: ["item.set-price", "supplier.create", "supplier.update", "purchasing.create"],
     groups: [
       {
         title: "Master",
@@ -135,9 +135,19 @@ export const NAV_DIVISIONS: NavDivision[] = [
         ],
       },
       {
+        title: "Transaksi",
+        items: [
+          { href: "/dashboard/purchasing/transaksi/buat-po-barang", label: "PO Barang", anyOf: ["purchasing.create"] },
+          { href: "/dashboard/purchasing/transaksi/penawaran-harga", label: "Penawaran Harga / SPH", anyOf: ["purchasing.create"] },
+          { href: "/dashboard/purchasing/transaksi/retur-supplier", label: "Retur Supplier", anyOf: ["purchasing.create"] },
+        ],
+      },
+      {
         title: "Laporan",
         items: [
-          { href: "/dashboard/purchasing/laporan/rekap-pembelian", label: "Rekap Pembelian", anyOf: ["purchase-request.approve"] },
+          { href: "/dashboard/purchasing/laporan/rekap-barang-masuk", label: "Rekap Data Barang Masuk", anyOf: ["purchase-request.approve"] },
+          { href: "/dashboard/purchasing/laporan/rekap-barang-keluar", label: "Rekap Data Barang Keluar", anyOf: ["purchase-request.approve"] },
+          { href: "/dashboard/purchasing/laporan/rekap-stok-opname", label: "Rekap Stok Opname", anyOf: ["purchase-request.approve"] },
         ],
       },
     ],

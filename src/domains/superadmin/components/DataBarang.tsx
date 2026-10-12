@@ -271,12 +271,12 @@ export default function DataBarangGudang() {
               <tr>
                 <th scope="col" className="px-6 py-4">No</th>
                 <SortableTh label="Informasi Barang" sortKey="name" sort={sort} onSort={toggle} />
-                <SortableTh label="Detail" sortKey="detail" sort={sort} onSort={toggle} />
                 <SortableTh label="Supplier" sortKey="supplierName" sort={sort} onSort={toggle} />
                 <SortableTh label="Stok & Satuan" sortKey="stock" sort={sort} onSort={toggle} />
                 <SortableTh label="Kategori" sortKey="category" sort={sort} onSort={toggle} />
                 <SortableTh label="Harga" sortKey="price" sort={sort} onSort={toggle} />
                 <SortableTh label="Lokasi" sortKey="locationCode" sort={sort} onSort={toggle} />
+                <SortableTh label="Detail" sortKey="detail" sort={sort} onSort={toggle} />
                 {canAdjust && <th scope="col" className="px-6 py-4 text-center">Aksi</th>}
               </tr>
             </thead>
@@ -309,13 +309,6 @@ export default function DataBarangGudang() {
                       <span className="text-xs font-mono text-gray-500 mt-0.5">{item.code ?? '-'}</span>
                       {edit.errors[item.id] && <span className="text-xs text-red-600 mt-0.5 whitespace-normal">{edit.errors[item.id]}</span>}
                     </div>
-                  </td>
-
-                  {/* Detail */}
-                  <td className="px-6 py-4 text-gray-600">
-                    {edit.editing && canUpdate ? (
-                      <input aria-label={`Detail ${item.name}`} className={cell} maxLength={255} value={v('detail', item.detail ?? '')} onChange={setF('detail', item.detail ?? '')} />
-                    ) : (item.detail || '-')}
                   </td>
 
                   {/* Supplier */}
@@ -384,6 +377,13 @@ export default function DataBarangGudang() {
                         {locationCode(item.locationId)}
                       </span>
                     )}
+                  </td>
+
+                  {/* Detail */}
+                  <td className="px-6 py-4 text-gray-600">
+                    {edit.editing && canUpdate ? (
+                      <input aria-label={`Detail ${item.name}`} className={cell} maxLength={255} value={v('detail', item.detail ?? '')} onChange={setF('detail', item.detail ?? '')} />
+                    ) : (item.detail || '-')}
                   </td>
 
                   {/* Aksi */}
