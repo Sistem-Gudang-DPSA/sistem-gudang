@@ -11,7 +11,8 @@ import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
-import { ExportExcellButton } from '@/shared/components/Tombol';
+import { ExportExcellButton } from '@/components/ui/Tombol';
+import ItemPhoto from '@/domains/inventory/components/ItemPhoto';
 
 const emptyForm = { name: '', unit: '', category: '', price: '', supplierId: '' };
 
@@ -19,6 +20,7 @@ export default function DataBarangPPIC() {
   const canCreate = useCan("item.create");
   const canUpdate = useCan("item.update");
   const canDelete = useCan("item.delete");
+  const canUploadPhoto = useCan("item.upload-photo");
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [actionError, setActionError] = useState("");
@@ -200,6 +202,7 @@ export default function DataBarangPPIC() {
             <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
               <tr>
                 <th scope="col" className="px-6 py-4">No</th>
+                <th scope="col" className="px-6 py-4">Foto</th>
                 <th scope="col" className="px-6 py-4">Informasi Barang</th>
                 <th scope="col" className="px-6 py-4">Supplier</th>
                 <th scope="col" className="px-6 py-4">Stok & Satuan</th>
@@ -211,14 +214,19 @@ export default function DataBarangPPIC() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading && (
-                <tr><td colSpan={8} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
+                <tr><td colSpan={9} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
               )}
               {!loading && dataBarang.length === 0 && (
-                <tr><td colSpan={8} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
+                <tr><td colSpan={9} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
               )}
               {!loading && dataBarang.map((item, index) => (
                 <tr key={item.id} className="hover:bg-purple-50/30 transition-colors group">
                   <td className="px-6 py-4 text-gray-500">{index + 1}</td>
+
+                  {/* Foto */}
+                  <td className="px-6 py-4">
+                    <ItemPhoto item={item} canUpload={canUploadPhoto} onUploaded={reload} />
+                  </td>
 
                   {/* Informasi Barang */}
                   <td className="px-6 py-4">

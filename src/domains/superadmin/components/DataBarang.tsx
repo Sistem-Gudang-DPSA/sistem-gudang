@@ -13,6 +13,7 @@ import { useApiData } from '@/shared/lib/use-api-data';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import { ImportExcelButton } from '@/shared/components/ImportExcelButton';
 import ImportBarangMapping from './ImportBarangMapping';
+import ItemPhoto from '@/domains/inventory/components/ItemPhoto';
 import BarangFilterPanel, { countActiveFilters, emptyBarangFilters, toItemFilterParams } from './BarangFilterPanel';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import EditModeBar, { useBatchEdit } from '@/shared/components/EditModeBar';
@@ -56,6 +57,7 @@ export default function DataBarangGudang() {
   const canUpdate = useCan('item.update');
   const canSetPrice = useCan('item.set-price');
   const canSetSupplier = useCan('item.set-supplier');
+  const canUploadPhoto = useCan('item.upload-photo');
   const { sort, toggle, params: sortParams } = useSort();
   const edit = useBatchEdit();
   const seen = useRef(new Map<number, ItemListRow>()); // semua baris yang pernah tampil, untuk menyimpan perubahan dari halaman lain
@@ -270,6 +272,7 @@ export default function DataBarangGudang() {
             <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
               <tr>
                 <th scope="col" className="px-6 py-4">No</th>
+                <th scope="col" className="px-6 py-4">Foto</th>
                 <SortableTh label="Informasi Barang" sortKey="name" sort={sort} onSort={toggle} />
                 <SortableTh label="Detail" sortKey="detail" sort={sort} onSort={toggle} />
                 <SortableTh label="Supplier" sortKey="supplierName" sort={sort} onSort={toggle} />
@@ -282,10 +285,10 @@ export default function DataBarangGudang() {
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={9} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
+                <tr><td colSpan={10} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
               )}
               {!loading && dataBarang.length === 0 && (
-                <tr><td colSpan={9} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
+                <tr><td colSpan={10} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
               )}
               {!loading && dataBarang.map((item, index) => {
                 const v = (key: string, original: string) => edit.value(item.id, key, original);
@@ -297,6 +300,11 @@ export default function DataBarangGudang() {
                 return (
                 <tr key={item.id} className={`${edit.isDirty(item.id) ? 'bg-amber-50' : index % 2 ? 'bg-gray-50' : 'bg-white'} hover:bg-[#FF8A00]/5 transition-colors group`}>
                   <td className="px-6 py-4 text-gray-500">{(page - 1) * 20 + index + 1}</td>
+
+                  {/* Foto */}
+                  <td className="px-6 py-4">
+                    <ItemPhoto item={item} canUpload={canUploadPhoto} onUploaded={reload} />
+                  </td>
 
                   {/* Informasi Barang */}
                   <td className="px-6 py-4">
