@@ -9,7 +9,7 @@ import { detailRekapDokubahPath, escapeHtml, formatRupiah, type StatusDokubah } 
 import { listDokubahRows, STATUS_TO_UI, statusToApi } from '@/domains/ppic/api';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
-import { ExportExcellButton, PrintPdfButton } from '@/components/ui/Tombol';
+import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';
 
 const cellClass = 'px-4 py-3 border-b border-r border-gray-300';
 const cardClass = 'bg-white rounded-sm border border-gray-100 shadow-md p-6 min-h-32';

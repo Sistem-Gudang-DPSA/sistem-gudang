@@ -2,7 +2,7 @@
 
 import { useCan } from '@/domains/auth/user-context';
 import React, { useEffect, useState } from 'react';
-import { Search, Calendar, Plus, Download } from 'lucide-react';
+import { Search, Plus, Filter } from 'lucide-react';
 import { createInbound, createInboundReturn, listInbound, listItems } from '@/domains/inventory/api';
 import type { StatusQc, ItemListRow } from '@/domains/inventory/types';
 import { listTrackingSpk } from '@/domains/ppic/api';
@@ -13,13 +13,19 @@ import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
-import { ExportExcellButton } from '@/components/ui/Tombol';
+import { ExportExcellButton } from '@/shared/components/Tombol';
+import BarangFilterPanel, { countActiveFilters, emptyBarangFilters } from '@/domains/superadmin/components/BarangFilterPanel';
+import SortableTh, { useSort } from '@/shared/components/SortableTh';
+import DateFilter from '@/shared/components/DateFilter';
 
 const emptyBaru = { itemId: "", itemName: "", supplierId: "", tanggal: todayIso(), jumlahKedatangan: "", jumlahRekap: "", statusQc: "PASS" as StatusQc };
 const emptyKembali = { itemId: "", itemName: "", tanggal: todayIso(), jumlah: "", spk: "" };
 
 export default function BarangMasukGudang() {
   const canCreate = useCan('inbound.create');
+  const { sort, toggle, params: sortParams } = useSort();
+  const [filters, setFilters] = useState(emptyBarangFilters);
+  const [showFilter, setShowFilter] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterDay, setFilterDay] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
@@ -37,7 +43,7 @@ export default function BarangMasukGudang() {
 
   const dateRange = toDateRange(filterDay, filterMonth, filterYear);
 
-  const filterKey = JSON.stringify([searchQuery, dateRange]);
+  const filterKey = JSON.stringify([searchQuery, filterDay, filterMonth, filterYear]);
   const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
   const page = pageState.key === filterKey ? pageState.page : 1;
   const setPage = (next: number) => setPageState({ key: filterKey, page: next });
@@ -123,7 +129,6 @@ export default function BarangMasukGudang() {
     }
   };
 
-
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       <div className="flex flex-col justify-start mb-8 gap-2">
@@ -148,70 +153,6 @@ export default function BarangMasukGudang() {
                 placeholder="Cari kode, nama barang, atau supplier..." 
               />
             </div>
-
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <select
-                  value={filterDay}
-                  onChange={(e) => setFilterDay(e.target.value)}
-                  className="appearance-none w-17.5 border border-gray-200 rounded-xl py-2.5 pl-3 pr-8 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] text-sm text-gray-700 bg-white transition-all duration-200 cursor-pointer"
-                >
-                  <option value="">Tgl</option>
-                  {Array.from({ length: 31 }, (_, i) => (
-                    <option key={i + 1} value={i + 1}>{(i + 1).toString().padStart(2, '0')}</option>
-                  ))}
-                </select>
-                <div className="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
-                  <Calendar className="h-4 w-4 text-gray-400" />
-                </div>
-              </div>
-
-              <div className="relative">
-                <select
-                  value={filterMonth}
-                  onChange={(e) => setFilterMonth(e.target.value)}
-                  className="appearance-none w-27.5 border border-gray-200 rounded-xl py-2.5 pl-3 pr-8 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-orange-500 text-sm text-gray-700 bg-white transition-all duration-200 cursor-pointer"
-                >
-                  <option value="">Bulan</option>
-                  {[
-                    { v: '01', l: 'Januari' }, { v: '02', l: 'Februari' }, { v: '03', l: 'Maret' },
-                    { v: '04', l: 'April' }, { v: '05', l: 'Mei' }, { v: '06', l: 'Juni' },
-                    { v: '07', l: 'Juli' }, { v: '08', l: 'Agustus' }, { v: '09', l: 'September' },
-                    { v: '10', l: 'Oktober' }, { v: '11', l: 'November' }, { v: '12', l: 'Desember' }
-                  ].map(m => (
-                    <option key={m.v} value={m.v}>{m.l}</option>
-                  ))}
-                </select>
-                <div className="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
-                  <Calendar className="h-4 w-4 text-gray-400" />
-                </div>
-              </div>
-
-              <div className="relative">
-                <select
-                  value={filterYear}
-                  onChange={(e) => setFilterYear(e.target.value)}
-                  className="appearance-none w-22.5 border border-gray-200 rounded-xl py-2.5 pl-3 pr-8 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-orange-500 text-sm text-gray-700 bg-white transition-all duration-200 cursor-pointer"
-                >
-                  <option value="">Tahun</option>
-                  {["2024", "2025", "2026"].map(y => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
-                <div className="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
-                  <Calendar className="h-4 w-4 text-gray-400" />
-                </div>
-              </div>
-
-              {(filterDay || filterMonth || filterYear) && (
-                <button 
-                  onClick={() => { setFilterDay(""); setFilterMonth(""); setFilterYear(""); }}
-                  className="text-xs text-orange-600 font-bold hover:underline ml-1"
-                >
-                  Reset
-                </button>
-              )}
-            </div>
           </div>
 
           <div className="flex gap-2 w-full lg:w-auto">
@@ -229,8 +170,34 @@ export default function BarangMasukGudang() {
               <Plus className="w-4 h-4" />
               <span>Barang Kembali</span>
             </button>}
+
+            <button
+              type="button"
+              onClick={() => setShowFilter((v) => !v)}
+              aria-expanded={showFilter}
+              className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors text-sm font-medium ${showFilter || countActiveFilters(filters) > 0 ? 'bg-orange-50 border-orange-300 text-orange-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+            >
+              <Filter className="w-4 h-4" />
+              <span>Filter{countActiveFilters(filters) > 0 ? ` (${countActiveFilters(filters)})` : ''}</span>
+            </button>
           </div>
         </div>
+
+        {showFilter && (
+          <DateFilter
+            day={filterDay}
+            month={filterMonth}
+            year={filterYear}
+            onDayChange={setFilterDay}
+            onMonthChange={setFilterMonth}
+            onYearChange={setFilterYear}
+            onReset={() => { setFilterDay(''); setFilterMonth(''); setFilterYear(''); }}
+          />
+        )}
+
+        {error && (
+          <div className="mx-5 mt-5 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>
+        )}
 
         {/* Table Container */}
         <div className="overflow-x-auto">
@@ -238,9 +205,9 @@ export default function BarangMasukGudang() {
             <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
               <tr>
                 <th scope="col" className="px-6 py-4">No</th>
-                <th scope="col" className="px-6 py-4">Tanggal</th>
-                <th scope="col" className="px-6 py-4">Informasi Barang</th>
-                <th scope="col" className="px-6 py-4">Supplier</th>
+                <SortableTh label="Tanggal" sortKey="tanggal" sort={sort} onSort={toggle} />
+                <SortableTh label="Informasi Barang" sortKey="name" sort={sort} onSort={toggle} />
+                <SortableTh label="Supplier" sortKey="supplierName" sort={sort} onSort={toggle} />
                 <th scope="col" className="px-6 py-4 text-center">Jml Kedatangan</th>
                 <th scope="col" className="px-6 py-4 text-center">Jml Rekap</th>
               </tr>
