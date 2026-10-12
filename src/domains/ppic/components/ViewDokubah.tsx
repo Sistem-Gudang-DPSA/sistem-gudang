@@ -16,7 +16,7 @@ import {
 } from '@/domains/ppic/data/dokubah';
 import { approveDokubah, getDokubah, listDokubah, rejectDokubah, submitDokubah } from '@/domains/ppic/api';
 import type { BahanDokubah, DokubahItem } from '@/domains/ppic/data/dokubah';
-import { PrintPdfButton } from '@/components/ui/Tombol';
+import { PrintPdfButton } from '@/shared/components/Tombol';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 

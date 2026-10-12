@@ -2,21 +2,32 @@
 
 import { useCan } from '@/domains/auth/user-context';
 import React, { useEffect, useRef, useState } from 'react';
-import { Search, Calendar, Plus, AlertCircle, Download, X, ChevronDown, Pencil, Lock } from 'lucide-react';
-import { createOutbound, exportOutboundReport, listOutbound, listItems, updateOutbound } from '@/domains/inventory/api';
+import { Search, Calendar, Plus, AlertCircle, Download, X, ChevronDown, Pencil, Lock, Filter } from 'lucide-react';
+import { createOutbound, exportOutboundReport, listOutbound, listItems, updateOutbound, deleteItem } from '@/domains/inventory/api';
 import { listTrackingSpk } from '@/domains/ppic/api';
 import type { RecipientType, ItemListRow, OutboundRow } from '@/domains/inventory/types';
-import { displayDate, todayIso } from '@/domains/inventory/date';
+import { displayDate, todayIso, toDateRange } from '@/domains/inventory/date';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
+import SortableTh, { useSort } from '@/shared/components/SortableTh';
+import DateFilter from '@/shared/components/DateFilter';
+
 
 // Satu baris di tabel form. SPK, client, dan item/project ada per baris di desain, sedangkan API
 // menyimpannya per transaksi, jadi saat simpan baris dikelompokkan menjadi satu transaksi per kombinasi itu.
 type BarisForm = { spk: string; namaItem: string; itemId: string; qty: string; pic: string };
 
 const barisKosong = (): BarisForm => ({ spk: "", namaItem: "", itemId: "", qty: "", pic: "" });
+const PAGE_SIZE = 20;
+
+type TableRow = {
+  trx: OutboundRow;
+  line: OutboundRow['lines'][number];
+  lineIndex: number;
+  trxNo: number; // nomor urut per transaksi
+};
 
 const formKosong = () => ({
   namaPengambil: "",
@@ -42,7 +53,6 @@ const tampilWaktu = (ms: number) => {
 type EditTarget = { trx: OutboundRow; lineIndex: number };
 type EditForm = { tanggal: string; spk: string; namaItem: string; itemId: string; qty: string };
 
-const cellClass = 'px-3 py-2.5 border-b border-r border-gray-300';
 const formCellClass = 'border-b border-r border-gray-300';
 const formHeadClass = `${formCellClass} px-2 py-2.5 font-medium whitespace-nowrap`;
 const formInputClass = 'w-full px-2 py-2 bg-transparent text-sm text-gray-800 focus:outline-none focus:bg-orange-50/60';
@@ -55,8 +65,12 @@ export default function BarangKeluarGudang() {
   const canUpdate = useCan('outbound.update');
   const canExport = useCan('report.view');
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterTanggal, setFilterTanggal] = useState("");
-  const tanggalRef = useRef<HTMLInputElement>(null);
+
+  const { sort, toggle, params: sortParams } = useSort();
+  const [showFilter, setShowFilter] = useState(false);
+  const [filterDay, setFilterDay] = useState("");
+  const [filterMonth, setFilterMonth] = useState("");
+  const [filterYear, setFilterYear] = useState("");
 
   const [items, setItems] = useState<ItemListRow[]>([]);
 
@@ -73,18 +87,21 @@ export default function BarangKeluarGudang() {
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
   const [peringatan, setPeringatan] = useState("");
+  const [actionError, setActionError] = useState<string>('');
   // Diperbarui tiap menit supaya tombol Edit otomatis terkunci begitu batas 1 hari lewat
   const [now, setNow] = useState(() => Date.now());
   const editTanggalRef = useRef<HTMLInputElement>(null);
 
-  const dateRange = filterTanggal ? { startDate: filterTanggal, endDate: filterTanggal } : {};
+  const dateRange = toDateRange(filterDay, filterMonth, filterYear);
+  const activeDateFilters = [filterDay, filterMonth, filterYear].filter(Boolean).length;
 
-  const filterKey = JSON.stringify([searchQuery, dateRange]);
+  const filterKey = JSON.stringify([searchQuery, filterDay, filterMonth, filterYear, sortParams]);
+
   const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
   const page = pageState.key === filterKey ? pageState.page : 1;
   const setPage = (next: number) => setPageState({ key: filterKey, page: next });
   const { data: result, loading, error, reload } = useApiData(
-    () => listOutbound({ page, pageSize: 20, search: searchQuery || undefined, ...dateRange }),
+    () => listOutbound({ page, pageSize: PAGE_SIZE, search: searchQuery || undefined, ...dateRange, ...sortParams }),
     `${filterKey}|${page}`,
     'Gagal memuat data barang keluar.',
   );
@@ -105,7 +122,12 @@ export default function BarangKeluarGudang() {
   }, []);
 
   // The table shows one row per item line, the API returns one row per transaction.
-  const tableRows = rows.flatMap((trx) => trx.lines.map((line, lineIndex) => ({ trx, line, lineIndex })));
+  const tableRows: TableRow[] = rows.flatMap((trx, trxIndex) =>
+    trx.lines.map((line, lineIndex) => ({
+      trx, line, lineIndex,
+      trxNo: (page - 1) * PAGE_SIZE + trxIndex + 1,
+    })),
+  );
 
   const openEdit = (trx: OutboundRow, lineIndex: number) => {
     const line = trx.lines[lineIndex];
@@ -254,144 +276,162 @@ export default function BarangKeluarGudang() {
         <h1 className="text-[18px] font-extrabold text-black tracking-wide uppercase">Data Barang Keluar</h1>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        {/* Pencarian, filter tanggal & tambah data */}
-        <div className="flex flex-wrap items-end justify-between gap-4 mb-6">
-          <div className="flex flex-wrap items-end gap-4">
-            <div className="w-full sm:w-64">
-              <label htmlFor="barang-keluar-cari" className={labelClass}>Cari</label>
-              <div className="relative">
-                <input
-                  id="barang-keluar-cari"
-                  type="text"
-                  value={searchQuery}
-                  maxLength={100}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Silahkan cari data"
-                  className={fieldClass}
-                />
-                <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-800 pointer-events-none" />
-              </div>
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+        {/* Toolbar */}
+        <div className="p-5 border-b border-gray-100 bg-gray-50/50 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="relative w-full max-w-xs">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-gray-400" />
             </div>
-
-            <div className="w-44">
-              <label htmlFor="barang-keluar-tanggal" className={labelClass}>Tanggal</label>
-              <div className="relative">
-                <input
-                  ref={tanggalRef}
-                  id="barang-keluar-tanggal"
-                  type="date"
-                  value={filterTanggal}
-                  onChange={(e) => setFilterTanggal(e.target.value)}
-                  className={`${fieldClass} [&::-webkit-calendar-picker-indicator]:hidden`}
-                />
-                <button
-                  type="button"
-                  aria-label="Pilih tanggal"
-                  onClick={() => tanggalRef.current?.showPicker()}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-800 hover:opacity-70"
-                >
-                  <Calendar className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {filterTanggal && (
-              <button
-                type="button"
-                onClick={() => setFilterTanggal("")}
-                className="text-xs text-orange-600 font-bold hover:underline pb-2.5"
-              >
-                Reset
-              </button>
-            )}
+            <input
+              id="barang-keluar-cari"
+              type="text"
+              value={searchQuery}
+              maxLength={100}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Silahkan cari data"
+              aria-label="Cari barang keluar"
+              className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] sm:text-sm transition-all shadow-sm"
+            />
           </div>
 
-          {canCreate && (
-            <button type="button" onClick={openModal} className={orangeButtonClass}>
-              <Plus className="w-4 h-4" />
-              <span>Barang Keluar</span>
+          <div className="flex gap-2 w-full lg:w-auto lg:justify-end">
+            {canCreate && (
+              <button type="button" onClick={openModal} className={orangeButtonClass}>
+                <Plus className="w-4 h-4" />
+                <span>Barang Keluar</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowFilter((v) => !v)}
+              aria-expanded={showFilter}
+              className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl transition-colors text-sm font-semibold ${
+                showFilter || activeDateFilters > 0
+                  ? 'bg-orange-50 border-orange-300 text-orange-700'
+                  : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <Filter className="w-4 h-4" />
+              <span>Filter{activeDateFilters > 0 ? ` (${activeDateFilters})` : ''}</span>
             </button>
-          )}
+          </div>
         </div>
 
-        {/* Tabel */}
-        <div className="overflow-x-auto border-t border-l border-gray-300 rounded-sm">
-          <table className="w-full text-left text-sm whitespace-nowrap border-collapse">
-            <thead className="bg-gray-100 text-gray-900 font-semibold text-xs">
-              <tr>
-                <th scope="col" className={`${cellClass} w-12`}>No</th>
-                <th scope="col" className={cellClass}>No. Transaksi</th>
-                <th scope="col" className={cellClass}>Kode Barang</th>
-                <th scope="col" className={cellClass}>Nama Client</th>
-                <th scope="col" className={cellClass}>SPK</th>
-                <th scope="col" className={cellClass}>Tanggal</th>
-                <th scope="col" className={cellClass}>Nama Item/Projek</th>
-                <th scope="col" className={cellClass}>Nama Barang</th>
-                <th scope="col" className={cellClass}>Jumlah</th>
-                <th scope="col" className={cellClass}>Action</th>
-              </tr>
-            </thead>
-            <tbody className="text-gray-800">
-              {loading && (
-                <tr><td colSpan={10} className={`${cellClass} px-6 py-10 text-center text-gray-400`}>Memuat data...</td></tr>
-              )}
-              {!loading && error && (
-                <tr><td colSpan={10} className={`${cellClass} px-6 py-10 text-center text-red-500`}>{error}</td></tr>
-              )}
-              {!loading && !error && tableRows.map(({ trx, line, lineIndex }, index) => (
-                <tr key={`${trx.id}-${index}`} className="hover:bg-orange-50/20 transition-colors">
-                  <td className={cellClass}>{(page - 1) * 20 + index + 1}</td>
-                  {/* API belum punya nomor transaksi tersendiri, jadi yang tampil id transaksinya */}
-                  <td className={`${cellClass} font-semibold text-gray-900`}>{trx.id}</td>
-                  <td className={`${cellClass} font-mono text-xs`}>{line.itemCode ?? '-'}</td>
-                  <td className={cellClass}>{trx.clientName}</td>
-                  <td className={cellClass}>{trx.spk}</td>
-                  <td className={cellClass}>{displayDate(trx.date)}</td>
-                  <td className={cellClass}>{trx.itemName}</td>
-                  <td className={cellClass}>{line.itemName}</td>
-                  <td className={`${cellClass} text-right`}>{line.qty}</td>
-                  <td className={cellClass}>
-                    {canUpdate && (bisaEdit(trx, now) ? (
-                      <button
-                        type="button"
-                        onClick={() => openEdit(trx, lineIndex)}
-                        title={`Bisa diedit sampai ${tampilWaktu(batasEdit(trx))}`}
-                        aria-label={`Edit barang keluar ${trx.id} ${line.itemName}`}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#FF8A00] text-[#FF8A00] text-xs font-semibold hover:bg-orange-50 transition-colors"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                        <span>Edit</span>
-                      </button>
-                    ) : (
-                      // Tetap bisa diklik (aria-disabled, bukan disabled) supaya peringatannya muncul
-                      <button
-                        type="button"
-                        aria-disabled="true"
-                        onClick={() => setPeringatan(PESAN_TIDAK_BISA_EDIT)}
-                        title="Sudah lewat 1 hari, tidak bisa diedit"
-                        aria-label={`Edit barang keluar ${trx.id} ${line.itemName} (terkunci)`}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 bg-gray-100 text-gray-400 text-xs font-semibold cursor-not-allowed"
-                      >
-                        <Lock className="w-3.5 h-3.5" />
-                        <span>Edit</span>
-                      </button>
-                    ))}
-                  </td>
-                </tr>
-              ))}
-              {!loading && !error && tableRows.length === 0 && (
+        {showFilter && (
+          <DateFilter
+            day={filterDay}
+            month={filterMonth}
+            year={filterYear}
+            onDayChange={setFilterDay}
+            onMonthChange={setFilterMonth}
+            onYearChange={setFilterYear}
+            onReset={() => { setFilterDay(''); setFilterMonth(''); setFilterYear(''); }}
+          />
+        )}
+
+        <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm whitespace-nowrap">
+              <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
                 <tr>
-                  <td colSpan={10} className={`${cellClass} px-6 py-10 text-center text-gray-400 italic`}>
-                    Data tidak ditemukan untuk filter tersebut.
-                  </td>
+                  <th scope="col" className="px-6 py-4">No</th>
+                  <SortableTh label="Transaksi" sortKey="tanggal" sort={sort} onSort={toggle} />
+                  <SortableTh label="Client / SPK" sortKey="clientName" sort={sort} onSort={toggle} />
+                  <SortableTh label="Nama Item/Projek" sortKey="itemName" sort={sort} onSort={toggle} />
+                  <th scope="col" className="px-6 py-4">Barang</th>
+                  <th scope="col" className="px-6 py-4 text-right">Jumlah</th>
+                  <th scope="col" className="px-6 py-4 text-center">Action</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {loading && (
+                  <tr><td colSpan={7} className="px-6 py-10 text-center text-gray-400">Memuat data...</td></tr>
+                )}
+                {!loading && error && (
+                  <tr><td colSpan={7} className="px-6 py-10 text-center text-red-500">{error}</td></tr>
+                )}
+                {!loading && !error && tableRows.map(({ trx, line, lineIndex, trxNo }) => (
+                  <tr
+                    key={`${trx.id}-${lineIndex}`}
+                    className={`hover:bg-[#FF8A00]/5 transition-colors group ${lineIndex === 0 ? 'border-t border-gray-100' : ''}`}
+                  >
+                    <td className="px-6 py-4 text-gray-500">{lineIndex === 0 ? `${trxNo}.` : ''}</td>
 
-        <Pagination page={page} pageSize={20} total={total} onPageChange={setPage} />
+                    <td className="px-6 py-4">
+                      {lineIndex === 0 && (
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-gray-900">{trx.id}</span>
+                          <span className="text-xs text-gray-500">{displayDate(trx.date)}</span>
+                        </div>
+                      )}
+                    </td>
+
+                    <td className="px-6 py-4">
+                      {lineIndex === 0 && (
+                        <div className="flex flex-col">
+                          <span className="font-medium text-gray-900">{trx.clientName}</span>
+                          <span className="text-xs text-gray-500">{trx.spk}</span>
+                        </div>
+                      )}
+                    </td>
+
+                    <td className="px-6 py-4 text-gray-600">{lineIndex === 0 ? trx.itemName : ''}</td>
+
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col">
+                        <span className="font-medium text-gray-900">{line.itemName}</span>
+                        <span className="text-xs font-mono text-gray-500 mt-0.5">{line.itemCode ?? '-'}</span>
+                      </div>
+                    </td>
+
+                    <td className="px-6 py-4 text-right font-bold text-gray-800">{line.qty}</td>
+
+                    <td className="px-6 py-4">
+                        {/* Menggunakan kontainer flex agar tombol berjejer rapi ke samping */}
+                        <div className="flex items-center justify-center gap-2">
+                          {/* Kondisional Tombol Edit */}
+                          {canUpdate && (bisaEdit(trx, now) ? (
+                            <button
+                              type="button"
+                              onClick={() => openEdit(trx, lineIndex)}
+                              title={`Bisa diedit sampai ${tampilWaktu(batasEdit(trx))}`}
+                              aria-label={`Edit barang keluar ${trx.id} ${line.itemName}`}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#FF8A00] text-[#FF8A00] text-xs font-semibold hover:bg-orange-50 transition-colors"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                              <span>Edit</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled // Menggunakan disabled asli HTML agar tombol benar-benar terkunci
+                              onClick={() => setPeringatan(PESAN_TIDAK_BISA_EDIT)}
+                              title="Sudah lewat 1 hari, tidak bisa diedit"
+                              aria-label={`Edit barang keluar ${trx.id} ${line.itemName} (terkunci)`}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-gray-50 text-gray-400 text-xs font-semibold cursor-not-allowed opacity-70"
+                            >
+                              <Lock className="w-3.5 h-3.5" />
+                              <span>Edit</span>
+                            </button>
+                          ))}
+                          
+                        </div>
+                      </td>
+                  </tr>
+                ))}
+                {!loading && !error && tableRows.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-10 text-center text-gray-400 italic">
+                      Data tidak ditemukan untuk filter tersebut.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
+        </div>
 
         {canExport && (
           <div className="flex flex-col items-end gap-2 mt-6">
@@ -402,7 +442,6 @@ export default function BarangKeluarGudang() {
             </button>
           </div>
         )}
-      </div>
 
       {/* Modal Form Barang Keluar */}
       {isModalOpen && (
@@ -719,3 +758,5 @@ export default function BarangKeluarGudang() {
     </div>
   );
 }
+
+
