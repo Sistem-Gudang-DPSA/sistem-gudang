@@ -10,9 +10,8 @@ import type { Supplier } from '@/domains/purchasing/types';
 import { ApiError } from '@/shared/lib/api-client';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
-import { ExportExcellButton } from '@/shared/components/Tombol';
-import BarangFilterPanel, { countActiveFilters, emptyBarangFilters, toItemFilterParams } from '@/domains/superadmin/components/BarangFilterPanel';
-import SortableTh, { useSort } from '@/shared/components/SortableTh';
+import { ExportExcellButton } from '@/components/ui/Tombol';
+import ItemPhoto from './ItemPhoto';
 
 export default function DataBarangGudang() {
   const canAssign = useCan('item.assign-location');
@@ -221,13 +220,13 @@ export default function DataBarangGudang() {
             <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
               <tr>
                 <th scope="col" className="px-6 py-4">No</th>
-                <SortableTh label="Informasi Barang" sortKey="name" sort={sort} onSort={toggle} />
-                <SortableTh label="Detail" sortKey="detail" sort={sort} onSort={toggle} />
-                <SortableTh label="Supplier" sortKey="supplierName" sort={sort} onSort={toggle} />
-                <SortableTh label="Stok & Satuan" sortKey="stock" sort={sort} onSort={toggle} />
-                <SortableTh label="Kategori" sortKey="category" sort={sort} onSort={toggle} />
-                <SortableTh label="Lokasi" sortKey="locationCode" sort={sort} onSort={toggle} />
-                {canAdjust && <th scope="col" className="px-6 py-4 text-center">Aksi</th>}
+                <th scope="col" className="px-6 py-4">Foto</th>
+                <th scope="col" className="px-6 py-4">Informasi Barang</th>
+                <th scope="col" className="px-6 py-4">Supplier</th>
+                <th scope="col" className="px-6 py-4">Stok & Satuan</th>
+                <th scope="col" className="px-6 py-4">Kategori</th>
+                <th scope="col" className="px-6 py-4">Lokasi</th>
+                <th scope="col" className="px-6 py-4 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -240,6 +239,11 @@ export default function DataBarangGudang() {
               {!loading && dataBarang.map((item, index) => (
                 <tr key={item.id} className="hover:bg-[#FF8A00]/5 transition-colors group">
                   <td className="px-6 py-4 text-gray-500">{index + 1}</td>
+
+                  {/* Foto */}
+                  <td className="px-6 py-4">
+                    <ItemPhoto item={item} />
+                  </td>
 
                   {/* Informasi Barang */}
                   <td className="px-6 py-4">

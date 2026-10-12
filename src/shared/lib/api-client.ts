@@ -54,7 +54,8 @@ async function request<T>(path: string, options: RequestInit = {}, retryOn401 = 
     ...options,
     credentials: "include",
     headers: {
-      "Content-Type": "application/json",
+      // FormData sets its own multipart Content-Type with the boundary.
+      ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...options.headers,
     },
@@ -106,7 +107,11 @@ export const apiClient = {
   patch: <T>(path: string, data?: unknown) =>
     request<T>(path, { method: "PATCH", body: data !== undefined ? JSON.stringify(data) : undefined }),
   delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
+  upload: <T>(path: string, form: FormData) => request<T>(path, { method: "POST", body: form }),
 };
+
+// Files the backend serves (e.g. item photos) may come back as a path relative to the API host.
+export const fileUrl = (path: string) => (/^(https?:|blob:|data:)/.test(path) ? path : `${BASE_URL}${path.startsWith("/") ? "" : "/"}${path}`);
 
 export function toQuery(params?: object): string {
   if (!params) return "";
