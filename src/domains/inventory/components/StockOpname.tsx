@@ -2,13 +2,19 @@
 
 import { useCan } from '@/domains/auth/user-context';
 import React, { useState } from 'react';
-import { Search, Calendar, Plus, Eye } from 'lucide-react';
+import { Search, Calendar, Plus, Eye, Filter } from 'lucide-react';
 import Link from 'next/link';
 import { getStockOpname, listStockOpname } from '@/domains/inventory/api';
 import type { StockOpnameDetail } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
+import BarangFilterPanel, { countActiveFilters, emptyBarangFilters } from '@/domains/superadmin/components/BarangFilterPanel';
+import SortableTh, { useSort } from '@/shared/components/SortableTh';
+import DateFilter from '@/shared/components/DateFilter';
+import { toDateRange } from '@/domains/inventory/date';
+
+const PAGE_SIZE = 20;
 
 const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 const periodeLabel = (month: number, year: number) => `Stok Opname ${BULAN[month - 1]} ${year}`;
@@ -16,7 +22,11 @@ const rupiah = (n: number) => n.toLocaleString('id-ID');
 
 export default function StockOpnameMasterGudang() {
   const canCreate = useCan('stock-opname.create');
+  const { sort, toggle, params: sortParams } = useSort();
+  const [filters, setFilters] = useState(emptyBarangFilters);
+  const [showFilter, setShowFilter] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterDay, setFilterDay] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
   const [filterYear, setFilterYear] = useState("");
 
@@ -24,7 +34,9 @@ export default function StockOpnameMasterGudang() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
 
-  const filterKey = JSON.stringify([searchQuery, filterMonth, filterYear]);
+  const dateRange = toDateRange(filterDay, filterMonth, filterYear);
+
+  const filterKey = JSON.stringify([searchQuery, filterDay, filterMonth, filterYear]);
   const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
   const page = pageState.key === filterKey ? pageState.page : 1;
   const setPage = (next: number) => setPageState({ key: filterKey, page: next });
@@ -72,63 +84,39 @@ export default function StockOpnameMasterGudang() {
                 placeholder="Cari periode stok opname..." 
               />
             </div>
-
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <select
-                  value={filterMonth}
-                  onChange={(e) => setFilterMonth(e.target.value)}
-                  className="appearance-none w-27.5 border border-gray-200 rounded-xl py-2.5 pl-3 pr-8 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-orange-500 text-sm text-gray-700 bg-white transition-all duration-200 cursor-pointer"
-                >
-                  <option value="">Bulan</option>
-                  {[
-                    { v: '01', l: 'Januari' }, { v: '02', l: 'Februari' }, { v: '03', l: 'Maret' },
-                    { v: '04', l: 'April' }, { v: '05', l: 'Mei' }, { v: '06', l: 'Juni' },
-                    { v: '07', l: 'Juli' }, { v: '08', l: 'Agustus' }, { v: '09', l: 'September' },
-                    { v: '10', l: 'Oktober' }, { v: '11', l: 'November' }, { v: '12', l: 'Desember' }
-                  ].map(m => (
-                    <option key={m.v} value={m.v}>{m.l}</option>
-                  ))}
-                </select>
-                <div className="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
-                  <Calendar className="h-4 w-4 text-gray-400" />
-                </div>
-              </div>
-
-              <div className="relative">
-                <select
-                  value={filterYear}
-                  onChange={(e) => setFilterYear(e.target.value)}
-                  className="appearance-none w-22.5 border border-gray-200 rounded-xl py-2.5 pl-3 pr-8 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-orange-500 text-sm text-gray-700 bg-white transition-all duration-200 cursor-pointer"
-                >
-                  <option value="">Tahun</option>
-                  {["2024", "2025", "2026"].map(y => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
-                <div className="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
-                  <Calendar className="h-4 w-4 text-gray-400" />
-                </div>
-              </div>
-
-              {(filterMonth || filterYear) && (
-                <button 
-                  onClick={() => { setFilterMonth(""); setFilterYear(""); }}
-                  className="text-xs text-orange-600 font-bold hover:underline ml-1"
-                >
-                  Reset
-                </button>
-              )}
-            </div>
           </div>
 
-          {canCreate && <Link href="/dashboard/gudang/transaksi/stock-opname/tambah" className="w-full lg:w-auto">
-            <button className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0 w-full">
-              <Plus className="w-4 h-4" />
-              <span>Tambah Data</span>
-            </button>
-          </Link>}
+          <div className="flex gap-2 w-full lg:w-auto">
+            {canCreate && <Link href="/dashboard/gudang/transaksi/stock-opname/tambah" className="w-full lg:w-auto">
+              <button className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0 w-full">
+                <Plus className="w-4 h-4" />
+                <span>Tambah Data</span>
+              </button>
+            </Link>}
+
+             <button
+                type="button"
+                onClick={() => setShowFilter((v) => !v)}
+                aria-expanded={showFilter}
+                className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors text-sm font-medium ${showFilter || countActiveFilters(filters) > 0 ? 'bg-orange-50 border-orange-300 text-orange-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+              >
+                <Filter className="w-4 h-4" />
+                <span>Filter{countActiveFilters(filters) > 0 ? ` (${countActiveFilters(filters)})` : ''}</span>
+              </button>
+          </div>
         </div>
+
+        {showFilter && (
+          <DateFilter
+            day={filterDay}
+            month={filterMonth}
+            year={filterYear}
+            onDayChange={setFilterDay}
+            onMonthChange={setFilterMonth}
+            onYearChange={setFilterYear}
+            onReset={() => { setFilterDay(''); setFilterMonth(''); setFilterYear(''); }}
+          />
+        )}
 
         {detailError && <p className="px-6 pt-3 text-sm text-red-500">{detailError}</p>}
 
@@ -138,7 +126,7 @@ export default function StockOpnameMasterGudang() {
             <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
               <tr>
                 <th scope="col" className="px-6 py-4 w-16 text-center">No</th>
-                <th scope="col" className="px-6 py-4">Periode Stock Opname</th>
+                <SortableTh label='Periode Stock Opname' sortKey='periode' sort={sort} onSort={toggle}/>
                 <th scope="col" className="px-6 py-4 text-center">Aksi</th>
               </tr>
             </thead>
@@ -238,5 +226,6 @@ export default function StockOpnameMasterGudang() {
         </div>
       )}
     </div>
+  
   );
 }

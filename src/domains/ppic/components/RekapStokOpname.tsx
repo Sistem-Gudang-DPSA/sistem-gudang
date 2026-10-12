@@ -5,7 +5,7 @@ import { ChevronDown, Download, FileUp } from 'lucide-react';
 import { getStockOpnameSummary, listMutations } from '@/domains/ppic/api';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
-import { ExportExcellButton, PrintPdfButton } from '@/components/ui/Tombol';
+import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';
 
 type TipeMutasi = 'Masuk' | 'Keluar';
 

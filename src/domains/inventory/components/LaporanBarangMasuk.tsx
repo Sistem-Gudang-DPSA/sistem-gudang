@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Search, Eye, Download, FileUp, Loader2, AlertCircle } from 'lucide-react';
+import { Search, Eye, Loader2, AlertCircle } from 'lucide-react';
 import { exportInboundReport, getInboundReport } from '@/domains/inventory/api';
 import type { InboundRow, InboundSource } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
-import { ExportExcellButton, PrintPdfButton } from '@/components/ui/Tombol';
+import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';
+import SortableTh, { useSort } from '@/shared/components/SortableTh';
 
 const PAGE_SIZE = 20;
 
@@ -49,6 +50,9 @@ export default function LaporanBarangMasuk() {
     const [endDate, setEndDate] = useState<string>(new Date().toISOString().slice(0, 10));
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [selectedDetail, setSelectedDetail] = useState<InboundRow | null>(null);
+
+    const { sort, toggle, params: sortParams } = useSort();
+    const [showFilter, setShowFilter] = useState(false);
 
     const [actionError, setActionError] = useState('');
     const [exporting, setExporting] = useState(false);
@@ -271,10 +275,10 @@ export default function LaporanBarangMasuk() {
         <table className="min-w-full divide-y divide-gray-200 text-sm">
           <thead className="bg-gray-100 font-semibold text-gray-700">
             <tr>
-              <th className="px-4 py-3 text-center w-12">No</th>
-              <th className="px-4 py-3 text-left">Tgl &amp; Jam Penerimaan</th>
-              <th className="px-4 py-3 text-left">No. Referensi / PO</th>
-              <th className="px-4 py-3 text-left">Sumber / Pemasok</th>
+              <th scope="col" className="px-4 py-3 text-center w-12">No</th>
+              <SortableTh label="Tanggal & Jam Penerimaan" sortKey="tanggal" sort={sort} onSort={toggle} />
+              <SortableTh label="No. Referensi" sortKey="no. referensi" sort={sort} onSort={toggle} />
+              <SortableTh label="Sumber / Pemasok" sortKey="Sumber / Pemasok" sort={sort} onSort={toggle} />
               <th className="px-4 py-3 text-right">Total Volume Item (Qty)</th>
               <th className="px-4 py-3 text-center">Status QC</th>
               <th className="px-4 py-3 text-center">Lokasi</th>
