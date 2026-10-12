@@ -129,7 +129,7 @@ export default function EstimasiPenawaranHarga() {
                                 <tr><td colSpan={4} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
                             )}
                             {!loading && filteredData.length === 0 && (
-                                <tr><td colSpan={4} className="px-6 py-6 text-center text-gray-400">Belum ada data Pembelian.</td></tr>
+                                <tr><td colSpan={4} className="px-6 py-6 text-center text-gray-400">Belum ada data Penawaran.</td></tr>
                             )}
                             {!loading && filteredData.map((item, index) => (
                                 <tr key={item.id} className="hover:bg-purple-50/30 transition-colors group">
