@@ -45,7 +45,7 @@ describe('DataSupplier list', () => {
     setup();
     await screen.findByText('PT Supplier 1');
     const hrefs = screen.getAllByText('Detail Barang').map((a) => a.getAttribute('href'));
-    expect(hrefs[0]).toBe('/dashboard/purchasing/master/data-supplier/1/detail');
+    expect(hrefs[0]).toBe('/dashboard/purchasing/master/data-supplier/1/detail?from=purchasing');
   });
 
   it('goes to page 2 and search resets page to 1', async () => {

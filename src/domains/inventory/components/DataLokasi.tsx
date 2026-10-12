@@ -7,7 +7,6 @@ import { createLocation, deleteLocation, listLocations, updateLocation } from '@
 import { ApiError } from '@/shared/lib/api-client';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import { useApiData } from '@/shared/lib/use-api-data';
-import { importLocationData } from '@/domains/superadmin/api';
 import EditModeBar, { useBatchEdit } from '@/shared/components/EditModeBar';
 
 const RAK_NAMA = ['A', 'B', 'C'];

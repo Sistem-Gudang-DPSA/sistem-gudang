@@ -1,5 +1,5 @@
 import { AuthUserProvider } from '@/domains/auth/user-context';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { installFakeApi, paged, fail } from '@/test/fake-api';
 import BarangKeluar from './BarangKeluar';
@@ -25,6 +25,8 @@ function setup(extra: Record<string, unknown> = {}, rows: unknown = paged([trx(1
 }
 const lastQ = (api: ReturnType<typeof installFakeApi>) => api.calls('GET /api/v1/outbound').at(-1)!.query;
 const label = (text: string) => screen.getByLabelText(text) as HTMLInputElement;
+// DateFilter selects have no label; pick each one by its placeholder option (Hari / Bulan / Tahun).
+const dateSelect = (placeholder: string) => screen.getByRole('option', { name: placeholder }).closest('select') as HTMLSelectElement;
 const cell = (name: string, row: number) => screen.getByLabelText(`${name} baris ${row}`) as HTMLInputElement;
 
 async function openForm(api: ReturnType<typeof installFakeApi>) {
@@ -49,13 +51,17 @@ function fillRow(row: number, v: { spk: string; item: string; itemId: string; qt
   fireEvent.change(cell('PIC', row), { target: { value: v.pic } });
 }
 
+afterEach(() => vi.useRealTimers());
+
 describe('BarangKeluar list', () => {
   it('flattens transaction lines into rows and sends page 1 / pageSize 20', async () => {
     const api = setup();
     expect(await screen.findByText('Triplex')).not.toBeNull();
     expect(screen.getByText('Paku')).not.toBeNull();
-    expect(screen.getAllByText('Klien 1').length).toBe(2);
-    expect(screen.getAllByText('05-03-2026').length).toBe(2);
+    // One row per item line; the transaction columns (client, date) render only on the first line of each transaction.
+    expect(screen.getAllByRole('row').length).toBe(3); // header + 2 lines
+    expect(screen.getAllByText('Klien 1').length).toBe(1);
+    expect(screen.getAllByText('05-03-2026').length).toBe(1);
     expect(lastQ(api).get('page')).toBe('1');
     expect(lastQ(api).get('pageSize')).toBe('20');
   });
@@ -75,13 +81,16 @@ describe('BarangKeluar list', () => {
     await screen.findAllByText('Klien 1');
     fireEvent.click(screen.getByText('Selanjutnya'));
     await waitFor(() => expect(lastQ(api).get('page')).toBe('2'));
-    fireEvent.change(label('Cari'), { target: { value: 'maju' } });
+    fireEvent.change(label('Cari barang keluar'), { target: { value: 'maju' } });
     await waitFor(() => expect(lastQ(api).get('search')).toBe('maju'));
     expect(lastQ(api).get('page')).toBe('1');
-    fireEvent.change(label('Tanggal'), { target: { value: '2025-02-14' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Filter/ }));
+    fireEvent.change(dateSelect('Tahun'), { target: { value: '2025' } });
+    fireEvent.change(dateSelect('Bulan'), { target: { value: '02' } });
+    fireEvent.change(dateSelect('Hari'), { target: { value: '14' } });
     await waitFor(() => expect(lastQ(api).get('startDate')).toBe('2025-02-14'));
     expect(lastQ(api).get('endDate')).toBe('2025-02-14');
-    expect(label('Cari').maxLength).toBe(100);
+    expect(label('Cari barang keluar').maxLength).toBe(100);
   });
 });
 
@@ -173,16 +182,29 @@ describe('BarangKeluar edit', () => {
     await waitFor(() => expect(screen.queryByText('Simpan Perubahan')).toBeNull());
   });
 
+  it('shows the 1-day warning and sends no PUT when the limit passes while the pop-up is open', async () => {
+    const api = setup({ 'PUT /api/v1/outbound/1': { id: 1 } }, paged([baru()]));
+    await screen.findAllByText('Klien 1');
+    await waitFor(() => expect(api.calls('GET /api/v1/items').length).toBeGreaterThan(0));
+    fireEvent.click(screen.getByLabelText('Edit barang keluar 1 Paku'));
+    expect(screen.getByText('Simpan Perubahan')).toBeTruthy();
+    // Only Date is faked so waitFor keeps working; move the clock 25h past createdAt
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(Date.now() + 25 * 60 * 60 * 1000);
+    fireEvent.click(screen.getByText('Simpan Perubahan'));
+    await waitFor(() => expect(screen.queryByText('Simpan Perubahan')).toBeNull());
+    expect(await screen.findByText(/sudah tidak bisa diedit/)).toBeTruthy();
+    expect(api.calls('PUT /api/v1/outbound/1')).toHaveLength(0);
+  });
+
   it('locks Edit after 1 day and shows a warning instead of the form', async () => {
     const api = setup({}, paged([trx(1)]));
     await screen.findAllByText('Klien 1');
     const tombol = screen.getByLabelText('Edit barang keluar 1 Triplex (terkunci)');
-    expect(tombol.getAttribute('aria-disabled')).toBe('true');
+    expect((tombol as HTMLButtonElement).disabled).toBe(true);
+    // A native disabled button swallows clicks, so the warning pop-up is not reachable from here.
     fireEvent.click(tombol);
-    expect(screen.getByText(/sudah tidak bisa diedit/)).not.toBeNull();
     expect(screen.queryByText('Simpan Perubahan')).toBeNull();
-    fireEvent.click(screen.getByText('Mengerti'));
-    expect(screen.queryByText(/sudah tidak bisa diedit/)).toBeNull();
     expect(api.calls('PUT /api/v1/outbound/1').length).toBe(0);
   });
 });

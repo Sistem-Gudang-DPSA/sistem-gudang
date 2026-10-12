@@ -87,7 +87,7 @@ describe('purchasing DataBarang', () => {
 describe('permissions', () => {
   it('shows item photos without an upload button, even for a superadmin', async () => {
     installFakeApi({
-      'GET /api/v1/items': paged([item(1, { photoUrl: '/uploads/items/1.jpg' }), item(2)]),
+      'GET /api/v1/items': paged([item(1, { photo: { thumb: '/uploads/items/1-thumb.webp', display: '/uploads/items/1-display.webp' } }), item(2)]),
       'GET /api/v1/suppliers': paged([]),
       'GET /api/v1/locations': paged([]),
     });

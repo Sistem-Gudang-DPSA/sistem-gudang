@@ -20,6 +20,8 @@ function setup(extra: Record<string, unknown> = {}, rows: unknown = paged([row(1
   return { api: installFakeApi({ 'GET /api/v1/stock-opname': rows, ...extra }), view: render(<StockOpname />) };
 }
 const lastQ = (api: ReturnType<typeof installFakeApi>) => api.calls('GET /api/v1/stock-opname').at(-1)!.query;
+// DateFilter selects have no label; pick each one by its placeholder option (Hari / Bulan / Tahun).
+const dateSelect = (placeholder: string) => screen.getByRole('option', { name: placeholder }).closest('select') as HTMLSelectElement;
 
 describe('StockOpname list', () => {
   it('shows period rows and sends page 1 / pageSize 20', async () => {
@@ -51,9 +53,9 @@ describe('StockOpname list', () => {
     fireEvent.change(search, { target: { value: 'maret' } });
     await waitFor(() => expect(lastQ(api).get('search')).toBe('maret'));
     expect(lastQ(api).get('page')).toBe('1');
-    const [month, year] = Array.from(document.querySelectorAll('select'));
-    fireEvent.change(month, { target: { value: '03' } });
-    fireEvent.change(year, { target: { value: '2026' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Filter/ }));
+    fireEvent.change(dateSelect('Bulan'), { target: { value: '03' } });
+    fireEvent.change(dateSelect('Tahun'), { target: { value: '2026' } });
     await waitFor(() => expect(lastQ(api).get('year')).toBe('2026'));
     expect(lastQ(api).get('month')).toBe('3');
     fireEvent.click(screen.getByText('Reset'));

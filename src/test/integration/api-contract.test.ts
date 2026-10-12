@@ -20,8 +20,8 @@ const normSpec = (p: string) => p.replace(/\{[^}]*\}/g, "{param}");
 const calls: { method: string; path: string; file: string }[] = [];
 for (const f of files) {
   const src = readFileSync(f, "utf8");
-  for (const m of src.matchAll(/apiClient\.(get|post|put|patch|delete)(?:<[^()]*>)?\(\s*[`"'](\/api\/v1[^`"']*)[`"']/g))
-    calls.push({ method: m[1], path: norm(m[2]), file: f });
+  for (const m of src.matchAll(/apiClient\.(get|post|put|patch|delete|upload)(?:<[^()]*>)?\(\s*[`"'](\/api\/v1[^`"']*)[`"']/g))
+    calls.push({ method: m[1] === "upload" ? "post" : m[1], path: norm(m[2]), file: f });
   for (const m of src.matchAll(/downloadFile\(\s*[`"'](\/api\/v1[^`"']*)[`"']/g))
     calls.push({ method: "get", path: norm(m[1]), file: f });
 }

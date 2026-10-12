@@ -5406,6 +5406,268 @@
         }
       }
     },
+    "/api/v1/locations/bulk": {
+      "post": {
+        "tags": [
+          "Location"
+        ],
+        "summary": "Import many locations in one transaction",
+        "description": "All or nothing. code is optional per row: left out, it is rackName + rackNumber (e.g. A + 01 = A01), and the joined value must be at most 20 characters. A code repeated within the file is a 400 keyed rows.<n>.code, as is any row that fails validation; then nothing is written. A code that already exists in the table is skipped and listed in skipped with reason duplicate_in_db, so the same file can be imported again. Needs location.create (otherwise 403). Validation failure is 400 with errors keyed like rows.4.code, where the row number starts at 1.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "rows": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 20
+                        },
+                        "rackName": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 10
+                        },
+                        "rackNumber": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 10
+                        },
+                        "description": {
+                          "type": "string",
+                          "maxLength": 255
+                        }
+                      },
+                      "required": [
+                        "rackName",
+                        "rackNumber"
+                      ]
+                    },
+                    "minItems": 1,
+                    "maxItems": 1000
+                  }
+                },
+                "required": [
+                  "rows"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Imported",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "created": {
+                          "type": "number"
+                        },
+                        "skipped": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "row": {
+                                "type": "number"
+                              },
+                              "code": {
+                                "type": "string"
+                              },
+                              "reason": {
+                                "type": "string",
+                                "enum": [
+                                  "duplicate_in_db"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "row",
+                              "code",
+                              "reason"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "created",
+                        "skipped"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/suppliers": {
       "get": {
         "tags": [
@@ -8548,6 +8810,25 @@
                               "supplierName": {
                                 "type": "string",
                                 "nullable": true
+                              },
+                              "photo": {
+                                "type": "object",
+                                "nullable": true,
+                                "properties": {
+                                  "thumb": {
+                                    "type": "string",
+                                    "example": "/uploads/items/<uuid>-thumb.webp"
+                                  },
+                                  "display": {
+                                    "type": "string",
+                                    "example": "/uploads/items/<uuid>-display.webp"
+                                  }
+                                },
+                                "required": [
+                                  "thumb",
+                                  "display"
+                                ],
+                                "description": "Relative URLs under /uploads (WebP), null when no photo"
                               }
                             },
                             "required": [
@@ -8562,7 +8843,8 @@
                               "locationId",
                               "locationCode",
                               "supplierId",
-                              "supplierName"
+                              "supplierName",
+                              "photo"
                             ]
                           }
                         },
@@ -8863,6 +9145,25 @@
                           "nullable": true,
                           "description": "null until Purchasing sets it"
                         },
+                        "photo": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "thumb": {
+                              "type": "string",
+                              "example": "/uploads/items/<uuid>-thumb.webp"
+                            },
+                            "display": {
+                              "type": "string",
+                              "example": "/uploads/items/<uuid>-display.webp"
+                            }
+                          },
+                          "required": [
+                            "thumb",
+                            "display"
+                          ],
+                          "description": "Relative URLs under /uploads (WebP), null when no photo"
+                        },
                         "createdAt": {
                           "type": "string",
                           "nullable": true
@@ -8883,6 +9184,7 @@
                         "stock",
                         "locationId",
                         "supplierId",
+                        "photo",
                         "createdAt",
                         "updatedAt"
                       ]
@@ -9148,6 +9450,25 @@
                           "nullable": true,
                           "description": "null until Purchasing sets it"
                         },
+                        "photo": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "thumb": {
+                              "type": "string",
+                              "example": "/uploads/items/<uuid>-thumb.webp"
+                            },
+                            "display": {
+                              "type": "string",
+                              "example": "/uploads/items/<uuid>-display.webp"
+                            }
+                          },
+                          "required": [
+                            "thumb",
+                            "display"
+                          ],
+                          "description": "Relative URLs under /uploads (WebP), null when no photo"
+                        },
                         "createdAt": {
                           "type": "string",
                           "nullable": true
@@ -9168,6 +9489,7 @@
                         "stock",
                         "locationId",
                         "supplierId",
+                        "photo",
                         "createdAt",
                         "updatedAt"
                       ]
@@ -9440,6 +9762,25 @@
                           "nullable": true,
                           "description": "null until Purchasing sets it"
                         },
+                        "photo": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "thumb": {
+                              "type": "string",
+                              "example": "/uploads/items/<uuid>-thumb.webp"
+                            },
+                            "display": {
+                              "type": "string",
+                              "example": "/uploads/items/<uuid>-display.webp"
+                            }
+                          },
+                          "required": [
+                            "thumb",
+                            "display"
+                          ],
+                          "description": "Relative URLs under /uploads (WebP), null when no photo"
+                        },
                         "createdAt": {
                           "type": "string",
                           "nullable": true
@@ -9460,6 +9801,7 @@
                         "stock",
                         "locationId",
                         "supplierId",
+                        "photo",
                         "createdAt",
                         "updatedAt"
                       ]
@@ -12105,6 +12447,25 @@
                             "nullable": true,
                             "description": "null until Purchasing sets it"
                           },
+                          "photo": {
+                            "type": "object",
+                            "nullable": true,
+                            "properties": {
+                              "thumb": {
+                                "type": "string",
+                                "example": "/uploads/items/<uuid>-thumb.webp"
+                              },
+                              "display": {
+                                "type": "string",
+                                "example": "/uploads/items/<uuid>-display.webp"
+                              }
+                            },
+                            "required": [
+                              "thumb",
+                              "display"
+                            ],
+                            "description": "Relative URLs under /uploads (WebP), null when no photo"
+                          },
                           "createdAt": {
                             "type": "string",
                             "nullable": true
@@ -12125,6 +12486,7 @@
                           "stock",
                           "locationId",
                           "supplierId",
+                          "photo",
                           "createdAt",
                           "updatedAt"
                         ]
@@ -12591,6 +12953,25 @@
                           "nullable": true,
                           "description": "null until Purchasing sets it"
                         },
+                        "photo": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "thumb": {
+                              "type": "string",
+                              "example": "/uploads/items/<uuid>-thumb.webp"
+                            },
+                            "display": {
+                              "type": "string",
+                              "example": "/uploads/items/<uuid>-display.webp"
+                            }
+                          },
+                          "required": [
+                            "thumb",
+                            "display"
+                          ],
+                          "description": "Relative URLs under /uploads (WebP), null when no photo"
+                        },
                         "createdAt": {
                           "type": "string",
                           "nullable": true
@@ -12611,6 +12992,7 @@
                         "stock",
                         "locationId",
                         "supplierId",
+                        "photo",
                         "createdAt",
                         "updatedAt"
                       ]
@@ -12866,6 +13248,25 @@
                           "nullable": true,
                           "description": "null until Purchasing sets it"
                         },
+                        "photo": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "thumb": {
+                              "type": "string",
+                              "example": "/uploads/items/<uuid>-thumb.webp"
+                            },
+                            "display": {
+                              "type": "string",
+                              "example": "/uploads/items/<uuid>-display.webp"
+                            }
+                          },
+                          "required": [
+                            "thumb",
+                            "display"
+                          ],
+                          "description": "Relative URLs under /uploads (WebP), null when no photo"
+                        },
                         "createdAt": {
                           "type": "string",
                           "nullable": true
@@ -12886,8 +13287,553 @@
                         "stock",
                         "locationId",
                         "supplierId",
+                        "photo",
                         "createdAt",
                         "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/items/{id}/photo": {
+      "post": {
+        "tags": [
+          "Item"
+        ],
+        "summary": "Upload or replace an item's photo",
+        "description": "Needs item.upload-photo. Accepts one image in the photo field (JPEG, PNG or WebP, 10 MB max). The server makes two WebP files under /uploads/items: a thumb at most 400px and a display at most 2000px, with EXIF rotation applied. The previous photo files are deleted. 400 for a wrong type, an oversized or missing or unreadable file, 404 when the item does not exist. The URLs are returned in photo.thumb and photo.display.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "photo": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "required": [
+                  "photo"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Photo stored, the full item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "code": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "detail": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "category": {
+                          "type": "string"
+                        },
+                        "unit": {
+                          "type": "string"
+                        },
+                        "price": {
+                          "type": "number"
+                        },
+                        "stock": {
+                          "type": "number",
+                          "description": "Up to two decimals"
+                        },
+                        "locationId": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "supplierId": {
+                          "type": "number",
+                          "nullable": true,
+                          "description": "null until Purchasing sets it"
+                        },
+                        "photo": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "thumb": {
+                              "type": "string",
+                              "example": "/uploads/items/<uuid>-thumb.webp"
+                            },
+                            "display": {
+                              "type": "string",
+                              "example": "/uploads/items/<uuid>-display.webp"
+                            }
+                          },
+                          "required": [
+                            "thumb",
+                            "display"
+                          ],
+                          "description": "Relative URLs under /uploads (WebP), null when no photo"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "code",
+                        "name",
+                        "detail",
+                        "category",
+                        "unit",
+                        "price",
+                        "stock",
+                        "locationId",
+                        "supplierId",
+                        "photo",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/items/photos/bulk": {
+      "post": {
+        "tags": [
+          "Item"
+        ],
+        "summary": "Upload photos for up to 10 items in one request",
+        "description": "Needs item.upload-photo. Each file is a form field named photo_<itemId> (for example photo_12), at most 10 files, 10 MB each, one per item. Files are processed one by one with the same rules as POST /items/{id}/photo. A bad file does not fail the request: it is listed in failed with a reason (not_found, invalid_type, too_large, unprocessable) and the others still save. 400 when there are no files, a field name is not photo_<itemId>, an itemId is sent twice, there are more than 10 files, or a file is over 10 MB.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Batch processed. Each item is either in uploaded or in failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "uploaded": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "itemId": {
+                                "type": "number"
+                              },
+                              "photo": {
+                                "type": "object",
+                                "properties": {
+                                  "thumb": {
+                                    "type": "string"
+                                  },
+                                  "display": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "thumb",
+                                  "display"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "itemId",
+                              "photo"
+                            ]
+                          }
+                        },
+                        "failed": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "itemId": {
+                                "type": "number"
+                              },
+                              "reason": {
+                                "type": "string",
+                                "enum": [
+                                  "not_found",
+                                  "invalid_type",
+                                  "too_large",
+                                  "unprocessable"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "itemId",
+                              "reason"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "uploaded",
+                        "failed"
                       ]
                     }
                   },

@@ -6,7 +6,7 @@ import { AuthUserProvider } from '@/domains/auth/user-context';
 
 vi.setConfig({ testTimeout: 20000 });
 
-vi.mock('next/navigation', () => ({ useParams: () => ({ id: '5' }), useRouter: () => ({ push: vi.fn() }), usePathname: () => '/' }));
+vi.mock('next/navigation', () => ({ useParams: () => ({ id: '5' }), useRouter: () => ({ push: vi.fn() }), usePathname: () => '/', useSearchParams: () => new URLSearchParams() }));
 
 const thisYear = new Date().getFullYear();
 const row = (itemId: number, nama: string, harga: (number | null)[], rataRata: number | null) => ({ itemId, kode: `K${itemId}`, nama, satuan: 'lbr', kategori: 'Lembaran', harga, rataRata });

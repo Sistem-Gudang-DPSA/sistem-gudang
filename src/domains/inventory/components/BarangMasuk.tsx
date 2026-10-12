@@ -195,9 +195,6 @@ export default function BarangMasukGudang() {
           />
         )}
 
-        {error && (
-          <div className="mx-5 mt-5 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>
-        )}
 
         {/* Table Container */}
         <div className="overflow-x-auto">
