@@ -404,8 +404,7 @@ export default function BarangKeluarGudang() {
                           ) : (
                             <button
                               type="button"
-                              disabled // Menggunakan disabled asli HTML agar tombol benar-benar terkunci
-                              onClick={() => setPeringatan(PESAN_TIDAK_BISA_EDIT)}
+                              disabled
                               title="Sudah lewat 1 hari, tidak bisa diedit"
                               aria-label={`Edit barang keluar ${trx.id} ${line.itemName} (terkunci)`}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-gray-50 text-gray-400 text-xs font-semibold cursor-not-allowed opacity-70"

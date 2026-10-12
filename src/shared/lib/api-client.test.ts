@@ -38,6 +38,17 @@ describe("apiClient", () => {
     });
   });
 
+  it("reads Retry-After seconds into ApiError.retryAfter", async () => {
+    const { apiClient } = await import("./api-client");
+    global.fetch = vi.fn().mockResolvedValue({
+      status: 429,
+      headers: new Headers({ "Retry-After": "7" }),
+      json: async () => ({ success: false, message: "Terlalu banyak permintaan" }),
+    }) as unknown as typeof fetch;
+
+    await expect(apiClient.get("/api/v1/items")).rejects.toMatchObject({ status: 429, retryAfter: 7 });
+  });
+
   it("retries the request once after a successful silent refresh on 401", async () => {
     const { apiClient, setAccessToken, getAccessToken } = await import("./api-client");
     setAccessToken("expired-token");

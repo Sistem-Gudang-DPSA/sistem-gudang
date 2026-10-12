@@ -43,6 +43,7 @@ export default function DataLokasiGudang() {
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [notice, setNotice] = useState<string | null>(null);
 
   // Timer otomatis untuk menghilangkan alert setelah 4 detik
   React.useEffect(() => {
@@ -138,13 +139,17 @@ export default function DataLokasiGudang() {
                 <ImportExcelButton
                     templateHeaders={LocationTemplateHeaders}
                     templateExample={LocationTemplateExample}
-                    templateFilename="Template_Import_Barang.xlsx"
+                    templateFilename="Template_Import_Lokasi.xlsx"
                     parseRow={LocationData}
                     previewColumns={[
                         { header: 'Nama Rak', value: (r) => r.NamaRak },
                         { header: 'Nomor Rak', value: (r) => r.NomorRak },
                     ]}
-                    onSave={importLocationData}
+                    onSave={async (rows) => {
+                      const res = await importLocationData(rows);
+                      const dilewati = res.skipped.length > 0 ? `, ${res.skipped.length} dilewati karena kodenya sudah ada: ${res.skipped.map((s) => s.code).join(", ")}` : "";
+                      setNotice(`${res.created} lokasi ditambahkan${dilewati}`);
+                    }}
                     onSuccess={() => reload()}
                     />
                 )}
@@ -158,6 +163,13 @@ export default function DataLokasiGudang() {
             </button>}
           </div>
         </div>
+
+        {notice && (
+          <div className="mx-5 mt-5 p-3 bg-green-50 text-green-700 text-sm rounded-lg flex items-start justify-between gap-3">
+            <span>{notice}</span>
+            <button type="button" onClick={() => setNotice(null)} aria-label="Tutup notifikasi" className="font-bold leading-none text-green-700 hover:text-green-900">×</button>
+          </div>
+        )}
 
         {error && !isModalOpen && (
           <div className="mx-5 mt-5 p-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-lg font-medium transition-all duration-300 animate-in fade-in slide-in-from-top-1">{error}</div>

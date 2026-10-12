@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useCan } from '@/domains/auth/user-context';
-import { Search, Plus, Download, Edit2, Trash2, Filter, MoreHorizontal } from 'lucide-react';
+import { Search, Plus, Download, Edit2, Trash2, Filter, MoreHorizontal, Images } from 'lucide-react';
 import { listItems, createItem, deleteItem, listLocations, updateItem, listItemCategories, listItemUnits } from '@/domains/inventory/api';
 import type { ItemListRow, Location } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
@@ -11,8 +11,9 @@ import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
-import { ExportExcellButton } from '@/components/ui/Tombol';
+import { ExportExcellButton } from '@/shared/components/Tombol';
 import ItemPhoto from '@/domains/inventory/components/ItemPhoto';
+import BulkPhotoModal from '@/domains/inventory/components/BulkPhotoModal';
 
 const emptyForm = { name: '', unit: '', category: '', price: '', supplierId: '' };
 
@@ -39,6 +40,28 @@ export default function DataBarangPPIC() {
     "Gagal memuat data barang.",
   );
   const dataBarang = loaded?.rows ?? [];
+
+  // Pilihan disimpan per id agar tetap ada saat pindah halaman, cari, atau urutkan.
+  const [selected, setSelected] = useState(new Map<number, ItemListRow>());
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkUploaded, setBulkUploaded] = useState(false); // centangan dikosongkan hanya bila sudah ada upload
+  const toggleRow = (item: ItemListRow) =>
+    setSelected((prev) => {
+      const next = new Map(prev);
+      if (next.has(item.id)) next.delete(item.id);
+      else next.set(item.id, item);
+      return next;
+    });
+  const pageAllSelected = dataBarang.length > 0 && dataBarang.every((i) => selected.has(i.id));
+  const togglePage = () =>
+    setSelected((prev) => {
+      const next = new Map(prev);
+      for (const i of dataBarang) {
+        if (pageAllSelected) next.delete(i.id);
+        else next.set(i.id, i);
+      }
+      return next;
+    });
   const error = actionError || loadError;
 
   const { data: units } = useApiData(() => listItemUnits(), 'units', 'Gagal memuat daftar satuan.');
@@ -184,6 +207,17 @@ export default function DataBarangPPIC() {
             />
           </div>
           <div className="flex items-center gap-2">
+            {canUploadPhoto && (
+              <button
+                type="button"
+                onClick={() => setBulkOpen(true)}
+                disabled={selected.size === 0}
+                className="flex items-center gap-2 px-3 py-2 bg-orange-50 border border-orange-300 text-orange-700 rounded-lg hover:bg-orange-100 transition-colors text-sm font-medium disabled:opacity-50"
+              >
+                <Images className="w-4 h-4" />
+                {`Pasang Foto Massal (${selected.size})`}
+              </button>
+            )}
             <ExportExcellButton onClick={handleExportCSV} disabled={loading || dataBarang.length === 0} />
             <button className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">
               <Filter className="w-4 h-4" />
@@ -201,6 +235,11 @@ export default function DataBarangPPIC() {
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
               <tr>
+                {canUploadPhoto && (
+                  <th scope="col" className="px-4 py-4">
+                    <input type="checkbox" aria-label="Pilih semua barang di halaman ini" checked={pageAllSelected} onChange={togglePage} className="w-4 h-4 rounded border-gray-300 text-[#FF8A00] focus:ring-[#FF8A00]" />
+                  </th>
+                )}
                 <th scope="col" className="px-6 py-4">No</th>
                 <th scope="col" className="px-6 py-4">Foto</th>
                 <th scope="col" className="px-6 py-4">Informasi Barang</th>
@@ -214,13 +253,18 @@ export default function DataBarangPPIC() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading && (
-                <tr><td colSpan={9} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
+                <tr><td colSpan={canUploadPhoto ? 10 : 9} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
               )}
               {!loading && dataBarang.length === 0 && (
-                <tr><td colSpan={9} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
+                <tr><td colSpan={canUploadPhoto ? 10 : 9} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
               )}
               {!loading && dataBarang.map((item, index) => (
                 <tr key={item.id} className="hover:bg-purple-50/30 transition-colors group">
+                  {canUploadPhoto && (
+                    <td className="px-4 py-4">
+                      <input type="checkbox" aria-label={`Pilih ${item.name}`} checked={selected.has(item.id)} onChange={() => toggleRow(item)} className="w-4 h-4 rounded border-gray-300 text-[#FF8A00] focus:ring-[#FF8A00]" />
+                    </td>
+                  )}
                   <td className="px-6 py-4 text-gray-500">{index + 1}</td>
 
                   {/* Foto */}
@@ -302,6 +346,14 @@ export default function DataBarangPPIC() {
         </div>
         <Pagination page={page} pageSize={20} total={loaded?.total ?? 0} onPageChange={setPage} activeClass="bg-purple-500 text-white border-purple-500" />
       </div>
+
+      {bulkOpen && (
+        <BulkPhotoModal
+          items={[...selected.values()]}
+          onClose={() => { setBulkOpen(false); if (bulkUploaded) setSelected(new Map()); setBulkUploaded(false); }}
+          onDone={() => { setBulkUploaded(true); reload(); }}
+        />
+      )}
 
       {/* Modal Tambah Data */}
       {isModalOpen && (

@@ -185,7 +185,7 @@ describe('permissions', () => {
   });
 
   it('only a user holding item.upload-photo can upload item photos', async () => {
-    installFakeApi(routes({}, [item(1, { photoUrl: '/uploads/items/1.jpg' }), item(2)]));
+    installFakeApi(routes({}, [item(1, { photo: { thumb: '/uploads/items/1-thumb.webp', display: '/uploads/items/1-display.webp' } }), item(2)]));
     const { unmount } = render(withUser(<DataBarang />, ['item.view']));
     await screen.findByText('Barang 1');
     expect(screen.getByAltText('Foto Barang 1')).toBeTruthy();
@@ -196,5 +196,23 @@ describe('permissions', () => {
     await screen.findByText('Barang 1');
     expect(screen.getByText('Ganti')).toBeTruthy(); // Barang 1 sudah punya foto
     expect(screen.getByText('Upload')).toBeTruthy(); // Barang 2 belum
+  });
+
+  it('selecting rows enables the bulk photo button for users with item.upload-photo', async () => {
+    installFakeApi(routes());
+    render(withUser(<DataBarang />, ['item.view', 'item.upload-photo']));
+    await screen.findByText('Barang 1');
+    expect(screen.getByRole('button', { name: 'Pasang Foto Massal (0)' }).hasAttribute('disabled')).toBe(true);
+    fireEvent.click(screen.getByLabelText('Pilih Barang 1'));
+    fireEvent.click(screen.getByLabelText('Pilih Barang 2'));
+    expect(screen.getByRole('button', { name: 'Pasang Foto Massal (2)' })).toBeTruthy();
+  });
+
+  it('shows no row checkboxes without item.upload-photo', async () => {
+    installFakeApi(routes());
+    render(withUser(<DataBarang />, ['item.view']));
+    await screen.findByText('Barang 1');
+    expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
+    expect(screen.queryByText(/Pasang Foto Massal/)).toBeNull();
   });
 });

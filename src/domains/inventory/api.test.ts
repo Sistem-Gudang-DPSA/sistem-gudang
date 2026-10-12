@@ -18,6 +18,7 @@ const rows: Row[] = [
   ['adjustItemStock', [1, { delta: -2, reason: 'rusak' }], 'PATCH /api/v1/items/1/stock', {}, { delta: -2, reason: 'rusak' }],
   // Multipart body (FormData) is not parsed by the fake API; ItemPhoto.test checks its contents.
   ['uploadItemPhoto', [1, new File(['x'], 'a.png', { type: 'image/png' })], 'POST /api/v1/items/1/photo', {}, undefined],
+  ['uploadItemPhotosBulk', [[{ itemId: 1, file: new File(['x'], 'a.png', { type: 'image/png' }) }]], 'POST /api/v1/items/photos/bulk', {}, undefined],
   ['listItemCategories', [],'GET /api/v1/items/categories', {}, undefined],
   ['listItemUnits', [], 'GET /api/v1/items/units', {}, undefined],
   ['createItemCategory', ['Kayu'], 'POST /api/v1/items/categories', {}, { name: 'Kayu' }],

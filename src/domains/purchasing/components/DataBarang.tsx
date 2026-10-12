@@ -11,7 +11,7 @@ import { useApiData } from '@/shared/lib/use-api-data';
 import { digitsOnly, INTEGER_INPUT } from '@/shared/lib/input';
 import { useCan } from '@/domains/auth/user-context';
 import Pagination from '@/shared/components/Pagination';
-import { ExportExcellButton } from '@/components/ui/Tombol';
+import { ExportExcellButton } from '@/shared/components/Tombol';
 import ItemPhoto from '@/domains/inventory/components/ItemPhoto';
 
 export default function DataBarangPurchasing() {
