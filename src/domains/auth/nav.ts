@@ -1,4 +1,4 @@
-import { Package, ShieldCheck, ShoppingCart, UserCog, type LucideIcon } from "lucide-react";
+import { PackageCheck, ShieldCheck, ShoppingCart, UserCog, Warehouse, type LucideIcon } from "lucide-react";
 import type { AuthUser } from "./types";
 
 export interface NavItem {
@@ -13,7 +13,7 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-export type NavTheme = "orange" | "purple" | "teal" | "indigo";
+export type NavTheme = "orange" | "rose" | "purple" | "teal" | "indigo";
 
 export interface NavDivision {
   key: string;
@@ -55,8 +55,43 @@ export const NAV_DIVISIONS: NavDivision[] = [
   {
     key: "gudang",
     label: "Gudang",
-    icon: Package,
+    icon: Warehouse,
     theme: "orange",
+    // report.view is shared with PPIC reports, so it must not open the Gudang division by itself.
+    anyOf: ["inbound.view", "outbound.view", "stock-opname.view", "location.view"],
+    groups: [
+      {
+        title: "Master",
+        items: [
+          { href: "/dashboard/gudang/master/data-barang", label: "Data Barang", anyOf: ["item.view"] },
+          { href: "/dashboard/gudang/master/data-lokasi", label: "Data Lokasi", anyOf: ["location.view"] },
+        ],
+      },
+      {
+        title: "Transaksi",
+        items: [
+          { href: "/dashboard/gudang/transaksi/barang-masuk", label: "Barang Masuk", anyOf: ["inbound.view"] },
+          { href: "/dashboard/gudang/transaksi/barang-keluar", label: "Barang Keluar", anyOf: ["outbound.view"] },
+          { href: "/dashboard/gudang/transaksi/stock-opname", label: "Stock Opname", anyOf: ["stock-opname.view"] },
+        ],
+      },
+      {
+        title: "Laporan",
+        items: [
+          { href: "/dashboard/gudang/laporan/barang-masuk", label: "Rekap Data Barang Masuk", anyOf: ["report.view"] },
+          { href: "/dashboard/gudang/laporan/barang-keluar", label: "Rekap Data Barang Keluar", anyOf: ["report.view"] },
+          { href: "/dashboard/gudang/laporan/rekap-permintaan", label: "Rekap Permintaan", anyOf: ["report.view"] },
+          { href: "/dashboard/gudang/laporan/stock-opname", label: "Rekap Stok Opname", anyOf: ["report.view"] },
+          { href: "/dashboard/gudang/laporan/dokubah", label: "Rekap Dokubah", anyOf: ["dokubah.view"] },
+        ],
+      },
+    ],
+  },
+  {
+    key: "gudang-barang-jadi",
+    label: "Gudang Barang Jadi",
+    icon: PackageCheck,
+    theme: "rose",
     // report.view is shared with PPIC reports, so it must not open the Gudang division by itself.
     anyOf: ["inbound.view", "outbound.view", "stock-opname.view", "location.view"],
     groups: [
