@@ -22,6 +22,11 @@ describe('SidebarNav', () => {
       '/dashboard',
       '/dashboard/purchasing/master/data-barang',
       '/dashboard/purchasing/master/data-supplier',
+      '/dashboard/purchasing/transaksi/penawaran-harga',
+      '/dashboard/purchasing/transaksi/retur-supplier',
+      '/dashboard/purchasing/laporan/barang-masuk',
+      '/dashboard/purchasing/laporan/barang-keluar',
+      '/dashboard/purchasing/laporan/stock-opname',
       '/dashboard/purchasing/laporan/rekap-pembelian',
     ]);
     expect(screen.getByText('Purchasing')).not.toBeNull();
@@ -32,7 +37,7 @@ describe('SidebarNav', () => {
 
   it('hides items whose permission is missing inside a visible division', () => {
     render(<SidebarNav user={user(['inbound.view'])} pathname="/dashboard" />);
-    expect(hrefs()).toEqual(['/dashboard', '/dashboard/gudang/transaksi/barang-masuk']);
+    expect(hrefs()).toEqual(['/dashboard', '/dashboard/gudang/transaksi/barang-masuk', '/dashboard/gudang-barang-jadi/transaksi/barang-masuk']);
   });
 
   it('report.view alone does not open the Gudang division', () => {
@@ -51,6 +56,13 @@ describe('SidebarNav', () => {
     expect(link('Data Supplier').className).toContain('bg-teal-500');
     expect(link('Data Barang').className).not.toContain('bg-teal-500');
     expect(link('Overview').className).not.toContain('bg-blue-600');
+  });
+
+  it('highlights the item only in the Gudang division the path belongs to', () => {
+    render(<SidebarNav user={user(['item.view', 'inbound.view'])} pathname="/dashboard/gudang-barang-jadi/master/data-barang" />);
+    const [gudang, barangJadi] = screen.getAllByRole('link', { name: 'Data Barang' });
+    expect(barangJadi.className).toContain('bg-rose-500');
+    expect(gudang.className).not.toContain('bg-orange-500');
   });
 
   it('highlights Overview on /dashboard and the SA link on its path', () => {
