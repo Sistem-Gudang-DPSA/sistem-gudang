@@ -29,7 +29,6 @@ export interface NavDivision {
 
 // Links whose pages do not exist yet are left out on purpose (they used to 404):
 // ppic: laporan/barang-masuk, barang-keluar, barang-dikembalikan, stok-opname
-// purchasing: laporan/barang-masuk, barang-keluar, stok-opname
 export const NAV_DIVISIONS: NavDivision[] = [
   {
     // Master data managed from the Super Admin menu; pages live under /dashboard/superadmin.
@@ -92,32 +91,33 @@ export const NAV_DIVISIONS: NavDivision[] = [
     label: "Gudang Barang Jadi",
     icon: PackageCheck,
     theme: "rose",
+    // Own routes (re-exporting the Gudang screens) so only one division's link lights up in the sidebar.
     // report.view is shared with PPIC reports, so it must not open the Gudang division by itself.
     anyOf: ["inbound.view", "outbound.view", "stock-opname.view", "location.view"],
     groups: [
       {
         title: "Master",
         items: [
-          { href: "/dashboard/gudang/master/data-barang", label: "Data Barang", anyOf: ["item.view"] },
-          { href: "/dashboard/gudang/master/data-lokasi", label: "Data Lokasi", anyOf: ["location.view"] },
+          { href: "/dashboard/gudang-barang-jadi/master/data-barang", label: "Data Barang", anyOf: ["item.view"] },
+          { href: "/dashboard/gudang-barang-jadi/master/data-lokasi", label: "Data Lokasi", anyOf: ["location.view"] },
         ],
       },
       {
         title: "Transaksi",
         items: [
-          { href: "/dashboard/gudang/transaksi/barang-masuk", label: "Barang Masuk", anyOf: ["inbound.view"] },
-          { href: "/dashboard/gudang/transaksi/barang-keluar", label: "Barang Keluar", anyOf: ["outbound.view"] },
-          { href: "/dashboard/gudang/transaksi/stock-opname", label: "Stock Opname", anyOf: ["stock-opname.view"] },
+          { href: "/dashboard/gudang-barang-jadi/transaksi/barang-masuk", label: "Barang Masuk", anyOf: ["inbound.view"] },
+          { href: "/dashboard/gudang-barang-jadi/transaksi/barang-keluar", label: "Barang Keluar", anyOf: ["outbound.view"] },
+          { href: "/dashboard/gudang-barang-jadi/transaksi/stock-opname", label: "Stock Opname", anyOf: ["stock-opname.view"] },
         ],
       },
       {
         title: "Laporan",
         items: [
-          { href: "/dashboard/gudang/laporan/barang-masuk", label: "Rekap Data Barang Masuk", anyOf: ["report.view"] },
-          { href: "/dashboard/gudang/laporan/barang-keluar", label: "Rekap Data Barang Keluar", anyOf: ["report.view"] },
-          { href: "/dashboard/gudang/laporan/rekap-permintaan", label: "Rekap Permintaan", anyOf: ["report.view"] },
-          { href: "/dashboard/gudang/laporan/stock-opname", label: "Rekap Stok Opname", anyOf: ["report.view"] },
-          { href: "/dashboard/gudang/laporan/dokubah", label: "Rekap Dokubah", anyOf: ["dokubah.view"] },
+          { href: "/dashboard/gudang-barang-jadi/laporan/barang-masuk", label: "Rekap Data Barang Masuk", anyOf: ["report.view"] },
+          { href: "/dashboard/gudang-barang-jadi/laporan/barang-keluar", label: "Rekap Data Barang Keluar", anyOf: ["report.view"] },
+          { href: "/dashboard/gudang-barang-jadi/laporan/rekap-permintaan", label: "Rekap Permintaan", anyOf: ["report.view"] },
+          { href: "/dashboard/gudang-barang-jadi/laporan/stock-opname", label: "Rekap Stok Opname", anyOf: ["report.view"] },
+          { href: "/dashboard/gudang-barang-jadi/laporan/dokubah", label: "Rekap Dokubah", anyOf: ["dokubah.view"] },
         ],
       },
     ],
@@ -142,6 +142,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
           { href: "/dashboard/ppic/transaksi/dokubah", label: "Dokubah", anyOf: ["dokubah.view"] },
           { href: "/dashboard/ppic/transaksi/spk-mutasi-internal", label: "SPK Internal & Mutasi Stok", anyOf: ["spk-internal.view"] },
           { href: "/dashboard/ppic/transaksi/permintaan-pembelian", label: "Permintaan Pembelian", anyOf: ["purchase-request.create"] },
+          { href: "/dashboard/ppic/transaksi/approval", label: "Approval", anyOf: ["material-request.create", "purchase-request.create"] },
         ],
       },
       {
@@ -170,8 +171,20 @@ export const NAV_DIVISIONS: NavDivision[] = [
         ],
       },
       {
+        // Placeholder pages for now; items without a dedicated permission use the division's own set.
+        title: "Transaksi",
+        items: [
+          { href: "/dashboard/purchasing/transaksi/buat-po", label: "Buat PO", anyOf: ["purchase-order.create"] },
+          { href: "/dashboard/purchasing/transaksi/penawaran-harga", label: "Penawaran Harga / SPH", anyOf: ["item.set-price"] },
+          { href: "/dashboard/purchasing/transaksi/retur-supplier", label: "Retur ke Supplier", anyOf: ["item.set-price", "supplier.create", "supplier.update"] },
+        ],
+      },
+      {
         title: "Laporan",
         items: [
+          { href: "/dashboard/purchasing/laporan/barang-masuk", label: "Rekap Data Barang Masuk", anyOf: ["item.set-price", "supplier.create", "supplier.update"] },
+          { href: "/dashboard/purchasing/laporan/barang-keluar", label: "Rekap Data Barang Keluar", anyOf: ["item.set-price", "supplier.create", "supplier.update"] },
+          { href: "/dashboard/purchasing/laporan/stock-opname", label: "Rekap Stock Opname", anyOf: ["item.set-price", "supplier.create", "supplier.update"] },
           { href: "/dashboard/purchasing/laporan/rekap-pembelian", label: "Rekap Pembelian", anyOf: ["purchase-request.approve"] },
         ],
       },

@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { 
-  Package, UserCog, ShoppingCart, 
+  Warehouse, PackageCheck, UserCog, ShoppingCart,
   Users, ArrowRight, UserPlus
 } from "lucide-react";
 import { listUsers } from "../api";
@@ -13,10 +13,18 @@ const divisions = [
   { 
     name: "Gudang", 
     path: "/dashboard/gudang", 
-    icon: Package, 
-    color: "from-orange-500 to-red-500", 
+    icon: Warehouse,
+    color: "from-orange-500 to-red-500",
     bgColor: "bg-orange-50",
-    description: "Manajemen stok, barang masuk/keluar, dan inventori." 
+    description: "Manajemen stok, barang masuk/keluar, dan inventori."
+  },
+  {
+    name: "Gudang Barang Jadi",
+    path: "/dashboard/gudang-barang-jadi",
+    icon: PackageCheck,
+    color: "from-rose-500 to-pink-500",
+    bgColor: "bg-rose-50",
+    description: "Penyimpanan barang jadi hasil produksi, barang masuk/keluar, dan stok opname."
   },
   { 
     name: "PPIC", 
@@ -62,7 +70,7 @@ export default function SuperAdminDashboard() {
       </div>
 
       {/* Division Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         {divisions.map((div) => {
           const Icon = div.icon;
           return (
