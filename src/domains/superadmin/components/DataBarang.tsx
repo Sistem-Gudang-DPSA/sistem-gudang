@@ -26,7 +26,7 @@ export type MasterDataImportRow = {
   stock: number;
 };
 
-export const mstrDataTemplateHeaders = ['Nama Barang', 'Kode Barang', 'Detail Barang', 'Harga', 'Stok'];
+export const mstrDataTemplateHeaders = ['Nama Barang', 'Kode Barang', 'Keterangan Barang', 'Harga', 'Stok'];
 export const mstrDataTemplateExample = ['Light Green', 'TH 039 AA', 'TACO TH', 150000, 31.5];
 
 const text = (v: unknown) => String(v ?? '').trim();
@@ -44,7 +44,7 @@ export function MasterData(r: Record<string, unknown>, rowNumber: number): Maste
   return {
     code: text(r['Kode Barang']),
     name,
-    detail: text(r['Detail Barang']),
+    detail: text(r['Keterangan Barang']),
     price: amount(r['Harga'], 'Harga', rowNumber, 0),
     stock: amount(r['Stok'], 'Stok', rowNumber, 2),
   };
@@ -217,7 +217,7 @@ export default function DataBarangGudang() {
                     previewColumns={[
                         { header: 'Nama Barang', value: (r) => r.name },
                         { header: 'Kode Barang', value: (r) => r.code },
-                        { header: 'Detail Barang', value: (r) => r.detail },
+                        { header: 'Keterangan Barang', value: (r) => r.detail },
                         { header: 'Harga', value: (r) => r.price },
                         { header: 'Stok', value: (r) => r.stock },
                     ]}
@@ -274,12 +274,12 @@ export default function DataBarangGudang() {
                 <th scope="col" className="px-6 py-4">No</th>
                 <th scope="col" className="px-6 py-4">Foto</th>
                 <SortableTh label="Informasi Barang" sortKey="name" sort={sort} onSort={toggle} />
-                <SortableTh label="Detail" sortKey="detail" sort={sort} onSort={toggle} />
                 <SortableTh label="Supplier" sortKey="supplierName" sort={sort} onSort={toggle} />
                 <SortableTh label="Stok & Satuan" sortKey="stock" sort={sort} onSort={toggle} />
                 <SortableTh label="Kategori" sortKey="category" sort={sort} onSort={toggle} />
                 <SortableTh label="Harga" sortKey="price" sort={sort} onSort={toggle} />
                 <SortableTh label="Lokasi" sortKey="locationCode" sort={sort} onSort={toggle} />
+                <SortableTh label="Keterangan" sortKey="detail" sort={sort} onSort={toggle} />
                 {canAdjust && <th scope="col" className="px-6 py-4 text-center">Aksi</th>}
               </tr>
             </thead>
@@ -315,15 +315,8 @@ export default function DataBarangGudang() {
                         <span className="font-bold text-gray-900">{item.name}</span>
                       )}
                       <span className="text-xs font-mono text-gray-500 mt-0.5">{item.code ?? '-'}</span>
-                      {edit.errors[item.id] && <span className="text-xs text-red-600 mt-0.5 whitespace-normal">{edit.errors[item.id]}</span>}
+                      {edit.errors[item.id] && <span className="text-xs text-red-600 mt-0.5 whitespace-normal">{edit.errors[item.id]}</span>} 
                     </div>
-                  </td>
-
-                  {/* Detail */}
-                  <td className="px-6 py-4 text-gray-600">
-                    {edit.editing && canUpdate ? (
-                      <input aria-label={`Detail ${item.name}`} className={cell} maxLength={255} value={v('detail', item.detail ?? '')} onChange={setF('detail', item.detail ?? '')} />
-                    ) : (item.detail || '-')}
                   </td>
 
                   {/* Supplier */}
@@ -392,6 +385,13 @@ export default function DataBarangGudang() {
                         {locationCode(item.locationId)}
                       </span>
                     )}
+                  </td>
+
+                  {/* Keterangan */}
+                  <td className="px-6 py-4 text-gray-600">
+                    {edit.editing && canUpdate ? (
+                      <input aria-label={`Keterangan ${item.name}`} className={cell} maxLength={255} value={v('detail', item.detail ?? '')} onChange={setF('detail', item.detail ?? '')} />
+                    ) : (item.detail || '-')}
                   </td>
 
                   {/* Aksi */}
