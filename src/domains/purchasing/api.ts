@@ -31,6 +31,9 @@ export function createPurchaseOrder(input: CreatePurchaseOrderInput) {
   return apiClient.post<PurchaseOrder>("/api/v1/purchase-orders", input);
 }
 
+export function getPurchaseOrder(id: number | string) {
+  return apiClient.get<PurchaseOrder>(`/api/v1/purchase-orders/${id}`);
+}
 
 export function updatePurchaseOrder(id: number | string, input: UpdatePurchaseOrderInput) {
   return apiClient.put<PurchaseOrder>(`/api/v1/purchase-orders/${id}`, input);

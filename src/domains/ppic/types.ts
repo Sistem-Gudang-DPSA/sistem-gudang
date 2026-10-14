@@ -156,6 +156,12 @@ export interface PurchaseRequestItem {
   satuan: string;
   proyek: string;
   noSpk: string;
+  // Optional link to the item master. The backend adds kodeBarang/supplierId/supplierName when it reads
+  // the request back (null when the item has no supplier or was deleted); free-text rows have none of them.
+  itemId?: number;
+  kodeBarang?: string;
+  supplierId?: number | null;
+  supplierName?: string | null;
 }
 
 export interface PurchaseRequestPayload {

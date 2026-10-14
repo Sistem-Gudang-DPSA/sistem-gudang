@@ -1,15 +1,9 @@
 import { getApprovalDetail, listApprovals } from '@/domains/ppic/api';
-import type { ApprovalAction, ApprovalRequest, ApprovalStatus } from '@/domains/ppic/types';
+import type { ApprovalAction, ApprovalRequest, ApprovalStatus, PurchaseRequestItem } from '@/domains/ppic/types';
 
 export type StatusPermintaan = 'Belum Disetujui' | 'Disetujui' | 'Perlu Revisi' | 'Ditolak';
 
-export interface BarangPermintaan {
-  namaBarang: string;
-  qty: number;
-  satuan: string;
-  proyek: string;
-  noSpk: string;
-}
+export type BarangPermintaan = PurchaseRequestItem;
 
 export interface PermintaanPembelian {
   id: number;

@@ -84,7 +84,9 @@ function PoTerbaru() {
           <tbody>
             {rows.map((p) => (
               <tr key={p.id} className="border-b border-gray-50">
-                <td className="px-4 py-3 font-semibold text-gray-900">{p.nomorPo}</td>
+                <td className="px-4 py-3 font-semibold text-gray-900">
+                  <Link href={`/dashboard/purchasing/transaksi/po/${p.id}`} className="hover:underline">{p.nomorPo}</Link>
+                </td>
                 <td className="px-4 py-3">{tanggal(p.tanggalPo)}</td>
                 <td className="px-4 py-3 text-gray-800">{p.supplierName}</td>
                 <td className="px-4 py-3 text-right">{formatRupiah(p.grandTotal)}</td>

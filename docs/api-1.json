@@ -2056,7 +2056,7 @@
           "Approval"
         ],
         "summary": "List approval requests",
-        "description": "Non-superadmin actors only see requests of a type their own domain has a workflow step in.",
+        "description": "Non-superadmin actors only see requests of a type their own domain has a workflow step in. In purchase-request payloads, every items[] line with an itemId also carries kodeBarang, supplierId and supplierName read from the catalog at request time (null when the item was deleted), so a supplier change shows on the next read.",
         "security": [
           {
             "bearerAuth": []
@@ -2400,7 +2400,7 @@
           "Approval"
         ],
         "summary": "Submit an approval request",
-        "description": "The workflow step matching the requester's own domain is auto-approved immediately. For purchase-request, every items[].noSpk must be one of GET /api/v1/tracking/spk, otherwise 400 with errors keyed like items.0.noSpk.",
+        "description": "The workflow step matching the requester's own domain is auto-approved immediately. For purchase-request, every items[].noSpk must be one of GET /api/v1/tracking/spk, otherwise 400 with errors keyed like items.0.noSpk. items[].itemId is optional and links the line to the catalog; an unknown id is a 400 keyed items.0.itemId, and a line without itemId stays free text. The same check applies on resubmit.",
         "security": [
           {
             "bearerAuth": []
@@ -2447,6 +2447,11 @@
                             "items": {
                               "type": "object",
                               "properties": {
+                                "itemId": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "exclusiveMinimum": true
+                                },
                                 "namaBarang": {
                                   "type": "string",
                                   "minLength": 1,
@@ -3560,7 +3565,7 @@
           "Approval"
         ],
         "summary": "Get an approval request with its action history",
-        "description": "Restricted to superadmins and actors whose domain has a step in the request's workflow.",
+        "description": "Restricted to superadmins and actors whose domain has a step in the request's workflow. Purchase-request lines with an itemId carry kodeBarang, supplierId and supplierName, as in the list.",
         "security": [
           {
             "bearerAuth": []

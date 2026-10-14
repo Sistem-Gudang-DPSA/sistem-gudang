@@ -1,0 +1,150 @@
+﻿no_excel,nama_excel,merek,seri,kode_resmi,nama_resmi,status,sumber,catatan
+8,HPL Perfoam C 206 Apple Green,Formica,PERForm,C206M,Apple Green,terkonfirmasi,yenlam.com (PERForm Laminate / Formica Group),Excel tidak menulis sufiks finishing M
+9,HPL TH 039 AA,TACO,TH,TH 039 AA,Light Green,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+10,HPL TH 154 AA,TACO,TH,TH 154 AA,Cream Finelines,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+11,HPL TH 852 J,TACO,TH,TH 852 J,Chocolate Afromosia,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+13,HPL TH 002 G,TACO,TH,TH 002 G,Pearl White,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+14,HPL Perfoam 6665 ( Teel Green ),Formica,PERForm,6665M,Teal Green,terkonfirmasi,yenlam.com.vn (snippet daftar PERForm),Excel menulis 'Teel' dan tidak menulis sufiks M
+16,HPL Perfoam 9554 ( Sage Green ),Formica,PERForm,9554M,Sage Green,terkonfirmasi,yenlam.com (PERForm Laminate / Formica Group),Excel tidak menulis sufiks M
+19,HPL TH 022 AA,TACO,TH,TH 022 AA,Smoke Grey,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+21,HPL AICA 14131,Aica,AK,AK-14131-CS16,Medium Master Oak,terkonfirmasi,aica.co.id,Excel tidak menulis kode tekstur CS16
+22,TH 825 J,TACO,TH,TH 825 J,Cherry Afromosia,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),Edisi baru TACO menulis TH 825 NT (nama sama)
+28,HPL Perfoam 6636 M Smokey Grey,Formica,PERForm,6636M,Smoke Grey,terkonfirmasi,yenlam.com.vn (snippet daftar PERForm),Excel menulis 'Smokey'; ejaan resmi 'Smoke'
+39,Edging W 356 ( 2 x 42 mm ) Roll Besar,TACO,TE,TE W356,TACO PVC Edging TE W356,terkonfirmasi,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 356 H Baltimore Teak. Ukuran di Excel: tebal x lebar 2x42 mm. Edging tersedia untuk kode ini (tanda 'edging available' di katalog TACO / halaman edging resmi)
+41,Edging W 1202 ( 2 x 42 mm) Roll Besar,TACO,TE,TE W1202,TACO PVC Edging TE W1202,terkonfirmasi,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 1202 FC Auckland Oak. Ukuran di Excel: tebal x lebar 2x42 mm. Edging tersedia untuk kode ini (tanda 'edging available' di katalog TACO / halaman edging resmi)
+43,Edging W 801 ( 2 x 42 mm ) Roll Kecil,TACO,TE,TE W801,TACO PVC Edging TE W801,terkonfirmasi,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 801 J Royal Oak. Ukuran di Excel: tebal x lebar 2x42 mm. Edging tersedia untuk kode ini (tanda 'edging available' di katalog TACO / halaman edging resmi)
+48,Edging W 801 ( 2 x 22 mm ) Roll Besar,TACO,TE,TE W801,TACO PVC Edging TE W801,terkonfirmasi,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 801 J Royal Oak. Ukuran di Excel: tebal x lebar 2x22 mm. Edging tersedia untuk kode ini (tanda 'edging available' di katalog TACO / halaman edging resmi)
+51,Edging W 119 ( 2 x 22 mm ) Roll Besar,TACO,TE,TE W119,TACO PVC Edging TE W119,terkonfirmasi,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 119 AA Slim Echo. Ukuran di Excel: tebal x lebar 2x22 mm. Edging tersedia untuk kode ini (tanda 'edging available' di katalog TACO / halaman edging resmi)
+53,Edgin W 1202 ( 2 x 22 mm ) Roll Besar,TACO,TE,TE W1202,TACO PVC Edging TE W1202,terkonfirmasi,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 1202 FC Auckland Oak. Ukuran di Excel: tebal x lebar 2x22 mm. Edging tersedia untuk kode ini (tanda 'edging available' di katalog TACO / halaman edging resmi)
+55,Edging W 356 ( 2 x 22 mm),TACO,TE,TE W356,TACO PVC Edging TE W356,terkonfirmasi,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 356 H Baltimore Teak. Ukuran di Excel: tebal x lebar 2x22 mm. Edging tersedia untuk kode ini (tanda 'edging available' di katalog TACO / halaman edging resmi)
+56,Edging W 359 ( 2 x 22 mm,TACO,TE,TE W359,TACO PVC Edging TE W359,terkonfirmasi,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 359 H Australian Oak. Ukuran di Excel: tebal x lebar 2x22 mm. Edging tersedia untuk kode ini (tanda 'edging available' di katalog TACO / halaman edging resmi)
+66,Edging W 362 ( 2 x 22 mm ) Roll Kecil,TACO,TE,TE W362,TACO PVC Edging TE W362,terkonfirmasi,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 362 H Mono Deluxe. Ukuran di Excel: tebal x lebar 2x22 mm. Edging tersedia untuk kode ini (tanda 'edging available' di katalog TACO / halaman edging resmi)
+68,HPL Aica 14060 cs 22,Aica,AK,AK-14060-CS22,Light Gray Rasen,terkonfirmasi,aica.co.id,"Tekstur S22 Aica Silk, tebal 0.8 mm"
+69,HPL TH 18 RE,TACO,TH,TH 18 RE,Basque Oak Registered Emboss,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+74,HPL TH 374 H,TACO,TH,TH 374 H,Mocha Oak,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+75,HPL TH 026 AA,TACO,TH,TH 026 AA,Baby Blue,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+76,HPL 041 AA,TACO,TH,TH 041 AA,Mauve,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+77,HPL 045 AA,TACO,TH,TH 045 AA,Classic Orange,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+80,HPL TH 362 H,TACO,TH,TH 362 H,Mono Deluxe,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+81,HPL TH 049 AA,TACO,TH,TH 049 AA,Aqua Marine,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+83,HPL 003 AA,TACO,TH,TH 003 AA,Black,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+439,HPL Perfoam  0928 M,Formica,PERForm,0928M,Mouse,terkonfirmasi,yenlam.com (PERForm Laminate / Formica Group),Ada juga 0928G (finishing lain)
+443,HPL Green Lam   5003 suede,Greenlam,GWC,GWC 5003 (finishing Suede / SUD),Philippine Teak,terkonfirmasi,"greenlam.co.in, katalog Greenlam 2024","Situs Greenlam India menulis 'Phillipine Teak', katalog 'Philippine Teak'"
+444,HPL TH 005AA,TACO,TH,TH 005 AA,Sunshine Yellow,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+448,HPL TH 5011 NT,TACO,TH,TH 5011 NT,Brazilian Walnut,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+450,HPL TH 861 J,TACO,TH,TH 861 J,Bradford Juglans,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+453,HPL Formica PP 6053 NT,Formica,,6053 NT,Chalet Oak,terkonfirmasi,formica.hpl.co.id (distributor Formica),Arti 'PP' di nama belum jelas
+454,HPL TH 007 G,TACO,TH,TH 007 G,Royal Blue Gloss,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+455,HPL TH 011 G,TACO,TH,TH 011 G,Spring Green Gloss,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+457,HPL TH 031 AA,TACO,TH,TH 031 AA,Marina Green,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+458,HPL TH 026 G,TACO,TH,TH 026 G,Baby Blue Gloss,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+459,HPL TH 004 G,TACO,TH,TH 004 G,Red Gloss,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+460,HPL TH 014 D,TACO,TH,TH 014 D,Light Grey Dove,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+462,HPL Carta CT 8570 NT,Carta,CT,CT 8570 NT,Rustic Oak,terkonfirmasi,carta.hpl.co.id (katalog Carta),
+463,HPL TH 025 AA,TACO,TH,TH 025 AA,Dark Green,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+464,HPL TH 918 J,TACO,TH,TH 918 J,Malmo Cream,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+465,HPL Perfoam 9207 G,Formica,PERForm,9207G,Jet Black,terkonfirmasi,yenlam.com (PERForm Laminate / Formica Group),
+466,TH 261 B,TACO,TH,TH 261 B,White Oak,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+470,HPL TH 887 JG,TACO,TH,TH 887 JG,Milky Ramone,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+471,HPL Perfoam 6637 M ( Charcoal Grey ),Formica,PERForm,6637M,Charcoal Grey,terkonfirmasi,yenlam.com (PERForm Laminate / Formica Group),Ada juga 6637G dan 6637NC (finishing lain)
+472,HPL Perfoam 9657 M ( Genesis Oak ),Formica,PERForm,9657M,Genesis Oak,terkonfirmasi,yenlam.com (PERForm Laminate / Formica Group),Ada juga 9657IM dan 9657NC (finishing lain)
+473,HPL Perfoam 9858 M ( fruitfull oak grey ),Formica,PERForm,9858M,Fruitful Oak Grey,terkonfirmasi,yenlam.com (PERForm Laminate / Formica Group),Ejaan Excel: fruitfull
+474,HPL Perfoam 9212 M(ice pink),Formica,PERForm,9212M,Iced Pink,terkonfirmasi,yenlam.com (PERForm Laminate / Formica Group),Excel menulis 'ice pink'
+476,HPL TH 017 AA,TACO,TH,TH 017 AA,Almond Pink,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+477,HPL TH 1225 FC,TACO,TH,TH 1225 FC,Barcelona Sawcutt,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+479,HPL Perfoam 9201 M,Formica,PERForm,9201M,Bangkok White,terkonfirmasi,yenlam.com (PERForm Laminate / Formica Group),Ada juga finishing lain (user juga punya item 497 '9201 HG')
+480,HPLth 003 KM,TACO,TH,TH 03 KM,New Black Woodgrain,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),"Excel menulis 003, kode resmi 03"
+481,HPL TH 1250 FA,TACO,TH,TH 1250 FA,Natural Ordin,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+483,HPL Greenlam GWC 5007,Greenlam,GWC,GWC 5007,White Larch,terkonfirmasi,katalog Greenlam 2023-25 & 2024,
+484,HPL Formica PP 7949 SP,Formica,,7949 SP,White,terkonfirmasi,formica.com + formica.hpl.co.id,"SP = Sculpted finish. 7949 ada di banyak finishing (UN, HG, CK, MC, RT)"
+486,HPL CT 5650 T,Carta,CT,CT 5650 T,Chestnut Walnut,terkonfirmasi,carta.hpl.co.id (katalog Carta),
+487,HPL TH 004 AA,TACO,TH,TH 004 AA,Spark Red,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+490,HPL TH 103 AA,TACO,TH,TH 103 AA,Natural Beech,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+491,HPL Carta CT 0516,Carta,CT,CT 0516,Brushed Stainless,terkonfirmasi,carta.hpl.co.id (katalog Carta),
+494,HPL TH 150 AA,TACO,TH,TH 150 AA,Picollo Oak,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+496,HPL TH 1205 FC,TACO,TH,TH 1205 FC,Scandinavia Walnut,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+498,HPL TH 192 DP,TACO,TH,TH 192 DP,Tadao Calacatta,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+499,HPL TH  005 G,TACO,TH,TH 005 G,Sunshine Yellow Gloss,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+500,HPL TH  030 AA,TACO,TH,TH 030 AA,Desert Beige,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+501,HPL 037 AA,TACO,TH,TH 037 AA,Ceral,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+502,HPL TH 042 AA,TACO,TH,TH 042 AA,Dusk Purple,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+503,HPL Formica PP 9001  NT,Formica,,9001 NT,Noce Orvieto,terkonfirmasi,formica.hpl.co.id (distributor Formica),Ada juga 9001 UN (finishing lain)
+505,HPL TH 109 AA,TACO,TH,TH 109 AA,Spice Cherry,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+506,HPL TH 824 J,TACO,TH,TH 824 J,Olive Afromosia,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),Edisi baru TACO menulis TH 824 NT (nama sama)
+508,HPL TH 1202 FC,TACO,TH,TH 1202 FC,Auckland Oak,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+509,HPL Carta CT 6400 DM,Carta,CT,CT 6400 DM,Shyam Teak,terkonfirmasi,carta.hpl.co.id (katalog Carta),
+510,HPL TH 1206,TACO,TH,TH 1206 FC,Bavarian Walnut,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),Excel tidak menulis sufiks FC
+512,HPL TH 900 J,TACO,TH,TH 900 J,Nepal Teak,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+516,HPL Green Lamd GWC 682,Greenlam,GWC,GWC 682,Hiland Pine,terkonfirmasi,"katalog Greenlam 2024, greenlam.id",
+518,HPL TH 217 AA,TACO,TH,TH 217 AA,Brilliant Teak,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+520,HPL Carta CT 5572 T,Carta,CT,CT 5572 T,Natural Oak,terkonfirmasi,carta.hpl.co.id (katalog Carta),
+523,HPL TH 1215 FC,TACO,TH,TH 1215 FC,Geneva Elm,terkonfirmasi,taco.hpl.co.id (arsip katalog TACO 2020),
+37,Edging S 002 ( 1 x 22 ) Roll Kecil,TACO,TE,TE S002,TACO PVC Edging TE S002,kandidat_kuat,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 002 AA Premier White. Ukuran di Excel: tebal x lebar 1x22 mm. Kode dipetakan lewat pola TE W/S = kode HPL; belum dicek di halaman produknya
+38,Edging S 002 ( 1 x 42 mm ) Roll Kecil,TACO,TE,TE S002,TACO PVC Edging TE S002,kandidat_kuat,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 002 AA Premier White. Ukuran di Excel: tebal x lebar 1x42 mm. Kode dipetakan lewat pola TE W/S = kode HPL; belum dicek di halaman produknya
+42,Edging W 261 ( 2 x 42  mm ) Roll kecil,TACO,TE,TE W261,TACO PVC Edging TE W261,kandidat_kuat,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 261 B White Oak. Ukuran di Excel: tebal x lebar 2x42 mm. Kode dipetakan lewat pola TE W/S = kode HPL; belum dicek di halaman produknya
+44,Edging W 1206 ( 2 x 22 mm ) Roll Besar,TACO,TE,TE W1206,TACO PVC Edging TE W1206,kandidat_kuat,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 1206 FC Bavarian Walnut. Ukuran di Excel: tebal x lebar 2x22 mm. Kode dipetakan lewat pola TE W/S = kode HPL; belum dicek di halaman produknya
+45,Edging W 1211( 2 x 22 mm ) Roll Besar,TACO,TE,TE W1211,TACO PVC Edging TE W1211,kandidat_kuat,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 1211 FC Pure Teak. Ukuran di Excel: tebal x lebar 2x22 mm. Kode dipetakan lewat pola TE W/S = kode HPL; belum dicek di halaman produknya
+46,Edging W 308 ( 2 x 22 mm ) Roll Besar,TACO,TE,TE W308,TACO PVC Edging TE W308,kandidat_kuat,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 308 H Fine Bamboo. Ukuran di Excel: tebal x lebar 2x22 mm. Kode dipetakan lewat pola TE W/S = kode HPL; belum dicek di halaman produknya
+47,Edging W 308 ( 1 x 22 mm ) Roll Besar,TACO,TE,TE W308,TACO PVC Edging TE W308,kandidat_kuat,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 308 H Fine Bamboo. Ukuran di Excel: tebal x lebar 1x22 mm. Kode dipetakan lewat pola TE W/S = kode HPL; belum dicek di halaman produknya
+49,Edging W 918 ( 2 x 22 mm ) Roll Besar,TACO,TE,TE W918,TACO PVC Edging TE W918,kandidat_kuat,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 918 J Malmo Cream. Ukuran di Excel: tebal x lebar 2x22 mm. Kode dipetakan lewat pola TE W/S = kode HPL; belum dicek di halaman produknya
+50,Edging S 011 ( 2 x 22 mm ) Roll Besar,TACO,TE,TE S011,TACO PVC Edging TE S011,kandidat_kuat,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 011 AA Spring Green. Ukuran di Excel: tebal x lebar 2x22 mm. Kode dipetakan lewat pola TE W/S = kode HPL; belum dicek di halaman produknya
+52,Edging W 150 ( 2 x 22 mm ) Roll Besar,TACO,TE,TE W150,TACO PVC Edging TE W150,kandidat_kuat,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 150 AA Picollo Oak. Ukuran di Excel: tebal x lebar 2x22 mm. Kode dipetakan lewat pola TE W/S = kode HPL; belum dicek di halaman produknya
+54,Edging W 821 ( 2 x 22 mm ),TACO,TE,TE W821,TACO PVC Edging TE W821,kandidat_kuat,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 821 J Mono Walnut. Ukuran di Excel: tebal x lebar 2x22 mm. Kode dipetakan lewat pola TE W/S = kode HPL; belum dicek di halaman produknya
+57,Edging S 006 ( 2 x 22 mm ) Roll Besar,TACO,TE,TE S006,TACO PVC Edging TE S006,kandidat_kuat,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 006 AA Midnight Grey. Ukuran di Excel: tebal x lebar 2x22 mm. Kode dipetakan lewat pola TE W/S = kode HPL; belum dicek di halaman produknya
+58,Edging S 004 ( 2 x 22 mm ) Roll Kecil,TACO,TE,TE S004,TACO PVC Edging TE S004,kandidat_kuat,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 004 AA Spark Red. Ukuran di Excel: tebal x lebar 2x22 mm. Kode dipetakan lewat pola TE W/S = kode HPL; belum dicek di halaman produknya
+60,Edging W 154 ( 1 x 22 mm ) Roll Kecil,TACO,TE,TE W154,TACO PVC Edging TE W154,kandidat_kuat,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 154 AA Cream Finelines. Ukuran di Excel: tebal x lebar 1x22 mm. Kode dipetakan lewat pola TE W/S = kode HPL; belum dicek di halaman produknya
+62,Edgin W 308 ( 2 x 22 mm ) Roll Kecil,TACO,TE,TE W308,TACO PVC Edging TE W308,kandidat_kuat,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 308 H Fine Bamboo. Ukuran di Excel: tebal x lebar 2x22 mm. Kode dipetakan lewat pola TE W/S = kode HPL; belum dicek di halaman produknya
+63,Edging W 868 ( 2 x 42 mm ) Roll Kecil,TACO,TE,TE W868,TACO PVC Edging TE W868,kandidat_kuat,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 868 J Classic Legno. Ukuran di Excel: tebal x lebar 2x42 mm. Kode dipetakan lewat pola TE W/S = kode HPL; belum dicek di halaman produknya
+64,Edgin S 002 ( 2 x 42 ) Roll Kecil,TACO,TE,TE S002,TACO PVC Edging TE S002,kandidat_kuat,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 002 AA Premier White. Ukuran di Excel: tebal x lebar 2x42 mm. Kode dipetakan lewat pola TE W/S = kode HPL; belum dicek di halaman produknya
+65,Edging W 270 ( 2 x 42 mm )  Roll Kecil,TACO,TE,TE W270,TACO PVC Edging TE W270,kandidat_kuat,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 270 B Pearl Starwood. Ukuran di Excel: tebal x lebar 2x42 mm. Kode dipetakan lewat pola TE W/S = kode HPL; belum dicek di halaman produknya
+67,Edging s 022 ( 1 x 22 mm),TACO,TE,TE S022,TACO PVC Edging TE S022,kandidat_kuat,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 022 AA Smoke Grey. Ukuran di Excel: tebal x lebar 1x22 mm. Kode dipetakan lewat pola TE W/S = kode HPL; belum dicek di halaman produknya
+72,Edging 1208 2/22,TACO,TE,TE W1208,TACO PVC Edging TE W1208,kandidat_kuat,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 1208 FC Brown Cascade. Ukuran di Excel: tebal x lebar 2x22 (ditulis 2/22) mm. Kode dipetakan lewat pola TE W/S = kode HPL; belum dicek di halaman produknya
+78,Edging 889 2/22,TACO,TE,TE W889,TACO PVC Edging TE W889,kandidat_kuat,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 889 FC French Tan Oak. Ukuran di Excel: tebal x lebar 2x22 (ditulis 2/22) mm. Kode dipetakan lewat pola TE W/S = kode HPL; belum dicek di halaman produknya
+79,Edging 825 2/22,TACO,TE,TE W825,TACO PVC Edging TE W825,kandidat_kuat,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 825 J/NT Cherry Afromosia. Ukuran di Excel: tebal x lebar 2x22 (ditulis 2/22) mm. Kode dipetakan lewat pola TE W/S = kode HPL; belum dicek di halaman produknya
+86,Edging 007 2/22 Royal blue,TACO,TE,TE S007,TACO PVC Edging TE S007,kandidat_kuat,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 007 AA Royal Blue. Ukuran di Excel: tebal x lebar 2x22 (ditulis 2/22) mm. Kode dipetakan lewat pola TE W/S = kode HPL; belum dicek di halaman produknya
+87,Edging 007 2/42 Royal blue,TACO,TE,TE S007,TACO PVC Edging TE S007,kandidat_kuat,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 007 AA Royal Blue. Ukuran di Excel: tebal x lebar 2x42 (ditulis 2/42) mm. Kode dipetakan lewat pola TE W/S = kode HPL; belum dicek di halaman produknya
+88,Edging 013 2/22 grey,TACO,TE,TE S013,TACO PVC Edging TE S013,kandidat_kuat,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 013 AA Ash Grey. Ukuran di Excel: tebal x lebar 2x22 (ditulis 2/22) mm. Kode dipetakan lewat pola TE W/S = kode HPL; belum dicek di halaman produknya
+89,Edging 026 2/22 Baby Blue,TACO,TE,TE S026,TACO PVC Edging TE S026,kandidat_kuat,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 026 AA Baby Blue. Ukuran di Excel: tebal x lebar 2x22 (ditulis 2/22) mm. Kode dipetakan lewat pola TE W/S = kode HPL; belum dicek di halaman produknya
+91,Edging 821 (1x22) Rol Kecil,TACO,TE,TE W821,TACO PVC Edging TE W821,kandidat_kuat,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 821 J Mono Walnut. Ukuran di Excel: tebal x lebar 1x22 mm. Kode dipetakan lewat pola TE W/S = kode HPL; belum dicek di halaman produknya
+96,Edging 003 2/22,TACO,TE,TE S003,TACO PVC Edging TE S003,kandidat_kuat,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Pasangan HPL: TH 003 AA Black. Ukuran di Excel: tebal x lebar 2x22 (ditulis 2/22) mm. Kode dipetakan lewat pola TE W/S = kode HPL; belum dicek di halaman produknya
+12,HPL TH 887 J,TACO,TH,,,perlu_cek,taco.hpl.co.id (arsip katalog TACO 2020),Kode 887 J tidak ada persis; arsip memuat TH 887 JG (Milky Ramone). Cek ke Master Book
+17,HPL Perfoam 5356 M Gold Teak,Formica,PERForm,5356 M,Gold Teak,perlu_cek,formicaspektrum.wordpress.com,Nama cocok dengan Formica SpeKtrum; sufiks M belum diverifikasi di katalog PERForm
+18,HPL AICA 14093,Aica,AK,AK-14093-CY25 atau AK-14093-CS98,Medium Mode Walnut,perlu_cek,aica.co.id,"Satu desain, dua tekstur: CY25 (Impact Matte) dan CS98 (Authentic Wood). Excel tidak menyebut tekstur"
+20,HPL TH 057 DB,TACO,TH,,,perlu_cek,-,Tidak ditemukan di arsip 2020
+23,TH 111 NT,TACO,TH,,,perlu_cek,taco.hpl.co.id (arsip katalog TACO 2020),"Arsip 2020 hanya memuat TH 111 AA White Cherry. Edisi baru TACO memakai sufiks NT untuk sebagian kode (mis. TH 824 NT, TH 825 NT), jadi TH 111 NT mungkin kode edisi baru. Cek Master Book terbaru"
+24,Tacosheet TS 0678 L,TACO,TS,TS O678,(tanpa nama warna),perlu_cek,TACO Master Book 2023 (salinan pdfcoffee),Huruf O atau angka 0 perlu dicek; sufiks L tidak ditemukan
+25,TACOSHEET T 359,TACO,TS,TS T359,(tanpa nama warna),perlu_cek,TACO Master Book 2023 (salinan pdfcoffee),Cek ke PDF asli
+26,Taconsheet W 310,TACO,TS,TS W310,(tanpa nama warna),perlu_cek,TACO Master Book 2023 (salinan pdfcoffee),Cek ke PDF asli
+40,Edging W 111 / 5008 ( 2 x 42 mm ) Roll Besar,TACO,TE,,,perlu_cek,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Dua kode: W 111 (TH 111 AA White Cherry) dan 5008 (TH 5008 NT Vintage Elm). Perlu dikonfirmasi gudang
+59,Edging W 359/889 ( 2 x 42 mm),TACO,TE,TE W359 + TE W889,,perlu_cek,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Dua kode dalam satu item (TH 359 H Australian Oak dan TH 889 FC French Tan Oak). Perlu diputuskan: satu barang atau dua
+61,Edgin W 1202 / S 002 ( 1 x 22 mm ),TACO,TE,TE W1202 + TE S002,,perlu_cek,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Dua kode dalam satu item. Perlu diputuskan: satu barang atau dua
+90,Edging 10225 (362) 2/22,TACO,TE,TE W362?,,perlu_cek,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Kode 10225 tidak dikenal; angka (362) menunjuk TH 362 H Mono Deluxe. Perlu dikonfirmasi
+93,HPL Aica 13008 C,Aica,AK,AK-13008-CN74,Frosty Gray,perlu_cek,trendku.id (distributor Aica),"Nama dari distributor, belum dari aica.co.id"
+252,Door Closer Dekkson DCL 300,Dekkson,DCL,DCL 300 HO / DCL 300 NHO,Door Closer,perlu_cek,dekkson.com,"Wajib tentukan HO (hold open) atau NHO, plus finishing (BA, WH, NA, dll). Ejaan resmi merek: Dekkson"
+440,Taconsheet Dy W 313,TACO,TS,TS W313,(tanpa nama warna),perlu_cek,TACO Master Book 2023 (salinan pdfcoffee),Cek ke PDF asli
+441,Taconsheet W 301,TACO,TS,TS W301,(tanpa nama warna),perlu_cek,TACO Master Book 2023 (salinan pdfcoffee),Cek ke PDF asli
+447,HPL AK 14061,Aica,AK,AK-14061-CS22,Gray Rasen,perlu_cek,trendku.id (distributor Aica),"Nama dari distributor, belum dari aica.co.id"
+449,HPL TH Eco SLD 011 M,TACO,TH,,,perlu_cek,-,Tidak ditemukan; belum jelas lini produknya
+469,HPL TH 835 J,TACO,TH,,,perlu_cek,-,Tidak ditemukan di arsip 2020
+482,HPL Perfoam 9047 MA,Formica,PERForm,9047M,Legno Fineline (Vertical) Ivory,perlu_cek,yenlam.com (PERForm Laminate / Formica Group),Excel menulis 'MA'; yang ditemukan 9047M. Ada juga 9046M (horizontal)
+488,HPL Perfoam 6654 G,Formica,PERForm,,Carmine Red,perlu_cek,yenlam.com.vn (snippet daftar PERForm),Yang ditemukan 6654M Carmine Red; finishing G belum diverifikasi
+489,HPL TH 011 M Spring Green,TACO,TH,,,perlu_cek,taco.hpl.co.id (arsip katalog TACO 2020),Kandidat TH 011 AA Spring Green; sufiks M tidak ditemukan
+504,HPL F 7858,Formica,,7858 UN,Pumice,perlu_cek,formica.hpl.co.id,Excel tidak menulis finishing; satu-satunya yang ditemukan 7858 UN
+519,HPL TH359 AA,TACO,TH,,,perlu_cek,taco.hpl.co.id (arsip katalog TACO 2020),Kandidat TH 359 H Australian Oak; sufiks AA tidak cocok
+522,HPL TH 888 J,TACO,TH,,,perlu_cek,taco.hpl.co.id (arsip katalog TACO 2020),Arsip memuat TH 888 JG (Ash Ramone) dan TH 888 SL; 888 J tidak ada
+530,HPL AK 14130 C,Aica,AK,AK-14130-CS16,Natural Master Oak,perlu_cek,trendku.id (distributor Aica),Distributor menulis prefix AS; situs resmi memakai AK. Belum dicek di aica.co.id
+533,HPL TH 1256,TACO,TH,,,perlu_cek,-,Tidak ditemukan di arsip 2020
+82,Edging W 111 / 5008 ( 2 x 222 mm ),TACO,TE,,,anomali,taco.co.id (halaman PVC Edging resmi) + katalog TACO 2024,Lebar 222 mm tidak ada; edging TACO hanya 22 atau 42 mm. Kemungkinan salah ketik. Kode sama dengan item 40
+30,Edging X - B 122 ( 2 x 22 mm ),,X,,,belum_teridentifikasi,-,Seri X: merek belum teridentifikasi (kode bukan format TACO TE). Dugaan awal merek Xinfa belum terbukti. Tanya gudang/supplier
+31,Edging X - B 154 ( 2 x 42 mm ),,X,,,belum_teridentifikasi,-,Seri X: merek belum teridentifikasi (kode bukan format TACO TE). Dugaan awal merek Xinfa belum terbukti. Tanya gudang/supplier
+32,Edging X - B/GT 122 ( 2 x 42 mm ),,X,,,belum_teridentifikasi,-,Seri X: merek belum teridentifikasi (kode bukan format TACO TE). Dugaan awal merek Xinfa belum terbukti. Tanya gudang/supplier
+33,Edging X - B 154 ( 2 x 22 mm ) Roll Besar,,X,,,belum_teridentifikasi,-,Seri X: merek belum teridentifikasi (kode bukan format TACO TE). Dugaan awal merek Xinfa belum terbukti. Tanya gudang/supplier
+34,Edging X - B 1218 ( 2 x 22 mm ) Roll Besar,,X,,,belum_teridentifikasi,-,Seri X: merek belum teridentifikasi (kode bukan format TACO TE). Dugaan awal merek Xinfa belum terbukti. Tanya gudang/supplier
+35,Edging X W04 Putih ( 2 x 42 ),,X,,,belum_teridentifikasi,-,Seri X: merek belum teridentifikasi (kode bukan format TACO TE). Dugaan awal merek Xinfa belum terbukti. Tanya gudang/supplier
+36,Edging  X W04 Putih/LOKAL ( 2 x 22 mm ),,X,,,belum_teridentifikasi,-,Seri X: merek belum teridentifikasi (kode bukan format TACO TE). Dugaan awal merek Xinfa belum terbukti. Tanya gudang/supplier
+92,Edging 3046 2/42,,,,,belum_teridentifikasi,-,Kode 3046 tidak ditemukan di katalog TACO
+446,HPL F PP 8861 SD,Formica,,,,belum_teridentifikasi,-,Kode 8861 SD tidak ditemukan
+467,HPL Greenlam 292 suede Tosca,Greenlam,,,,belum_teridentifikasi,-,Kode 292 / nama Tosca tidak ditemukan
+511,HPL AICA JI 256 C,Aica,,,,belum_teridentifikasi,-,Kode JI 256 tidak ditemukan
+517,S 0108 S ( Violam ),Violam,,,,belum_teridentifikasi,-,Tidak ditemukan. Kemungkinan duplikat item 531
+531,HPL VIOLAM LAMINATO 50108 S,Violam,,,,belum_teridentifikasi,-,Tidak ditemukan. Kemungkinan duplikat item 517 (S 0108 S)

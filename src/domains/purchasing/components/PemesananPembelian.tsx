@@ -191,7 +191,10 @@ function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-6 py-10 text-center">
           <p className="text-base font-bold text-gray-900">PO {dibuat.nomorPo} berhasil dibuat</p>
           <p className="mt-2 text-sm text-gray-600">Supplier {dibuat.supplierName}, grand total Rp. {formatAngka(dibuat.grandTotal)}</p>
-          <Link href={rekap_pembelian_path} className={`${orangeButtonClass} inline-block mt-6`}>Kembali ke Rekap Pembelian</Link>
+          <div className="flex justify-center gap-3 mt-6">
+            <Link href={rekap_pembelian_path} className={`${orangeButtonClass} inline-block`}>Kembali ke Rekap Pembelian</Link>
+            <Link href={`/dashboard/purchasing/transaksi/po/${dibuat.id}`} className={`${orangeButtonClass} inline-block`}>Lihat PO</Link>
+          </div>
         </div>
       </div>
     );
