@@ -16,7 +16,7 @@ import { useCan } from '@/domains/auth/user-context';
 
 
 export default function POBarang() {
-  const canCreate = useCan('po.create');
+  const canCreate = useCan('purchase-order.create');
   const [searchQuery, setSearchQuery] = useState('');
   const filterKey = searchQuery.trim();
   const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
