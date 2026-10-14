@@ -5,7 +5,7 @@ import Link from 'next/link';
 import PermintaanPembelianPPIC from '@/domains/ppic/components/PermintaanPembelian';
 import { approveApproval, rejectApproval, requestApprovalRevision } from '@/domains/ppic/api';
 import type { PermintaanPembelian } from '@/domains/ppic/data/pembelian';
-import { buatPoPath, rekap_pembelian_path } from '@/domains/purchasing/data/pembelian';
+import { buatPoPath, mappingPath, rekap_pembelian_path } from '@/domains/purchasing/data/pembelian';
 import { useCan } from '@/domains/auth/user-context';
 import { ApiError } from '@/shared/lib/api-client';
 
@@ -15,6 +15,7 @@ const ghostClass = 'min-w-24 px-8 py-2.5 border border-gray-300 text-gray-800 fo
 // Purchasing memutuskan permintaan yang masih menunggu. Setelah disetujui, tombol berganti menjadi Buat PO.
 function AksiPurchasing({ permintaan, reload }: { permintaan: PermintaanPembelian; reload: () => void }) {
   const canApprove = useCan('purchase-request.approve');
+  const canViewPo = useCan('purchase-order.view');
   const canCreatePo = useCan('purchase-order.create');
   const [mode, setMode] = useState<'revisi' | 'tolak' | null>(null);
   const [note, setNote] = useState('');
@@ -22,7 +23,13 @@ function AksiPurchasing({ permintaan, reload }: { permintaan: PermintaanPembelia
   const [error, setError] = useState('');
 
   if (permintaan.statusApi === 'approved') {
-    return canCreatePo ? <Link href={buatPoPath(permintaan.id)} className={buttonClass}>Buat PO</Link> : null;
+    if (!canViewPo && !canCreatePo) return null;
+    return (
+      <div className="flex items-center gap-4">
+        <Link href={mappingPath(permintaan.id)} className={ghostClass}>Mapping Supplier</Link>
+        {canCreatePo && <Link href={buatPoPath(permintaan.id)} className={buttonClass}>Buat PO</Link>}
+      </div>
+    );
   }
   if (permintaan.statusApi !== 'pending') {
     return <p className="text-sm text-gray-600">Status permintaan: <span className="font-bold text-gray-900">{permintaan.status}</span></p>;

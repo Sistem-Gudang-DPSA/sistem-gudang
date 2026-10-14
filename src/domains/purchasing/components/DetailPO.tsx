@@ -13,7 +13,8 @@ import type { PurchaseOrder, UpdatePurchaseOrderInput } from '@/domains/purchasi
 import { useCan } from '@/domains/auth/user-context';
 import { ApiError } from '@/shared/lib/api-client';
 
-type BarisEdit = { kodeBarang: string; namaBarang: string; satuan: string; jumlah: string; hargaSatuan: string; diskon: string };
+// lineIndex null untuk PO lama tanpa mapping; baris bermapping tidak boleh diubah jumlahnya.
+type BarisEdit = { lineIndex: number | null; kodeBarang: string; namaBarang: string; satuan: string; jumlah: string; hargaSatuan: string; diskon: string };
 type Draft = { tanggalPo: string; picSupplier: string; persenPpn: string; jasa: string; barang: BarisEdit[] };
 
 const cellClass = 'px-3 py-2 border-b border-r border-gray-300';
@@ -66,6 +67,7 @@ const toDraft = (po: PurchaseOrder): Draft => ({
   persenPpn: String(po.persenPpn),
   jasa: String(po.jasa),
   barang: po.barang.map((b) => ({
+    lineIndex: b.lineIndex ?? null,
     kodeBarang: b.kodeBarang,
     namaBarang: b.namaBarang,
     satuan: b.satuan,
@@ -85,6 +87,7 @@ const toInput = (d: Draft): UpdatePurchaseOrderInput => ({
     jumlah: toNumber(b.jumlah),
     hargaSatuan: toNumber(b.hargaSatuan),
     diskon: toNumber(b.diskon),
+    ...(b.lineIndex != null ? { lineIndex: b.lineIndex } : {}),
   })),
   persenPpn: toNumber(d.persenPpn),
   jasa: toNumber(d.jasa),
@@ -275,7 +278,7 @@ export default function DetailPO() {
             <tbody className="text-gray-800">
               {(draft ? draft.barang.map((b) => ({ ...b, jumlah: toNumber(b.jumlah), hargaSatuan: toNumber(b.hargaSatuan), diskon: toNumber(b.diskon) })) : po.barang).map((b, index) => {
                 const total = b.jumlah * b.hargaSatuan - b.diskon;
-                const edit = (field: keyof BarisEdit, label: string, numeric = false) => (
+                const edit = (field: Exclude<keyof BarisEdit, 'lineIndex'>, label: string, numeric = false) => (
                   <input
                     {...(numeric ? INTEGER_INPUT : { type: 'text' })}
                     maxLength={field === 'satuan' ? 50 : numeric ? 9 : 191}
@@ -291,7 +294,7 @@ export default function DetailPO() {
                     <td className={cellClass}>{draft ? edit('kodeBarang', 'Kode barang') : b.kodeBarang}</td>
                     <td className={cellClass}>{draft ? edit('namaBarang', 'Nama barang') : b.namaBarang}</td>
                     <td className={`${cellClass} text-center`}>{draft ? edit('satuan', 'Satuan') : b.satuan}</td>
-                    <td className={`${cellClass} text-center`}>{draft ? edit('jumlah', 'Jumlah', true) : formatAngka(b.jumlah)}</td>
+                    <td className={`${cellClass} text-center`}>{draft && b.lineIndex == null ? edit('jumlah', 'Jumlah', true) : formatAngka(b.jumlah)}</td>
                     <td className={`${cellClass} text-right`}>{draft ? edit('hargaSatuan', 'Harga satuan', true) : formatAngka(b.hargaSatuan)}</td>
                     <td className={`${cellClass} text-right`}>{draft ? edit('diskon', 'Diskon', true) : formatAngka(b.diskon)}</td>
                     <td className={`${cellClass} text-right font-semibold`}>{formatAngka(total)}</td>

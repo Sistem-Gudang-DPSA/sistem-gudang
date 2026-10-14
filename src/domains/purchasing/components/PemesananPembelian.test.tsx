@@ -21,10 +21,19 @@ const request = (status: string) => ({
   },
   actions: [],
 });
+// Both lines are mapped to supplier 3 and not issued yet, so the single open group opens directly.
+const mapping = {
+  approvalRequestId: 7, status: 'PARTIAL',
+  lines: [
+    { lineIndex: 0, namaBarang: 'Triplex', qty: 10, satuan: 'lbr', proyek: 'Proyek A', noSpk: 'SPK-1', mappedQty: 10, remainingQty: 0, mappings: [{ supplierId: 3, supplierName: 'PT Kayu', qty: 10, purchaseOrderId: null, nomorPo: null }] },
+    { lineIndex: 1, namaBarang: 'Paku', qty: 2, satuan: 'kg', proyek: 'Proyek B', noSpk: 'SPK-2', mappedQty: 2, remainingQty: 0, mappings: [{ supplierId: 3, supplierName: 'PT Kayu', qty: 2, purchaseOrderId: null, nomorPo: null }] },
+  ],
+};
+const mappingRoutes = { 'GET /api/v1/approvals/7/mapping': mapping, 'GET /api/v1/purchase-orders': paged([]) };
 const suppliers = paged([{ id: 3, code: 'S3', name: 'PT Kayu', bank: 'BCA 123', npwp: '01.2', phone: '0812', address: 'Jl. Mawar', pajak: 'PKP' }]);
 
 function setup(status = 'approved', extra: Record<string, unknown> = {}) {
-  const api = installFakeApi({ 'GET /api/v1/approvals/7': request(status), 'GET /api/v1/suppliers': suppliers, ...extra });
+  const api = installFakeApi({ 'GET /api/v1/approvals/7': request(status), 'GET /api/v1/suppliers': suppliers, ...mappingRoutes, ...extra });
   render(<PemesananPembelian />);
   return api;
 }
@@ -37,7 +46,6 @@ async function ready() {
 }
 function fillValid() {
   fireEvent.change(screen.getByLabelText('Tanggal PO'), { target: { value: '2026-03-10' } });
-  fireEvent.change(screen.getByLabelText('Data Supplier'), { target: { value: '3' } });
   type('PIC / Telp', ' Andi / 0811 ');
   type('Kode barang Triplex', 'TRP-1');
   type('Kode barang Paku', 'PKU-1');
@@ -118,8 +126,8 @@ describe('PemesananPembelian submit', () => {
       supplierId: 3,
       picSupplier: 'Andi / 0811',
       barang: [
-        { kodeBarang: 'TRP-1', namaBarang: 'Triplex', satuan: 'lbr', jumlah: 10, hargaSatuan: 1000, diskon: 500 },
-        { kodeBarang: 'PKU-1', namaBarang: 'Paku', satuan: 'kg', jumlah: 2, hargaSatuan: 2500, diskon: 0 },
+        { kodeBarang: 'TRP-1', namaBarang: 'Triplex', satuan: 'lbr', jumlah: 10, hargaSatuan: 1000, diskon: 500, lineIndex: 0 },
+        { kodeBarang: 'PKU-1', namaBarang: 'Paku', satuan: 'kg', jumlah: 2, hargaSatuan: 2500, diskon: 0, lineIndex: 1 },
       ],
       persenPpn: 12,
       jasa: 300,
@@ -140,7 +148,6 @@ describe('PemesananPembelian submit', () => {
 
   it.each([
     ['Tanggal PO wajib diisi.', () => {}],
-    ['Pilih supplier terlebih dahulu.', () => fireEvent.change(screen.getByLabelText('Tanggal PO'), { target: { value: '2026-03-10' } })],
   ])('validation: %s', async (msg, prep) => {
     const api = setup();
     await ready();
@@ -186,7 +193,7 @@ describe('PemesananPembelian submit', () => {
 describe('permissions', () => {
   const user = (permissions: string[], isSuperadmin = false) => ({ id: 1, username: 'u', email: 'u@x.id', roleId: 1, roleName: 'R', isSuperadmin, permissions });
   const renderAs = (u: ReturnType<typeof user>) => {
-    installFakeApi({ 'GET /api/v1/approvals/7': request('approved'), 'GET /api/v1/suppliers': suppliers });
+    installFakeApi({ 'GET /api/v1/approvals/7': request('approved'), 'GET /api/v1/suppliers': suppliers, ...mappingRoutes });
     render(<AuthUserProvider user={u}><PemesananPembelian /></AuthUserProvider>);
   };
   it('without purchase-order.create shows a message instead of the form', async () => {

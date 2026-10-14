@@ -2,14 +2,14 @@
 
 import React from "react";
 import Link from "next/link";
-import { ShoppingCart, ClipboardCheck, FileClock, Truck } from "lucide-react";
+import { ShoppingCart, ClipboardCheck, FileClock, Truck, MapPin, GitBranch, PackageCheck } from "lucide-react";
 import StatCard from "@/shared/components/StatCard";
 import { apiClient, toQuery } from "@/shared/lib/api-client";
 import { useApiData } from "@/shared/lib/use-api-data";
 import { useCan } from "@/domains/auth/user-context";
 import { listApprovals } from "@/domains/ppic/api";
 import { formatRupiah } from "@/domains/ppic/data/dokubah";
-import { listPurchaseOrders, listSuppliers } from "@/domains/purchasing/api";
+import { getMappingSummary, listPurchaseOrders, listSuppliers } from "@/domains/purchasing/api";
 
 const REKAP = "/dashboard/purchasing/laporan/rekap-pembelian";
 
@@ -45,6 +45,19 @@ function PoBulanIniCard() {
 function SupplierCard() {
   const { data, error } = useApiData(() => listSuppliers({ pageSize: 1 }), "suppliers");
   return <StatCard label="Total Supplier" value={data?.total} error={error} icon={Truck} tone="blue" href="/dashboard/purchasing/master/data-supplier" />;
+}
+
+// Empat angka status mapping supplier; kalau permintaan ditolak (mis. tanpa izin) tiap kartu menampilkan pesan error.
+function MappingCards() {
+  const { data, error } = useApiData(() => getMappingSummary(), "mapping-summary");
+  return (
+    <>
+      <StatCard label="Belum Dipetakan" value={data?.notStarted} error={error} icon={MapPin} tone="amber" href={REKAP} hint="Disetujui, belum ada mapping" />
+      <StatCard label="Sebagian Dipetakan" value={data?.partial} error={error} icon={GitBranch} tone="orange" href={REKAP} hint="Mapping belum lengkap" />
+      <StatCard label="Siap PO" value={data?.completeNoPo} error={error} icon={PackageCheck} tone="blue" href={REKAP} hint="Mapping lengkap, PO belum dibuat" />
+      <StatCard label="PO Terbit" value={data?.poIssued} error={error} icon={ShoppingCart} tone="green" href={REKAP} hint="Sudah ada PO dari mapping" />
+    </>
+  );
 }
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
@@ -138,6 +151,10 @@ export default function PurchasingDashboard() {
         {canApprove && <BelumPoCard />}
         {canPo && <PoBulanIniCard />}
         {canSupplier && <SupplierCard />}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+        <MappingCards />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">

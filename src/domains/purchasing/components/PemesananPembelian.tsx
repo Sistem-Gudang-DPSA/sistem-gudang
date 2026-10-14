@@ -5,44 +5,41 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ArrowLeft, ChevronDown } from 'lucide-react';
 import { formatAngka } from '@/domains/ppic/data/dokubah';
-import { fetchPermintaan, type BarangPermintaan, type PermintaanPembelian } from '@/domains/ppic/data/pembelian';
+import { fetchPermintaan, type PermintaanPembelian } from '@/domains/ppic/data/pembelian';
 import { useApiData } from '@/shared/lib/use-api-data';
-import { createPurchaseOrder, listPurchaseOrders, listSuppliers } from '@/domains/purchasing/api';
+import { createPurchaseOrder, getRequestMapping, listPurchaseOrders, listSuppliers } from '@/domains/purchasing/api';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
-import { lihatPermintaanPath, PEMESAN, rekap_pembelian_path } from '@/domains/purchasing/data/pembelian';
-import type { PurchaseOrder, PurchaseOrderRow, Supplier } from '@/domains/purchasing/types';
+import { lihatPermintaanPath, mappingPath, PEMESAN, rekap_pembelian_path } from '@/domains/purchasing/data/pembelian';
+import type { PurchaseOrder, PurchaseOrderRow, PurchaseRequestMapping, Supplier } from '@/domains/purchasing/types';
 import { useCan } from '@/domains/auth/user-context';
 import { ApiError } from '@/shared/lib/api-client';
 
 type BarisHarga = { kodeBarang: string; harga: string; diskon: string };
 
-type GrupSupplier = { key: string; supplierId: number | null; supplierName: string; barang: BarangPermintaan[] };
+// Baris PO: dari mapping (lineIndex terisi, qty = jatah supplier) atau dari permintaan lama (lineIndex null).
+type BarisPO = { lineIndex: number | null; namaBarang: string; satuan: string; proyek: string; qty: number };
 
-// Barang yang tertaut ke master dan punya supplier dikelompokkan per supplier; sisanya jadi satu grup "Tanpa supplier".
-function kelompokkanPerSupplier(barang: BarangPermintaan[]): GrupSupplier[] {
-  const grup = new Map<string, GrupSupplier>();
-  const tanpa: GrupSupplier = { key: 'tanpa-supplier', supplierId: null, supplierName: 'Tanpa supplier', barang: [] };
-  for (const b of barang) {
-    if (b.itemId != null && b.supplierId != null) {
-      const key = `supplier-${b.supplierId}`;
-      let g = grup.get(key);
+// Satu PO per supplier: baris yang belum punya PO, plus nomor PO yang sudah terbit untuk supplier ini.
+type GrupSupplier = { key: string; supplierId: number; supplierName: string; barang: BarisPO[]; nomorPo: string[] };
+
+function kelompokkanMapping(mapping: PurchaseRequestMapping): GrupSupplier[] {
+  const grup = new Map<number, GrupSupplier>();
+  for (const line of mapping.lines) {
+    for (const m of line.mappings) {
+      let g = grup.get(m.supplierId);
       if (!g) {
-        g = { key, supplierId: b.supplierId, supplierName: b.supplierName ?? `Supplier #${b.supplierId}`, barang: [] };
-        grup.set(key, g);
+        g = { key: `supplier-${m.supplierId}`, supplierId: m.supplierId, supplierName: m.supplierName, barang: [], nomorPo: [] };
+        grup.set(m.supplierId, g);
       }
-      g.barang.push(b);
-    } else {
-      tanpa.barang.push(b);
+      if (m.purchaseOrderId == null) {
+        g.barang.push({ lineIndex: line.lineIndex, namaBarang: line.namaBarang, satuan: line.satuan, proyek: line.proyek, qty: m.qty });
+      } else if (m.nomorPo && !g.nomorPo.includes(m.nomorPo)) {
+        g.nomorPo.push(m.nomorPo);
+      }
     }
   }
-  const hasil = [...grup.values()];
-  if (tanpa.barang.length > 0) hasil.push(tanpa);
-  return hasil;
+  return [...grup.values()];
 }
-
-// PO yang masih berlaku untuk supplier ini (PO yang dibatalkan tidak dihitung).
-const poAktifSupplier = (daftar: PurchaseOrderRow[], supplierId: number | null) =>
-  supplierId === null ? undefined : daftar.find((p) => p.status !== 'CANCELLED' && p.supplierId === supplierId);
 
 const PILIH_OTOMATIS = 'auto';
 
@@ -89,33 +86,51 @@ export default function PemesananPembelianPurchasing() {
 
 // Satu PO per supplier: pilih grup supplier dulu, lalu FormPemesanan untuk grup itu.
 function PilihSupplierPO({ permintaan }: { permintaan: PermintaanPembelian }) {
-  const grupList = useMemo(() => kelompokkanPerSupplier(permintaan.barang), [permintaan.barang]);
+  const [mapping, setMapping] = useState<PurchaseRequestMapping | null>(null);
   const [daftarPo, setDaftarPo] = useState<PurchaseOrderRow[] | null>(null);
   const [errorPo, setErrorPo] = useState('');
   const [muatUlang, setMuatUlang] = useState(0);
   const [pilihan, setPilihan] = useState<string | null>(PILIH_OTOMATIS);
+  const grupList = useMemo(() => (mapping ? kelompokkanMapping(mapping) : []), [mapping]);
 
   useEffect(() => {
     let aktif = true;
-    listPurchaseOrders({ approvalRequestId: permintaan.id, pageSize: 100 })
-      .then((res) => {
+    Promise.all([getRequestMapping(permintaan.id), listPurchaseOrders({ approvalRequestId: permintaan.id, pageSize: 100 })])
+      .then(([map, po]) => {
         if (!aktif) return;
-        setDaftarPo(res.rows);
+        setMapping(map);
+        setDaftarPo(po.rows);
         setErrorPo('');
       })
       .catch((err) => {
-        if (aktif) setErrorPo(err instanceof ApiError ? err.message : 'Gagal memuat daftar PO.');
+        if (aktif) setErrorPo(err instanceof ApiError ? err.message : 'Gagal memuat mapping supplier.');
       });
     return () => {
       aktif = false;
     };
   }, [permintaan.id, muatUlang]);
 
-  if (grupList.length === 0) return <FormPemesanan permintaan={permintaan} />;
+  if (!mapping || !daftarPo) {
+    return <div className="py-10 text-center text-sm text-gray-400 italic">{errorPo || 'Memuat data...'}</div>;
+  }
 
-  const siap = daftarPo !== null;
-  const terbuka = grupList.filter((g) => !poAktifSupplier(daftarPo ?? [], g.supplierId));
-  // Satu-satunya grup yang belum dibuat langsung dibuka; setelah kembali dari PO tidak dibuka otomatis lagi.
+  if (mapping.status === 'NOT_STARTED') {
+    // Permintaan lama yang sudah punya PO sebelum ada mapping tetap pakai form biasa tanpa lineIndex.
+    if (daftarPo.length > 0) return <FormPemesanan permintaan={permintaan} />;
+    return (
+      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+        <HeaderPemesanan backPath={lihatPermintaanPath(permintaan.id)} />
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-6 py-10 text-center">
+          <p className="text-sm text-gray-600">Petakan supplier dulu sebelum menerbitkan PO</p>
+          <Link href={mappingPath(permintaan.id)} className={`${orangeButtonClass} inline-block mt-6`}>Atur mapping supplier</Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Grup yang masih punya baris tanpa PO; satu-satunya grup itu langsung dibuka.
+  const terbuka = grupList.filter((g) => g.barang.length > 0);
+  // Setelah kembali dari PO tidak dibuka otomatis lagi.
   const aktifKey = pilihan === PILIH_OTOMATIS ? (terbuka.length === 1 ? terbuka[0].key : null) : pilihan;
   const grupAktif = grupList.find((g) => g.key === aktifKey);
 
@@ -123,8 +138,9 @@ function PilihSupplierPO({ permintaan }: { permintaan: PermintaanPembelian }) {
     return (
       <FormPemesanan
         key={grupAktif.key}
-        permintaan={{ ...permintaan, barang: grupAktif.barang }}
-        supplierIdAwal={grupAktif.supplierId ?? undefined}
+        permintaan={permintaan}
+        lines={grupAktif.barang}
+        supplierIdAwal={grupAktif.supplierId}
         onSelesai={() => {
           setPilihan(null);
           setMuatUlang((n) => n + 1);
@@ -138,17 +154,19 @@ function PilihSupplierPO({ permintaan }: { permintaan: PermintaanPembelian }) {
       <HeaderPemesanan backPath={lihatPermintaanPath(permintaan.id)} />
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <h2 className="text-base font-bold text-gray-900 text-center mb-2">Pilih Supplier</h2>
-        <p className="text-sm text-gray-600 text-center mb-6">Buat satu PO untuk setiap supplier.</p>
+        <p className="text-sm text-gray-600 text-center mb-2">Buat satu PO untuk setiap supplier.</p>
+        <p className="text-center mb-6">
+          <Link href={mappingPath(permintaan.id)} className="text-sm font-medium text-teal-600 hover:underline">Atur mapping supplier</Link>
+        </p>
         {errorPo && <p className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{errorPo}</p>}
-        {!siap && !errorPo && <p className="mb-4 text-center text-sm text-gray-400 italic">Memuat daftar PO...</p>}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {grupList.map((g) => {
-            const sudah = poAktifSupplier(daftarPo ?? [], g.supplierId);
+            const sudah = g.barang.length === 0;
             return (
               <button
                 key={g.key}
                 type="button"
-                disabled={!siap || sudah !== undefined}
+                disabled={sudah}
                 onClick={() => setPilihan(g.key)}
                 className="text-left px-4 py-3 bg-white border border-gray-200 rounded-xl transition-colors hover:border-orange-500 hover:bg-orange-50/30 disabled:opacity-60 disabled:hover:border-gray-200 disabled:hover:bg-white"
               >
@@ -156,7 +174,7 @@ function PilihSupplierPO({ permintaan }: { permintaan: PermintaanPembelian }) {
                 <p className="mt-1 text-xs text-gray-600">{g.barang.length} barang</p>
                 {sudah && (
                   <span className="inline-block mt-2 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-semibold">
-                    Sudah dibuat ({sudah.nomorPo})
+                    Sudah dibuat ({g.nomorPo.join(', ')})
                   </span>
                 )}
               </button>
@@ -179,7 +197,9 @@ function HeaderPemesanan({ backPath }: { backPath: string }) {
   );
 }
 
-function FormPemesanan({ permintaan, supplierIdAwal, onSelesai }: { permintaan?: PermintaanPembelian; supplierIdAwal?: number; onSelesai?: () => void }) {
+function FormPemesanan({ permintaan, lines, supplierIdAwal, onSelesai }: { permintaan?: PermintaanPembelian; lines?: BarisPO[]; supplierIdAwal?: number; onSelesai?: () => void }) {
+  // Dengan lines (dari mapping) qty = jatah supplier; tanpa lines (permintaan lama) baris diambil dari permintaan.
+  const daftarBarang: BarisPO[] = lines ?? (permintaan?.barang ?? []).map((b) => ({ lineIndex: null, namaBarang: b.namaBarang, satuan: b.satuan, proyek: b.proyek, qty: b.qty }));
 
   const [saving, setSaving] = useState(false);
   const [dibuat, setDibuat] = useState<PurchaseOrder | null>(null);
@@ -189,7 +209,7 @@ function FormPemesanan({ permintaan, supplierIdAwal, onSelesai }: { permintaan?:
   const [supplierId, setSupplierId] = useState(supplierIdAwal !== undefined ? String(supplierIdAwal) : '');
   const [picSupplier, setPicSupplier] = useState('');
   const [barisHarga, setBarisHarga] = useState<BarisHarga[]>(
-    () => (permintaan?.barang ?? []).map(() => ({ kodeBarang: '', harga: '', diskon: '' })),
+    () => daftarBarang.map(() => ({ kodeBarang: '', harga: '', diskon: '' })),
   );
   const [persenPpn, setPersenPpn] = useState('12');
   const [jasa, setJasa] = useState('');
@@ -225,9 +245,9 @@ function FormPemesanan({ permintaan, supplierIdAwal, onSelesai }: { permintaan?:
   }
 
   const supplier = suppliers.find((s) => String(s.id) === supplierId);
-  const kebutuhanProyek = Array.from(new Set(permintaan.barang.map((b) => b.proyek))).join(', ');
+  const kebutuhanProyek = Array.from(new Set(daftarBarang.map((b) => b.proyek))).join(', ');
 
-  const barang = permintaan.barang.map((b, index) => {
+  const barang = daftarBarang.map((b, index) => {
     const baris = barisHarga[index];
     const hargaSatuan = toNumber(baris.harga);
     const diskon = toNumber(baris.diskon);
@@ -288,6 +308,8 @@ function FormPemesanan({ permintaan, supplierIdAwal, onSelesai }: { permintaan?:
             jumlah: b.qty,
             hargaSatuan: b.hargaSatuan,
             diskon: b.diskon,
+            // Baris dari mapping wajib membawa lineIndex; permintaan lama tidak mengirimnya.
+            ...(b.lineIndex !== null ? { lineIndex: b.lineIndex } : {}),
           })),
           persenPpn: toNumber(persenPpn),
           jasa: toNumber(jasa),
