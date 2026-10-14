@@ -160,15 +160,16 @@ export default function DataBarangPurchasing() {
                 <th scope="col" className="px-6 py-4">Kategori</th>
                 <th scope="col" className="px-6 py-4 text-right">Harga (Rp)</th>
                 <th scope="col" className="px-6 py-4">Lokasi</th>
+                <th scope="col" className="px-6 py-4">Keterangan</th>
                 <th scope="col" className="px-6 py-4 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading && (
-                <tr><td colSpan={9} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
+                <tr><td colSpan={10} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
               )}
               {!loading && dataBarang.length === 0 && (
-                <tr><td colSpan={9} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
+                <tr><td colSpan={10} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
               )}
               {!loading && dataBarang.map((item, index) => (
                 <tr key={item.id} className="hover:bg-purple-50/30 transition-colors group">
@@ -226,6 +227,9 @@ export default function DataBarangPurchasing() {
                       {locationCode(item.locationId)}
                     </span>
                   </td>
+
+                  {/* Keterangan */}
+                  <td className="px-6 py-4 text-gray-600">{item.detail || '-'}</td>
 
                   {/* Aksi */}
                   <td className="px-6 py-4 text-center">

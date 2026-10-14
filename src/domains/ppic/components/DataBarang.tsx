@@ -248,6 +248,7 @@ export default function DataBarangPPIC() {
                 <th scope="col" className="px-6 py-4">Kategori</th>
                 <th scope="col" className="px-6 py-4 text-right">Harga (Rp)</th>
                 <th scope="col" className="px-6 py-4">Lokasi</th>
+                <th scope="col" className="px-6 py-4">Keterangan</th>
                 <th scope="col" className="px-6 py-4 text-center">Aksi</th>
               </tr>
             </thead>
@@ -319,6 +320,9 @@ export default function DataBarangPPIC() {
                       {locationCode(item.locationId)}
                     </span>
                   </td>
+
+                  {/* Keterangan */}
+                  <td className="px-6 py-4 text-gray-600">{item.detail || '-'}</td>
 
                   {/* Aksi */}
                   <td className="px-6 py-4 text-center">

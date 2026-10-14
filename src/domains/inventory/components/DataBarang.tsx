@@ -228,15 +228,16 @@ export default function DataBarangGudang() {
                 <th scope="col" className="px-6 py-4">Stok & Satuan</th>
                 <th scope="col" className="px-6 py-4">Kategori</th>
                 <th scope="col" className="px-6 py-4">Lokasi</th>
+                <th scope="col" className="px-6 py-4">Keterangan</th>
                 <th scope="col" className="px-6 py-4 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading && (
-                <tr><td colSpan={8} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
+                <tr><td colSpan={9} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
               )}
               {!loading && dataBarang.length === 0 && (
-                <tr><td colSpan={8} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
+                <tr><td colSpan={9} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
               )}
               {!loading && dataBarang.map((item, index) => (
                 <tr key={item.id} className="hover:bg-[#FF8A00]/5 transition-colors group">
@@ -252,15 +253,6 @@ export default function DataBarangGudang() {
                     <div className="flex flex-col">
                       <span className="font-bold text-gray-900">{item.name}</span>
                       <span className="text-xs font-mono text-gray-500 mt-0.5">{item.code ?? '-'}</span>
-                    </div>
-                  </td>
-
-                  {/* Detail Barang */}
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col">
-                      <span>
-                        
-                      </span>
                     </div>
                   </td>
 
@@ -298,6 +290,9 @@ export default function DataBarangGudang() {
                       {locationCode(item.locationId)}
                     </span>
                   </td>
+
+                  {/* Keterangan */}
+                  <td className="px-6 py-4 text-gray-600">{item.detail || '-'}</td>
 
                   {/* Aksi */}
                   <td className="px-6 py-4 text-center">

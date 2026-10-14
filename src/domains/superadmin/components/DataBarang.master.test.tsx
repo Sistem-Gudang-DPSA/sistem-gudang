@@ -56,7 +56,7 @@ describe('superadmin Data Barang', () => {
     expect(screen.queryByLabelText('Nama Barang 1')).toBeNull();
     fireEvent.click(screen.getByText('Mode Edit'));
     fireEvent.change(screen.getByLabelText('Nama Barang 1'), { target: { value: 'Barang Satu' } });
-    fireEvent.change(screen.getByLabelText('Detail Barang 1'), { target: { value: 'TACO TH' } });
+    fireEvent.change(screen.getByLabelText('Keterangan Barang 1'), { target: { value: 'TACO TH' } });
     fireEvent.change(screen.getByLabelText('Harga Barang 1'), { target: { value: '2500' } });
     fireEvent.click(screen.getByText('Simpan (1)'));
     await waitFor(() => expect(api.calls('PUT /api/v1/items/1')).toHaveLength(1));

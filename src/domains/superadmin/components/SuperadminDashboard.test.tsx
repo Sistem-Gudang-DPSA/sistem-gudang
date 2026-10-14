@@ -13,7 +13,7 @@ describe('SuperadminDashboard', () => {
     expect(screen.getByText('u2@x.id')).not.toBeNull();
     expect(screen.getByText('Lihat Semua (12)').getAttribute('href')).toBe('/dashboard/superadmin/users');
     const hrefs = screen.getAllByRole('link').map((a) => a.getAttribute('href'));
-    expect(hrefs).toEqual(expect.arrayContaining(['/dashboard/gudang', '/dashboard/ppic', '/dashboard/purchasing']));
+    expect(hrefs).toEqual(expect.arrayContaining(['/dashboard/gudang', '/dashboard/gudang-barang-jadi', '/dashboard/ppic', '/dashboard/purchasing']));
     expect(api.calls('GET /api/v1/superadmin/users')[0].query.get('pageSize')).toBe('10');
   });
 
