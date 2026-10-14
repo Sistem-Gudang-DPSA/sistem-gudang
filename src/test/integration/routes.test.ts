@@ -22,15 +22,18 @@ const nonTest = walk(SRC).filter((f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.te
 const sources = nonTest.map((f) => ({ f, src: readFileSync(f, "utf8") }));
 
 describe("dashboard pages", () => {
-  it.each(reexportPages.map((f) => [routeOf(f), f]))("%s re-exports an existing module", (_r, f) => {
-    const m = readFileSync(f, "utf8").match(/export\s*\{\s*default\s*\}\s*from\s*["']@\/([^"']+)["']/);
-    expect(m, "page must be `export { default } from \"@/...\"`").not.toBeNull();
-    const base = join(SRC, m![1]);
-    expect(["", ".tsx", ".ts", "/index.tsx", "/index.ts"].some((e) => existsSync(base + e) && statSync(base + e).isFile())).toBe(true);
+  it("every page re-exports an existing module", () => {
+    const bad = reexportPages.filter((f) => {
+      const m = readFileSync(f, "utf8").match(/export\s*\{\s*default\s*\}\s*from\s*["']@\/([^"']+)["']/);
+      if (!m) return true;
+      const base = join(SRC, m[1]);
+      return !["", ".tsx", ".ts", "/index.tsx", "/index.ts"].some((e) => existsSync(base + e) && statSync(base + e).isFile());
+    });
+    expect(bad.map(routeOf)).toEqual([]);
   });
 
   const hrefs = NAV_DIVISIONS.flatMap((d) => d.groups.flatMap((g) => g.items.map((i) => i.href)));
-  it.each(hrefs)("nav href %s has a page", (h) => expect(exists(h)).toBe(true));
+  it("every nav href has a page", () => expect(hrefs.filter((h) => !exists(h))).toEqual([]));
 });
 
 // Routes reached by a link built from a path constant + suffix (so the full literal never appears).
