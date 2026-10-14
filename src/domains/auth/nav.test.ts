@@ -9,7 +9,7 @@ const labels = (u: AuthUser) => visibleNav(u).map((d) => d.key);
 
 describe("visibleNav", () => {
   it("shows every division to a superadmin", () => {
-    expect(labels(user([], true))).toEqual(["superadmin", "gudang", "ppic", "purchasing"]);
+    expect(labels(user([], true))).toEqual(["superadmin", "gudang", "gudang-barang-jadi", "ppic", "purchasing"]);
   });
 
   it("keeps the Super Admin division away from non-superadmins, whatever their permissions", () => {
@@ -17,10 +17,10 @@ describe("visibleNav", () => {
     expect(labels(everything)).not.toContain("superadmin");
   });
 
-  it("shows only gudang to an inventory user, without pages outside their permissions", () => {
+  it("shows only the gudang divisions to an inventory user, without pages outside their permissions", () => {
     const inventory = user(["inbound.view", "report.view", "dokubah.view", "item.view", "location.view", "supplier.view"]);
     const nav = visibleNav(inventory);
-    expect(nav.map((d) => d.key)).toEqual(["gudang"]);
+    expect(nav.map((d) => d.key)).toEqual(["gudang", "gudang-barang-jadi"]);
     const hrefs = nav[0].groups.flatMap((g) => g.items.map((i) => i.href));
     expect(hrefs).toContain("/dashboard/gudang/laporan/rekap-permintaan");
     expect(hrefs).not.toContain("/dashboard/gudang/transaksi/barang-keluar");
@@ -83,9 +83,9 @@ const itemsOf = (u: AuthUser, key: string) =>
   visibleNav(u).find((d) => d.key === key)?.groups.flatMap((g) => g.items.map((i) => i.label)) ?? [];
 
 describe("sidebar per seeded role", () => {
-  it("Inventory staff and coordinator see only the Gudang division", () => {
-    expect(labels(user(SEEDED.kInventory))).toEqual(["gudang"]);
-    expect(labels(user(SEEDED.stafInventory))).toEqual(["gudang"]);
+  it("Inventory staff and coordinator see only the Gudang divisions", () => {
+    expect(labels(user(SEEDED.kInventory))).toEqual(["gudang", "gudang-barang-jadi"]);
+    expect(labels(user(SEEDED.stafInventory))).toEqual(["gudang", "gudang-barang-jadi"]);
     expect(itemsOf(user(SEEDED.kInventory), "gudang")).toContain("Rekap Dokubah");
   });
 
@@ -93,7 +93,7 @@ describe("sidebar per seeded role", () => {
     const ppic = user(SEEDED.ppic);
     expect(labels(ppic)).toEqual(["ppic"]);
     expect(itemsOf(ppic, "ppic")).toEqual([
-      "Data Barang", "Penawaran Harga", "Dokubah", "SPK Internal & Mutasi Stok", "Permintaan Pembelian",
+      "Data Barang", "Penawaran Harga", "Dokubah", "SPK Internal & Mutasi Stok", "Permintaan Pembelian", "Approval",
       "Rekap Dokubah", "Rekap Mutasi Barang", "Rekap Stok Opname & Mutasi Stok", "Rekap Pembelian",
     ]);
     expect(canAccess(ppic, "/dashboard/gudang/laporan/rekap-permintaan")).toBe(false);
@@ -103,7 +103,10 @@ describe("sidebar per seeded role", () => {
   it("Purchasing sees only the Purchasing division with its own pages", () => {
     const p = user(SEEDED.kPurchasing);
     expect(labels(p)).toEqual(["purchasing"]);
-    expect(itemsOf(p, "purchasing")).toEqual(["Data Barang", "Data Supplier", "Rekap Pembelian"]);
+    expect(itemsOf(p, "purchasing")).toEqual([
+      "Data Barang", "Data Supplier", "Buat PO", "Penawaran Harga / SPH", "Retur ke Supplier",
+      "Rekap Data Barang Masuk", "Rekap Data Barang Keluar", "Rekap Stock Opname", "Rekap Pembelian",
+    ]);
     expect(canAccess(p, "/dashboard/ppic/transaksi/permintaan-pembelian")).toBe(false);
     expect(canAccess(p, "/dashboard/purchasing/laporan/rekap-pembelian/buat-po/3")).toBe(true);
   });
