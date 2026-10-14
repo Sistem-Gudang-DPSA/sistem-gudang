@@ -178,7 +178,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
         title: "Transaksi",
         items: [
           { href: "/dashboard/purchasing/transaksi/buat-po-barang", label: "PO Barang", anyOf: ["purchase-order.create"] },
-          { href: "/dashboard/purchasing/transaksi/penawaran-harga", label: "Penawaran Harga / SPH", anyOf: ["item.set-price"] },
+          { href: "/dashboard/purchasing/transaksi/penawaran-harga", label: "Penawaran Harga / SPH", anyOf: ["penawaran-harga.view"] },
           { href: "/dashboard/purchasing/transaksi/retur-supplier", label: "Retur ke Supplier", anyOf: ["item.set-price", "supplier.create", "supplier.update"] },
         ],
       },
