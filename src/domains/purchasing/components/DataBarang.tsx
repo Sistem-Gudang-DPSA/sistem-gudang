@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { Search, Plus, Download, Filter } from 'lucide-react';
+import { Search, Plus, Filter } from 'lucide-react';
 import { listItems, listLocations, updateItem } from '@/domains/inventory/api';
 import type { ItemListRow, Location } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
@@ -13,6 +13,8 @@ import { useCan } from '@/domains/auth/user-context';
 import Pagination from '@/shared/components/Pagination';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import ItemPhoto from '@/domains/inventory/components/ItemPhoto';
+import { useSort } from '@/shared/components/SortableTh';
+import BarangFilterPanel, { countActiveFilters, emptyBarangFilters } from '@/domains/superadmin/components/BarangFilterPanel';
 
 export default function DataBarangPurchasing() {
   // PUT /items/:id needs item.update, and changing the price also needs item.set-price.
@@ -21,7 +23,13 @@ export default function DataBarangPurchasing() {
   const canEditPrice = canUpdateItem && canSetPrice;
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [units, setUnits] = useState<string[]>([]);
   const [Exporting, setExporting] = useState(false);
+  const [filters, setFilters] = useState(emptyBarangFilters);
+  const [showFilter, setShowFilter] = useState(false);
+
+  const { sort, toggle } = useSort();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -136,13 +144,29 @@ export default function DataBarangPurchasing() {
           </div>
           <div className="flex items-center gap-2">
             <ExportExcellButton onClick={handleExportCSV} disabled={Exporting || loading || dataBarang.length === 0} />
-            <button className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">
+            <button
+              type="button"
+              onClick={() => setShowFilter((v) => !v)}
+              aria-expanded={showFilter}
+              className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors text-sm font-medium ${showFilter || countActiveFilters(filters) > 0 ? 'bg-orange-50 border-orange-300 text-orange-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+            >
               <Filter className="w-4 h-4" />
-              <span>Filter</span>
+              <span>Filter{countActiveFilters(filters) > 0 ? ` (${countActiveFilters(filters)})` : ''}</span>
             </button>
           </div>
         </div>
 
+        {showFilter && (
+          <BarangFilterPanel
+            value={filters}
+            onChange={setFilters}
+            categories={categories}
+            units={units}
+            suppliers={suppliers}
+            locations={locations}
+          />
+        )}
+        
         {error && (
           <div className="mx-5 mt-5 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>
         )}

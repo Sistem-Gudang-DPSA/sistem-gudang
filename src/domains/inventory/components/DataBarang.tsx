@@ -303,17 +303,25 @@ export default function DataBarangGudang() {
                           className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] text-xs font-bold rounded-lg hover:bg-[#FF8A00]/20 transition-all duration-200 opacity-90 group-hover:opacity-100"
                         >
                           <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
-                          Tambah
+                         Tambah Lokasi
                         </button>
-                      ) : null}
-                      {canAdjust && <button
+                      ) : canAssign && (
+                        <button
+                          onClick={() => openAssignModal(item)}
+                          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] text-xs font-bold rounded-lg hover:bg-[#FF8A00]/20 transition-all duration-200 opacity-90 group-hover:opacity-100"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" strokeWidth={2.5} />
+                         Edit Lokasi
+                        </button>
+                      )}
+                      {/* {canAdjust && <button
                         onClick={() => openStockModal(item)}
                         className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-100 transition-all duration-200 opacity-90 group-hover:opacity-100"
                         title="Sesuaikan stok"
                       >
                         <Edit2 className="w-3.5 h-3.5" strokeWidth={2.5} />
                         Stok
-                      </button>}
+                      </button>} */}
                     </div>
                   </td>
                 </tr>

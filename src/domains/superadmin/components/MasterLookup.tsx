@@ -109,6 +109,10 @@ export default function MasterLookup({ config }: { config: LookupConfig }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-600">
+              {data?.length ?? 0} {singular.toLowerCase()}
+            </span>
+            {canUpdate && <EditModeBar editing={edit.editing} dirty={edit.dirty} saving={edit.saving} onToggle={edit.toggle} onSave={simpanSemua} onCancel={edit.cancel} />}
             {canCreate && (
               <button
                 onClick={() => setOpen(true)}
@@ -118,10 +122,6 @@ export default function MasterLookup({ config }: { config: LookupConfig }) {
                 Tambah {singular}
               </button>
             )}
-            {canUpdate && <EditModeBar editing={edit.editing} dirty={edit.dirty} saving={edit.saving} onToggle={edit.toggle} onSave={simpanSemua} onCancel={edit.cancel} />}
-            <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-600">
-              {data?.length ?? 0} {singular.toLowerCase()}
-            </span>
           </div>
         </div>
 
