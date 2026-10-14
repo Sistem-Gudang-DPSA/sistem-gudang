@@ -27,6 +27,9 @@ export interface NavDivision {
   groups: NavGroup[];
 }
 
+// Merge resolution: keep the dev route structure and permissions intact, while exposing the newer
+// Gudang Barang Jadi section as a companion division so the imel visual design can coexist without
+// breaking the original Gudang access rules.
 // Links whose pages do not exist yet are left out on purpose (they used to 404):
 // ppic: laporan/barang-masuk, barang-keluar, barang-dikembalikan, stok-opname
 export const NAV_DIVISIONS: NavDivision[] = [
@@ -134,7 +137,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
         items: [
           { href: "/dashboard/ppic/master/data-barang", label: "Data Barang", anyOf: ["item.view"] },
           { href: "/dashboard/ppic/master/penawaran-harga", label: "Penawaran Harga", anyOf: ["penawaran-harga.view"] },
-        ],  
+        ],
       },
       {
         title: "Transaksi",
