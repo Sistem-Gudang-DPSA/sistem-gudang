@@ -13,9 +13,7 @@ const RAK_NAMA = ['A', 'B', 'C'];
 const RAK_NOMOR = ['01', '02', '03', '04'];
 
 export default function DataLokasiGudang() {
-  const canDelete = useCan('location.delete');
   const canCreate = useCan('location.create');
-  const canUpdate = useCan('location.update');
   const { sort, toggle, params: sortParams } = useSort();
   const edit = useBatchEdit();
   const [searchQuery, setSearchQuery] = useState("");

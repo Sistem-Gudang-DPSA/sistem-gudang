@@ -16,6 +16,14 @@ const THEME: Record<NavTheme, { summary: string; icon: string; border: string; h
     active: "bg-orange-500 text-white font-medium shadow-sm",
     idle: "text-gray-500 hover:text-orange-600 hover:bg-orange-50",
   },
+  rose: {
+    summary: "hover:bg-rose-50 hover:text-rose-600 hover:border-rose-100",
+    icon: "bg-rose-100 text-rose-600",
+    border: "border-rose-50",
+    heading: "hover:text-rose-600",
+    active: "bg-rose-500 text-white font-medium shadow-sm",
+    idle: "text-gray-500 hover:text-rose-600 hover:bg-rose-50",
+  },
   purple: {
     summary: "hover:bg-purple-50 hover:text-purple-600 hover:border-purple-100",
     icon: "bg-purple-100 text-purple-600",
