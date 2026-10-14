@@ -182,6 +182,8 @@ export interface ApprovalRequest {
   currentStepOrder: number;
   cycle: number;
   status: ApprovalStatus;
+  // Only for APPROVED purchase requests; null otherwise.
+  mappingStatus?: "NOT_STARTED" | "PARTIAL" | "COMPLETE" | null;
   createdAt: string;
 }
 

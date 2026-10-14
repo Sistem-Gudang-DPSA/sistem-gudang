@@ -1,6 +1,6 @@
 import { apiClient, downloadFile, toQuery } from "@/shared/lib/api-client";
 import type { PaginatedResult, ListParams, SortParams } from "@/domains/inventory/types";
-import type { CreatePurchaseOrderInput, CreateSupplierInput, Pajak, PurchaseOrder, PurchaseOrderRow, PurchaseOrderStatus, Supplier, SupplierPriceChange, SupplierPrices, UpdatePurchaseOrderInput } from "./types";
+import type { CreatePurchaseOrderInput, CreateSupplierInput, MappingSummary, Pajak, PurchaseOrder, PurchaseOrderRow, PurchaseOrderStatus, PurchaseRequestMapping, SaveMappingInput, Supplier, SupplierPriceChange, SupplierPrices, UpdatePurchaseOrderInput } from "./types";
 
 export function listSuppliers(params?: ListParams & SortParams & { pajak?: Pajak }) {
   return apiClient.get<PaginatedResult<Supplier>>(`/api/v1/suppliers${toQuery(params)}`);
@@ -50,4 +50,16 @@ export function cancelPurchaseOrder(id: number | string, reason: string) {
 
 export function exportPurchaseOrder(id: number | string) {
   return downloadFile(`/api/v1/purchase-orders/${id}/export`, `purchase-order-${id}.xlsx`);
+}
+
+export function getRequestMapping(approvalRequestId: number | string) {
+  return apiClient.get<PurchaseRequestMapping>(`/api/v1/approvals/${approvalRequestId}/mapping`);
+}
+
+export function saveRequestMapping(approvalRequestId: number | string, input: SaveMappingInput) {
+  return apiClient.put<PurchaseRequestMapping>(`/api/v1/approvals/${approvalRequestId}/mapping`, input);
+}
+
+export function getMappingSummary() {
+  return apiClient.get<MappingSummary>("/api/v1/approvals/mapping-summary");
 }

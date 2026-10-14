@@ -45,6 +45,9 @@ export interface PurchaseOrderLineInput {
   jumlah: number;
   hargaSatuan: number;
   diskon: number;
+  // Index of the purchase-request line this row comes from. Required whenever the request has a supplier mapping;
+  // the BE answers null for POs made before mapping existed.
+  lineIndex?: number | null;
 }
 
 // Editing replaces the lines wholesale; supplier, request and nomorPo cannot change (BE answers 400).
@@ -89,3 +92,45 @@ export interface PurchaseOrder {
 
 // List rows carry the header only; the lines come from GET /purchase-orders/{id}.
 export type PurchaseOrderRow = Omit<PurchaseOrder, "barang">;
+
+// Supplier mapping of an APPROVED purchase request, made by Purchasing before POs are issued.
+export type MappingStatus = "NOT_STARTED" | "PARTIAL" | "COMPLETE";
+
+export interface MappingEntry {
+  supplierId: number;
+  supplierName: string;
+  qty: number;
+  purchaseOrderId: number | null;
+  nomorPo: string | null;
+}
+
+export interface MappingLine {
+  lineIndex: number;
+  namaBarang: string;
+  qty: number;
+  satuan: string;
+  proyek: string;
+  noSpk: string;
+  itemId?: number;
+  mappedQty: number;
+  remainingQty: number;
+  mappings: MappingEntry[];
+}
+
+export interface PurchaseRequestMapping {
+  approvalRequestId: number;
+  status: MappingStatus;
+  lines: MappingLine[];
+}
+
+// Only the lines sent are replaced; an empty suppliers list clears a line that has no PO yet.
+export interface SaveMappingInput {
+  lines: { lineIndex: number; suppliers: { supplierId: number; qty: number }[] }[];
+}
+
+export interface MappingSummary {
+  notStarted: number;
+  partial: number;
+  completeNoPo: number;
+  poIssued: number;
+}
