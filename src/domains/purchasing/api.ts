@@ -1,6 +1,6 @@
 import { apiClient, toQuery } from "@/shared/lib/api-client";
 import type { PaginatedResult, ListParams, SortParams } from "@/domains/inventory/types";
-import type { CreatePurchaseOrderInput, CreateSupplierInput, Pajak, PurchaseOrder, Supplier, SupplierPriceChange, SupplierPrices } from "./types";
+import type { CreatePurchaseOrderInput, CreateSupplierInput, Pajak, PurchaseOrder, PurchaseOrderRow, Supplier, SupplierPriceChange, SupplierPrices } from "./types";
 
 export function listSuppliers(params?: ListParams & SortParams & { pajak?: Pajak }) {
   return apiClient.get<PaginatedResult<Supplier>>(`/api/v1/suppliers${toQuery(params)}`);
@@ -31,3 +31,11 @@ export function createPurchaseOrder(input: CreatePurchaseOrderInput) {
   return apiClient.post<PurchaseOrder>("/api/v1/purchase-orders", input);
 }
 
+
+export function listPurchaseOrders(params?: ListParams & { supplierId?: number; approvalRequestId?: number; startDate?: string; endDate?: string }) {
+  return apiClient.get<PaginatedResult<PurchaseOrderRow>>(`/api/v1/purchase-orders${toQuery(params)}`);
+}
+
+export function getPurchaseOrder(id: number | string) {
+  return apiClient.get<PurchaseOrder>(`/api/v1/purchase-orders/${id}`);
+}

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Filter, Plus, Search } from 'lucide-react';
+import { Filter, Search } from 'lucide-react';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { formatTanggal } from '@/domains/ppic/data/dokubah';
@@ -12,11 +12,9 @@ import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import { countActiveFilters, emptyBarangFilters } from '@/domains/superadmin/components/BarangFilterPanel';
 import DateFilter from '@/shared/components/DateFilter';
-import { useCan } from '@/domains/auth/user-context';
 
 
 export default function POBarang() {
-  const canCreate = useCan('purchase-order.create');
   const [searchQuery, setSearchQuery] = useState('');
   const filterKey = searchQuery.trim();
   const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
@@ -89,15 +87,6 @@ export default function POBarang() {
               <Filter className="w-4 h-4" />
               <span>Filter{countActiveFilters(filters) > 0 ? ` (${countActiveFilters(filters)})` : ''}</span>
             </button>
-            {canCreate && (
-              <Link
-                href="/dashboard/purchasing/transaksi/buat-po-barang/buat-po/baru"
-                className="flex items-center gap-2 px-5 py-2.5 bg-[#ff8a00] text-white rounded-lg hover:bg-[#eb7d00] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm shadow-sm"
-              >
-                <Plus className="w-4 h-4" />
-                Buat Pesanan Baru
-              </Link>
-            )}
           </div>
         </div>
 

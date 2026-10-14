@@ -77,3 +77,6 @@ export interface PurchaseOrder {
   barang: PurchaseOrderLineInput[];
 }
 
+
+// List rows carry the header only; the lines come from GET /purchase-orders/{id}.
+export type PurchaseOrderRow = Omit<PurchaseOrder, "barang">;
