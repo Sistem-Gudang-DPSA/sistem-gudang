@@ -12,7 +12,7 @@ import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import BarangFilterPanel, { countActiveFilters, emptyBarangFilters, toItemFilterParams } from '@/domains/superadmin/components/BarangFilterPanel';
-import { useSort } from '@/shared/components/SortableTh';
+import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import ItemPhoto from './ItemPhoto';
 
 export default function DataBarangGudang() {
@@ -223,12 +223,12 @@ export default function DataBarangGudang() {
               <tr>
                 <th scope="col" className="px-6 py-4">No</th>
                 <th scope="col" className="px-6 py-4">Foto</th>
-                <th scope="col" className="px-6 py-4">Informasi Barang</th>
-                <th scope="col" className="px-6 py-4">Supplier</th>
-                <th scope="col" className="px-6 py-4">Stok & Satuan</th>
-                <th scope="col" className="px-6 py-4">Kategori</th>
-                <th scope="col" className="px-6 py-4">Lokasi</th>
-                <th scope="col" className="px-6 py-4">Keterangan</th>
+                <SortableTh label="Informasi Barang" sortKey="name" sort={sort} onSort={toggle} />
+                <SortableTh label="Supplier" sortKey="supplierName" sort={sort} onSort={toggle} />
+                <SortableTh label="Stok & Satuan" sortKey="stock" sort={sort} onSort={toggle} />
+                <SortableTh label="Kategori" sortKey="category" sort={sort} onSort={toggle} />
+                <SortableTh label="Lokasi" sortKey="locationCode" sort={sort} onSort={toggle} />
+                <SortableTh label="Keterangan" sortKey="detail" sort={sort} onSort={toggle} />
                 <th scope="col" className="px-6 py-4 text-center">Aksi</th>
               </tr>
             </thead>
@@ -303,7 +303,7 @@ export default function DataBarangGudang() {
                           className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] text-xs font-bold rounded-lg hover:bg-[#FF8A00]/20 transition-all duration-200 opacity-90 group-hover:opacity-100"
                         >
                           <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
-                         Tambah Lokasi
+                          Tambah Lokasi
                         </button>
                       ) : canAssign && (
                         <button
@@ -311,17 +311,17 @@ export default function DataBarangGudang() {
                           className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] text-xs font-bold rounded-lg hover:bg-[#FF8A00]/20 transition-all duration-200 opacity-90 group-hover:opacity-100"
                         >
                           <Edit2 className="w-3.5 h-3.5" strokeWidth={2.5} />
-                         Edit Lokasi
+                          Edit Lokasi
                         </button>
                       )}
-                      {/* {canAdjust && <button
+                      {canAdjust && <button
                         onClick={() => openStockModal(item)}
                         className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-100 transition-all duration-200 opacity-90 group-hover:opacity-100"
                         title="Sesuaikan stok"
                       >
                         <Edit2 className="w-3.5 h-3.5" strokeWidth={2.5} />
                         Stok
-                      </button>} */}
+                      </button>}
                     </div>
                   </td>
                 </tr>

@@ -177,7 +177,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
         // Placeholder pages for now; items without a dedicated permission use the division's own set.
         title: "Transaksi",
         items: [
-          { href: "/dashboard/purchasing/transaksi/buat-po", label: "Buat PO", anyOf: ["purchase-order.create"] },
+          { href: "/dashboard/purchasing/transaksi/buat-po-barang", label: "PO Barang", anyOf: ["purchase-order.create"] },
           { href: "/dashboard/purchasing/transaksi/penawaran-harga", label: "Penawaran Harga / SPH", anyOf: ["item.set-price"] },
           { href: "/dashboard/purchasing/transaksi/retur-supplier", label: "Retur ke Supplier", anyOf: ["item.set-price", "supplier.create", "supplier.update"] },
         ],
