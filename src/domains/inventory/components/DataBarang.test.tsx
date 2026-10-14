@@ -86,15 +86,16 @@ describe('DataBarang assign location', () => {
   async function openAssign(api: ReturnType<typeof installFakeApi>) {
     await ready(api);
     await screen.findByText('A01');
-    fireEvent.click(screen.getByText('Tambah'));
+    fireEvent.click(screen.getByText('Tambah Lokasi'));
     await screen.findByText(/TAMBAH LOKASI/);
   }
   const code = () => screen.getByPlaceholderText('Kode akan disarankan otomatis') as HTMLInputElement;
 
-  it('only offers Tambah for items without location', async () => {
+  it('only offers Tambah Lokasi for items without location', async () => {
     const api = setup();
     await ready(api);
-    expect(screen.getAllByText('Tambah').length).toBe(1);
+    expect(screen.getAllByText('Tambah Lokasi').length).toBe(1);
+    expect(screen.getAllByText('Edit Lokasi').length).toBeGreaterThan(0);
   });
 
   it('fetches suggested code on location pick, then PUTs assign-location', async () => {
@@ -221,25 +222,25 @@ describe('permissions', () => {
 
   it('hides assign-location and stock actions from a view-only user', async () => {
     await open(who([]));
-    expect(screen.queryByText('Tambah')).toBeNull();
+    expect(screen.queryByText('Tambah Lokasi')).toBeNull();
     expect(screen.queryByTitle('Sesuaikan stok')).toBeNull();
   });
 
   it('shows each action only with its own permission', async () => {
     await open(who(['item.adjust-stock']));
-    expect(screen.queryByText('Tambah')).toBeNull();
+    expect(screen.queryByText('Tambah Lokasi')).toBeNull();
     expect(screen.getAllByTitle('Sesuaikan stok').length).toBe(2);
   });
 
   it('shows assign-location with item.assign-location', async () => {
     await open(who(['item.assign-location']));
-    expect(screen.getByText('Tambah')).not.toBeNull();
+    expect(screen.getByText('Tambah Lokasi')).not.toBeNull();
     expect(screen.queryByTitle('Sesuaikan stok')).toBeNull();
   });
 
   it('shows everything to a superadmin', async () => {
     await open(who([], true));
-    expect(screen.getByText('Tambah')).not.toBeNull();
+    expect(screen.getByText('Tambah Lokasi')).not.toBeNull();
     expect(screen.getAllByTitle('Sesuaikan stok').length).toBe(2);
   });
 });

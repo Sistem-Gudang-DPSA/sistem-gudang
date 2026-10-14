@@ -12,7 +12,7 @@ import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import BarangFilterPanel, { countActiveFilters, emptyBarangFilters, toItemFilterParams } from '@/domains/superadmin/components/BarangFilterPanel';
-import { useSort } from '@/shared/components/SortableTh';
+import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import ItemPhoto from './ItemPhoto';
 
 export default function DataBarangGudang() {
@@ -223,20 +223,21 @@ export default function DataBarangGudang() {
               <tr>
                 <th scope="col" className="px-6 py-4">No</th>
                 <th scope="col" className="px-6 py-4">Foto</th>
-                <th scope="col" className="px-6 py-4">Informasi Barang</th>
-                <th scope="col" className="px-6 py-4">Supplier</th>
-                <th scope="col" className="px-6 py-4">Stok & Satuan</th>
-                <th scope="col" className="px-6 py-4">Kategori</th>
-                <th scope="col" className="px-6 py-4">Lokasi</th>
+                <SortableTh label="Informasi Barang" sortKey="name" sort={sort} onSort={toggle} />
+                <SortableTh label="Supplier" sortKey="supplierName" sort={sort} onSort={toggle} />
+                <SortableTh label="Stok & Satuan" sortKey="stock" sort={sort} onSort={toggle} />
+                <SortableTh label="Kategori" sortKey="category" sort={sort} onSort={toggle} />
+                <SortableTh label="Lokasi" sortKey="locationCode" sort={sort} onSort={toggle} />
+                <SortableTh label="Keterangan" sortKey="detail" sort={sort} onSort={toggle} />
                 <th scope="col" className="px-6 py-4 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading && (
-                <tr><td colSpan={8} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
+                <tr><td colSpan={9} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
               )}
               {!loading && dataBarang.length === 0 && (
-                <tr><td colSpan={8} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
+                <tr><td colSpan={9} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
               )}
               {!loading && dataBarang.map((item, index) => (
                 <tr key={item.id} className="hover:bg-[#FF8A00]/5 transition-colors group">
@@ -252,15 +253,6 @@ export default function DataBarangGudang() {
                     <div className="flex flex-col">
                       <span className="font-bold text-gray-900">{item.name}</span>
                       <span className="text-xs font-mono text-gray-500 mt-0.5">{item.code ?? '-'}</span>
-                    </div>
-                  </td>
-
-                  {/* Detail Barang */}
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col">
-                      <span>
-                        
-                      </span>
                     </div>
                   </td>
 
@@ -299,6 +291,9 @@ export default function DataBarangGudang() {
                     </span>
                   </td>
 
+                  {/* Keterangan */}
+                  <td className="px-6 py-4 text-gray-600">{item.detail || '-'}</td>
+
                   {/* Aksi */}
                   <td className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center gap-2">
@@ -308,9 +303,17 @@ export default function DataBarangGudang() {
                           className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] text-xs font-bold rounded-lg hover:bg-[#FF8A00]/20 transition-all duration-200 opacity-90 group-hover:opacity-100"
                         >
                           <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
-                          Tambah
+                          Tambah Lokasi
                         </button>
-                      ) : null}
+                      ) : canAssign && (
+                        <button
+                          onClick={() => openAssignModal(item)}
+                          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] text-xs font-bold rounded-lg hover:bg-[#FF8A00]/20 transition-all duration-200 opacity-90 group-hover:opacity-100"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" strokeWidth={2.5} />
+                          Edit Lokasi
+                        </button>
+                      )}
                       {canAdjust && <button
                         onClick={() => openStockModal(item)}
                         className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-100 transition-all duration-200 opacity-90 group-hover:opacity-100"
