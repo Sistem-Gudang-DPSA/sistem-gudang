@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useCan } from '@/domains/auth/user-context';
 import NoPermission from './NoPermission';
 import { ArrowLeft } from 'lucide-react';
@@ -8,11 +8,18 @@ import { useRouter } from 'next/navigation';
 import { createPurchaseRequest, resubmitApproval, listTrackingSpk } from '@/domains/ppic/api';
 import type { PermintaanPembelian } from '@/domains/ppic/data/pembelian';
 import { todayIso } from '@/domains/inventory/date';
+import { listItems } from '@/domains/inventory/api';
+import type { ItemListRow } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 
-const emptyRow = { namaBarang: "", qty: "", satuan: "", proyek: "", noSpk: "" };
+type Row = { namaBarang: string; qty: string; satuan: string; proyek: string; noSpk: string; itemId?: number };
+
+const emptyRow: Row = { namaBarang: "", qty: "", satuan: "", proyek: "", noSpk: "" };
+// Kolom yang wajib diisi; itemId sengaja tidak ikut dicek supaya barang bebas (tanpa itemId) tetap valid.
+const FIELDS = ['namaBarang', 'qty', 'satuan', 'proyek', 'noSpk'] as const;
+const isFilled = (row: Row) => FIELDS.some((f) => Boolean(row[f]));
 
 // Dengan `permintaan`, form dipakai untuk memperbaiki permintaan yang diminta revisi lalu mengirim ulang.
 export default function TambahPermintaanPembelianPPIC({ permintaan }: { permintaan?: PermintaanPembelian }) {
@@ -25,18 +32,53 @@ export default function TambahPermintaanPembelianPPIC({ permintaan }: { perminta
     jabatan: permintaan?.jabatan ?? "",
     tanggalPengajuan: permintaan?.tanggal ?? todayIso(),
   });
-  const [tableData, setTableData] = useState(() => {
-    const rows = (permintaan?.barang ?? []).map((b) => ({ ...b, qty: String(b.qty) }));
+  const [tableData, setTableData] = useState<Row[]>(() => {
+    // Hanya field form yang dibawa; kodeBarang/supplierId/supplierName dari BE tidak dikirim ulang.
+    const rows: Row[] = (permintaan?.barang ?? []).map((b) => ({
+      namaBarang: b.namaBarang,
+      qty: String(b.qty),
+      satuan: b.satuan,
+      proyek: b.proyek,
+      noSpk: b.noSpk,
+      itemId: b.itemId,
+    }));
     return [...rows, ...Array.from({ length: Math.max(8 - rows.length, 0) }, () => emptyRow)];
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   // Server errors per row, keyed by the row index in tableData.
   const [rowErrors, setRowErrors] = useState<Record<number, string>>({});
+  // Saran barang dari master untuk satu baris (yang sedang diketik).
+  const [suggest, setSuggest] = useState<{ rowIndex: number; items: ItemListRow[] } | null>(null);
+  const searchTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const { data: spkList } = useApiData(() => listTrackingSpk(), 'spk', 'Gagal memuat daftar SPK.');
 
-  const handleChange = (index: number, field: keyof typeof emptyRow, value: string) => {
+  useEffect(() => () => clearTimeout(searchTimer.current), []);
+
+  const handleChange = (index: number, field: keyof Omit<Row, 'itemId'>, value: string) => {
     setTableData((prev) => prev.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
+  };
+
+  // Mengetik nama barang: kalau cocok dengan saran master, baris ikut tertaut (itemId, satuan).
+  // Setiap perubahan teks melepas itemId kecuali teksnya masih sama dengan barang yang dipilih.
+  const handleNamaBarang = (index: number, value: string) => {
+    const picked = suggest?.rowIndex === index ? suggest.items.find((it) => it.name === value) : undefined;
+    setTableData((prev) => prev.map((row, i) => (
+      i === index
+        ? { ...row, namaBarang: value, itemId: picked?.id, satuan: picked ? picked.unit : row.satuan }
+        : row
+    )));
+    clearTimeout(searchTimer.current);
+    const q = value.trim();
+    if (q.length < 2) {
+      setSuggest(null);
+      return;
+    }
+    searchTimer.current = setTimeout(() => {
+      listItems({ search: q, pageSize: 10 })
+        .then((res) => setSuggest({ rowIndex: index, items: res.rows }))
+        .catch(() => setSuggest({ rowIndex: index, items: [] }));
+    }, 300);
   };
 
   const handleSubmit = async () => {
@@ -45,8 +87,8 @@ export default function TambahPermintaanPembelianPPIC({ permintaan }: { perminta
       setError("Lengkapi bagian, nama, jabatan, dan tanggal pengajuan.");
       return;
     }
-    const filled = tableData.filter((row) => Object.values(row).some(Boolean));
-    if (filled.length === 0 || filled.some((row) => Object.values(row).some((v) => !v) || Number(row.qty) < 1)) {
+    const filled = tableData.filter(isFilled);
+    if (filled.length === 0 || filled.some((row) => FIELDS.some((f) => !row[f]) || Number(row.qty) < 1)) {
       setError("Lengkapi semua kolom di setiap baris barang yang dipakai (QTY minimal 1).");
       return;
     }
@@ -59,7 +101,14 @@ export default function TambahPermintaanPembelianPPIC({ permintaan }: { perminta
         namaPemohon,
         jabatan,
         tanggalPengajuan,
-        items: filled.map((row) => ({ ...row, qty: Math.trunc(Number(row.qty)) })),
+        items: filled.map((row) => ({
+          namaBarang: row.namaBarang,
+          qty: Math.trunc(Number(row.qty)),
+          satuan: row.satuan,
+          proyek: row.proyek,
+          noSpk: row.noSpk,
+          ...(row.itemId !== undefined ? { itemId: row.itemId } : {}),
+        })),
         ...(permintaan?.catatan ? { notes: permintaan.catatan } : {}),
       };
       if (permintaan) await resubmitApproval(permintaan.id, payload);
@@ -68,10 +117,10 @@ export default function TambahPermintaanPembelianPPIC({ permintaan }: { perminta
     } catch (err) {
       if (err instanceof ApiError && err.errors) {
         // The API indexes errors by the submitted (filled) rows; map them back to table rows.
-        const filledIndexes = tableData.flatMap((row, i) => (Object.values(row).some(Boolean) ? [i] : []));
+        const filledIndexes = tableData.flatMap((row, i) => (isFilled(row) ? [i] : []));
         const mapped: Record<number, string> = {};
         for (const [key, msgs] of Object.entries(err.errors)) {
-          const m = /^items\.(\d+)\.noSpk$/.exec(key);
+          const m = /^items\.(\d+)\.(noSpk|itemId)$/.exec(key);
           if (m) mapped[filledIndexes[Number(m[1])]] = msgs[0];
         }
         setRowErrors(mapped);
@@ -160,7 +209,12 @@ export default function TambahPermintaanPembelianPPIC({ permintaan }: { perminta
                         {i + 1}
                       </td>
                       <td className="p-0 border-r border-gray-100/50">
-                        <input type="text" value={row.namaBarang} maxLength={191} placeholder="Masukkan nama barang" onChange={(e) => handleChange(i, 'namaBarang', e.target.value)} className="w-full h-full px-4 text-center bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 placeholder-gray-300 not-italic" />
+                        <input type="text" value={row.namaBarang} maxLength={191} placeholder="Masukkan nama barang" list={`item-suggest-${i}`} autoComplete="off" onChange={(e) => handleNamaBarang(i, e.target.value)} className="w-full h-full px-4 text-center bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 placeholder-gray-300 not-italic" />
+                        <datalist id={`item-suggest-${i}`}>
+                          {suggest?.rowIndex === i && suggest.items.map((it) => (
+                            <option key={it.id} value={it.name} label={`${it.code ?? '-'} · ${it.unit}`} />
+                          ))}
+                        </datalist>
                       </td>
                       <td className="p-0 border-r border-gray-100/50">
                         <input {...INTEGER_INPUT} maxLength={9} value={row.qty} placeholder="0" onChange={(e) => handleChange(i, 'qty', digitsOnly(e.target.value))} className="w-full h-full px-4 text-center bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 placeholder-gray-300 not-italic [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />

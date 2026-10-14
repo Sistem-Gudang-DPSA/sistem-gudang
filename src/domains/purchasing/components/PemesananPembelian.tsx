@@ -1,20 +1,50 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ArrowLeft, ChevronDown } from 'lucide-react';
 import { formatAngka } from '@/domains/ppic/data/dokubah';
-import { fetchPermintaan, type PermintaanPembelian } from '@/domains/ppic/data/pembelian';
+import { fetchPermintaan, type BarangPermintaan, type PermintaanPembelian } from '@/domains/ppic/data/pembelian';
 import { useApiData } from '@/shared/lib/use-api-data';
-import { createPurchaseOrder, listSuppliers } from '@/domains/purchasing/api';
+import { createPurchaseOrder, listPurchaseOrders, listSuppliers } from '@/domains/purchasing/api';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 import { lihatPermintaanPath, PEMESAN, rekap_pembelian_path } from '@/domains/purchasing/data/pembelian';
-import type { PurchaseOrder, Supplier } from '@/domains/purchasing/types';
+import type { PurchaseOrder, PurchaseOrderRow, Supplier } from '@/domains/purchasing/types';
 import { useCan } from '@/domains/auth/user-context';
 import { ApiError } from '@/shared/lib/api-client';
 
 type BarisHarga = { kodeBarang: string; harga: string; diskon: string };
+
+type GrupSupplier = { key: string; supplierId: number | null; supplierName: string; barang: BarangPermintaan[] };
+
+// Barang yang tertaut ke master dan punya supplier dikelompokkan per supplier; sisanya jadi satu grup "Tanpa supplier".
+function kelompokkanPerSupplier(barang: BarangPermintaan[]): GrupSupplier[] {
+  const grup = new Map<string, GrupSupplier>();
+  const tanpa: GrupSupplier = { key: 'tanpa-supplier', supplierId: null, supplierName: 'Tanpa supplier', barang: [] };
+  for (const b of barang) {
+    if (b.itemId != null && b.supplierId != null) {
+      const key = `supplier-${b.supplierId}`;
+      let g = grup.get(key);
+      if (!g) {
+        g = { key, supplierId: b.supplierId, supplierName: b.supplierName ?? `Supplier #${b.supplierId}`, barang: [] };
+        grup.set(key, g);
+      }
+      g.barang.push(b);
+    } else {
+      tanpa.barang.push(b);
+    }
+  }
+  const hasil = [...grup.values()];
+  if (tanpa.barang.length > 0) hasil.push(tanpa);
+  return hasil;
+}
+
+// PO yang masih berlaku untuk supplier ini (PO yang dibatalkan tidak dihitung).
+const poAktifSupplier = (daftar: PurchaseOrderRow[], supplierId: number | null) =>
+  supplierId === null ? undefined : daftar.find((p) => p.status !== 'CANCELLED' && p.supplierId === supplierId);
+
+const PILIH_OTOMATIS = 'auto';
 
 const cellClass = 'px-3 py-2 border-b border-r border-gray-300';
 const infoLabelClass = `${cellClass} w-40 text-xs text-gray-800 align-top`;
@@ -53,17 +83,110 @@ export default function PemesananPembelianPurchasing() {
   }
 
   // Formnya baru dibuat setelah permintaan siap, supaya baris harga awal sesuai jumlah barang.
-  return <FormPemesanan permintaan={permintaan ?? undefined} />;
+  if (!permintaan) return <FormPemesanan />;
+  return <PilihSupplierPO permintaan={permintaan} />;
 }
 
-function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
+// Satu PO per supplier: pilih grup supplier dulu, lalu FormPemesanan untuk grup itu.
+function PilihSupplierPO({ permintaan }: { permintaan: PermintaanPembelian }) {
+  const grupList = useMemo(() => kelompokkanPerSupplier(permintaan.barang), [permintaan.barang]);
+  const [daftarPo, setDaftarPo] = useState<PurchaseOrderRow[] | null>(null);
+  const [errorPo, setErrorPo] = useState('');
+  const [muatUlang, setMuatUlang] = useState(0);
+  const [pilihan, setPilihan] = useState<string | null>(PILIH_OTOMATIS);
+
+  useEffect(() => {
+    let aktif = true;
+    listPurchaseOrders({ approvalRequestId: permintaan.id, pageSize: 100 })
+      .then((res) => {
+        if (!aktif) return;
+        setDaftarPo(res.rows);
+        setErrorPo('');
+      })
+      .catch((err) => {
+        if (aktif) setErrorPo(err instanceof ApiError ? err.message : 'Gagal memuat daftar PO.');
+      });
+    return () => {
+      aktif = false;
+    };
+  }, [permintaan.id, muatUlang]);
+
+  if (grupList.length === 0) return <FormPemesanan permintaan={permintaan} />;
+
+  const siap = daftarPo !== null;
+  const terbuka = grupList.filter((g) => !poAktifSupplier(daftarPo ?? [], g.supplierId));
+  // Satu-satunya grup yang belum dibuat langsung dibuka; setelah kembali dari PO tidak dibuka otomatis lagi.
+  const aktifKey = pilihan === PILIH_OTOMATIS ? (terbuka.length === 1 ? terbuka[0].key : null) : pilihan;
+  const grupAktif = grupList.find((g) => g.key === aktifKey);
+
+  if (grupAktif) {
+    return (
+      <FormPemesanan
+        key={grupAktif.key}
+        permintaan={{ ...permintaan, barang: grupAktif.barang }}
+        supplierIdAwal={grupAktif.supplierId ?? undefined}
+        onSelesai={() => {
+          setPilihan(null);
+          setMuatUlang((n) => n + 1);
+        }}
+      />
+    );
+  }
+
+  return (
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+      <HeaderPemesanan backPath={lihatPermintaanPath(permintaan.id)} />
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <h2 className="text-base font-bold text-gray-900 text-center mb-2">Pilih Supplier</h2>
+        <p className="text-sm text-gray-600 text-center mb-6">Buat satu PO untuk setiap supplier.</p>
+        {errorPo && <p className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{errorPo}</p>}
+        {!siap && !errorPo && <p className="mb-4 text-center text-sm text-gray-400 italic">Memuat daftar PO...</p>}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {grupList.map((g) => {
+            const sudah = poAktifSupplier(daftarPo ?? [], g.supplierId);
+            return (
+              <button
+                key={g.key}
+                type="button"
+                disabled={!siap || sudah !== undefined}
+                onClick={() => setPilihan(g.key)}
+                className="text-left px-4 py-3 bg-white border border-gray-200 rounded-xl transition-colors hover:border-orange-500 hover:bg-orange-50/30 disabled:opacity-60 disabled:hover:border-gray-200 disabled:hover:bg-white"
+              >
+                <p className="text-sm font-semibold text-gray-900">{g.supplierName}</p>
+                <p className="mt-1 text-xs text-gray-600">{g.barang.length} barang</p>
+                {sudah && (
+                  <span className="inline-block mt-2 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-semibold">
+                    Sudah dibuat ({sudah.nomorPo})
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HeaderPemesanan({ backPath }: { backPath: string }) {
+  return (
+    <div className="flex items-center gap-3 mb-6">
+      <Link href={backPath} aria-label="Kembali" className="text-gray-800 hover:opacity-70 transition-opacity">
+        <ArrowLeft className="w-5 h-5" strokeWidth={2.5} />
+      </Link>
+      <h1 className="text-[18px] font-extrabold text-black tracking-wide">Rekap Pembelian Gudang</h1>
+    </div>
+  );
+}
+
+function FormPemesanan({ permintaan, supplierIdAwal, onSelesai }: { permintaan?: PermintaanPembelian; supplierIdAwal?: number; onSelesai?: () => void }) {
 
   const [saving, setSaving] = useState(false);
   const [dibuat, setDibuat] = useState<PurchaseOrder | null>(null);
   const [tanggalPo, setTanggalPo] = useState('');
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [supplierError, setSupplierError] = useState('');
-  const [supplierId, setSupplierId] = useState('');
+  const [supplierId, setSupplierId] = useState(supplierIdAwal !== undefined ? String(supplierIdAwal) : '');
   const [picSupplier, setPicSupplier] = useState('');
   const [barisHarga, setBarisHarga] = useState<BarisHarga[]>(
     () => (permintaan?.barang ?? []).map(() => ({ kodeBarang: '', harga: '', diskon: '' })),
@@ -88,14 +211,7 @@ function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
 
   const backPath = permintaan ? lihatPermintaanPath(permintaan.id) : rekap_pembelian_path;
 
-  const header = (
-    <div className="flex items-center gap-3 mb-6">
-      <Link href={backPath} aria-label="Kembali" className="text-gray-800 hover:opacity-70 transition-opacity">
-        <ArrowLeft className="w-5 h-5" strokeWidth={2.5} />
-      </Link>
-      <h1 className="text-[18px] font-extrabold text-black tracking-wide">Rekap Pembelian Gudang</h1>
-    </div>
-  );
+  const header = <HeaderPemesanan backPath={backPath} />;
 
   if (!permintaan) {
     return (
@@ -191,7 +307,8 @@ function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-6 py-10 text-center">
           <p className="text-base font-bold text-gray-900">PO {dibuat.nomorPo} berhasil dibuat</p>
           <p className="mt-2 text-sm text-gray-600">Supplier {dibuat.supplierName}, grand total Rp. {formatAngka(dibuat.grandTotal)}</p>
-          <div className="flex justify-center gap-3 mt-6">
+          <div className="flex flex-wrap justify-center gap-3 mt-6">
+            {onSelesai && <button type="button" onClick={onSelesai} className={orangeButtonClass}>Kembali ke daftar supplier</button>}
             <Link href={rekap_pembelian_path} className={`${orangeButtonClass} inline-block`}>Kembali ke Rekap Pembelian</Link>
             <Link href={`/dashboard/purchasing/transaksi/po/${dibuat.id}`} className={`${orangeButtonClass} inline-block`}>Lihat PO</Link>
           </div>
@@ -235,7 +352,8 @@ function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
                           id="po-supplier"
                           value={supplierId}
                           onChange={(e) => setSupplierId(e.target.value)}
-                          className={`${cellInputClass} appearance-none pr-8 cursor-pointer`}
+                          disabled={supplierIdAwal !== undefined}
+                          className={`${cellInputClass} appearance-none pr-8 cursor-pointer disabled:cursor-default disabled:bg-gray-50`}
                         >
                           <option value="" disabled>Kode Supplier</option>
                           {suppliers.map((s) => (
