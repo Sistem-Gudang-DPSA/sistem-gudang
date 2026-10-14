@@ -9,15 +9,9 @@ import { useApiData } from "@/shared/lib/use-api-data";
 import { useCan } from "@/domains/auth/user-context";
 import { listApprovals } from "@/domains/ppic/api";
 import { formatRupiah } from "@/domains/ppic/data/dokubah";
-import { listSuppliers } from "@/domains/purchasing/api";
-import type { PaginatedResult } from "@/domains/inventory/types";
-import type { PurchaseOrder } from "@/domains/purchasing/types";
+import { listPurchaseOrders, listSuppliers } from "@/domains/purchasing/api";
 
 const REKAP = "/dashboard/purchasing/laporan/rekap-pembelian";
-
-// The purchasing api.ts has no list wrapper for purchase orders yet.
-const listPurchaseOrders = (params: { pageSize: number; startDate?: string; endDate?: string }) =>
-  apiClient.get<PaginatedResult<PurchaseOrder>>(`/api/v1/purchase-orders${toQuery(params)}`);
 
 const isoDate = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
