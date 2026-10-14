@@ -14,7 +14,7 @@ import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import ItemPhoto from '@/domains/inventory/components/ItemPhoto';
 import BulkPhotoModal from '@/domains/inventory/components/BulkPhotoModal';
-import { useSort } from '@/shared/components/SortableTh';
+import SortableTh, { useSort } from '@/shared/components/SortableTh';
 
 const emptyForm = { name: '', unit: '', category: '', price: '', supplierId: '' };
 
@@ -37,8 +37,8 @@ export default function DataBarangPPIC() {
 
   const [page, setPage] = useState(1);
   const { data: loaded, loading, error: loadError, reload } = useApiData(
-    () => listItems({ search: searchTerm || undefined, page, pageSize: 20 }),
-    `${searchTerm}|${page}`,
+    () => listItems({ search: searchTerm || undefined, page, pageSize: 20, ...sortParams }),
+    `${searchTerm}|${page}|${JSON.stringify(sortParams)}`,
     "Gagal memuat data barang.",
   );
   const dataBarang = loaded?.rows ?? [];
@@ -242,13 +242,13 @@ export default function DataBarangPPIC() {
                 )}
                 <th scope="col" className="px-6 py-4">No</th>
                 <th scope="col" className="px-6 py-4">Foto</th>
-                <th scope="col" className="px-6 py-4">Informasi Barang</th>
-                <th scope="col" className="px-6 py-4">Supplier</th>
-                <th scope="col" className="px-6 py-4">Stok & Satuan</th>
-                <th scope="col" className="px-6 py-4">Kategori</th>
-                <th scope="col" className="px-6 py-4 text-right">Harga (Rp)</th>
-                <th scope="col" className="px-6 py-4">Lokasi</th>
-                <th scope="col" className="px-6 py-4">Keterangan</th>
+                <SortableTh label="Informasi Barang" sortKey="name" sort={sort} onSort={toggle} />
+                <SortableTh label="Supplier" sortKey="supplierName" sort={sort} onSort={toggle} />
+                <SortableTh label="Stok & Satuan" sortKey="stock" sort={sort} onSort={toggle} />
+                <SortableTh label="Kategori" sortKey="category" sort={sort} onSort={toggle} />
+                <SortableTh label="Harga (Rp)" sortKey="price" sort={sort} onSort={toggle} align="right" />
+                <SortableTh label="Lokasi" sortKey="locationCode" sort={sort} onSort={toggle} />
+                <SortableTh label="Keterangan" sortKey="detail" sort={sort} onSort={toggle} />
                 <th scope="col" className="px-6 py-4 text-center">Aksi</th>
               </tr>
             </thead>
