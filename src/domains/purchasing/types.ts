@@ -47,6 +47,9 @@ export interface PurchaseOrderLineInput {
   diskon: number;
 }
 
+// Editing replaces the lines wholesale; supplier, request and nomorPo cannot change (BE answers 400).
+export type UpdatePurchaseOrderInput = Omit<CreatePurchaseOrderInput, "approvalRequestId" | "supplierId">;
+
 // nomorPo and every total are computed by the backend, so they are not part of the input.
 export interface CreatePurchaseOrderInput {
   approvalRequestId: number;
@@ -57,6 +60,8 @@ export interface CreatePurchaseOrderInput {
   persenPpn: number;
   jasa: number;
 }
+
+export type PurchaseOrderStatus = "ISSUED" | "CANCELLED";
 
 export interface PurchaseOrder {
   id: number;
@@ -74,6 +79,10 @@ export interface PurchaseOrder {
   grandTotal: number;
   createdBy: number;
   createdAt: string;
+  status: PurchaseOrderStatus;
+  cancelledAt: string | null;
+  cancelledBy: number | null;
+  cancelReason: string | null;
   barang: PurchaseOrderLineInput[];
 }
 
