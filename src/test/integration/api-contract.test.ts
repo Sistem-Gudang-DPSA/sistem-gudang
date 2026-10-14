@@ -53,8 +53,8 @@ const UNUSED_ALLOWLIST: Record<string, string> = {
 
 describe("FE api calls vs docs/api-1.json", () => {
   it("extracts calls", () => expect(calls.length).toBeGreaterThan(40));
-  it.each(calls.map((c) => [`${c.method.toUpperCase()} ${c.path}`, c] as const))("%s exists in contract", (_n, c) => {
-    expect(contract.has(`${c.method} ${normSpec(c.path)}`)).toBe(true);
+  it("every call exists in contract", () => {
+    expect(calls.filter((c) => !contract.has(`${c.method} ${normSpec(c.path)}`)).map((c) => `${c.method.toUpperCase()} ${c.path}`)).toEqual([]);
   });
 
   it("no new unlisted unused contract endpoints", () => {

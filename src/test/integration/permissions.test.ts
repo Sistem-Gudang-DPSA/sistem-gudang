@@ -14,10 +14,10 @@ const navPerms = NAV_DIVISIONS.flatMap((d) => [
 ]);
 
 describe("nav permissions", () => {
-  it.each(navPerms.map((x) => [x.where, x.p]))("%s: %s looks like resource.action", (_w, p) => {
-    expect(p).toMatch(/^[a-z]+(-[a-z]+)*\.[a-z]+(-[a-z]+)*$/);
+  it("look like resource.action", () => {
+    expect(navPerms.filter((x) => !/^[a-z]+(-[a-z]+)*\.[a-z]+(-[a-z]+)*$/.test(x.p))).toEqual([]);
   });
-  it.each(navPerms.map((x) => [x.where, x.p]))("%s: %s is granted to a seeded role", (_w, p) => {
-    expect(granted.has(p)).toBe(true);
+  it("are granted to a seeded role", () => {
+    expect(navPerms.filter((x) => !granted.has(x.p))).toEqual([]);
   });
 });
