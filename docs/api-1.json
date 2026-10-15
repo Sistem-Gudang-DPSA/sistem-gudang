@@ -2056,7 +2056,7 @@
           "Approval"
         ],
         "summary": "List approval requests",
-        "description": "Non-superadmin actors only see requests of a type their own domain has a workflow step in.",
+        "description": "Non-superadmin actors only see requests of a type their own domain has a workflow step in. In purchase-request payloads, every items[] line with an itemId also carries kodeBarang, supplierId and supplierName read from the catalog at request time (null when the item was deleted), so a supplier change shows on the next read.",
         "security": [
           {
             "bearerAuth": []
@@ -2213,6 +2213,17 @@
                                   "rejected",
                                   "revision_requested"
                                 ]
+                              },
+                              "mappingStatus": {
+                                "type": "string",
+                                "nullable": true,
+                                "enum": [
+                                  "NOT_STARTED",
+                                  "PARTIAL",
+                                  "COMPLETE",
+                                  null
+                                ],
+                                "description": "Only on GET /approvals and GET /approvals/{id}: supplier mapping progress of an approved purchase-request, null for any other request"
                               },
                               "createdAt": {
                                 "type": "string"
@@ -2400,7 +2411,7 @@
           "Approval"
         ],
         "summary": "Submit an approval request",
-        "description": "The workflow step matching the requester's own domain is auto-approved immediately. For purchase-request, every items[].noSpk must be one of GET /api/v1/tracking/spk, otherwise 400 with errors keyed like items.0.noSpk.",
+        "description": "The workflow step matching the requester's own domain is auto-approved immediately. For purchase-request, every items[].noSpk must be one of GET /api/v1/tracking/spk, otherwise 400 with errors keyed like items.0.noSpk. items[].itemId is optional and links the line to the catalog; an unknown id is a 400 keyed items.0.itemId, and a line without itemId stays free text. The same check applies on resubmit.",
         "security": [
           {
             "bearerAuth": []
@@ -2447,6 +2458,11 @@
                             "items": {
                               "type": "object",
                               "properties": {
+                                "itemId": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "exclusiveMinimum": true
+                                },
                                 "namaBarang": {
                                   "type": "string",
                                   "minLength": 1,
@@ -2556,6 +2572,17 @@
                             "rejected",
                             "revision_requested"
                           ]
+                        },
+                        "mappingStatus": {
+                          "type": "string",
+                          "nullable": true,
+                          "enum": [
+                            "NOT_STARTED",
+                            "PARTIAL",
+                            "COMPLETE",
+                            null
+                          ],
+                          "description": "Only on GET /approvals and GET /approvals/{id}: supplier mapping progress of an approved purchase-request, null for any other request"
                         },
                         "createdAt": {
                           "type": "string"
@@ -3560,7 +3587,7 @@
           "Approval"
         ],
         "summary": "Get an approval request with its action history",
-        "description": "Restricted to superadmins and actors whose domain has a step in the request's workflow.",
+        "description": "Restricted to superadmins and actors whose domain has a step in the request's workflow. Purchase-request lines with an itemId carry kodeBarang, supplierId and supplierName, as in the list.",
         "security": [
           {
             "bearerAuth": []
@@ -3629,6 +3656,17 @@
                                 "rejected",
                                 "revision_requested"
                               ]
+                            },
+                            "mappingStatus": {
+                              "type": "string",
+                              "nullable": true,
+                              "enum": [
+                                "NOT_STARTED",
+                                "PARTIAL",
+                                "COMPLETE",
+                                null
+                              ],
+                              "description": "Only on GET /approvals and GET /approvals/{id}: supplier mapping progress of an approved purchase-request, null for any other request"
                             },
                             "createdAt": {
                               "type": "string"
@@ -3932,6 +3970,17 @@
                                 "rejected",
                                 "revision_requested"
                               ]
+                            },
+                            "mappingStatus": {
+                              "type": "string",
+                              "nullable": true,
+                              "enum": [
+                                "NOT_STARTED",
+                                "PARTIAL",
+                                "COMPLETE",
+                                null
+                              ],
+                              "description": "Only on GET /approvals and GET /approvals/{id}: supplier mapping progress of an approved purchase-request, null for any other request"
                             },
                             "createdAt": {
                               "type": "string"
@@ -7981,7 +8030,7 @@
           "Purchase order"
         ],
         "summary": "Create a purchase order",
-        "description": "nomorPo is generated (PO-001, PO-002, ...). The approval request must be a purchase-request (400 when it is another type) in status approved (409 when it is not). A missing request or supplier is a 404. One request may have several POs. subtotal, dppLain, nilaiPpn and grandTotal are computed by the server and rounded to a rupiah: subtotal = sum of (jumlah * hargaSatuan - diskon), dppLain (DPP nilai lain) = subtotal * 11 / 12, nilaiPpn = dppLain * persenPpn / 100, grandTotal = subtotal + nilaiPpn + jasa. diskon is rupiah per line. Sending dppLain is a 400.",
+        "description": "nomorPo is generated (PO-001, PO-002, ...). The approval request must be a purchase-request (400 when it is another type) in status approved (409 when it is not). A missing request or supplier is a 404. One request may have several POs. subtotal, dppLain, nilaiPpn and grandTotal are computed by the server and rounded to a rupiah: subtotal = sum of (jumlah * hargaSatuan - diskon), dppLain (DPP nilai lain) = subtotal * 11 / 12, nilaiPpn = dppLain * persenPpn / 100, grandTotal = subtotal + nilaiPpn + jasa. diskon is rupiah per line. Sending dppLain is a 400. A request that has a supplier mapping, or has no PO yet, is ordered through the mapping: every barang line carries lineIndex, the supplier must have that line mapped, jumlah must equal the mapped qty, and an already ordered line is a 409; anything else is a 400. Only a request that already had a PO before mapping existed may skip lineIndex.",
         "security": [
           {
             "bearerAuth": []
@@ -8017,6 +8066,10 @@
                     "items": {
                       "type": "object",
                       "properties": {
+                        "lineIndex": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
                         "kodeBarang": {
                           "type": "string",
                           "minLength": 1,
@@ -8170,6 +8223,10 @@
                           "items": {
                             "type": "object",
                             "properties": {
+                              "lineIndex": {
+                                "type": "number",
+                                "nullable": true
+                              },
                               "kodeBarang": {
                                 "type": "string"
                               },
@@ -8190,6 +8247,7 @@
                               }
                             },
                             "required": [
+                              "lineIndex",
                               "kodeBarang",
                               "namaBarang",
                               "satuan",
@@ -8483,6 +8541,10 @@
                           "items": {
                             "type": "object",
                             "properties": {
+                              "lineIndex": {
+                                "type": "number",
+                                "nullable": true
+                              },
                               "kodeBarang": {
                                 "type": "string"
                               },
@@ -8503,6 +8565,7 @@
                               }
                             },
                             "required": [
+                              "lineIndex",
                               "kodeBarang",
                               "namaBarang",
                               "satuan",
@@ -8726,6 +8789,10 @@
                     "items": {
                       "type": "object",
                       "properties": {
+                        "lineIndex": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
                         "kodeBarang": {
                           "type": "string",
                           "minLength": 1,
@@ -8877,6 +8944,10 @@
                           "items": {
                             "type": "object",
                             "properties": {
+                              "lineIndex": {
+                                "type": "number",
+                                "nullable": true
+                              },
                               "kodeBarang": {
                                 "type": "string"
                               },
@@ -8897,6 +8968,7 @@
                               }
                             },
                             "required": [
+                              "lineIndex",
                               "kodeBarang",
                               "namaBarang",
                               "satuan",
@@ -9210,6 +9282,10 @@
                           "items": {
                             "type": "object",
                             "properties": {
+                              "lineIndex": {
+                                "type": "number",
+                                "nullable": true
+                              },
                               "kodeBarang": {
                                 "type": "string"
                               },
@@ -9230,6 +9306,7 @@
                               }
                             },
                             "required": [
+                              "lineIndex",
                               "kodeBarang",
                               "namaBarang",
                               "satuan",
@@ -9443,6 +9520,836 @@
                 "schema": {
                   "type": "string",
                   "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/approvals/mapping-summary": {
+      "get": {
+        "tags": [
+          "Purchase order"
+        ],
+        "summary": "Count approved purchase requests by ordering progress",
+        "description": "Needs purchase-order.view. notStarted: no mapping yet. partial: some mapping, not every line fully mapped. completeNoPo: every line fully mapped but some mapped row has no PO yet. poIssued: every line fully mapped and every row has a PO.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "notStarted": {
+                          "type": "number"
+                        },
+                        "partial": {
+                          "type": "number"
+                        },
+                        "completeNoPo": {
+                          "type": "number"
+                        },
+                        "poIssued": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "notStarted",
+                        "partial",
+                        "completeNoPo",
+                        "poIssued"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/approvals/{id}/mapping": {
+      "get": {
+        "tags": [
+          "Purchase order"
+        ],
+        "summary": "Get the supplier mapping of a purchase request",
+        "description": "Needs purchase-order.view. 400 when the request is not a purchase-request, 409 when it is not approved. Each line of the request lists the suppliers it is mapped to with qty and, once a PO was issued from the row, purchaseOrderId and nomorPo (null otherwise, also after that PO is cancelled). status is NOT_STARTED, PARTIAL, or COMPLETE when every line is fully mapped. Suppliers are never prefilled from the item master.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mapping",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "approvalRequestId": {
+                          "type": "number"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "NOT_STARTED",
+                            "PARTIAL",
+                            "COMPLETE"
+                          ]
+                        },
+                        "lines": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "lineIndex": {
+                                "type": "number"
+                              },
+                              "namaBarang": {
+                                "type": "string"
+                              },
+                              "qty": {
+                                "type": "number"
+                              },
+                              "satuan": {
+                                "type": "string"
+                              },
+                              "proyek": {
+                                "type": "string"
+                              },
+                              "noSpk": {
+                                "type": "string"
+                              },
+                              "itemId": {
+                                "type": "number"
+                              },
+                              "mappedQty": {
+                                "type": "number"
+                              },
+                              "remainingQty": {
+                                "type": "number"
+                              },
+                              "mappings": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "supplierId": {
+                                      "type": "number"
+                                    },
+                                    "supplierName": {
+                                      "type": "string"
+                                    },
+                                    "qty": {
+                                      "type": "number"
+                                    },
+                                    "purchaseOrderId": {
+                                      "type": "number",
+                                      "nullable": true
+                                    },
+                                    "nomorPo": {
+                                      "type": "string",
+                                      "nullable": true
+                                    }
+                                  },
+                                  "required": [
+                                    "supplierId",
+                                    "supplierName",
+                                    "qty",
+                                    "purchaseOrderId",
+                                    "nomorPo"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "lineIndex",
+                              "namaBarang",
+                              "qty",
+                              "satuan",
+                              "proyek",
+                              "noSpk",
+                              "mappedQty",
+                              "remainingQty",
+                              "mappings"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "approvalRequestId",
+                        "status",
+                        "lines"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Purchase order"
+        ],
+        "summary": "Save the supplier mapping of a purchase request",
+        "description": "Needs purchase-order.create. Only the lines sent are replaced; others stay as they are, so mapping can be done in steps. A line may go to several suppliers. The total qty of a line, rows already ordered included, must stay within the line qty; a supplier cannot appear twice on a line; rows already ordered are locked. 400 for an unknown lineIndex or a bad total, 404 for an unknown supplier, 409 when the request is not approved. Returns the same body as GET.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "lines": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "lineIndex": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "suppliers": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "supplierId": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "exclusiveMinimum": true
+                              },
+                              "qty": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "exclusiveMinimum": true
+                              }
+                            },
+                            "required": [
+                              "supplierId",
+                              "qty"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "lineIndex",
+                        "suppliers"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "minItems": 1
+                  }
+                },
+                "required": [
+                  "lines"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Mapping after the save",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "approvalRequestId": {
+                          "type": "number"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "NOT_STARTED",
+                            "PARTIAL",
+                            "COMPLETE"
+                          ]
+                        },
+                        "lines": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "lineIndex": {
+                                "type": "number"
+                              },
+                              "namaBarang": {
+                                "type": "string"
+                              },
+                              "qty": {
+                                "type": "number"
+                              },
+                              "satuan": {
+                                "type": "string"
+                              },
+                              "proyek": {
+                                "type": "string"
+                              },
+                              "noSpk": {
+                                "type": "string"
+                              },
+                              "itemId": {
+                                "type": "number"
+                              },
+                              "mappedQty": {
+                                "type": "number"
+                              },
+                              "remainingQty": {
+                                "type": "number"
+                              },
+                              "mappings": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "supplierId": {
+                                      "type": "number"
+                                    },
+                                    "supplierName": {
+                                      "type": "string"
+                                    },
+                                    "qty": {
+                                      "type": "number"
+                                    },
+                                    "purchaseOrderId": {
+                                      "type": "number",
+                                      "nullable": true
+                                    },
+                                    "nomorPo": {
+                                      "type": "string",
+                                      "nullable": true
+                                    }
+                                  },
+                                  "required": [
+                                    "supplierId",
+                                    "supplierName",
+                                    "qty",
+                                    "purchaseOrderId",
+                                    "nomorPo"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "lineIndex",
+                              "namaBarang",
+                              "qty",
+                              "satuan",
+                              "proyek",
+                              "noSpk",
+                              "mappedQty",
+                              "remainingQty",
+                              "mappings"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "approvalRequestId",
+                        "status",
+                        "lines"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
                 }
               }
             }
@@ -13360,6 +14267,278 @@
         }
       }
     },
+    "/api/v1/items/by-code/{code}": {
+      "get": {
+        "tags": [
+          "Item"
+        ],
+        "summary": "Get an item by its exact code",
+        "description": "Needs item.view. Matches items.code exactly and case-sensitively per the database collation, with no LIKE, so scanning A1 never returns A10. Same body as GET /items/{id}. 404 when no item has that code, including items without a code.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "A01-TRI5"
+            },
+            "required": true,
+            "name": "code",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "code": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "detail": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "category": {
+                          "type": "string"
+                        },
+                        "unit": {
+                          "type": "string"
+                        },
+                        "price": {
+                          "type": "number"
+                        },
+                        "stock": {
+                          "type": "number",
+                          "description": "Up to two decimals"
+                        },
+                        "locationId": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "supplierId": {
+                          "type": "number",
+                          "nullable": true,
+                          "description": "null until Purchasing sets it"
+                        },
+                        "photo": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "thumb": {
+                              "type": "string",
+                              "example": "/uploads/items/<uuid>-thumb.webp"
+                            },
+                            "display": {
+                              "type": "string",
+                              "example": "/uploads/items/<uuid>-display.webp"
+                            }
+                          },
+                          "required": [
+                            "thumb",
+                            "display"
+                          ],
+                          "description": "Relative URLs under /uploads (WebP), null when no photo"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "code",
+                        "name",
+                        "detail",
+                        "category",
+                        "unit",
+                        "price",
+                        "stock",
+                        "locationId",
+                        "supplierId",
+                        "photo",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/items/unassigned": {
       "get": {
         "tags": [
@@ -15343,7 +16522,7 @@
           "Inbound"
         ],
         "summary": "Record goods received from a supplier or production",
-        "description": "Raises the item's stock by qtyArrived in the same transaction and records audit logs. statusQc is the result of the manual QC check, not derived from the quantities. supplierId and qtyPurchased are required when source is SUPPLIER (the default).",
+        "description": "Raises the item's stock by qtyArrived in the same transaction and records audit logs. statusQc is the result of the manual QC check, not derived from the quantities. When source is SUPPLIER (the default) and supplierId is left out, it is taken from the item's mapped supplier; 400 when the item has none. qtyPurchased is optional.",
         "security": [
           {
             "bearerAuth": []
@@ -15950,6 +17129,419 @@
           },
           "404": {
             "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inbound/batch": {
+      "post": {
+        "tags": [
+          "Inbound"
+        ],
+        "summary": "Record several received items in one request",
+        "description": "Needs inbound.create and an Idempotency-Key header (8 to 100 characters, one per draft). All lines or none: one database transaction, stock raised under a row lock per item. lines holds 1 to 200 entries, qtyArrived is at most 100000 per line. supplierId comes from items.supplierId for source SUPPLIER; a line whose item has no supplier, or an unknown itemId, fails the whole request with 400 and errors keyed lines.<index>.itemId (index from 0), and nothing is written. Same key and same payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true, without adding stock again. Same key with a different payload is 409. A missing or malformed key is 400. A failed request stores no key, so it can be corrected and sent again with the same key.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "6f1c2d3e-0b7a-4c55-9a3e-1d2f3a4b5c6d"
+            },
+            "required": true,
+            "name": "Idempotency-Key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "source": {
+                    "type": "string",
+                    "enum": [
+                      "SUPPLIER",
+                      "PRODUKSI"
+                    ],
+                    "default": "SUPPLIER"
+                  },
+                  "notes": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "lines": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "itemId": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        },
+                        "qtyArrived": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true,
+                          "maximum": 100000
+                        },
+                        "qtyPurchased": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "statusQc": {
+                          "type": "string",
+                          "enum": [
+                            "PASS",
+                            "PARTIAL_RETUR"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "itemId",
+                        "qtyArrived",
+                        "statusQc"
+                      ]
+                    },
+                    "minItems": 1,
+                    "maxItems": 200
+                  }
+                },
+                "required": [
+                  "date",
+                  "lines"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Every line recorded, or the stored answer of an earlier identical request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "count": {
+                          "type": "number"
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "number"
+                              },
+                              "date": {
+                                "type": "string",
+                                "example": "2026-09-30"
+                              },
+                              "itemId": {
+                                "type": "number"
+                              },
+                              "itemCode": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "itemName": {
+                                "type": "string"
+                              },
+                              "locationCode": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Where the item is stored now"
+                              },
+                              "supplierId": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "supplierName": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "source": {
+                                "type": "string",
+                                "enum": [
+                                  "SUPPLIER",
+                                  "PRODUKSI",
+                                  "KLIEN"
+                                ]
+                              },
+                              "qtyArrived": {
+                                "type": "number"
+                              },
+                              "qtyPurchased": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "statusQc": {
+                                "type": "string",
+                                "nullable": true,
+                                "enum": [
+                                  "PASS",
+                                  "PARTIAL_RETUR",
+                                  null
+                                ]
+                              },
+                              "referenceNo": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "supplierDeliveryNo": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "clientName": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "spk": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "notes": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "createdBy": {
+                                "type": "number"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "date",
+                              "itemId",
+                              "itemCode",
+                              "itemName",
+                              "locationCode",
+                              "supplierId",
+                              "supplierName",
+                              "source",
+                              "qtyArrived",
+                              "qtyPurchased",
+                              "statusQc",
+                              "referenceNo",
+                              "supplierDeliveryNo",
+                              "clientName",
+                              "spk",
+                              "notes",
+                              "createdBy",
+                              "createdAt"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "count",
+                        "items"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Idempotency-Key already used with a different payload",
             "content": {
               "application/json": {
                 "schema": {
