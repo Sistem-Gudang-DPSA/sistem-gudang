@@ -226,6 +226,9 @@ export default function StockOpnameMasterGudang() {
         </div>
       )}
     </div>
+
+    // jangan lupa untuk merge dengan cal/updateRabu14 bagian aksi cuman ada view dan print, ada tambahan fitur export excell, filter dihapus
+    // di tabel juga ada checklist button di akhir kolom
   
   );
 }
