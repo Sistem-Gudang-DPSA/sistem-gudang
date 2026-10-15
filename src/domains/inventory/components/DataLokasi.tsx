@@ -7,16 +7,13 @@ import { createLocation, deleteLocation, listLocations, updateLocation } from '@
 import { ApiError } from '@/shared/lib/api-client';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import { useApiData } from '@/shared/lib/use-api-data';
-import { importLocationData } from '@/domains/superadmin/api';
 import EditModeBar, { useBatchEdit } from '@/shared/components/EditModeBar';
 
 const RAK_NAMA = ['A', 'B', 'C'];
 const RAK_NOMOR = ['01', '02', '03', '04'];
 
 export default function DataLokasiGudang() {
-  const canDelete = useCan('location.delete');
   const canCreate = useCan('location.create');
-  const canUpdate = useCan('location.update');
   const { sort, toggle, params: sortParams } = useSort();
   const edit = useBatchEdit();
   const [searchQuery, setSearchQuery] = useState("");

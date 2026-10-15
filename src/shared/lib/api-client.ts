@@ -3,11 +3,13 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001"
 export class ApiError extends Error {
   status: number;
   errors?: Record<string, string[]>;
+  retryAfter?: number;
 
-  constructor(message: string, status: number, errors?: Record<string, string[]>) {
+  constructor(message: string, status: number, errors?: Record<string, string[]>, retryAfter?: number) {
     super(message);
     this.status = status;
     this.errors = errors;
+    this.retryAfter = retryAfter;
   }
 }
 
@@ -68,7 +70,10 @@ async function request<T>(path: string, options: RequestInit = {}, retryOn401 = 
       const refreshed = await refreshAccessToken();
       if (refreshed) return request<T>(path, options, false);
     }
-    throw new ApiError(body.message, res.status, body.errors);
+    // Rate limits report the wait in seconds; `?.` because test doubles may omit headers.
+    const header = res.headers?.get("Retry-After") ?? res.headers?.get("RateLimit-Reset");
+    const retryAfter = header == null ? NaN : Number(header);
+    throw new ApiError(body.message, res.status, body.errors, Number.isNaN(retryAfter) ? undefined : retryAfter);
   }
 
   return body.data;

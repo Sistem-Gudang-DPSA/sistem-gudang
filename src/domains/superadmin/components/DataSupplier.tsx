@@ -128,14 +128,14 @@ export default function DataSupplierPurchasing() {
           </div>
 
           <div className="flex items-center gap-2">
-          {canUpdate && <EditModeBar editing={edit.editing} dirty={edit.dirty} saving={edit.saving} onToggle={edit.toggle} onSave={simpanSemua} onCancel={edit.cancel} />}
-          {canCreate && <button
-            onClick={handleMulaiTambah}
-            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0 w-full lg:w-auto"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Tambah Data</span>
-          </button>}
+            {canUpdate && <EditModeBar editing={edit.editing} dirty={edit.dirty} saving={edit.saving} onToggle={edit.toggle} onSave={simpanSemua} onCancel={edit.cancel} />}
+            {canCreate && <button
+              onClick={handleMulaiTambah}
+              className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0 w-full lg:w-auto"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Tambah Data</span>
+            </button>}
           </div>
         </div>
 
@@ -171,35 +171,35 @@ export default function DataSupplierPurchasing() {
                   <input aria-label={`${key} ${item.name}`} className={cell} maxLength={max} value={edit.value(item.id, key, item[key])} onChange={(e) => edit.set(item.id, key, e.target.value, item[key])} />
                 ) : item[key];
                 return (
-                <tr key={item.id} className={`${edit.isDirty(item.id) ? "bg-amber-50" : i % 2 ? "bg-gray-50" : "bg-white"} hover:bg-[#FF8A00]/5 transition-colors group`}>
-                  <td className="px-6 py-4 text-gray-500 text-center font-medium">{text('code', 20)}</td>
-                  <td className="px-6 py-4 font-bold text-gray-900">
-                    {text('name', 191)}
-                    {edit.errors[item.id] && <p className="text-xs font-normal text-red-600">{edit.errors[item.id]}</p>}
-                  </td>
-                  <td className="px-6 py-4 text-center">{text('bank', 100)}</td>
-                  <td className="px-6 py-4 text-center font-mono text-xs">{text('npwp', 50)}</td>
-                  <td className="px-6 py-4 text-center text-xs">
-                    {edit.editing ? (
-                      <select aria-label={`pajak ${item.name}`} className={cell} value={edit.value(item.id, 'pajak', item.pajak)} onChange={(e) => edit.set(item.id, 'pajak', e.target.value, item.pajak)}>
-                        <option value="PKP">PKP</option>
-                        <option value="NON_PKP">Non PKP</option>
-                      </select>
-                    ) : item.pajak === 'PKP' ? 'PKP' : 'Non PKP'}
-                  </td>
-                  <td className="px-6 py-4 text-center text-xs">{text('phone', 30)}</td>
-                  <td className="px-6 py-4 max-w-xs truncate" title={item.address}>{text('address', 255)}</td>
-                  <td className="px-6 py-4 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                       <Link href={`/dashboard/purchasing/master/data-supplier/${item.id}/detail?from=superadmin`} className="px-3 py-1 bg-green-50 text-green-600 font-bold rounded-lg text-xs hover:bg-green-100 transition-all border border-green-100">
-                        Detail Barang
-                      </Link>
-                      {canDelete && <button onClick={() => handleHapus(item.id)} className="px-3 py-1 bg-red-50 text-red-600 font-bold rounded-lg text-xs hover:bg-red-100 transition-all border border-red-100">
-                        Hapus
-                      </button>}
-                    </div>
-                  </td>
-                </tr>
+                  <tr key={item.id} className={`${edit.isDirty(item.id) ? "bg-amber-50" : i % 2 ? "bg-gray-50" : "bg-white"} hover:bg-[#FF8A00]/5 transition-colors group`}>
+                    <td className="px-6 py-4 text-gray-500 text-center font-medium">{text('code', 20)}</td>
+                    <td className="px-6 py-4 font-bold text-gray-900">
+                      {text('name', 191)}
+                      {edit.errors[item.id] && <p className="text-xs font-normal text-red-600">{edit.errors[item.id]}</p>}
+                    </td>
+                    <td className="px-6 py-4 text-center">{text('bank', 100)}</td>
+                    <td className="px-6 py-4 text-center font-mono text-xs">{text('npwp', 50)}</td>
+                    <td className="px-6 py-4 text-center text-xs">
+                      {edit.editing ? (
+                        <select aria-label={`pajak ${item.name}`} className={cell} value={edit.value(item.id, 'pajak', item.pajak)} onChange={(e) => edit.set(item.id, 'pajak', e.target.value, item.pajak)}>
+                          <option value="PKP">PKP</option>
+                          <option value="NON_PKP">Non PKP</option>
+                        </select>
+                      ) : item.pajak === 'PKP' ? 'PKP' : 'Non PKP'}
+                    </td>
+                    <td className="px-6 py-4 text-center text-xs">{text('phone', 30)}</td>
+                    <td className="px-6 py-4 max-w-xs truncate" title={item.address}>{text('address', 255)}</td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <Link href={`/dashboard/purchasing/master/data-supplier/${item.id}/detail?from=superadmin`} className="px-3 py-1 bg-green-50 text-green-600 font-bold rounded-lg text-xs hover:bg-green-100 transition-all border border-green-100">
+                          Detail Barang
+                        </Link>
+                        {canDelete && <button onClick={() => handleHapus(item.id)} className="px-3 py-1 bg-red-50 text-red-600 font-bold rounded-lg text-xs hover:bg-red-100 transition-all border border-red-100">
+                          Hapus
+                        </button>}
+                      </div>
+                    </td>
+                  </tr>
                 );
               })}
             </tbody>
@@ -220,7 +220,7 @@ export default function DataSupplierPurchasing() {
                 <input
                   type="text"
                   value={formData.code}
-                  onChange={(e) => setFormData({...formData, code: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                   maxLength={20}
                   placeholder="Masukan kode supplier"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"
@@ -232,7 +232,7 @@ export default function DataSupplierPurchasing() {
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   maxLength={191}
                   placeholder="Masukan nama supplier"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"
@@ -244,7 +244,7 @@ export default function DataSupplierPurchasing() {
                 <input
                   type="text"
                   value={formData.bank}
-                  onChange={(e) => setFormData({...formData, bank: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, bank: e.target.value })}
                   maxLength={100}
                   placeholder="Masukan nama Bank"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"
@@ -256,7 +256,7 @@ export default function DataSupplierPurchasing() {
                 <input
                   type="text"
                   value={formData.npwp}
-                  onChange={(e) => setFormData({...formData, npwp: e.target.value.replace(/[^\d.\-]/g, "")})}
+                  onChange={(e) => setFormData({ ...formData, npwp: e.target.value.replace(/[^\d.\-]/g, "") })}
                   maxLength={50}
                   inputMode="numeric"
                   placeholder="Masukan Npwp"
@@ -269,7 +269,7 @@ export default function DataSupplierPurchasing() {
                 <select
                   id="supplier-pajak"
                   value={formData.pajak}
-                  onChange={(e) => setFormData({...formData, pajak: e.target.value as Pajak})}
+                  onChange={(e) => setFormData({ ...formData, pajak: e.target.value as Pajak })}
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"
                 >
                   <option value="NON_PKP">Non PKP</option>
@@ -282,7 +282,7 @@ export default function DataSupplierPurchasing() {
                 <input
                   type="text"
                   value={formData.phone}
-                  onChange={(e) => setFormData({...formData, phone: e.target.value.replace(/[^\d\s+\-()]/g, "")})}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/[^\d\s+\-()]/g, "") })}
                   maxLength={30}
                   inputMode="tel"
                   placeholder="Masukan no telepon"
@@ -296,7 +296,7 @@ export default function DataSupplierPurchasing() {
               <input
                 type="text"
                 value={formData.address}
-                onChange={(e) => setFormData({...formData, address: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 maxLength={255}
                 placeholder="Masukan alamat"
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"

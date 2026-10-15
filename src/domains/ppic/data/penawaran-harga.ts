@@ -35,7 +35,10 @@ export interface EstimasiPenawaran {
 
 export const penawaran_harga_path = '/dashboard/ppic/master/penawaran-harga';
 
-export const estimasiPenawaranPath = (id: number | string) => `${penawaran_harga_path}/estimasi-penawaran-biaya/${id}`;
+// Purchasing reuses these screens under its own route, so links keep the base of the page being viewed.
+export const penawaranBasePath = (pathname: string) => pathname.replace(/(\/penawaran-harga).*$/, '$1');
+
+export const estimasiPenawaranPath = (id: number | string, base = penawaran_harga_path) => `${base}/estimasi-penawaran-biaya/${id}`;
 
 export const barisBahanKosong = (): BarisBahan => ({
   namaBahan: '', satuan: '', panjang: '', lebar: '', tinggi: '', jumlahSatuan: '', jumlahOrder: '', hargaSatuan: '', keterangan: '',

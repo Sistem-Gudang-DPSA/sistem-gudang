@@ -1,6 +1,6 @@
-import { apiClient, toQuery } from "@/shared/lib/api-client";
+import { apiClient, downloadFile, toQuery } from "@/shared/lib/api-client";
 import type { PaginatedResult, ListParams, SortParams } from "@/domains/inventory/types";
-import type { CreatePurchaseOrderInput, CreateSupplierInput, Pajak, PurchaseOrder, Supplier, SupplierPriceChange, SupplierPrices } from "./types";
+import type { CreatePurchaseOrderInput, CreateSupplierInput, Pajak, PurchaseOrder, Supplier, SupplierPriceChange, SupplierPrices, UpdatePurchaseOrderInput } from "./types";
 
 export function listSuppliers(params?: ListParams & SortParams & { pajak?: Pajak }) {
   return apiClient.get<PaginatedResult<Supplier>>(`/api/v1/suppliers${toQuery(params)}`);
@@ -31,3 +31,16 @@ export function createPurchaseOrder(input: CreatePurchaseOrderInput) {
   return apiClient.post<PurchaseOrder>("/api/v1/purchase-orders", input);
 }
 
+
+export function updatePurchaseOrder(id: number | string, input: UpdatePurchaseOrderInput) {
+  return apiClient.put<PurchaseOrder>(`/api/v1/purchase-orders/${id}`, input);
+}
+
+// Final: a cancelled PO cannot be edited or reopened. Stock and the purchase request are untouched.
+export function cancelPurchaseOrder(id: number | string, reason: string) {
+  return apiClient.post<PurchaseOrder>(`/api/v1/purchase-orders/${id}/cancel`, { reason });
+}
+
+export function exportPurchaseOrder(id: number | string) {
+  return downloadFile(`/api/v1/purchase-orders/${id}/export`, `purchase-order-${id}.xlsx`);
+}

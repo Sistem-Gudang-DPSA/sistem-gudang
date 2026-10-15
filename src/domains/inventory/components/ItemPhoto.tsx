@@ -6,17 +6,17 @@ import { uploadItemPhoto } from '@/domains/inventory/api';
 import { ApiError, fileUrl } from '@/shared/lib/api-client';
 
 export const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-export const PHOTO_MAX_BYTES = 2 * 1024 * 1024;
+export const PHOTO_MAX_BYTES = 10 * 1024 * 1024;
 
 // Ditolak di sisi klien sebelum dikirim; backend tetap memvalidasi ulang.
 export function photoError(file: File): string | null {
   if (!PHOTO_TYPES.includes(file.type)) return 'Foto harus berformat JPG, PNG, atau WEBP.';
-  if (file.size > PHOTO_MAX_BYTES) return 'Ukuran foto maksimal 2 MB.';
+  if (file.size > PHOTO_MAX_BYTES) return 'Ukuran foto maksimal 10 MB.';
   return null;
 }
 
 type Props = {
-  item: { id: number; name: string; photoUrl?: string | null };
+  item: { id: number; name: string; photo?: { thumb: string; display: string } | null };
   // Hanya layar Superadmin dan PPIC yang mengisi ini; divisi lain cuma bisa melihat foto.
   canUpload?: boolean;
   onUploaded?: () => void;
@@ -28,7 +28,8 @@ export default function ItemPhoto({ item, canUpload = false, onUploaded }: Props
   const [preview, setPreview] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
-  const src = item.photoUrl ? fileUrl(item.photoUrl) : null;
+  const src = item.photo ? fileUrl(item.photo.thumb) : null;
+  const displaySrc = item.photo ? fileUrl(item.photo.display) : null;
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -80,14 +81,14 @@ export default function ItemPhoto({ item, canUpload = false, onUploaded }: Props
         </div>
       )}
 
-      {preview && src && (
+      {preview && displaySrc && (
         <div role="dialog" aria-label={`Foto ${item.name}`} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm" onClick={() => setPreview(false)}>
           <div className="relative bg-white rounded-2xl p-3 shadow-2xl max-w-2xl w-full" onClick={(e) => e.stopPropagation()}>
             <button type="button" onClick={() => setPreview(false)} aria-label="Tutup foto" className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-white/90 text-gray-500 hover:text-gray-800 shadow">
               <X className="w-4 h-4" />
             </button>
             {/* eslint-disable-next-line @next/next/no-img-element -- foto dilayani oleh host API, bukan aset Next */}
-            <img src={src} alt={`Foto ${item.name}`} className="w-full max-h-[75vh] object-contain rounded-xl" />
+            <img src={displaySrc} alt={`Foto ${item.name}`} loading="lazy" className="w-full max-h-[75vh] object-contain rounded-xl" />
             <p className="mt-2 text-sm font-semibold text-gray-700 text-center whitespace-normal">{item.name}</p>
           </div>
         </div>

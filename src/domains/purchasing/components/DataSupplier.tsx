@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Search, Plus } from 'lucide-react';
+import { Search, Plus, Filter } from 'lucide-react';
 import Link from 'next/link';
 import { createSupplier, deleteSupplier, listSuppliers, updateSupplier } from '@/domains/purchasing/api';
 import type { Pajak, Supplier } from '@/domains/purchasing/types';
@@ -9,6 +9,7 @@ import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { useCan } from '@/domains/auth/user-context';
 import Pagination from '@/shared/components/Pagination';
+import SortableTh, { useSort } from '@/shared/components/SortableTh'
 
 const emptyForm: { code: string; name: string; bank: string; npwp: string; phone: string; address: string; pajak: Pajak } = {
   code: '', name: '', bank: '', npwp: '', phone: '', address: '', pajak: 'NON_PKP',
@@ -23,6 +24,7 @@ export default function DataSupplierPurchasing() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState("");
+  const { sort, toggle, reset: resetSort, params: sortParams } = useSort();
 
   const [actionError, setActionError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -128,13 +130,13 @@ export default function DataSupplierPurchasing() {
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
               <tr>
-                <th scope="col" className="px-6 py-4 w-20 text-center">Kode</th>
-                <th scope="col" className="px-6 py-4">Nama Supplier</th>
-                <th scope="col" className="px-6 py-4 text-center">Bank</th>
-                <th scope="col" className="px-6 py-4 text-center">NPWP</th>
-                <th scope="col" className="px-6 py-4 text-center">Pajak</th>
-                <th scope="col" className="px-6 py-4 text-center">Kontak</th>
-                <th scope="col" className="px-6 py-4">Alamat</th>
+                <SortableTh label="Kode" sortKey="code" sort={sort} onSort={toggle} align="center" className="px-6 py-4 w-20" />
+                <SortableTh label="Nama Supplier" sortKey="name" sort={sort} onSort={toggle} />
+                <SortableTh label="Bank" sortKey="bank" sort={sort} onSort={toggle} align="center" />
+                <SortableTh label="NPWP" sortKey="npwp" sort={sort} onSort={toggle} align="center" />
+                <SortableTh label="Pajak" sortKey="pajak" sort={sort} onSort={toggle} align="center" />
+                <SortableTh label="Kontak" sortKey="phone" sort={sort} onSort={toggle} align="center" />
+                <SortableTh label="Alamat" sortKey="address" sort={sort} onSort={toggle} />
                 <th scope="col" className="px-6 py-4 text-center">Aksi</th>
               </tr>
             </thead>
@@ -156,7 +158,7 @@ export default function DataSupplierPurchasing() {
                   <td className="px-6 py-4 max-w-xs truncate" title={item.address}>{item.address}</td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center gap-2">
-                       <Link href={`/dashboard/purchasing/master/data-supplier/${item.id}/detail?from=purchasing`} className="px-3 py-1 bg-green-50 text-green-600 font-bold rounded-lg text-xs hover:bg-green-100 transition-all border border-green-100">
+                      <Link href={`/dashboard/purchasing/master/data-supplier/${item.id}/detail?from=purchasing`} className="px-3 py-1 bg-green-50 text-green-600 font-bold rounded-lg text-xs hover:bg-green-100 transition-all border border-green-100">
                         Detail Barang
                       </Link>
                       {canUpdate && <button onClick={() => handleEdit(item)} className="px-3 py-1 bg-amber-50 text-amber-600 font-bold rounded-lg text-xs hover:bg-amber-100 transition-all border border-amber-100">
@@ -187,7 +189,7 @@ export default function DataSupplierPurchasing() {
                 <input
                   type="text"
                   value={formData.code}
-                  onChange={(e) => setFormData({...formData, code: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                   maxLength={20}
                   placeholder="Masukan kode supplier"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"
@@ -199,7 +201,7 @@ export default function DataSupplierPurchasing() {
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   maxLength={191}
                   placeholder="Masukan nama supplier"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"
@@ -211,7 +213,7 @@ export default function DataSupplierPurchasing() {
                 <input
                   type="text"
                   value={formData.bank}
-                  onChange={(e) => setFormData({...formData, bank: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, bank: e.target.value })}
                   maxLength={100}
                   placeholder="Masukan nama Bank"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"
@@ -223,7 +225,7 @@ export default function DataSupplierPurchasing() {
                 <input
                   type="text"
                   value={formData.npwp}
-                  onChange={(e) => setFormData({...formData, npwp: e.target.value.replace(/[^\d.\-]/g, "")})}
+                  onChange={(e) => setFormData({ ...formData, npwp: e.target.value.replace(/[^\d.\-]/g, "") })}
                   maxLength={50}
                   inputMode="numeric"
                   placeholder="Masukan Npwp"
@@ -236,7 +238,7 @@ export default function DataSupplierPurchasing() {
                 <select
                   id="supplier-pajak"
                   value={formData.pajak}
-                  onChange={(e) => setFormData({...formData, pajak: e.target.value as Pajak})}
+                  onChange={(e) => setFormData({ ...formData, pajak: e.target.value as Pajak })}
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"
                 >
                   <option value="NON_PKP">Non PKP</option>
@@ -249,7 +251,7 @@ export default function DataSupplierPurchasing() {
                 <input
                   type="text"
                   value={formData.phone}
-                  onChange={(e) => setFormData({...formData, phone: e.target.value.replace(/[^\d\s+\-()]/g, "")})}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/[^\d\s+\-()]/g, "") })}
                   maxLength={30}
                   inputMode="tel"
                   placeholder="Masukan no telepon"
@@ -263,7 +265,7 @@ export default function DataSupplierPurchasing() {
               <input
                 type="text"
                 value={formData.address}
-                onChange={(e) => setFormData({...formData, address: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 maxLength={255}
                 placeholder="Masukan alamat"
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"

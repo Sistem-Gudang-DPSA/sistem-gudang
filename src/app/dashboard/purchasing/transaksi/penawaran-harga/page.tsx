@@ -1,1 +1,1 @@
-export { default } from "@/domains/purchasing/components/PenawaranHargaSph";
+export { default } from "@/domains/purchasing/components/EstimasiPenawaranHarga";

@@ -3,10 +3,10 @@
 import React, { useEffect, useState } from 'react';
 import { useCan } from '@/domains/auth/user-context';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Search, Plus } from 'lucide-react';
 import { createPenawaran, listPenawaran } from '@/domains/ppic/api';
-import { estimasiPenawaranPath, STATUS_UI, type StatusPenawaran } from '@/domains/ppic/data/penawaran-harga';
+import { estimasiPenawaranPath, penawaranBasePath, STATUS_UI, type StatusPenawaran } from '@/domains/ppic/data/penawaran-harga';
 import { ApiError } from '@/shared/lib/api-client';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
@@ -24,6 +24,7 @@ const statusClass: Record<StatusPenawaran, string> = {
 export default function PenawaranHargaPPIC() {
   const canCreate = useCan('penawaran-harga.create');
   const router = useRouter();
+  const base = penawaranBasePath(usePathname());
   const [searchQuery, setSearchQuery] = useState('');
   const filterKey = searchQuery.trim();
   const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
@@ -73,7 +74,7 @@ export default function PenawaranHargaPPIC() {
     setModalError('');
     try {
       const created = await createPenawaran({ namaClient: client, namaProyek: proyek });
-      router.push(estimasiPenawaranPath(created.id));
+      router.push(estimasiPenawaranPath(created.id, base));
     } catch (err) {
       setModalError(err instanceof ApiError ? err.message : 'Gagal membuat penawaran harga.');
       setSaving(false);
@@ -139,9 +140,9 @@ export default function PenawaranHargaPPIC() {
                   <td className={cellClass}>
                     {/* Ketiga tombol membuka halaman Estimasi Penawaran Biaya yang sama */}
                     <div className="flex items-center gap-2">
-                      <Link href={estimasiPenawaranPath(item.id)} className={`${actionButtonClass} bg-[#F5FF3D] text-black hover:bg-yellow-300`}>Edit</Link>
-                      <Link href={estimasiPenawaranPath(item.id)} className={`${actionButtonClass} bg-[#0000FF] text-white hover:bg-blue-800`}>Detail</Link>
-                      <Link href={estimasiPenawaranPath(item.id)} className={`${actionButtonClass} bg-[#FF8A00] text-white hover:bg-orange-600`}>Rekap</Link>
+                      <Link href={estimasiPenawaranPath(item.id, base)} className={`${actionButtonClass} bg-[#F5FF3D] text-black hover:bg-yellow-300`}>Edit</Link>
+                      <Link href={estimasiPenawaranPath(item.id, base)} className={`${actionButtonClass} bg-[#0000FF] text-white hover:bg-blue-800`}>Detail</Link>
+                      <Link href={estimasiPenawaranPath(item.id, base)} className={`${actionButtonClass} bg-[#FF8A00] text-white hover:bg-orange-600`}>Rekap</Link>
                     </div>
                   </td>
                 </tr>

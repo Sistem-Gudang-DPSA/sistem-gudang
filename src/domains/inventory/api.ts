@@ -34,9 +34,7 @@ import type {
 } from "./types";
 
 // `summary` covers every item matching the search, not just the requested page.
-// `summary` covers every item matching the search, not just the requested page.
 export function listItems(params?: ListParams & SortParams & ItemFilterParams) {
-  return apiClient.get<PaginatedResult<ItemListRow> & { summary?: { totalJenis: number; totalStock: number } }>(`/api/v1/items${toQuery(params)}`);
   return apiClient.get<PaginatedResult<ItemListRow> & { summary?: { totalJenis: number; totalStock: number } }>(`/api/v1/items${toQuery(params)}`);
 }
 
@@ -111,6 +109,18 @@ export function uploadItemPhoto(id: number, file: File) {
   return apiClient.upload<Item>(`/api/v1/items/${id}/photo`, form);
 }
 
+export type BulkPhotoResult = {
+  uploaded: { itemId: number; photo: { thumb: string; display: string } }[];
+  failed: { itemId: number; reason: "not_found" | "invalid_type" | "too_large" | "unprocessable" }[];
+};
+
+// Up to 10 files per call, one field per item: photo_<itemId>. Needs item.upload-photo.
+export function uploadItemPhotosBulk(pairs: { itemId: number; file: File }[]) {
+  const form = new FormData();
+  for (const { itemId, file } of pairs) form.append(`photo_${itemId}`, file);
+  return apiClient.upload<BulkPhotoResult>("/api/v1/items/photos/bulk", form);
+}
+
 export function adjustItemStock(id: number, input: { delta: number; reason: string }) {
   return apiClient.patch<Item>(`/api/v1/items/${id}/stock`, input);
 }
@@ -165,7 +175,6 @@ export function createOutbound(input: CreateOutboundInput) {
   return apiClient.post<OutboundRow>("/api/v1/outbound", input);
 }
 
-// Backend belum menyediakan endpoint ini (docs/api-1.json baru punya GET/POST), payload-nya sama dengan create.
 export function updateOutbound(id: number, input: CreateOutboundInput) {
   return apiClient.put<OutboundRow>(`/api/v1/outbound/${id}`, input);
 }
