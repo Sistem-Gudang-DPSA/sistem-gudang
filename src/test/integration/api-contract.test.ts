@@ -41,7 +41,6 @@ const UNUSED_ALLOWLIST: Record<string, string> = {
   "get /api/v1/purchase-orders": "not needed yet (no PO list page)",
   "get /api/v1/purchase-orders/{param}": "not needed yet (no PO detail page)",
   "get /api/v1/outbound/{param}": "not needed yet",
-  "get /api/v1/material-requests": "not needed yet",
   "post /api/v1/material-requests": "not needed yet",
   "patch /api/v1/material-requests/{param}/status": "not needed yet",
   "get /api/v1/reports/inbound/{param}": "not needed yet",

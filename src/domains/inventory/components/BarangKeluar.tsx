@@ -3,7 +3,7 @@
 import { useCan } from '@/domains/auth/user-context';
 import React, { useEffect, useRef, useState } from 'react';
 import { Search, Calendar, Plus, AlertCircle, Download, X, ChevronDown, Pencil, Lock, Filter } from 'lucide-react';
-import { createOutbound, exportOutboundReport, listOutbound, listItems, updateOutbound, deleteItem } from '@/domains/inventory/api';
+import { createOutbound, exportOutboundReport, listOutbound, listItems, listMaterialRequests, updateOutbound, deleteItem } from '@/domains/inventory/api';
 import { listTrackingSpk } from '@/domains/ppic/api';
 import type { RecipientType, ItemListRow, OutboundRow } from '@/domains/inventory/types';
 import { displayDate, todayIso, toDateRange } from '@/domains/inventory/date';
@@ -17,9 +17,9 @@ import DateFilter from '@/shared/components/DateFilter';
 
 // Satu baris di tabel form. SPK, client, dan item/project ada per baris di desain, sedangkan API
 // menyimpannya per transaksi, jadi saat simpan baris dikelompokkan menjadi satu transaksi per kombinasi itu.
-type BarisForm = { spk: string; namaItem: string; itemId: string; qty: string; pic: string };
+type BarisForm = { spk: string; namaItem: string; itemId: string; qty: string };
 
-const barisKosong = (): BarisForm => ({ spk: "", namaItem: "", itemId: "", qty: "", pic: "" });
+const barisKosong = (): BarisForm => ({ spk: "", namaItem: "", itemId: "", qty: "" });
 const PAGE_SIZE = 20;
 
 type TableRow = {
@@ -111,6 +111,19 @@ export default function BarangKeluarGudang() {
   // The client comes from the tracking system through the SPK; the API ignores a client name from the FE.
   const { data: spkList } = useApiData(() => listTrackingSpk(), 'spk', 'Gagal memuat daftar SPK.');
   const clientOf = (spk: string) => spkList?.find((t) => t.noSpk === spk)?.client ?? '';
+
+  // Pilihan Nama Item/Produk: Item Produksi dari permintaan material SPK itu, dimuat sekali per SPK.
+  const [produkBySpk, setProdukBySpk] = useState<Record<string, string[]>>({});
+  const muatProduk = (spk: string) => {
+    if (!spkList?.some((t) => t.noSpk === spk) || produkBySpk[spk]) return;
+    setProdukBySpk((prev) => ({ ...prev, [spk]: [] }));
+    listMaterialRequests({ search: spk, pageSize: 100 })
+      .then((res) => {
+        const produk = [...new Set(res.rows.filter((r) => r.spk === spk).map((r) => r.productionItem))];
+        setProdukBySpk((prev) => ({ ...prev, [spk]: produk }));
+      })
+      .catch(() => {});
+  };
 
   useEffect(() => {
     listItems({ pageSize: 100 }).then((res) => setItems(res.rows)).catch(() => {});
@@ -224,8 +237,8 @@ export default function BarangKeluarGudang() {
       setModalError("Lengkapi nama pengambil, tanggal, dan penerima.");
       return;
     }
-    if (terisi.length === 0 || terisi.some((b) => !b.spk || !b.namaItem.trim() || !b.itemId || !b.qty || !b.pic.trim())) {
-      setModalError("Isi No. SPK, nama item/project, barang, jumlah, dan PIC di setiap baris yang dipakai.");
+    if (terisi.length === 0 || terisi.some((b) => !b.spk || !b.namaItem.trim() || !b.itemId || !b.qty)) {
+      setModalError("Isi No. SPK, nama item/project, barang, dan jumlah di setiap baris yang dipakai.");
       return;
     }
 
@@ -248,7 +261,8 @@ export default function BarangKeluarGudang() {
           recipientType,
           // API belum punya kolom nama pengambil, jadi dicatat di notes
           notes: `Pengambil: ${namaPengambil.trim()}`,
-          lines: lines.map((b) => ({ itemId: Number(b.itemId), qty: Number(b.qty), pic: b.pic.trim() })),
+          // Form tidak punya kolom PIC lagi, sedangkan API mewajibkan pic per baris, jadi diisi nama pengambil
+          lines: lines.map((b) => ({ itemId: Number(b.itemId), qty: Number(b.qty), pic: namaPengambil.trim() })),
         });
         lines.forEach((b) => tersimpan.add(b));
       }
@@ -476,7 +490,7 @@ export default function BarangKeluarGudang() {
                 />
               </div>
               <div>
-                <label htmlFor="form-bk-pengambil" className={labelClass}>Nama Pengambil</label>
+                <label htmlFor="form-bk-pengambil" className={labelClass}>Nama Pengambil/PIC</label>
                 <input
                   id="form-bk-pengambil"
                   type="text"
@@ -532,13 +546,13 @@ export default function BarangKeluarGudang() {
                 <thead className="bg-gray-100 text-gray-900 font-medium text-base">
                   <tr>
                     <th scope="col" className={`${formHeadClass} w-10`}>No</th>
-                    <th scope="col" className={`${formHeadClass} min-w-36`}>No. SPK</th>
                     <th scope="col" className={`${formHeadClass} min-w-32`}>Nama Client</th>
-                    <th scope="col" className={`${formHeadClass} min-w-40`}>Nama Item/Project</th>
+                    <th scope="col" className={`${formHeadClass} min-w-36`}>No. SPK</th>
+                    <th scope="col" className={`${formHeadClass} min-w-40`}>Nama Item/Produk</th>
                     <th scope="col" className={`${formHeadClass} min-w-40`}>Nama Barang</th>
                     <th scope="col" className={`${formHeadClass} min-w-24`}>Kode</th>
-                    <th scope="col" className={`${formHeadClass} w-24`}>Jumlah</th>
-                    <th scope="col" className={`${formHeadClass} min-w-24`}>PIC</th>
+                    <th scope="col" className={`${formHeadClass} w-24`}>Jumlah Pengambilan</th>
+                    <th scope="col" className={`${formHeadClass} min-w-24`}>Jumlah Stok</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -546,16 +560,19 @@ export default function BarangKeluarGudang() {
                     <tr key={i}>
                       <td className={`${formCellClass} text-center text-gray-700`}>{i + 1}</td>
                       <td className={formCellClass}>
-                        <select value={b.spk} onChange={(e) => updateBaris(i, { spk: e.target.value })} aria-label={`No. SPK baris ${i + 1}`} className={`${formInputClass} cursor-pointer`}>
+                        <span className="block px-2 py-2 text-sm text-gray-600">{clientOf(b.spk)}</span>
+                      </td>
+                      <td className={formCellClass}>
+                        <select value={b.spk} onChange={(e) => { updateBaris(i, { spk: e.target.value, namaItem: "" }); muatProduk(e.target.value); }} aria-label={`No. SPK baris ${i + 1}`} className={`${formInputClass} cursor-pointer`}>
                           <option value="">Pilih SPK</option>
                           {(spkList ?? []).map((t) => <option key={t.noSpk} value={t.noSpk}>{t.noSpk}</option>)}
                         </select>
                       </td>
                       <td className={formCellClass}>
-                        <span className="block px-2 py-2 text-sm text-gray-600">{clientOf(b.spk)}</span>
-                      </td>
-                      <td className={formCellClass}>
-                        <input type="text" value={b.namaItem} maxLength={191} onChange={(e) => updateBaris(i, { namaItem: e.target.value })} aria-label={`Nama item/project baris ${i + 1}`} className={formInputClass} />
+                        <select value={b.namaItem} onChange={(e) => updateBaris(i, { namaItem: e.target.value })} aria-label={`Nama item/project baris ${i + 1}`} className={`${formInputClass} cursor-pointer`}>
+                          <option value="">{!clientOf(b.spk) ? 'Pilih SPK dulu' : produkBySpk[b.spk]?.length ? 'Pilih item/produk' : 'Belum ada item/produk'}</option>
+                          {(produkBySpk[b.spk] ?? []).map((nama) => <option key={nama} value={nama}>{nama}</option>)}
+                        </select>
                       </td>
                       <td className={formCellClass}>
                         <select value={b.itemId} onChange={(e) => updateBaris(i, { itemId: e.target.value })} aria-label={`Nama barang baris ${i + 1}`} className={`${formInputClass} cursor-pointer`}>
@@ -569,8 +586,8 @@ export default function BarangKeluarGudang() {
                       <td className={formCellClass}>
                         <input {...INTEGER_INPUT} maxLength={9} value={b.qty} onChange={(e) => updateBaris(i, { qty: digitsOnly(e.target.value) })} aria-label={`Jumlah baris ${i + 1}`} className={`${formInputClass} text-right`} />
                       </td>
-                      <td className={formCellClass}>
-                        <input type="text" value={b.pic} maxLength={191} onChange={(e) => updateBaris(i, { pic: e.target.value })} aria-label={`PIC baris ${i + 1}`} className={formInputClass} />
+                      <td className={`${formCellClass} px-2 text-right text-gray-600`}>
+                        {items.find((it) => String(it.id) === b.itemId)?.stock ?? ''}
                       </td>
                     </tr>
                   ))}
@@ -648,15 +665,15 @@ export default function BarangKeluarGudang() {
                 </div>
               </div>
               <div>
+                <label htmlFor="edit-bk-client" className={labelClass}>Nama Client</label>
+                <input id="edit-bk-client" type="text" readOnly value={clientOf(editForm.spk)} className={fieldClass} />
+              </div>
+              <div>
                 <label htmlFor="edit-bk-spk" className={labelClass}>SPK</label>
                 <select id="edit-bk-spk" value={editForm.spk} onChange={(e) => updateEdit({ spk: e.target.value })} className={fieldClass}>
                   <option value="">Pilih SPK</option>
                   {(spkList ?? []).map((t) => <option key={t.noSpk} value={t.noSpk}>{t.noSpk}</option>)}
                 </select>
-              </div>
-              <div>
-                <label htmlFor="edit-bk-client" className={labelClass}>Nama Client</label>
-                <input id="edit-bk-client" type="text" readOnly value={clientOf(editForm.spk)} className={fieldClass} />
               </div>
               <div>
                 <label htmlFor="edit-bk-item" className={labelClass}>Nama Item/Projek</label>

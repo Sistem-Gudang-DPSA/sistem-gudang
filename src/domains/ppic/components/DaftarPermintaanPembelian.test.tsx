@@ -44,6 +44,17 @@ describe('DaftarPermintaanPembelian', () => {
     expect(screen.queryByText('Tanggal Pengajuan')).toBeNull();
   });
 
+  it('does not crash when a payload misses items and the other fields', async () => {
+    const partial = row(2, 'pending', { payload: { bagian: 'Gudang' } });
+    installFakeApi({ 'GET /api/v1/approvals': paged([partial]) });
+    render(<DaftarPermintaanPembelianPPIC />);
+    expect(await screen.findByText('Gudang - 0 barang')).toBeTruthy();
+    fireEvent.click(screen.getByText('Detail'));
+    // Without tanggalPengajuan the date falls back to createdAt, like the list row
+    expect(screen.getByText('Tanggal Pengajuan').parentElement!.textContent).toContain('01-03-2026');
+    expect(screen.getByText('Nama').parentElement!.textContent).toContain('-');
+  });
+
   it('shows the empty state', async () => {
     installFakeApi({ 'GET /api/v1/approvals': paged([]) });
     render(<DaftarPermintaanPembelianPPIC />);

@@ -39,6 +39,12 @@ describe("visibleNav", () => {
     expect(hrefs(user(["inbound.view"]), "gudang").some((h) => h.includes("pembelian"))).toBe(false);
   });
 
+  it("also shows permintaan pembelian under gudang, only with purchase-request.create", () => {
+    const hrefs = (u: AuthUser) => visibleNav(u).find((d) => d.key === "gudang")?.groups.flatMap((g) => g.items.map((i) => i.href)) ?? [];
+    expect(hrefs(user(["inbound.view", "purchase-request.create"]))).toContain("/dashboard/gudang/transaksi/permintaan-pembelian");
+    expect(hrefs(user(SEEDED.kInventory))).not.toContain("/dashboard/gudang/transaksi/permintaan-pembelian");
+  });
+
   it("shows no division to a user without permissions", () => {
     expect(labels(user([]))).toEqual([]);
   });
