@@ -66,7 +66,9 @@ export const fetchPermintaan = async (id: string): Promise<PermintaanPembelian> 
   return { ...toPermintaan(request), riwayat: actions };
 };
 
-export const revisiPath = (id: number | string) => `/dashboard/ppic/transaksi/permintaan-pembelian/${id}/revisi`;
+export const permintaan_pembelian_path = '/dashboard/ppic/transaksi/permintaan-pembelian';
+
+export const revisiPath = (id: number | string) => `${permintaan_pembelian_path}/${id}/revisi`;
 
 export const AKSI_LABEL: Record<string, string> = {
   approved: 'Disetujui',

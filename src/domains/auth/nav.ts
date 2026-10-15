@@ -75,6 +75,8 @@ export const NAV_DIVISIONS: NavDivision[] = [
           { href: "/dashboard/gudang/transaksi/barang-masuk", label: "Barang Masuk", anyOf: ["inbound.view"] },
           { href: "/dashboard/gudang/transaksi/barang-keluar", label: "Barang Keluar", anyOf: ["outbound.view"] },
           { href: "/dashboard/gudang/transaksi/stock-opname", label: "Stock Opname", anyOf: ["stock-opname.view"] },
+          // Same pages as PPIC; the backend only lets purchase-request.create submit, so the menu follows it.
+          { href: "/dashboard/gudang/transaksi/permintaan-pembelian", label: "Permintaan Pembelian", anyOf: ["purchase-request.create"] },
         ],
       },
       {
