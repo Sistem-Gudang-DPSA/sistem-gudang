@@ -16,6 +16,7 @@ export interface FakeRequest {
   path: string;
   query: URLSearchParams;
   body: unknown;
+  headers: Headers;
 }
 
 // A handler is a payload or a function of the request. Annotate `(req: FakeRequest)` when using the function form.
@@ -41,7 +42,7 @@ export function installFakeApi(routes: Record<string, Handler> = {}) {
     const url = new URL(String(input));
     const method = (init?.method ?? "GET").toUpperCase();
     const rawBody = typeof init?.body === "string" ? init.body : undefined;
-    const req: FakeRequest = { method, path: url.pathname, query: url.searchParams, body: rawBody ? JSON.parse(rawBody) : undefined };
+    const req: FakeRequest = { method, path: url.pathname, query: url.searchParams, body: rawBody ? JSON.parse(rawBody) : undefined, headers: new Headers(init?.headers) };
     calls.push(req);
 
     const handler = routes[`${method} ${url.pathname}`];

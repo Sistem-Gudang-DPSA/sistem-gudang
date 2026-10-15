@@ -3,6 +3,7 @@ import type {
   ItemFilterParams,
   SortParams,
   UpdateItemInput,
+  CreateInboundBatchInput,
   CreateInboundInput,
   CreateInboundReturnInput,
   CreateItemInput,
@@ -72,6 +73,11 @@ export async function importItems(body: { defaults: { category?: string; unit?: 
     });
     throw new Error(lines.slice(0, 10).join("; ") + (lines.length > 10 ? `; dan ${lines.length - 10} error lain` : ""));
   }
+}
+
+// Exact match on items.code (what a scanned QR holds); 404 when no item has that code.
+export function getItemByCode(code: string) {
+  return apiClient.get<Item>(`/api/v1/items/by-code/${encodeURIComponent(code)}`);
 }
 
 export function getItem(id: number) {
@@ -152,6 +158,12 @@ export function getInbound(id: number) {
 
 export function createInbound(input: CreateInboundInput) {
   return apiClient.post<InboundRow>("/api/v1/inbound", input);
+}
+
+// One transaction for all lines. The same Idempotency-Key with the same body replays the first result
+// (24 hours), so a retry after a timeout or double click never adds stock twice.
+export function createInboundBatch(input: CreateInboundBatchInput, idempotencyKey: string) {
+  return apiClient.post<{ count: number; items: InboundRow[] }>("/api/v1/inbound/batch", input, { "Idempotency-Key": idempotencyKey });
 }
 
 export function createInboundReturn(input: CreateInboundReturnInput) {

@@ -9,6 +9,7 @@ type Row = [keyof typeof api, unknown[], string, Record<string, string>, unknown
 const rows: Row[] = [
   ['listItems', [{ page: 2, search: 'tri' }], 'GET /api/v1/items', { page: '2', search: 'tri' }, undefined],
   ['getItem', [1], 'GET /api/v1/items/1', {}, undefined],
+  ['getItemByCode', ['A1/03'], 'GET /api/v1/items/by-code/A1%2F03', {}, undefined],
   ['createItem', [{ name: 'I' }], 'POST /api/v1/items', {}, { name: 'I' }],
   ['updateItem', [1, { name: 'J' }], 'PUT /api/v1/items/1', {}, { name: 'J' }],
   ['deleteItem', [1], 'DELETE /api/v1/items/1', {}, undefined],
@@ -36,6 +37,7 @@ const rows: Row[] = [
   ['getInbound', [2], 'GET /api/v1/inbound/2', {}, undefined],
   ['createInbound', [{ a: 1 }], 'POST /api/v1/inbound', {}, { a: 1 }],
   ['createInboundReturn', [{ b: 1 }], 'POST /api/v1/inbound/returns', {}, { b: 1 }],
+  ['createInboundBatch', [{ lines: [] }, 'key-12345678'], 'POST /api/v1/inbound/batch', {}, { lines: [] }],
   ['getInboundReport', [{ q: 'x', page: 2 }], 'GET /api/v1/reports/inbound', { q: 'x', page: '2' }, undefined],
   ['exportInboundReport', [{ q: 'x' }], 'GET /api/v1/reports/inbound/export', { q: 'x' }, undefined],
   ['listOutbound', [{ page: 3 }], 'GET /api/v1/outbound', { page: '3' }, undefined],
