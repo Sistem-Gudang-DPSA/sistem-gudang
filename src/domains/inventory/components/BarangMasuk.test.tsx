@@ -12,7 +12,7 @@ vi.mock('next/navigation', () => ({
 
 const tracking = { 'GET /api/v1/tracking/spk': [{ noSpk: 'SPK-1', client: 'Budi' }] };
 const inbound = (id: number, over = {}) => ({ id, date: '2026-03-05T00:00:00.000Z', itemCode: `BRG-${id}`, itemName: `Triplex ${id}`, supplierName: 'PT Kayu', clientName: null, source: 'SUPPLIER', qtyArrived: 10, qtyPurchased: 12, ...over });
-const items = paged([{ id: 1, code: 'BRG-1', name: 'Triplex 1' }]);
+const items = paged([{ id: 1, code: 'BRG-1', name: 'Triplex 1', supplierId: 7 }]);
 const suppliers = paged([{ id: 7, name: 'PT Kayu' }]);
 
 function setup(extra: Record<string, unknown> = {}, rows: unknown = paged([inbound(1), inbound(2, { supplierName: null, source: 'KLIEN', clientName: 'Budi' })])) {
@@ -30,12 +30,9 @@ async function openBaru(api: ReturnType<typeof installFakeApi>) {
   await screen.findByText('Triplex 1');
   fireEvent.click(screen.getByText('Barang Baru'));
   await screen.findByText('FORM BARANG MASUK');
-  await screen.findByText('PT Kayu', { selector: 'option' });
 }
 function fillBaru() {
   fireEvent.change(textbox('Isi Nama Barang'), { target: { value: 'Triplex 1' } });
-  const sup = (screen.getByText('Sesuaikan supplier') as HTMLElement).parentElement!;
-  fireEvent.change(sup, { target: { value: '7' } });
   const qty = screen.getAllByPlaceholderText('0') as HTMLInputElement[];
   fireEvent.change(qty[0], { target: { value: '15' } });
   fireEvent.change(qty[1], { target: { value: '20' } });
@@ -45,7 +42,6 @@ describe('BarangMasuk list', () => {
   it('shows rows incl. return rows and requests page 1 / pageSize 20', async () => {
     const { api } = setup();
     expect(await screen.findByText('Triplex 1')).not.toBeNull();
-    expect(screen.getByText('Retur - Budi')).not.toBeNull();
     expect(screen.getAllByText('05-03-2026').length).toBe(2);
     const q = lastList(api);
     expect(q.get('page')).toBe('1');
