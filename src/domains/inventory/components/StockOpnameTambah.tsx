@@ -11,7 +11,7 @@ import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 import Pagination from '@/shared/components/Pagination';
 
 const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-const emptyRow = { itemId: "", itemName: "", jumlah: "", keterangan: "" };
+type Row = { itemId: string; itemName: string; jumlah: string; keterangan: string };
 
 export default function TambahStockOpnameGudang() {
   const router = useRouter();
@@ -21,7 +21,7 @@ export default function TambahStockOpnameGudang() {
   const [month, setMonth] = useState(String(now.getMonth() + 1));
   const [year, setYear] = useState(String(now.getFullYear()));
   const [items, setItems] = useState<ItemListRow[]>([]);
-  const [data, setData] = useState<typeof emptyRow[]>([]);
+  const [data, setData] = useState<Row[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
@@ -93,22 +93,8 @@ export default function TambahStockOpnameGudang() {
     };
   }, [page, pageSize]);
 
-const [physicalQty, setPhysicalQty] = useState<Record<number, number>>({});
-
-const handlePhysicalQtyChange = (itemId: number, value: number) => {
-  setPhysicalQty((prev) => ({
-    ...prev,
-    [itemId]: value,
-  }));
-};
-
-
-  const handleChange = (itemId: string, patch: Partial<typeof emptyRow>) => {
+  const handleChange = (itemId: string, patch: Partial<Row>) => {
     setData((prev) => prev.map((row) => row.itemId === itemId ? {...row, ...patch} : row));
-  };
-
-  const handleAddRow = () => {
-    setData((prev) => [...prev, emptyRow]);
   };
 
   const findItem = (itemId: string) => items.find((it) => String(it.id) === itemId);
