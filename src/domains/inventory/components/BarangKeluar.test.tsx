@@ -16,10 +16,12 @@ const trx = (id: number) => ({
   lines: [{ itemId: 1, itemCode: 'BRG-1', itemName: 'Triplex', qty: 4, pic: 'Andi' }, { itemId: 2, itemCode: 'BRG-2', itemName: 'Paku', qty: 9, pic: 'Andi' }],
 });
 const tracking = { 'GET /api/v1/tracking/spk': [{ noSpk: 'SPK-1', client: 'Klien 1' }, { noSpk: 'SPK-9', client: 'PT Maju' }, { noSpk: 'SPK-7', client: 'PT Jaya' }] };
-const items = paged([{ id: 1, code: 'BRG-1', name: 'Triplex' }, { id: 2, code: 'BRG-2', name: 'Paku' }]);
+// Item Produksi per SPK, the choices of the Nama Item/Produk dropdown
+const materials = { 'GET /api/v1/material-requests': paged([{ id: 1, spk: 'SPK-9', productionItem: 'Lemari' }, { id: 2, spk: 'SPK-7', productionItem: 'Meja' }]) };
+const items = paged([{ id: 1, code: 'BRG-1', name: 'Triplex', stock: 25 }, { id: 2, code: 'BRG-2', name: 'Paku', stock: 140 }]);
 
 function setup(extra: Record<string, unknown> = {}, rows: unknown = paged([trx(1)])) {
-  const api = installFakeApi({ 'GET /api/v1/outbound': rows, 'GET /api/v1/items': items, ...tracking, ...extra });
+  const api = installFakeApi({ 'GET /api/v1/outbound': rows, 'GET /api/v1/items': items, ...tracking, ...materials, ...extra });
   render(<BarangKeluar />);
   return api;
 }
@@ -37,16 +39,16 @@ async function openForm(api: ReturnType<typeof installFakeApi>) {
 }
 
 function fillHeader() {
-  fireEvent.change(label('Nama Pengambil'), { target: { value: 'Rudi' } });
+  fireEvent.change(label('Nama Pengambil/PIC'), { target: { value: 'Rudi' } });
   fireEvent.change(label('Tujuan / Penerima'), { target: { value: 'PRODUKSI' } });
 }
 
-function fillRow(row: number, v: { spk: string; item: string; itemId: string; qty: string; pic: string }) {
+async function fillRow(row: number, v: { spk: string; item: string; itemId: string; qty: string }) {
   fireEvent.change(cell('No. SPK', row), { target: { value: v.spk } });
+  await waitFor(() => expect(cell('Nama item/project', row).querySelector(`option[value="${v.item}"]`)).not.toBeNull());
   fireEvent.change(cell('Nama item/project', row), { target: { value: v.item } });
   fireEvent.change(cell('Nama barang', row), { target: { value: v.itemId } });
   fireEvent.change(cell('Jumlah', row), { target: { value: v.qty } });
-  fireEvent.change(cell('PIC', row), { target: { value: v.pic } });
 }
 
 describe('BarangKeluar list', () => {
@@ -100,25 +102,47 @@ describe('BarangKeluar create', () => {
     expect(api.calls('POST /api/v1/outbound').length).toBe(0);
   });
 
+  it('offers the Item Produksi of the chosen SPK as Nama Item/Produk choices', async () => {
+    const api = setup({
+      'GET /api/v1/material-requests': paged([
+        { id: 1, spk: 'SPK-9', productionItem: 'Lemari Dapur' },
+        { id: 2, spk: 'SPK-9', productionItem: 'Lemari Dapur' },
+        { id: 3, spk: 'SPK-90', productionItem: 'Meja Lain' },
+      ]),
+    });
+    await openForm(api);
+    fireEvent.change(cell('No. SPK', 1), { target: { value: 'SPK-9' } });
+    const options = () => [...cell('Nama item/project', 1).querySelectorAll('option')].map((o) => o.value);
+    await waitFor(() => expect(options()).toEqual(['', 'Lemari Dapur']));
+    expect(api.calls('GET /api/v1/material-requests')[0].query.get('search')).toBe('SPK-9');
+  });
+
   it('enforces input limits', async () => {
     const api = setup();
     await openForm(api);
-    expect(label('Nama Pengambil').maxLength).toBe(191);
-    expect(cell('Nama item/project', 1).maxLength).toBe(191);
+    expect(label('Nama Pengambil/PIC').maxLength).toBe(191);
     const q = cell('Jumlah', 1);
     fireEvent.change(q, { target: { value: 'e-1.5' } });
     expect(q.value).toBe('15');
     expect(q.maxLength).toBe(9);
-    expect(cell('PIC', 1).maxLength).toBe(191);
+  });
+
+  it('shows the stock of the chosen item in the Jumlah Stok column instead of a PIC input', async () => {
+    const api = setup();
+    await openForm(api);
+    expect(screen.getByText('Jumlah Stok', { selector: 'th' })).not.toBeNull();
+    expect(screen.queryByLabelText('PIC baris 1')).toBeNull();
+    fireEvent.change(cell('Nama barang', 1), { target: { value: '2' } });
+    expect(cell('Nama barang', 1).closest('tr')!.lastElementChild!.textContent).toBe('140');
   });
 
   it('groups rows per SPK/client/item into transactions, skipping blank rows', async () => {
     const api = setup({ 'POST /api/v1/outbound': { id: 5 } });
     await openForm(api);
     fillHeader();
-    fillRow(1, { spk: 'SPK-9', item: 'Lemari', itemId: '1', qty: '4', pic: 'Andi' });
-    fillRow(2, { spk: 'SPK-9', item: 'Lemari', itemId: '2', qty: '9', pic: 'Budi' });
-    fillRow(3, { spk: 'SPK-7', item: 'Meja', itemId: '1', qty: '1', pic: 'Cici' });
+    await fillRow(1, { spk: 'SPK-9', item: 'Lemari', itemId: '1', qty: '4' });
+    await fillRow(2, { spk: 'SPK-9', item: 'Lemari', itemId: '2', qty: '9' });
+    await fillRow(3, { spk: 'SPK-7', item: 'Meja', itemId: '1', qty: '1' });
     fireEvent.click(screen.getByText('Simpan'));
     await waitFor(() => expect(api.calls('POST /api/v1/outbound').length).toBe(2));
     const [a, b] = api.calls('POST /api/v1/outbound').map((c) => c.body as Record<string, unknown>);
@@ -126,9 +150,10 @@ describe('BarangKeluar create', () => {
     expect(a).not.toHaveProperty('clientName');
     expect(a).not.toHaveProperty('warehouseType');
     expect(a.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(a.lines).toEqual([{ itemId: 1, qty: 4, pic: 'Andi' }, { itemId: 2, qty: 9, pic: 'Budi' }]);
+    // PIC is no longer in the form; the API still requires it, so it carries the nama pengambil
+    expect(a.lines).toEqual([{ itemId: 1, qty: 4, pic: 'Rudi' }, { itemId: 2, qty: 9, pic: 'Rudi' }]);
     expect(b).toMatchObject({ spk: 'SPK-7', itemName: 'Meja' });
-    expect(b.lines).toEqual([{ itemId: 1, qty: 1, pic: 'Cici' }]);
+    expect(b.lines).toEqual([{ itemId: 1, qty: 1, pic: 'Rudi' }]);
     await waitFor(() => expect(screen.queryByText('Simpan')).toBeNull());
   });
 
@@ -143,7 +168,7 @@ describe('BarangKeluar create', () => {
     const api = setup({ 'POST /api/v1/outbound': fail(409, 'Stok tidak cukup') });
     await openForm(api);
     fillHeader();
-    fillRow(1, { spk: 'SPK-9', item: 'Lemari', itemId: '1', qty: '4', pic: 'Andi' });
+    await fillRow(1, { spk: 'SPK-9', item: 'Lemari', itemId: '1', qty: '4' });
     fireEvent.click(screen.getByText('Simpan'));
     expect((screen.getByText('Simpan') as HTMLButtonElement).disabled).toBe(true);
     expect(await screen.findByText('Stok tidak cukup')).not.toBeNull();

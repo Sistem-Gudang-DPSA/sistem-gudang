@@ -46,6 +46,7 @@ const rows: Row[] = [
   ['getStockOpname', [4], 'GET /api/v1/stock-opname/4', {}, undefined],
   ['createStockOpname', [{ d: 1 }], 'POST /api/v1/stock-opname', {}, { d: 1 }],
   ['getRequestsReport', [{ q: 'z' }], 'GET /api/v1/reports/requests', { q: 'z' }, undefined],
+  ['listMaterialRequests', [{ search: 'SPK-1', pageSize: 100 }], 'GET /api/v1/material-requests', { search: 'SPK-1', pageSize: '100' }, undefined],
   ['getMaterialRequest', [5], 'GET /api/v1/material-requests/5', {}, undefined],
   ['exportRequestsReport', [{ q: 'z', ids: [1, 2] }], 'GET /api/v1/reports/requests/export', { q: 'z', ids: '1,2' }, undefined],
 ];

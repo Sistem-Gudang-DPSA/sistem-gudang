@@ -194,6 +194,11 @@ export function getRequestsReport(params?: RequestReportParams) {
   return apiClient.get<RequestReport>(`/api/v1/reports/requests${toQuery(params)}`);
 }
 
+// Material requests per SPK; their productionItem is the item/produk an SPK is worked on.
+export function listMaterialRequests(params?: { search?: string; page?: number; pageSize?: number }) {
+  return apiClient.get<RequestReport>(`/api/v1/material-requests${toQuery(params)}`);
+}
+
 export function getMaterialRequest(id: number) {
   return apiClient.get<MaterialRequestDetail>(`/api/v1/material-requests/${id}`);
 }

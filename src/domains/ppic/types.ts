@@ -172,7 +172,8 @@ export interface ApprovalRequest {
   type: string;
   requestedBy: number;
   requestedByDomainId: number;
-  payload: PurchaseRequestPayload | null;
+  // The API does not type the payload, and stored requests can miss fields, so every field may be absent.
+  payload: Partial<PurchaseRequestPayload> | null;
   currentStepOrder: number;
   cycle: number;
   status: ApprovalStatus;
