@@ -18,7 +18,7 @@ import { countActiveFilters, emptyBarangFilters } from '@/domains/superadmin/com
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import DateFilter from '@/shared/components/DateFilter';
 
-const emptyBaru = { itemId: "", itemName: "", supplierId: "", tanggal: todayIso(), jumlahKedatangan: "", jumlahRekap: "", statusQc: "PASS" as StatusQc };
+const emptyBaru = { itemId: "", itemName: "", tanggal: todayIso(), jumlahKedatangan: "", jumlahRekap: "", statusQc: "PASS" as StatusQc };
 const emptyKembali = { itemId: "", itemName: "", tanggal: todayIso(), jumlah: "", spk: "" };
 
 export default function BarangMasukGudang() {
@@ -58,8 +58,8 @@ export default function BarangMasukGudang() {
   const { data: spkList } = useApiData(() => listTrackingSpk(), 'spk', 'Gagal memuat daftar SPK.');
 
   useEffect(() => {
-    listItems({ pageSize: 100 }).then((res) => setItems(res.rows)).catch(() => {});
-    listSuppliers({ pageSize: 100 }).then((res) => setSuppliers(res.rows)).catch(() => {});
+    listItems({ pageSize: 100 }).then((res) => setItems(res.rows)).catch(() => { });
+    listSuppliers({ pageSize: 100 }).then((res) => setSuppliers(res.rows)).catch(() => { });
   }, []);
 
   // Exports the rows currently loaded in the table.
@@ -80,8 +80,8 @@ export default function BarangMasukGudang() {
   const openModalKembali = () => { setModalKembaliData({ ...emptyKembali, tanggal: todayIso() }); setModalError(""); setIsModalKembaliOpen(true); };
 
   const handleSimpan = async () => {
-    const { itemId, supplierId, tanggal, jumlahKedatangan, jumlahRekap, statusQc } = modalData;
-    if (!itemId || !supplierId || !tanggal || !jumlahKedatangan || jumlahRekap === "") {
+    const { itemId, tanggal, jumlahKedatangan, jumlahRekap, statusQc } = modalData;
+    if (!itemId || !tanggal || !jumlahKedatangan || jumlahRekap === "") {
       setModalError("Lengkapi semua isian.");
       return;
     }
@@ -90,7 +90,6 @@ export default function BarangMasukGudang() {
     try {
       await createInbound({
         itemId: Number(itemId),
-        supplierId: Number(supplierId),
         date: tanggal,
         qtyArrived: Number(jumlahKedatangan),
         qtyPurchased: Number(jumlahRekap),
@@ -144,26 +143,26 @@ export default function BarangMasukGudang() {
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Search className="h-4 w-4 text-gray-400" />
               </div>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={searchQuery}
                 maxLength={100}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] sm:text-sm transition-all shadow-sm"
-                placeholder="Cari kode, nama barang, atau supplier..." 
+                placeholder="Cari kode, nama barang, atau supplier..."
               />
             </div>
           </div>
 
           <div className="flex gap-2 w-full lg:w-auto">
-            {canCreate && <button 
+            {canCreate && <button
               onClick={openModal}
               className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0"
             >
               <Plus className="w-4 h-4" />
               <span>Barang Baru</span>
             </button>}
-            {canCreate && <button 
+            {canCreate && <button
               onClick={openModalKembali}
               className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0"
             >
@@ -204,17 +203,16 @@ export default function BarangMasukGudang() {
                 <th scope="col" className="px-6 py-4">No</th>
                 <SortableTh label="Tanggal" sortKey="tanggal" sort={sort} onSort={toggle} />
                 <SortableTh label="Informasi Barang" sortKey="name" sort={sort} onSort={toggle} />
-                <SortableTh label="Supplier" sortKey="supplierName" sort={sort} onSort={toggle} />
                 <th scope="col" className="px-6 py-4 text-center">Jml Kedatangan</th>
                 <th scope="col" className="px-6 py-4 text-center">Jml Rekap</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading && (
-                <tr><td colSpan={6} className="px-6 py-10 text-center text-gray-400">Memuat data...</td></tr>
+                <tr><td colSpan={5} className="px-6 py-10 text-center text-gray-400">Memuat data...</td></tr>
               )}
               {!loading && error && (
-                <tr><td colSpan={6} className="px-6 py-10 text-center text-red-500">{error}</td></tr>
+                <tr><td colSpan={5} className="px-6 py-10 text-center text-red-500">{error}</td></tr>
               )}
               {!loading && !error && rows.map((item, index) => (
                 <tr key={item.id} className="hover:bg-[#FF8A00]/5 transition-colors group">
@@ -225,15 +223,6 @@ export default function BarangMasukGudang() {
                     <div className="flex flex-col">
                       <span className="font-bold text-gray-900">{item.itemName}</span>
                       <span className="text-xs font-mono text-gray-500 mt-0.5">{item.itemCode ?? '-'}</span>
-                    </div>
-                  </td>
-
-                  <td className="px-6 py-4 text-gray-600">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-md bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500">
-                        {(item.supplierName ?? item.clientName ?? '-').charAt(0)}
-                      </div>
-                      <span>{item.supplierName ?? (item.source === 'KLIEN' ? `Retur${item.clientName ? ` - ${item.clientName}` : ''}` : '-')}</span>
                     </div>
                   </td>
 
@@ -273,7 +262,7 @@ export default function BarangMasukGudang() {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md transition-opacity duration-300 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-187.5 p-8 border border-white/20 relative animate-in zoom-in-95 duration-200">
-            <button 
+            <button
               onClick={() => setIsModalOpen(false)}
               className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
             >
@@ -307,7 +296,7 @@ export default function BarangMasukGudang() {
                       list="barang-masuk-items"
                       placeholder="Isi Nama Barang"
                       value={modalData.itemName}
-                      onChange={(e) => setModalData({...modalData, itemName: e.target.value, itemId: String(items.find((it) => it.name === e.target.value)?.id ?? "")})}
+                      onChange={(e) => setModalData({ ...modalData, itemName: e.target.value, itemId: String(items.find((it) => it.name === e.target.value)?.id ?? "") })}
                       className="w-full border border-gray-300 rounded-md py-3 pl-4 pr-10 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 placeholder-gray-400 text-sm"
                     />
                     <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
@@ -318,78 +307,60 @@ export default function BarangMasukGudang() {
               </div>
 
               {/* Row 2 */}
-              <div className="flex flex-col sm:flex-row gap-6">
+              <div className="flex flex-col sm:flex-row gap-6 ">
                 <div className="flex-1 flex flex-col gap-2">
-                  <label className="text-[15px] font-medium text-gray-900">Supplier</label>
-                  <select 
-                    className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-400 appearance-none bg-white text-sm"
-                    style={{ backgroundImage: "url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20viewBox%3D%220%200%2020%2020%20%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M5%207.5L10%2012.5L15%207.5%22%20stroke%3D%22%23374151%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E')", backgroundRepeat: "no-repeat", backgroundPosition: "right 1rem center", backgroundSize: "1.2em" }}
-                    value={modalData.supplierId}
-                    onChange={(e) => setModalData({...modalData, supplierId: e.target.value})}
-                  >
-                    <option value="" disabled>Sesuaikan supplier</option>
-                    {suppliers.map((sp) => <option key={sp.id} value={sp.id}>{sp.name}</option>)}
-                  </select>
+                  <label className="text-[15px] font-medium text-gray-900">Jumlah Sesuai Kedatangan</label>
+                  <input
+                    {...INTEGER_INPUT}
+                    maxLength={9}
+                    placeholder="0"
+                    value={modalData.jumlahKedatangan}
+                    onChange={(e) => setModalData({ ...modalData, jumlahKedatangan: digitsOnly(e.target.value) })}
+                    className="w-full border border-gray-200 bg-gray-50/50 rounded-lg py-3 px-4 text-gray-700 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white transition-all duration-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
                 </div>
                 <div className="flex-1 flex flex-col gap-2">
-                  <label className="text-[15px] font-medium text-gray-900">Tanggal</label>
-                  <div className="relative">
-                    <input 
-                      type="date"
-                      value={modalData.tanggal}
-                      onChange={(e) => setModalData({...modalData, tanggal: e.target.value})}
-                      className="w-full border border-gray-300 rounded-md py-3 pl-4 pr-10 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 placeholder-gray-400 text-sm"
-                    />
-                  </div>
+                  <label className="text-[15px] font-medium text-gray-900">Jumlah Sesuai Rekap Pembelian</label>
+                  <input
+                    {...INTEGER_INPUT}
+                    maxLength={9}
+                    placeholder="0"
+                    value={modalData.jumlahRekap}
+                    onChange={(e) => setModalData({ ...modalData, jumlahRekap: digitsOnly(e.target.value) })}
+                    className="w-full border border-gray-200 bg-gray-50/50 rounded-lg py-3 px-4 text-gray-700 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white transition-all duration-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
                 </div>
               </div>
 
               {/* Row 3 */}
               <div className="flex flex-col sm:flex-row gap-6">
                 <div className="flex-1 flex flex-col gap-2">
-                  <label className="text-[15px] font-medium text-gray-900">Jumlah Sesuai Kedatangan</label>
-                  <input 
-                    {...INTEGER_INPUT}
-                    maxLength={9}
-                    placeholder="0"
-                    value={modalData.jumlahKedatangan}
-                    onChange={(e) => setModalData({...modalData, jumlahKedatangan: digitsOnly(e.target.value)})}
-                    className="w-full border border-gray-200 bg-gray-50/50 rounded-lg py-3 px-4 text-gray-700 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white transition-all duration-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  <label className="text-[15px] font-medium text-gray-900">Tanggal</label>
+                  <input
+                    type="date"
+                    value={modalData.tanggal}
+                    onChange={(e) => setModalData({ ...modalData, tanggal: e.target.value })}
+                    className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white text-sm"
                   />
                 </div>
-                <div className="flex-1 flex flex-col gap-2">
-                  <label className="text-[15px] font-medium text-gray-900">Jumlah Sesuai Rekap Pembelian</label>
-                  <input 
-                    {...INTEGER_INPUT}
-                    maxLength={9}
-                    placeholder="0"
-                    value={modalData.jumlahRekap}
-                    onChange={(e) => setModalData({...modalData, jumlahRekap: digitsOnly(e.target.value)})}
-                    className="w-full border border-gray-200 bg-gray-50/50 rounded-lg py-3 px-4 text-gray-700 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white transition-all duration-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                </div>
-              </div>
-
-              {/* Row 4 */}
-              <div className="flex flex-col sm:flex-row gap-6">
                 <div className="flex-1 flex flex-col gap-2">
                   <label className="text-[15px] font-medium text-gray-900">Status QC</label>
                   <select
                     value={modalData.statusQc}
-                    onChange={(e) => setModalData({...modalData, statusQc: e.target.value as StatusQc})}
+                    onChange={(e) => setModalData({ ...modalData, statusQc: e.target.value as StatusQc })}
                     className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white text-sm"
                   >
                     <option value="PASS">Pass (IPM)</option>
                     <option value="PARTIAL_RETUR">Part (Retur)</option>
                   </select>
                 </div>
-                <div className="flex-1" />
               </div>
             </div>
 
+
             {modalError && <p className="text-sm text-red-500 mb-2 text-right">{modalError}</p>}
             <div className="flex justify-end mt-2">
-              <button 
+              <button
                 onClick={handleSimpan}
                 disabled={saving}
                 className="px-8 py-2.5 bg-[#ff8a00] text-white rounded-md hover:bg-[#e07b00] transition-colors font-medium text-[15px] shadow-sm"
@@ -405,7 +376,7 @@ export default function BarangMasukGudang() {
       {isModalKembaliOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md transition-opacity duration-300 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-187.5 p-8 border border-white/20 relative animate-in zoom-in-95 duration-200">
-            <button 
+            <button
               onClick={() => setIsModalKembaliOpen(false)}
               className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
             >
@@ -439,7 +410,7 @@ export default function BarangMasukGudang() {
                       list="barang-masuk-items"
                       placeholder="Isi Nama Barang"
                       value={modalKembaliData.itemName}
-                      onChange={(e) => setModalKembaliData({...modalKembaliData, itemName: e.target.value, itemId: String(items.find((it) => it.name === e.target.value)?.id ?? "")})}
+                      onChange={(e) => setModalKembaliData({ ...modalKembaliData, itemName: e.target.value, itemId: String(items.find((it) => it.name === e.target.value)?.id ?? "") })}
                       className="w-full border border-gray-300 rounded-md py-3 pl-4 pr-10 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 placeholder-gray-400 text-sm"
                     />
                     <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
@@ -454,22 +425,22 @@ export default function BarangMasukGudang() {
                 <div className="flex-1 flex flex-col gap-2">
                   <label className="text-[15px] font-medium text-gray-900">Tanggal</label>
                   <div className="relative">
-                    <input 
+                    <input
                       type="date"
                       value={modalKembaliData.tanggal}
-                      onChange={(e) => setModalKembaliData({...modalKembaliData, tanggal: e.target.value})}
+                      onChange={(e) => setModalKembaliData({ ...modalKembaliData, tanggal: e.target.value })}
                       className="w-full border border-gray-300 rounded-md py-3 pl-4 pr-10 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 placeholder-gray-400 text-sm"
                     />
                   </div>
                 </div>
                 <div className="flex-1 flex flex-col gap-2">
                   <label className="text-[15px] font-medium text-gray-900">Jumlah</label>
-                  <input 
+                  <input
                     {...INTEGER_INPUT}
                     maxLength={9}
                     placeholder="0"
                     value={modalKembaliData.jumlah}
-                    onChange={(e) => setModalKembaliData({...modalKembaliData, jumlah: digitsOnly(e.target.value)})}
+                    onChange={(e) => setModalKembaliData({ ...modalKembaliData, jumlah: digitsOnly(e.target.value) })}
                     className="w-full border border-gray-300 rounded-md py-3 px-4 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 placeholder-gray-400 text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
@@ -481,7 +452,7 @@ export default function BarangMasukGudang() {
                   <label className="text-[15px] font-medium text-gray-900">SPK (opsional)</label>
                   <select
                     value={modalKembaliData.spk}
-                    onChange={(e) => setModalKembaliData({...modalKembaliData, spk: e.target.value})}
+                    onChange={(e) => setModalKembaliData({ ...modalKembaliData, spk: e.target.value })}
                     className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white text-sm"
                   >
                     <option value="">Tanpa SPK</option>
@@ -493,7 +464,7 @@ export default function BarangMasukGudang() {
 
             {modalError && <p className="text-sm text-red-500 mb-2 text-right">{modalError}</p>}
             <div className="flex justify-end mt-2">
-              <button 
+              <button
                 onClick={handleSimpanKembali}
                 disabled={saving}
                 className="px-8 py-2.5 bg-[#ff8a00] text-white rounded-md hover:bg-[#e07b00] transition-colors font-medium text-[15px] shadow-sm"

@@ -3,7 +3,7 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { ArrowLeft, ChevronDown, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { formatAngka } from "@/domains/ppic/data/dokubah";
 import { createPurchaseOrder, listSuppliers } from "@/domains/purchasing/api";
 import { digitsOnly } from "@/shared/lib/input";
@@ -84,6 +84,10 @@ export default function BuatPOBaruPage() {
     const dataBarang = loaded?.rows ?? [];
     const [posisiDropdown, setPosisiDropdown] = useState({ top: 0, left: 0, width: 0, });
     const inputBarangRefs = useRef<Record<number, HTMLInputElement | null>>({});
+
+    const barangSupplier = dataBarang.filter(
+    (item) => String(item.supplierId) === String(supplierId)
+    );
 
     useEffect(() => {
         let aktif = true;
@@ -396,29 +400,36 @@ export default function BuatPOBaruPage() {
                                         >
                                             <div className="relative">
                                                 <select
-                                                    id="po-supplier"
                                                     value={supplierId}
-                                                    onChange={(e) =>
-                                                        setSupplierId(e.target.value)
-                                                    }
-                                                    className={`${cellInputClass} appearance-none pr-8 cursor-pointer`}
+                                                    onChange={(e) => {
+                                                        const idSupplier = e.target.value;
+
+                                                        setSupplierId(idSupplier);
+
+                                                        // Bersihkan barang yang sudah dipilih sebelumnya.
+                                                        setBarisBarang((prev) =>
+                                                            prev.map((b) => ({
+                                                                ...b,
+                                                                kodeBarang: "",
+                                                                namaBarang: "",
+                                                                satuan: "",
+                                                            }))
+                                                        );
+
+                                                        setBarisAktif(null);
+                                                        setHasilPencarian([]);
+                                                    }}
+                                                    className={fieldClass}
                                                     required
                                                 >
-                                                    <option value="" disabled>
-                                                        Pilih Supplier
-                                                    </option>
+                                                    <option value="">Pilih Supplier</option>
 
-                                                    {suppliers.map((s) => (
-                                                        <option
-                                                            key={s.id}
-                                                            value={s.id}
-                                                        >
-                                                            {s.code} - {s.name}
+                                                    {suppliers.map((supplier) => (
+                                                        <option key={supplier.id} value={supplier.id}>
+                                                            {supplier.name}
                                                         </option>
                                                     ))}
                                                 </select>
-
-                                                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
                                             </div>
                                         </th>
                                     </tr>
@@ -630,6 +641,13 @@ export default function BuatPOBaruPage() {
                                                 type="text"
                                                 value={b.namaBarang}
                                                 onFocus={(e) => {
+                                                    if (!supplierId) {
+                                                        setFormError("Pilih supplier terlebih dahulu.");
+                                                        return;
+                                                    }
+
+                                                    setFormError("");
+
                                                     const rect = e.currentTarget.getBoundingClientRect();
 
                                                     setPosisiDropdown({
@@ -639,7 +657,7 @@ export default function BuatPOBaruPage() {
                                                     });
 
                                                     setBarisAktif(b.id);
-                                                    setHasilPencarian(dataBarang);
+                                                    setHasilPencarian(barangSupplier);
                                                 }}
                                                 onChange={(e) => {
                                                     const keyword = e.target.value;
@@ -647,6 +665,7 @@ export default function BuatPOBaruPage() {
                                                     updateBaris(b.id, "namaBarang", keyword);
                                                     updateBaris(b.id, "kodeBarang", "");
                                                     updateBaris(b.id, "satuan", "");
+                                                    updateBaris(b.id, "harga", "")
 
                                                     const rect = e.currentTarget.getBoundingClientRect();
 
@@ -659,18 +678,21 @@ export default function BuatPOBaruPage() {
                                                     setBarisAktif(b.id);
 
                                                     setHasilPencarian(
-                                                        dataBarang.filter((item) =>
-                                                            item.name.toLowerCase().includes(keyword.toLowerCase())
+                                                        barangSupplier.filter((item) =>
+                                                            item.name
+                                                                .toLowerCase()
+                                                                .includes(keyword.toLowerCase())
                                                         )
                                                     );
                                                 }}
+                                                disabled={!supplierId}
                                                 className={cellInputClass}
                                                 placeholder="Ketik nama barang..."
                                                 autoComplete="off"
                                                 required
                                             />
 
-                                            {barisAktif === b.id &&
+                                            {barisAktif === b.id && 
                                                 typeof document !== "undefined" &&
                                                 createPortal(
                                                     <div

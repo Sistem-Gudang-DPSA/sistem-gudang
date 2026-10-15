@@ -5,7 +5,7 @@ import { useCan } from '@/domains/auth/user-context';
 import { Search, Plus, Calendar, Eye } from 'lucide-react';
 import Link from 'next/link';
 import { listApprovals } from '@/domains/ppic/api';
-import { displayDate, toDateRange } from '@/domains/inventory/date';
+import { toDateRange } from '@/domains/inventory/date';
 import type { ApprovalRequest, ApprovalStatus } from '@/domains/ppic/types';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
@@ -20,9 +20,21 @@ const STATUS_LABEL: Record<ApprovalStatus, { label: string; cls: string }> = {
 const summarize = (req: ApprovalRequest) => {
   const p = req.payload;
   if (!p) return '-';
-  const names = p.items.map((it) => it.namaBarang).join(', ');
-  return `${p.bagian} - ${p.items.length} barang (${names})`;
+
+  const items = p.items ?? [];
+  const names = items
+    .map((it) => it.namaBarang)
+    .filter(Boolean)
+    .join(', ');
+
+  return `${p.bagian} - ${items.length} barang (${names})`;
 };
+
+const displayDate = (date?: string | null) => {
+  if (!date) return '-';
+  return date.slice(0, 10);
+};
+
 
 export default function DaftarPermintaanPembelianPPIC() {
   const canCreate = useCan('purchase-request.create');
