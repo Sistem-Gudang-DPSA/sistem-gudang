@@ -85,11 +85,17 @@ export default function BarangMasukGudang() {
       setModalError("Lengkapi semua isian.");
       return;
     }
+    const supplierId = items.find((it) => String(it.id) === itemId)?.supplierId;
+    if (!supplierId) {
+      setModalError("Barang ini belum punya supplier. Atur supplier barang dulu.");
+      return;
+    }
     setSaving(true);
     setModalError("");
     try {
       await createInbound({
         itemId: Number(itemId),
+        supplierId,
         date: tanggal,
         qtyArrived: Number(jumlahKedatangan),
         qtyPurchased: Number(jumlahRekap),

@@ -114,8 +114,12 @@ const handlePhysicalQtyChange = (itemId: number, value: number) => {
   const findItem = (itemId: string) => items.find((it) => String(it.id) === itemId);
 
   const handleSimpan = async () => {
-    const filled = data;
-
+    // Only rows with a physical count go to the API; an empty row must not zero that item's stock.
+    const filled = data.filter((row) => row.jumlah !== "");
+    if (filled.length === 0) {
+      setError("Isi jumlah fisik minimal satu barang.");
+      return;
+    }
     const ids = filled.map((row) => row.itemId);
     if (new Set(ids).size !== ids.length) {
       setError("Satu barang hanya boleh muncul sekali per stok opname.");
