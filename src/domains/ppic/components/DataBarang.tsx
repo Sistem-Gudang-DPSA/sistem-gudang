@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useCan } from '@/domains/auth/user-context';
-import { Search, Plus, Download, Edit2, Trash2, Filter, MoreHorizontal } from 'lucide-react';
+import { Search, Plus, Download, Edit2, Trash2, Filter, MoreHorizontal, Images } from 'lucide-react';
 import { listItems, createItem, deleteItem, listLocations, updateItem, listItemCategories, listItemUnits } from '@/domains/inventory/api';
 import type { ItemListRow, Location } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
@@ -13,6 +13,8 @@ import Pagination from '@/shared/components/Pagination';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import ItemPhoto from '@/domains/inventory/components/ItemPhoto';
+import BulkPhotoModal from '@/domains/inventory/components/BulkPhotoModal';
+import SortableTh, { useSort } from '@/shared/components/SortableTh';
 
 const emptyForm = { name: '', unit: '', category: '', price: '', supplierId: '' };
 
@@ -25,6 +27,7 @@ export default function DataBarangPPIC() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [actionError, setActionError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const { sort, toggle, params: sortParams } = useSort();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState(emptyForm);
@@ -34,11 +37,33 @@ export default function DataBarangPPIC() {
 
   const [page, setPage] = useState(1);
   const { data: loaded, loading, error: loadError, reload } = useApiData(
-    () => listItems({ search: searchTerm || undefined, page, pageSize: 20 }),
-    `${searchTerm}|${page}`,
+    () => listItems({ search: searchTerm || undefined, page, pageSize: 20, ...sortParams }),
+    `${searchTerm}|${page}|${JSON.stringify(sortParams)}`,
     "Gagal memuat data barang.",
   );
   const dataBarang = loaded?.rows ?? [];
+
+  // Pilihan disimpan per id agar tetap ada saat pindah halaman, cari, atau urutkan.
+  const [selected, setSelected] = useState(new Map<number, ItemListRow>());
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkUploaded, setBulkUploaded] = useState(false); // centangan dikosongkan hanya bila sudah ada upload
+  const toggleRow = (item: ItemListRow) =>
+    setSelected((prev) => {
+      const next = new Map(prev);
+      if (next.has(item.id)) next.delete(item.id);
+      else next.set(item.id, item);
+      return next;
+    });
+  const pageAllSelected = dataBarang.length > 0 && dataBarang.every((i) => selected.has(i.id));
+  const togglePage = () =>
+    setSelected((prev) => {
+      const next = new Map(prev);
+      for (const i of dataBarang) {
+        if (pageAllSelected) next.delete(i.id);
+        else next.set(i.id, i);
+      }
+      return next;
+    });
   const error = actionError || loadError;
 
   const { data: units } = useApiData(() => listItemUnits(), 'units', 'Gagal memuat daftar satuan.');
@@ -154,17 +179,6 @@ export default function DataBarangPPIC() {
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1">Data Barang</h1>
           <p className="text-gray-500 text-sm">Kelola master data barang, material, dan stok inventaris PPIC.</p>
         </div>
-        <div className="flex items-center gap-3">
-          {canCreate && (
-            <button
-              onClick={handleMulaiTambah}
-              className="flex items-center gap-2 px-4 py-2 bg-linear-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:shadow-purple-500/30 hover:-translate-y-0.5 transition-all font-medium text-sm"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">Tambah Data</span>
-            </button>
-          )}
-        </div>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
@@ -184,11 +198,31 @@ export default function DataBarangPPIC() {
             />
           </div>
           <div className="flex items-center gap-2">
+            {canUploadPhoto && (
+              <button
+                type="button"
+                onClick={() => setBulkOpen(true)}
+                disabled={selected.size === 0}
+                className="flex items-center gap-2 px-3 py-2 bg-orange-50 border border-orange-300 text-orange-700 rounded-lg hover:bg-orange-100 transition-colors text-sm font-medium disabled:opacity-50"
+              >
+                <Images className="w-4 h-4" />
+                {`Pasang Foto Massal (${selected.size})`}
+              </button>
+            )}
             <ExportExcellButton onClick={handleExportCSV} disabled={loading || dataBarang.length === 0} />
             <button className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium">
               <Filter className="w-4 h-4" />
               <span>Filter</span>
             </button>
+            {canCreate && (
+              <button
+                onClick={handleMulaiTambah}
+                className="flex items-center gap-2 px-5 py-2.5 bg-[#ff8a00] text-white rounded-lg hover:bg-[#eb7d00] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm shadow-sm"    
+              >
+                <Plus className="w-4 h-4" />
+                <span className="hidden sm:inline">Tambah Data</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -201,27 +235,37 @@ export default function DataBarangPPIC() {
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
               <tr>
+                {canUploadPhoto && (
+                  <th scope="col" className="px-4 py-4">
+                    <input type="checkbox" aria-label="Pilih semua barang di halaman ini" checked={pageAllSelected} onChange={togglePage} className="w-4 h-4 rounded border-gray-300 text-[#FF8A00] focus:ring-[#FF8A00]" />
+                  </th>
+                )}
                 <th scope="col" className="px-6 py-4">No</th>
                 <th scope="col" className="px-6 py-4">Foto</th>
-                <th scope="col" className="px-6 py-4">Informasi Barang</th>
-                <th scope="col" className="px-6 py-4">Supplier</th>
-                <th scope="col" className="px-6 py-4">Stok & Satuan</th>
-                <th scope="col" className="px-6 py-4">Kategori</th>
-                <th scope="col" className="px-6 py-4 text-right">Harga (Rp)</th>
-                <th scope="col" className="px-6 py-4">Lokasi</th>
-                <th scope="col" className="px-6 py-4">Keterangan</th>
+                <SortableTh label="Informasi Barang" sortKey="name" sort={sort} onSort={toggle} />
+                <SortableTh label="Supplier" sortKey="supplierName" sort={sort} onSort={toggle} />
+                <SortableTh label="Stok & Satuan" sortKey="stock" sort={sort} onSort={toggle} />
+                <SortableTh label="Kategori" sortKey="category" sort={sort} onSort={toggle} />
+                <SortableTh label="Harga (Rp)" sortKey="price" sort={sort} onSort={toggle} align="right" />
+                <SortableTh label="Lokasi" sortKey="locationCode" sort={sort} onSort={toggle} />
+                <SortableTh label="Keterangan" sortKey="detail" sort={sort} onSort={toggle} />
                 <th scope="col" className="px-6 py-4 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading && (
-                <tr><td colSpan={10} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
+                <tr><td colSpan={canUploadPhoto ? 10 : 9} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
               )}
               {!loading && dataBarang.length === 0 && (
-                <tr><td colSpan={10} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
+                <tr><td colSpan={canUploadPhoto ? 10 : 9} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
               )}
               {!loading && dataBarang.map((item, index) => (
                 <tr key={item.id} className="hover:bg-purple-50/30 transition-colors group">
+                  {canUploadPhoto && (
+                    <td className="px-4 py-4">
+                      <input type="checkbox" aria-label={`Pilih ${item.name}`} checked={selected.has(item.id)} onChange={() => toggleRow(item)} className="w-4 h-4 rounded border-gray-300 text-[#FF8A00] focus:ring-[#FF8A00]" />
+                    </td>
+                  )}
                   <td className="px-6 py-4 text-gray-500">{index + 1}</td>
 
                   {/* Foto */}
@@ -306,6 +350,14 @@ export default function DataBarangPPIC() {
         </div>
         <Pagination page={page} pageSize={20} total={loaded?.total ?? 0} onPageChange={setPage} activeClass="bg-purple-500 text-white border-purple-500" />
       </div>
+
+      {bulkOpen && (
+        <BulkPhotoModal
+          items={[...selected.values()]}
+          onClose={() => { setBulkOpen(false); if (bulkUploaded) setSelected(new Map()); setBulkUploaded(false); }}
+          onDone={() => { setBulkUploaded(true); reload(); }}
+        />
+      )}
 
       {/* Modal Tambah Data */}
       {isModalOpen && (

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useCan } from '@/domains/auth/user-context';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, usePathname } from 'next/navigation';
 import { ArrowLeft, Plus } from 'lucide-react';
 import { formatAngka } from '@/domains/ppic/data/dokubah';
 import { getPenawaran, publishPenawaran, updatePenawaran } from '@/domains/ppic/api';
@@ -12,7 +12,7 @@ import {
   detailKeForm,
   formKePayload,
   KATEGORI_BAHAN,
-  penawaran_harga_path,
+  penawaranBasePath,
   STATUS_UI,
   type BarisBahan,
   type EstimasiPenawaran,
@@ -94,7 +94,7 @@ export default function EstimasiPenawaranBiayaPPIC() {
 function PageHeader() {
   return (
     <div className="flex items-center gap-3 mb-6">
-      <Link href={penawaran_harga_path} aria-label="Kembali ke Estimasi Penawaran Harga" className="text-gray-800 hover:opacity-70 transition-opacity">
+      <Link href={penawaranBasePath(usePathname())} aria-label="Kembali ke Estimasi Penawaran Harga" className="text-gray-800 hover:opacity-70 transition-opacity">
         <ArrowLeft className="w-5 h-5" strokeWidth={2.5} />
       </Link>
       <h1 className="text-[18px] font-extrabold text-black tracking-wide">Estimasi Penawaran Harga</h1>

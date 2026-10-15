@@ -22,6 +22,8 @@ function setup(extra: Record<string, unknown> = {}, rows: unknown = paged([inbou
 }
 const lastList = (api: ReturnType<typeof installFakeApi>) => api.calls('GET /api/v1/inbound').at(-1)!.query;
 const textbox = (ph: string) => screen.getByPlaceholderText(ph) as HTMLInputElement;
+// DateFilter selects have no label; pick each one by its placeholder option (Hari / Bulan / Tahun).
+const dateSelect = (placeholder: string) => screen.getByRole('option', { name: placeholder }).closest('select') as HTMLSelectElement;
 
 async function openBaru(api: ReturnType<typeof installFakeApi>) {
   await waitFor(() => expect(api.calls('GET /api/v1/suppliers').length).toBeGreaterThan(0));
@@ -70,10 +72,10 @@ describe('BarangMasuk list', () => {
     await waitFor(() => expect(lastList(api).get('search')).toBe('kayu'));
     expect(lastList(api).get('page')).toBe('1');
 
-    const [day, month, year] = Array.from(document.querySelectorAll('select')).slice(0, 3);
-    fireEvent.change(year, { target: { value: '2026' } });
-    fireEvent.change(month, { target: { value: '03' } });
-    fireEvent.change(day, { target: { value: '5' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Filter/ }));
+    fireEvent.change(dateSelect('Tahun'), { target: { value: '2026' } });
+    fireEvent.change(dateSelect('Bulan'), { target: { value: '03' } });
+    fireEvent.change(dateSelect('Hari'), { target: { value: '05' } });
     await waitFor(() => expect(lastList(api).get('startDate')).toBe('2026-03-05'));
     expect(lastList(api).get('endDate')).toBe('2026-03-05');
     expect(lastList(api).get('page')).toBe('1');

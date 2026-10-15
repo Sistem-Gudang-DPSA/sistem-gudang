@@ -14,7 +14,7 @@ import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 import { ExportExcellButton } from '@/shared/components/Tombol';
-import BarangFilterPanel, { countActiveFilters, emptyBarangFilters } from '@/domains/superadmin/components/BarangFilterPanel';
+import { countActiveFilters, emptyBarangFilters } from '@/domains/superadmin/components/BarangFilterPanel';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import DateFilter from '@/shared/components/DateFilter';
 
@@ -195,9 +195,6 @@ export default function BarangMasukGudang() {
           />
         )}
 
-        {error && (
-          <div className="mx-5 mt-5 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>
-        )}
 
         {/* Table Container */}
         <div className="overflow-x-auto">

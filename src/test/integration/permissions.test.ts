@@ -4,7 +4,7 @@ import { NAV_DIVISIONS } from "@/domains/auth/nav";
 const SEEDED: Record<string, string> = {
   "Koor Inventory": "inbound.view inbound.create outbound.view outbound.create stock-opname.view stock-opname.create material-request.view material-request.update report.view item.view item.create item.update item.delete item.assign-location item.adjust-stock dokubah.view dokubah.approve spk-internal.view location.view location.create location.update location.delete supplier.view",
   "Staf/Koor PPIC": "purchase-request.create material-request.view material-request.create report.view item.view item.create item.update dokubah.view dokubah.create dokubah.update penawaran-harga.view penawaran-harga.create penawaran-harga.update penawaran-harga.publish spk-internal.view spk-internal.create spk-internal.allocate",
-  "Koor Purchasing": "purchase-request.approve item.view item.update item.set-price purchase-order.view purchase-order.create supplier.view supplier.create supplier.update supplier.delete",
+  "Koor Purchasing": "report.view penawaran-harga.view penawaran-harga.create penawaran-harga.update purchase-request.approve item.view item.update item.set-price purchase-order.view purchase-order.create supplier.view supplier.create supplier.update supplier.delete",
 };
 const granted = new Set(Object.values(SEEDED).flatMap((s) => s.split(" ")));
 
@@ -14,10 +14,10 @@ const navPerms = NAV_DIVISIONS.flatMap((d) => [
 ]);
 
 describe("nav permissions", () => {
-  it.each(navPerms.map((x) => [x.where, x.p]))("%s: %s looks like resource.action", (_w, p) => {
-    expect(p).toMatch(/^[a-z]+(-[a-z]+)*\.[a-z]+(-[a-z]+)*$/);
+  it("look like resource.action", () => {
+    expect(navPerms.filter((x) => !/^[a-z]+(-[a-z]+)*\.[a-z]+(-[a-z]+)*$/.test(x.p))).toEqual([]);
   });
-  it.each(navPerms.map((x) => [x.where, x.p]))("%s: %s is granted to a seeded role", (_w, p) => {
-    expect(granted.has(p)).toBe(true);
+  it("are granted to a seeded role", () => {
+    expect(navPerms.filter((x) => !granted.has(x.p))).toEqual([]);
   });
 });

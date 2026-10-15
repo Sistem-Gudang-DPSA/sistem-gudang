@@ -2,7 +2,7 @@
 
 import { useCan } from '@/domains/auth/user-context';
 import React, { useEffect, useRef, useState } from 'react';
-import { Search, Filter, Edit2 } from 'lucide-react';
+import { Search, Filter, Edit2, Images } from 'lucide-react';
 import { adjustItemStock, assignItemLocation, listItemCategories, listItemUnits, listItems, listLocations, suggestItemCode, updateItem } from '@/domains/inventory/api';
 import type { ItemListRow, Location, UpdateItemInput } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
@@ -14,6 +14,7 @@ import { ExportExcellButton } from '@/shared/components/Tombol';
 import { ImportExcelButton } from '@/shared/components/ImportExcelButton';
 import ImportBarangMapping from './ImportBarangMapping';
 import ItemPhoto from '@/domains/inventory/components/ItemPhoto';
+import BulkPhotoModal from '@/domains/inventory/components/BulkPhotoModal';
 import BarangFilterPanel, { countActiveFilters, emptyBarangFilters, toItemFilterParams } from './BarangFilterPanel';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import EditModeBar, { useBatchEdit } from '@/shared/components/EditModeBar';
@@ -88,6 +89,28 @@ export default function DataBarangGudang() {
     "Gagal memuat data barang.",
   );
   const dataBarang = loaded?.rows ?? [];
+
+  // Pilihan disimpan per id agar tetap ada saat pindah halaman, cari, atau urutkan.
+  const [selected, setSelected] = useState(new Map<number, ItemListRow>());
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkUploaded, setBulkUploaded] = useState(false); // centangan dikosongkan hanya bila sudah ada upload
+  const toggleRow = (item: ItemListRow) =>
+    setSelected((prev) => {
+      const next = new Map(prev);
+      if (next.has(item.id)) next.delete(item.id);
+      else next.set(item.id, item);
+      return next;
+    });
+  const pageAllSelected = dataBarang.length > 0 && dataBarang.every((i) => selected.has(i.id));
+  const togglePage = () =>
+    setSelected((prev) => {
+      const next = new Map(prev);
+      for (const i of dataBarang) {
+        if (pageAllSelected) next.delete(i.id);
+        else next.set(i.id, i);
+      }
+      return next;
+    });
   const total = loaded?.total ?? 0;
   useEffect(() => {
     loaded?.rows.forEach((r) => seen.current.set(r.id, r));
@@ -225,6 +248,17 @@ export default function DataBarangGudang() {
                     onSave={async (rows) => setPendingImport(rows)}
                     />
                 )}
+            {canUploadPhoto && (
+              <button
+                type="button"
+                onClick={() => setBulkOpen(true)}
+                disabled={selected.size === 0}
+                className="flex items-center gap-2 px-3 py-2 bg-orange-50 border border-orange-300 text-orange-700 rounded-lg hover:bg-orange-100 transition-colors text-sm font-medium disabled:opacity-50"
+              >
+                <Images className="w-4 h-4" />
+                {`Pasang Foto Massal (${selected.size})`}
+              </button>
+            )}
             <ExportExcellButton onClick={handleExportExcel} />
             {(canUpdate || canAssign) && <EditModeBar editing={edit.editing} dirty={edit.dirty} saving={edit.saving} onToggle={edit.toggle} onSave={simpanSemua} onCancel={edit.cancel} />}
             <button
@@ -271,6 +305,11 @@ export default function DataBarangGudang() {
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
               <tr>
+                {canUploadPhoto && (
+                  <th scope="col" className="px-4 py-4">
+                    <input type="checkbox" aria-label="Pilih semua barang di halaman ini" checked={pageAllSelected} onChange={togglePage} className="w-4 h-4 rounded border-gray-300 text-[#FF8A00] focus:ring-[#FF8A00]" />
+                  </th>
+                )}
                 <th scope="col" className="px-6 py-4">No</th>
                 <th scope="col" className="px-6 py-4">Foto</th>
                 <SortableTh label="Informasi Barang" sortKey="name" sort={sort} onSort={toggle} />
@@ -285,10 +324,10 @@ export default function DataBarangGudang() {
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={10} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
+                <tr><td colSpan={canUploadPhoto ? 11 : 10} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
               )}
               {!loading && dataBarang.length === 0 && (
-                <tr><td colSpan={10} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
+                <tr><td colSpan={canUploadPhoto ? 11 : 10} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
               )}
               {!loading && dataBarang.map((item, index) => {
                 const v = (key: string, original: string) => edit.value(item.id, key, original);
@@ -299,6 +338,11 @@ export default function DataBarangGudang() {
                 const editableLokasi = edit.editing && canAssign;
                 return (
                 <tr key={item.id} className={`${edit.isDirty(item.id) ? 'bg-amber-50' : index % 2 ? 'bg-gray-50' : 'bg-white'} hover:bg-[#FF8A00]/5 transition-colors group`}>
+                  {canUploadPhoto && (
+                    <td className="px-4 py-4">
+                      <input type="checkbox" aria-label={`Pilih ${item.name}`} checked={selected.has(item.id)} onChange={() => toggleRow(item)} className="w-4 h-4 rounded border-gray-300 text-[#FF8A00] focus:ring-[#FF8A00]" />
+                    </td>
+                  )}
                   <td className="px-6 py-4 text-gray-500">{(page - 1) * 20 + index + 1}</td>
 
                   {/* Foto */}
@@ -416,6 +460,14 @@ export default function DataBarangGudang() {
 
         <Pagination page={page} pageSize={20} total={total} onPageChange={setPage} />
       </div>
+
+      {bulkOpen && (
+        <BulkPhotoModal
+          items={[...selected.values()]}
+          onClose={() => { setBulkOpen(false); if (bulkUploaded) setSelected(new Map()); setBulkUploaded(false); }}
+          onDone={() => { setBulkUploaded(true); reload(); }}
+        />
+      )}
 
       {/* Modal Sesuaikan Stok */}
       {isStockModalOpen && stockItem && (

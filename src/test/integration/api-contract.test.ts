@@ -20,8 +20,8 @@ const normSpec = (p: string) => p.replace(/\{[^}]*\}/g, "{param}");
 const calls: { method: string; path: string; file: string }[] = [];
 for (const f of files) {
   const src = readFileSync(f, "utf8");
-  for (const m of src.matchAll(/apiClient\.(get|post|put|patch|delete)(?:<[^()]*>)?\(\s*[`"'](\/api\/v1[^`"']*)[`"']/g))
-    calls.push({ method: m[1], path: norm(m[2]), file: f });
+  for (const m of src.matchAll(/apiClient\.(get|post|put|patch|delete|upload)(?:<[^()]*>)?\(\s*[`"'](\/api\/v1[^`"']*)[`"']/g))
+    calls.push({ method: m[1] === "upload" ? "post" : m[1], path: norm(m[2]), file: f });
   for (const m of src.matchAll(/downloadFile\(\s*[`"'](\/api\/v1[^`"']*)[`"']/g))
     calls.push({ method: "get", path: norm(m[1]), file: f });
 }
@@ -52,8 +52,8 @@ const UNUSED_ALLOWLIST: Record<string, string> = {
 
 describe("FE api calls vs docs/api-1.json", () => {
   it("extracts calls", () => expect(calls.length).toBeGreaterThan(40));
-  it.each(calls.map((c) => [`${c.method.toUpperCase()} ${c.path}`, c] as const))("%s exists in contract", (_n, c) => {
-    expect(contract.has(`${c.method} ${normSpec(c.path)}`)).toBe(true);
+  it("every call exists in contract", () => {
+    expect(calls.filter((c) => !contract.has(`${c.method} ${normSpec(c.path)}`)).map((c) => `${c.method.toUpperCase()} ${c.path}`)).toEqual([]);
   });
 
   it("no new unlisted unused contract endpoints", () => {

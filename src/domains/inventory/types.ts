@@ -9,8 +9,8 @@ export interface Item {
   stock: number;
   locationId: number | null;
   supplierId: number | null;
-  // URL foto barang (bisa relatif ke host API); null bila belum ada foto.
-  photoUrl?: string | null;
+  // Path relatif foto barang (dilayani lewat fileUrl); null bila belum ada foto.
+  photo?: { thumb: string; display: string } | null;
   createdAt: string | null;
   updatedAt: string | null;
 }
