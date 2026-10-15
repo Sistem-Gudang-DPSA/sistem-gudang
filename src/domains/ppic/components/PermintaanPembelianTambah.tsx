@@ -7,7 +7,7 @@ import NoPermission from './NoPermission';
 import { ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createPurchaseRequest, resubmitApproval, listTrackingSpk } from '@/domains/ppic/api';
-import type { PermintaanPembelian } from '@/domains/ppic/data/pembelian';
+import { permintaan_pembelian_path, type PermintaanPembelian } from '@/domains/ppic/data/pembelian';
 import { todayIso } from '@/domains/inventory/date';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
@@ -17,7 +17,8 @@ import { listItems } from '@/domains/inventory/api';
 const emptyRow = { namaBarang: "", qty: "", satuan: "", proyek: "", noSpk: "" };
 
 // Dengan `permintaan`, form dipakai untuk memperbaiki permintaan yang diminta revisi lalu mengirim ulang.
-export default function TambahPermintaanPembelianPPIC({ permintaan }: { permintaan?: PermintaanPembelian }) {
+// `basePath` adalah daftar tujuan setelah simpan (Gudang memakai form yang sama).
+export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = permintaan_pembelian_path }: { permintaan?: PermintaanPembelian; basePath?: string }) {
   const router = useRouter();
   const canCreate = useCan("purchase-request.create");
   const [supplierId, setSupplierId] = useState("");
@@ -92,7 +93,7 @@ export default function TambahPermintaanPembelianPPIC({ permintaan }: { perminta
       };
       if (permintaan) await resubmitApproval(permintaan.id, payload);
       else await createPurchaseRequest(payload);
-      router.push('/dashboard/ppic/transaksi/permintaan-pembelian');
+      router.push(basePath);
     } catch (err) {
       if (err instanceof ApiError && err.errors) {
         // The API indexes errors by the submitted (filled) rows; map them back to table rows.

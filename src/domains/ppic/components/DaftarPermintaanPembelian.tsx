@@ -5,8 +5,9 @@ import { useCan } from '@/domains/auth/user-context';
 import { Search, Plus, Calendar, Eye } from 'lucide-react';
 import Link from 'next/link';
 import { listApprovals } from '@/domains/ppic/api';
-import { toDateRange } from '@/domains/inventory/date';
+import { displayDate, toDateRange } from '@/domains/inventory/date';
 import type { ApprovalRequest, ApprovalStatus } from '@/domains/ppic/types';
+import { permintaan_pembelian_path } from '@/domains/ppic/data/pembelian';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
 
@@ -20,23 +21,14 @@ const STATUS_LABEL: Record<ApprovalStatus, { label: string; cls: string }> = {
 const summarize = (req: ApprovalRequest) => {
   const p = req.payload;
   if (!p) return '-';
-
+  // Some requests come back from the API with a payload but no items list.
   const items = p.items ?? [];
-  const names = items
-    .map((it) => it.namaBarang)
-    .filter(Boolean)
-    .join(', ');
-
-  return `${p.bagian} - ${items.length} barang (${names})`;
+  const names = items.map((it) => it.namaBarang).join(', ');
+  return `${p.bagian ?? '-'} - ${items.length} barang${names ? ` (${names})` : ''}`;
 };
 
-const displayDate = (date?: string | null) => {
-  if (!date) return '-';
-  return date.slice(0, 10);
-};
-
-
-export default function DaftarPermintaanPembelianPPIC() {
+// `basePath` keeps the Tambah link inside the division that shows this list (Gudang reuses it).
+export default function DaftarPermintaanPembelianPPIC({ basePath = permintaan_pembelian_path }: { basePath?: string }) {
   const canCreate = useCan('purchase-request.create');
   const [searchQuery, setSearchQuery] = useState("");
   const [filterDay, setFilterDay] = useState("");
@@ -152,7 +144,7 @@ export default function DaftarPermintaanPembelianPPIC() {
           </div>
 
           {canCreate && (
-            <Link href="/dashboard/ppic/transaksi/permintaan-pembelian/tambah" className="w-full lg:w-auto">
+            <Link href={`${basePath}/tambah`} className="w-full lg:w-auto">
               <button className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0 w-full">
                 <Plus className="w-4 h-4" />
                 <span>Tambah Data</span>
@@ -228,10 +220,10 @@ export default function DaftarPermintaanPembelianPPIC() {
               <button onClick={() => setDetail(null)} className="text-gray-400 hover:text-gray-600 font-bold text-xl px-2">✕</button>
             </div>
             <div className="space-y-2 text-sm mb-6">
-              <p><span className="text-gray-500 inline-block w-40">Bagian</span>{detail.payload.bagian}</p>
-              <p><span className="text-gray-500 inline-block w-40">Nama</span>{detail.payload.namaPemohon}</p>
-              <p><span className="text-gray-500 inline-block w-40">Jabatan</span>{detail.payload.jabatan}</p>
-              <p><span className="text-gray-500 inline-block w-40">Tanggal Pengajuan</span>{displayDate(detail.payload.tanggalPengajuan)}</p>
+              <p><span className="text-gray-500 inline-block w-40">Bagian</span>{detail.payload.bagian ?? '-'}</p>
+              <p><span className="text-gray-500 inline-block w-40">Nama</span>{detail.payload.namaPemohon ?? '-'}</p>
+              <p><span className="text-gray-500 inline-block w-40">Jabatan</span>{detail.payload.jabatan ?? '-'}</p>
+              <p><span className="text-gray-500 inline-block w-40">Tanggal Pengajuan</span>{displayDate(detail.payload.tanggalPengajuan ?? detail.createdAt)}</p>
               <p><span className="text-gray-500 inline-block w-40">Status</span>{STATUS_LABEL[detail.status].label}</p>
               {detail.payload.notes && <p><span className="text-gray-500 inline-block w-40">Catatan</span>{detail.payload.notes}</p>}
             </div>
@@ -247,7 +239,7 @@ export default function DaftarPermintaanPembelianPPIC() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {detail.payload.items.map((it, i) => (
+                  {(detail.payload.items ?? []).map((it, i) => (
                     <tr key={i}>
                       <td className="px-4 py-3 font-medium text-gray-900">{it.namaBarang}</td>
                       <td className="px-4 py-3 text-center">{it.qty}</td>
