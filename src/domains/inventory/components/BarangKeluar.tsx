@@ -13,6 +13,7 @@ import Pagination from '@/shared/components/Pagination';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import DateFilter from '@/shared/components/DateFilter';
+import SearchableSelect from '@/shared/components/SearchableSelect';
 
 
 // Satu baris di tabel form. SPK, client, dan item/project ada per baris di desain, sedangkan API
@@ -563,22 +564,35 @@ export default function BarangKeluarGudang() {
                         <span className="block px-2 py-2 text-sm text-gray-600">{clientOf(b.spk)}</span>
                       </td>
                       <td className={formCellClass}>
-                        <select value={b.spk} onChange={(e) => { updateBaris(i, { spk: e.target.value, namaItem: "" }); muatProduk(e.target.value); }} aria-label={`No. SPK baris ${i + 1}`} className={`${formInputClass} cursor-pointer`}>
-                          <option value="">Pilih SPK</option>
-                          {(spkList ?? []).map((t) => <option key={t.noSpk} value={t.noSpk}>{t.noSpk}</option>)}
-                        </select>
+                        <SearchableSelect
+                          value={b.spk}
+                          onChange={(spk) => { updateBaris(i, { spk, namaItem: "" }); muatProduk(spk); }}
+                          options={(spkList ?? []).map((t) => ({ value: t.noSpk, label: t.noSpk }))}
+                          placeholder="Pilih SPK"
+                          aria-label={`No. SPK baris ${i + 1}`}
+                          className={formInputClass}
+                        />
                       </td>
                       <td className={formCellClass}>
-                        <select value={b.namaItem} onChange={(e) => updateBaris(i, { namaItem: e.target.value })} aria-label={`Nama item/project baris ${i + 1}`} className={`${formInputClass} cursor-pointer`}>
-                          <option value="">{!clientOf(b.spk) ? 'Pilih SPK dulu' : produkBySpk[b.spk]?.length ? 'Pilih item/produk' : 'Belum ada item/produk'}</option>
-                          {(produkBySpk[b.spk] ?? []).map((nama) => <option key={nama} value={nama}>{nama}</option>)}
-                        </select>
+                        <SearchableSelect
+                          value={b.namaItem}
+                          onChange={(namaItem) => updateBaris(i, { namaItem })}
+                          options={(produkBySpk[b.spk] ?? []).map((nama) => ({ value: nama, label: nama }))}
+                          placeholder={!clientOf(b.spk) ? 'Pilih SPK dulu' : produkBySpk[b.spk]?.length ? 'Pilih item/produk' : 'Belum ada item/produk'}
+                          emptyText={!clientOf(b.spk) ? 'Pilih SPK dulu' : 'Belum ada item/produk untuk SPK ini'}
+                          aria-label={`Nama item/project baris ${i + 1}`}
+                          className={formInputClass}
+                        />
                       </td>
                       <td className={formCellClass}>
-                        <select value={b.itemId} onChange={(e) => updateBaris(i, { itemId: e.target.value })} aria-label={`Nama barang baris ${i + 1}`} className={`${formInputClass} cursor-pointer`}>
-                          <option value="">Pilih barang</option>
-                          {items.map((it) => <option key={it.id} value={it.id}>{it.name}</option>)}
-                        </select>
+                        <SearchableSelect
+                          value={b.itemId}
+                          onChange={(itemId) => updateBaris(i, { itemId })}
+                          options={items.map((it) => ({ value: String(it.id), label: it.name }))}
+                          placeholder="Pilih barang"
+                          aria-label={`Nama barang baris ${i + 1}`}
+                          className={formInputClass}
+                        />
                       </td>
                       <td className={`${formCellClass} px-2 font-mono text-xs text-gray-600`}>
                         {items.find((it) => String(it.id) === b.itemId)?.code ?? ''}

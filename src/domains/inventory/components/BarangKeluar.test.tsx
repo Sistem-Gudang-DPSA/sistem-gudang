@@ -1,6 +1,6 @@
 import { AuthUserProvider } from '@/domains/auth/user-context';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { installFakeApi, paged, fail } from '@/test/fake-api';
 import BarangKeluar from './BarangKeluar';
 
@@ -34,9 +34,15 @@ async function openForm(api: ReturnType<typeof installFakeApi>) {
   await waitFor(() => expect(api.calls('GET /api/v1/items').length).toBeGreaterThan(0));
   fireEvent.click(screen.getByText('Barang Keluar'));
   await screen.findByText('Pilih penerima', { selector: 'option' });
-  await screen.findAllByText('Paku', { selector: 'option' });
-  await screen.findAllByText('SPK-9', { selector: 'option' });
+  await waitFor(() => expect(api.calls('GET /api/v1/tracking/spk').length).toBeGreaterThan(0));
 }
+
+// SPK, item/produk and barang are searchable dropdowns: open one and click an option
+async function pick(name: string, row: number, option: string) {
+  fireEvent.click(cell(name, row));
+  fireEvent.click(await screen.findByRole('option', { name: option }));
+}
+const itemName: Record<string, string> = { '1': 'Triplex', '2': 'Paku' };
 
 function fillHeader() {
   fireEvent.change(label('Nama Pengambil/PIC'), { target: { value: 'Rudi' } });
@@ -44,10 +50,10 @@ function fillHeader() {
 }
 
 async function fillRow(row: number, v: { spk: string; item: string; itemId: string; qty: string }) {
-  fireEvent.change(cell('No. SPK', row), { target: { value: v.spk } });
-  await waitFor(() => expect(cell('Nama item/project', row).querySelector(`option[value="${v.item}"]`)).not.toBeNull());
-  fireEvent.change(cell('Nama item/project', row), { target: { value: v.item } });
-  fireEvent.change(cell('Nama barang', row), { target: { value: v.itemId } });
+  await pick('No. SPK', row, v.spk);
+  // the item/produk choices load after the SPK is picked; findByRole waits for them
+  await pick('Nama item/project', row, v.item);
+  await pick('Nama barang', row, itemName[v.itemId]);
   fireEvent.change(cell('Jumlah', row), { target: { value: v.qty } });
 }
 
@@ -96,7 +102,7 @@ describe('BarangKeluar create', () => {
     fillHeader();
     fireEvent.click(screen.getByText('Simpan'));
     expect(screen.getByText(/Isi No\. SPK, nama item/)).not.toBeNull();
-    fireEvent.change(cell('Nama barang', 1), { target: { value: '1' } });
+    await pick('Nama barang', 1, 'Triplex');
     fireEvent.click(screen.getByText('Simpan'));
     expect(screen.getByText(/Isi No\. SPK, nama item/)).not.toBeNull();
     expect(api.calls('POST /api/v1/outbound').length).toBe(0);
@@ -111,9 +117,10 @@ describe('BarangKeluar create', () => {
       ]),
     });
     await openForm(api);
-    fireEvent.change(cell('No. SPK', 1), { target: { value: 'SPK-9' } });
-    const options = () => [...cell('Nama item/project', 1).querySelectorAll('option')].map((o) => o.value);
-    await waitFor(() => expect(options()).toEqual(['', 'Lemari Dapur']));
+    await pick('No. SPK', 1, 'SPK-9');
+    fireEvent.click(cell('Nama item/project', 1));
+    await screen.findByRole('option', { name: 'Lemari Dapur' });
+    expect(within(screen.getByRole('listbox')).getAllByRole('option').map((o) => o.textContent)).toEqual(['Lemari Dapur']);
     expect(api.calls('GET /api/v1/material-requests')[0].query.get('search')).toBe('SPK-9');
   });
 
@@ -132,7 +139,7 @@ describe('BarangKeluar create', () => {
     await openForm(api);
     expect(screen.getByText('Jumlah Stok', { selector: 'th' })).not.toBeNull();
     expect(screen.queryByLabelText('PIC baris 1')).toBeNull();
-    fireEvent.change(cell('Nama barang', 1), { target: { value: '2' } });
+    await pick('Nama barang', 1, 'Paku');
     expect(cell('Nama barang', 1).closest('tr')!.lastElementChild!.textContent).toBe('140');
   });
 
