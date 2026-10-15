@@ -213,6 +213,46 @@ describe('DataBarang adjust stock', () => {
 
 const who = (permissions: string[], isSuperadmin = false) => ({ id: 1, username: 'u', email: 'u@x.id', roleId: 2, roleName: 'Staff', isSuperadmin, permissions });
 
+describe('DataBarang QR labels', () => {
+  const openSpy = () => {
+    const doc = { write: vi.fn(), close: vi.fn() };
+    const win = { document: doc, print: vi.fn(), close: vi.fn(), onload: null as null | (() => void) };
+    vi.spyOn(window, 'open').mockReturnValue(win as unknown as Window);
+    return { doc, win };
+  };
+
+  it('only lets items with a code be selected, and prints the selected labels', async () => {
+    const { doc } = openSpy();
+    const api = setup();
+    await ready(api);
+    expect((screen.getByLabelText('Pilih Barang 2 untuk cetak label') as HTMLInputElement).disabled).toBe(true);
+    expect((screen.getByText('Cetak Label QR').closest('button') as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByLabelText('Pilih Barang 1 untuk cetak label'));
+    fireEvent.click(screen.getByText(/Cetak Label QR \(1\)/));
+    await waitFor(() => expect(doc.write).toHaveBeenCalledTimes(1));
+    const html = doc.write.mock.calls[0][0] as string;
+    expect(html).toContain('BRG-1');
+    expect(html).toContain('<svg');
+    expect(html).not.toContain('Barang 2');
+  });
+
+  it('prints a single label from the row button', async () => {
+    const { doc } = openSpy();
+    const api = setup();
+    await ready(api);
+    fireEvent.click(screen.getByTitle('Cetak label QR'));
+    await waitFor(() => expect(doc.write).toHaveBeenCalledTimes(1));
+  });
+
+  it('tells the user when the browser blocks the pop-up', async () => {
+    vi.spyOn(window, 'open').mockReturnValue(null);
+    const api = setup();
+    await ready(api);
+    fireEvent.click(screen.getByTitle('Cetak label QR'));
+    expect(await screen.findByText(/Pop-up diblokir/)).not.toBeNull();
+  });
+});
+
 describe('permissions', () => {
   const open = async (user: ReturnType<typeof who>) => {
     installFakeApi({ 'GET /api/v1/items': rows, 'GET /api/v1/locations': locations, 'GET /api/v1/suppliers': suppliers });

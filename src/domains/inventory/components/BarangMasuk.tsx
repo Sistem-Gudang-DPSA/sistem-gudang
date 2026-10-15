@@ -2,12 +2,10 @@
 
 import { useCan } from '@/domains/auth/user-context';
 import React, { useEffect, useState } from 'react';
-import { Search, Plus, Filter } from 'lucide-react';
+import { Search, Plus, Filter, ScanLine } from 'lucide-react';
 import { createInbound, createInboundReturn, listInbound, listItems } from '@/domains/inventory/api';
 import type { StatusQc, ItemListRow } from '@/domains/inventory/types';
 import { listTrackingSpk } from '@/domains/ppic/api';
-import { listSuppliers } from '@/domains/purchasing/api';
-import type { Supplier } from '@/domains/purchasing/types';
 import { displayDate, todayIso, toDateRange } from '@/domains/inventory/date';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
@@ -17,6 +15,7 @@ import { ExportExcellButton } from '@/shared/components/Tombol';
 import { countActiveFilters, emptyBarangFilters } from '@/domains/superadmin/components/BarangFilterPanel';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import DateFilter from '@/shared/components/DateFilter';
+import BarangMasukScan from './BarangMasukScan';
 
 const emptyBaru = { itemId: "", itemName: "", tanggal: todayIso(), jumlahKedatangan: "", jumlahRekap: "", statusQc: "PASS" as StatusQc };
 const emptyKembali = { itemId: "", itemName: "", tanggal: todayIso(), jumlah: "", spk: "" };
@@ -32,12 +31,12 @@ export default function BarangMasukGudang() {
   const [filterYear, setFilterYear] = useState("");
 
   const [items, setItems] = useState<ItemListRow[]>([]);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalData, setModalData] = useState(emptyBaru);
   const [isModalKembaliOpen, setIsModalKembaliOpen] = useState(false);
   const [modalKembaliData, setModalKembaliData] = useState(emptyKembali);
+  const [isScanOpen, setIsScanOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState("");
 
@@ -59,7 +58,6 @@ export default function BarangMasukGudang() {
 
   useEffect(() => {
     listItems({ pageSize: 100 }).then((res) => setItems(res.rows)).catch(() => { });
-    listSuppliers({ pageSize: 100 }).then((res) => setSuppliers(res.rows)).catch(() => { });
   }, []);
 
   // Exports the rows currently loaded in the table.
@@ -85,17 +83,11 @@ export default function BarangMasukGudang() {
       setModalError("Lengkapi semua isian.");
       return;
     }
-    const supplierId = items.find((it) => String(it.id) === itemId)?.supplierId;
-    if (!supplierId) {
-      setModalError("Barang ini belum punya supplier. Atur supplier barang dulu.");
-      return;
-    }
     setSaving(true);
     setModalError("");
     try {
       await createInbound({
         itemId: Number(itemId),
-        supplierId,
         date: tanggal,
         qtyArrived: Number(jumlahKedatangan),
         qtyPurchased: Number(jumlahRekap),
@@ -167,6 +159,13 @@ export default function BarangMasukGudang() {
             >
               <Plus className="w-4 h-4" />
               <span>Barang Baru</span>
+            </button>}
+            {canCreate && <button
+              onClick={() => setIsScanOpen(true)}
+              className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0"
+            >
+              <ScanLine className="w-4 h-4" />
+              <span>Scan Barang</span>
             </button>}
             {canCreate && <button
               onClick={openModalKembali}
@@ -263,6 +262,8 @@ export default function BarangMasukGudang() {
       <datalist id="barang-masuk-items">
         {items.map((it) => <option key={it.id} value={it.name} />)}
       </datalist>
+
+      {isScanOpen && <BarangMasukScan onClose={() => setIsScanOpen(false)} onSaved={reload} />}
 
       {/* Modal Form Barang Masuk */}
       {isModalOpen && (

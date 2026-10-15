@@ -129,6 +129,20 @@ export interface CreateInboundInput {
   notes?: string;
 }
 
+export interface InboundBatchLine {
+  itemId: number;
+  qtyArrived: number;
+  statusQc: StatusQc;
+  qtyPurchased?: number;
+}
+
+export interface CreateInboundBatchInput {
+  date: string;
+  source?: "SUPPLIER" | "PRODUKSI";
+  notes?: string;
+  lines: InboundBatchLine[];
+}
+
 export interface CreateInboundReturnInput {
   itemId: number;
   date: string;
