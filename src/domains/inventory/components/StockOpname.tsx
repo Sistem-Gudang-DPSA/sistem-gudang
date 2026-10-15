@@ -159,13 +159,12 @@ export default function StockOpnameMasterGudang() {
     }
   };
 
-  const handlePrintPdf = async () => {
-    const rowsToPrint = selected.size > 0
-      ? rows.filter((item) => selected.has(item.id))
-      : rows;
+  
+  const handlePrintPdf = async (id: number) => {
+    const item = rows.find((item) => Number(item.id) === Number(id));
 
-    if (rowsToPrint === undefined) {
-      alert("Pilih data stok opname yang ingin diekspor.");
+    if (!item) {
+      setActionError("Data stok opname tidak ditemukan.");
       return;
     }
 
@@ -181,80 +180,37 @@ export default function StockOpnameMasterGudang() {
     setActionError("");
 
     try {
-      // Ambil detail setiap stok opname yang akan dicetak
-      const details = await Promise.all(
-        rowsToPrint.map((item) => getStockOpname(item.id))
+      // Ambil detail hanya untuk ID yang diklik
+      const detailData = await getStockOpname(id);
+
+      const period = periodeLabel(
+        detailData.month,
+        detailData.year
       );
 
-      const bodyRows = details.flatMap((detailData) =>
-        detailData.lines.map((line) => `
-          <tr>
-            <td class="center">${escapeHtml(line.itemCode ?? "-")}</td>
-            <td>${escapeHtml(line.itemName)}</td>
-            <td class="center">${escapeHtml(line.unit)}</td>
-            <td>${escapeHtml(line.category)}</td>
-            <td class="center">${escapeHtml(line.systemQty)}</td>
-            <td class="center">${escapeHtml(line.physicalQty)}</td>
-            <td class="center">${escapeHtml(
-              line.difference > 0 ? `+${line.difference}` : line.difference
-            )}</td>
-            <td>${escapeHtml(line.note ?? "-")}</td>
-          </tr>
-        `)
-      ).join("");
-
-      const sections = details.map((detailData) => {
-        const period = periodeLabel(detailData.month, detailData.year);
-
-        const lines = detailData.lines.map((line, index) => `
-          <tr>
-            <td class="center">${index + 1}</td>
-            <td>${escapeHtml(line.itemCode ?? "-")}</td>
-            <td>${escapeHtml(line.itemName)}</td>
-            <td class="center">${escapeHtml(line.unit)}</td>
-            <td>${escapeHtml(line.category)}</td>
-            <td class="center">${escapeHtml(line.systemQty)}</td>
-            <td class="center">${escapeHtml(line.physicalQty)}</td>
-            <td class="center">${escapeHtml(
-              line.difference > 0 ? `+${line.difference}` : line.difference
-            )}</td>
-            <td>${escapeHtml(line.note ?? "-")}</td>
-          </tr>
-        `).join("");
-
-        return `
-          <section>
-            <h2>${escapeHtml(period)}</h2>
-            ${detailData.notes
-              ? `<p class="meta">Catatan: ${escapeHtml(detailData.notes)}</p>`
-              : ""}
-            <table>
-              <thead>
-                <tr>
-                  <th class="center">No</th>
-                  <th>Kode Barang</th>
-                  <th>Nama Barang</th>
-                  <th class="center">Satuan</th>
-                  <th>Kategori</th>
-                  <th class="center">Jumlah Sistem</th>
-                  <th class="center">Jumlah Fisik</th>
-                  <th class="center">Selisih</th>
-                  <th>Keterangan</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${lines || '<tr><td colspan="9" class="center">Tidak ada detail barang.</td></tr>'}
-              </tbody>
-            </table>
-          </section>
-        `;
-      }).join("");
+      const lines = detailData.lines.map((line, index) => `
+        <tr>
+          <td class="center">${index + 1}</td>
+          <td>${escapeHtml(line.itemCode ?? "-")}</td>
+          <td>${escapeHtml(line.itemName)}</td>
+          <td class="center">${escapeHtml(line.unit)}</td>
+          <td>${escapeHtml(line.category)}</td>
+          <td class="center">${escapeHtml(line.systemQty)}</td>
+          <td class="center">${escapeHtml(line.physicalQty)}</td>
+          <td class="center">${escapeHtml(
+            line.difference > 0
+              ? `+${line.difference}`
+              : line.difference
+          )}</td>
+          <td>${escapeHtml(line.note ?? "-")}</td>
+        </tr>
+      `).join("");
 
       win.document.write(`<!doctype html>
         <html lang="id">
         <head>
           <meta charset="utf-8">
-          <title>Rekap Stok Opname</title>
+          <title>Stok Opname ${escapeHtml(period)}</title>
           <style>
             @page { size: A4 landscape; margin: 12mm; }
             body {
@@ -262,24 +218,11 @@ export default function StockOpnameMasterGudang() {
               color: #111;
               font-size: 11px;
             }
-            h1 {
-              font-size: 20px;
-              margin-bottom: 6px;
-              text-transform: uppercase;
-            }
-            h2 {
-              font-size: 15px;
-              margin: 20px 0 8px;
-            }
-            .meta {
-              font-size: 11px;
-              color: #444;
-              margin-bottom: 10px;
-            }
+            h1 { font-size: 20px; }
+            h2 { font-size: 15px; }
             table {
               width: 100%;
               border-collapse: collapse;
-              table-layout: auto;
               font-size: 10px;
             }
             th, td {
@@ -287,32 +230,49 @@ export default function StockOpnameMasterGudang() {
               padding: 6px;
               text-align: left;
               vertical-align: top;
-              overflow-wrap: anywhere;
             }
             th { background: #eee; }
-            thead { display: table-header-group; }
-            tr { page-break-inside: avoid; }
             .center { text-align: center; }
-            section { page-break-after: always; }
-            section:last-child { page-break-after: auto; }
+            .meta { color: #444; }
+            tr { page-break-inside: avoid; }
           </style>
         </head>
         <body>
           <h1>Rekap Stok Opname</h1>
-          <p class="meta">
-            Jumlah periode: ${details.length}
-            ${selected.size > 0
-              ? ` | ${rowsToPrint.length} periode dipilih`
-              : " | Seluruh periode pada halaman aktif"}
-          </p>
-          ${sections}
+          <h2>${escapeHtml(period)}</h2>
+          <p class="meta">ID Stok Opname: ${escapeHtml(id)}</p>
+          ${
+            detailData.notes
+              ? `<p class="meta">Catatan: ${escapeHtml(detailData.notes)}</p>`
+              : ""
+          }
+          <table>
+            <thead>
+              <tr>
+                <th class="center">No</th>
+                <th>Kode Barang</th>
+                <th>Nama Barang</th>
+                <th class="center">Satuan</th>
+                <th>Kategori</th>
+                <th class="center">Jumlah Sistem</th>
+                <th class="center">Jumlah Fisik</th>
+                <th class="center">Selisih</th>
+                <th>Keterangan</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${
+                lines ||
+                '<tr><td colspan="9" class="center">Tidak ada detail barang.</td></tr>'
+              }
+            </tbody>
+          </table>
         </body>
         </html>`);
 
       win.document.close();
-      win.focus();
 
-      // Beri waktu browser menyelesaikan layout sebelum membuka dialog cetak
+      // Cetak setelah dokumen selesai dimuat
       win.onload = () => win.print();
     } catch (err) {
       win.close();
@@ -323,6 +283,7 @@ export default function StockOpnameMasterGudang() {
       );
     }
   };
+
 
 
   return (
@@ -427,7 +388,7 @@ export default function StockOpnameMasterGudang() {
                       </button>
                       <button
                         type='button'
-                        onClick={handlePrintPdf}
+                        onClick={() => handlePrintPdf(item.id)}
                         className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-orange-50 text-orange-600 font-bold rounded-lg text-xs hover:bg-blue-100 transition-all disabled:opacity-60"
                       >
                         <Download className='h-3.5 w-3.5'/>

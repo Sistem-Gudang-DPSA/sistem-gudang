@@ -115,10 +115,7 @@ const handlePhysicalQtyChange = (itemId: number, value: number) => {
 
   const handleSimpan = async () => {
     const filled = data;
-    if (filled.length === 0 || filled.some((row) => row.jumlah === "")) {
-      setError("Pilih barang dan isi jumlah fisik di setiap baris yang dipakai.");
-      return;
-    }
+
     const ids = filled.map((row) => row.itemId);
     if (new Set(ids).size !== ids.length) {
       setError("Satu barang hanya boleh muncul sekali per stok opname.");
