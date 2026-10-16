@@ -1,5 +1,5 @@
 import { AuthUserProvider } from '@/domains/auth/user-context';
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { installFakeApi, paged, fail } from '@/test/fake-api';
 import BarangKeluar from './BarangKeluar';
@@ -10,14 +10,36 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/gudang/barang-keluar',
 }));
 
+const qr = vi.hoisted(() => ({
+  cb: null as null | ((r: { data: string }) => void),
+  start: vi.fn(async () => {}),
+  stop: vi.fn(),
+  destroy: vi.fn(),
+}));
+vi.mock('qr-scanner', () => ({
+  default: class {
+    constructor(_video: unknown, cb: (r: { data: string }) => void) { qr.cb = cb; }
+    start = qr.start;
+    stop = qr.stop;
+    destroy = qr.destroy;
+  },
+}));
+
 const trx = (id: number) => ({
   id, date: '2026-03-05T00:00:00.000Z', clientName: `Klien ${id}`, spk: `SPK-${id}`, itemName: `Proyek ${id}`,
   warehouseType: 'WIP', recipientType: 'KLIEN', notes: null, createdBy: 1, createdAt: '2026-03-05T00:00:00.000Z',
   lines: [{ itemId: 1, itemCode: 'BRG-1', itemName: 'Triplex', qty: 4, pic: 'Andi' }, { itemId: 2, itemCode: 'BRG-2', itemName: 'Paku', qty: 9, pic: 'Andi' }],
 });
-const tracking = { 'GET /api/v1/tracking/spk': [{ noSpk: 'SPK-1', client: 'Klien 1' }, { noSpk: 'SPK-9', client: 'PT Maju' }, { noSpk: 'SPK-7', client: 'PT Jaya' }] };
-// Item Produksi per SPK, the choices of the Nama Produk/Proyek dropdown
-const materials = { 'GET /api/v1/material-requests': paged([{ id: 1, spk: 'SPK-9', productionItem: 'Lemari' }, { id: 2, spk: 'SPK-7', productionItem: 'Meja' }]) };
+// Transaksi yang baru dicatat, jadi Edit masih terbuka
+const baru = () => ({ ...trx(1), createdAt: new Date().toISOString() });
+const tracking = { 'GET /api/v1/tracking/spk': [{ noSpk: 'SPK-1', client: 'Klien 1' }, { noSpk: 'SPK-9', client: 'PT Maju' }, { noSpk: 'SPK-7', client: 'PT Jaya' }, { noSpk: 'SPK-8', client: 'PT Gagal' }] };
+// Client and products of one SPK from tracking, the choices of the Nama Produk/Proyek dropdown
+const trackingDetail = (noSpk: string, client: string, products: { name: string; qty: number; unit: string }[]) => ({ noSpk, client, projectName: `Proyek ${noSpk}`, products });
+const details = {
+  'GET /api/v1/tracking/spk/SPK-9': trackingDetail('SPK-9', 'PT Maju', [{ name: 'Lemari', qty: 2, unit: 'unit' }, { name: 'Meja', qty: 1, unit: 'unit' }]),
+  'GET /api/v1/tracking/spk/SPK-7': trackingDetail('SPK-7', 'PT Jaya', []),
+  'GET /api/v1/tracking/spk/SPK-8': fail(502, 'Tracking tidak tersedia'),
+};
 const items = paged([{ id: 1, code: 'BRG-1', name: 'Triplex', stock: 25 }, { id: 2, code: 'BRG-2', name: 'Paku', stock: 140 }]);
 const item = (id: number, code: string, name: string, unit: string, stock: number) => ({ id, code, name, unit, stock, category: 'Bahan', price: 0, locationId: null, supplierId: null, createdAt: null, updatedAt: null });
 const scanned = {
@@ -34,7 +56,7 @@ const dokubah = {
 };
 
 function setup(extra: Record<string, unknown> = {}, rows: unknown = paged([trx(1)])) {
-  const api = installFakeApi({ 'GET /api/v1/outbound': rows, 'GET /api/v1/items': items, ...tracking, ...materials, ...scanned, ...dokubah, ...extra });
+  const api = installFakeApi({ 'GET /api/v1/outbound': rows, 'GET /api/v1/items': items, ...tracking, ...details, ...scanned, ...dokubah, ...extra });
   render(<BarangKeluar />);
   return api;
 }
@@ -57,9 +79,12 @@ async function choose(trigger: HTMLElement, option: string) {
   fireEvent.click(await screen.findByRole('option', { name: option }));
 }
 
-async function fillHeader(v: { spk: string; item: string } = { spk: 'SPK-9', item: 'Lemari' }) {
+// Scan Barang and the camera stay disabled until the Nama Pengambil is filled
+const typePengambil = () => fireEvent.change(label('Nama Pengambil'), { target: { value: 'Rudi' } });
+
+async function fillHeader(v: { spk: string; item: string } = { spk: 'SPK-9', item: 'Lemari (2 unit)' }) {
   await choose(label('SPK'), v.spk);
-  fireEvent.change(label('Nama Pengambil'), { target: { value: 'Rudi' } });
+  typePengambil();
   // the produk/proyek choices load after the SPK is picked; findByRole waits for them
   await choose(label('Nama Produk/Proyek'), v.item);
 }
@@ -76,16 +101,103 @@ const cellsOf = (name: string) => Array.from(rowOf(name).querySelectorAll('td'))
 afterEach(() => vi.useRealTimers());
 
 describe('BarangKeluar list', () => {
-  it('flattens transaction lines into rows and sends page 1 / pageSize 20', async () => {
+  it('shows one collapsed row per transaction and sends page 1 / pageSize 20', async () => {
     const api = setup();
     expect(await screen.findByText('Triplex')).not.toBeNull();
-    expect(screen.getByText('Paku')).not.toBeNull();
-    // One row per item line; the transaction columns (client, date) render only on the first line of each transaction.
-    expect(screen.getAllByRole('row').length).toBe(3); // header + 2 lines
+    // The second line stays behind the chevron until the transaction is expanded
+    expect(screen.queryByText('Paku')).toBeNull();
+    expect(screen.getByText('+1 barang lainnya')).not.toBeNull();
+    expect(screen.getAllByRole('row').length).toBe(2); // header + 1 transaction
     expect(screen.getAllByText('Klien 1').length).toBe(1);
     expect(screen.getAllByText('05-03-2026').length).toBe(1);
     expect(lastQ(api).get('page')).toBe('1');
     expect(lastQ(api).get('pageSize')).toBe('20');
+  });
+
+  it('shows the Pengambil once per transaction, right after Nama Item/Projek', async () => {
+    setup({}, paged([{ ...trx(1), lines: [{ itemId: 1, itemCode: 'BRG-1', itemName: 'Triplex', qty: 4, pic: 'Andi' }, { itemId: 2, itemCode: 'BRG-2', itemName: 'Paku', qty: 9, pic: 'Budi' }] }]));
+    await screen.findByText('Triplex');
+    expect(screen.getAllByRole('columnheader').slice(0, 8).map((th) => th.textContent))
+      .toEqual(['No', 'Transaksi', 'Client / SPK', 'Nama Item/Projek', 'Pengambil', 'Barang', 'Jumlah', 'Action']);
+    // Pengambil (5th td) is the first line's pic on the collapsed row; the sub-row of Paku leaves it empty
+    const pengambilOf = (name: string) => screen.getByText(name).closest('tr')!.querySelectorAll('td')[4].textContent;
+    expect(pengambilOf('Triplex')).toBe('Andi');
+    fireEvent.click(screen.getByRole('button', { name: 'Buka rincian barang 1' }));
+    expect(pengambilOf('Paku')).toBe('');
+  });
+
+  it('highlights every row of a transaction, sub-rows included, while one of its rows is hovered', async () => {
+    setup();
+    await screen.findByText('Triplex');
+    fireEvent.click(screen.getByRole('button', { name: 'Buka rincian barang 1' }));
+    const rows = screen.getAllByRole('row').slice(1);
+    expect(rows.map((r) => r.dataset.hover)).toEqual([undefined, undefined, undefined]);
+    fireEvent.mouseEnter(screen.getByText('Paku').closest('tr')!);
+    expect(rows.map((r) => r.dataset.hover)).toEqual(['true', 'true', 'true']);
+    fireEvent.mouseLeave(screen.getByText('Paku').closest('tr')!);
+    expect(rows.map((r) => r.dataset.hover)).toEqual([undefined, undefined, undefined]);
+  });
+
+  it('expands a multi-line transaction into one sub-row per line, each with its own Edit', async () => {
+    setup({}, paged([baru()]));
+    await screen.findAllByText('Klien 1');
+    expect(screen.queryByLabelText('Edit barang keluar 1 Paku')).toBeNull();
+    const chevron = screen.getByRole('button', { name: 'Buka rincian barang 1' });
+    expect(chevron.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(chevron);
+    expect(screen.getByRole('button', { name: 'Tutup rincian barang 1' }).getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getAllByRole('row')).toHaveLength(4); // header, transaksi, 2 barang
+    expect(screen.getByLabelText('Edit barang keluar 1 Triplex')).toBeTruthy();
+    expect(screen.getByLabelText('Edit barang keluar 1 Paku')).toBeTruthy();
+    expect(screen.getByText('Paku').closest('tr')!.querySelectorAll('td')[6].textContent).toBe('9');
+    fireEvent.click(screen.getByRole('button', { name: 'Tutup rincian barang 1' }));
+    expect(screen.getAllByRole('row')).toHaveLength(2);
+  });
+
+  it('totals the qty of a multi-line transaction on its collapsed row, without an Edit button there', async () => {
+    setup({}, paged([baru()]));
+    await screen.findByText('Triplex');
+    const row = screen.getByText('+1 barang lainnya').closest('tr')!;
+    expect(row.querySelectorAll('td')[6].textContent).toBe('13');
+    expect(row.querySelector('button[aria-label^="Edit"]')).toBeNull();
+  });
+
+  it('shows Edit directly in the row of a single-line transaction, without a chevron', async () => {
+    setup({}, paged([{ ...baru(), lines: [trx(1).lines[0]] }]));
+    await screen.findAllByText('Klien 1');
+    expect(screen.queryByRole('button', { name: /rincian barang/ })).toBeNull();
+    expect(screen.queryByText(/barang lainnya/)).toBeNull();
+    const row = screen.getByLabelText('Edit barang keluar 1 Triplex').closest('tr')!;
+    expect(row.querySelectorAll('td')[6].textContent).toBe('4');
+    expect(screen.getAllByRole('row')).toHaveLength(2);
+  });
+
+  it('opens the rincian pop-up from the transaction number with every line and the edit status', async () => {
+    setup();
+    await screen.findAllByText('Klien 1');
+    // The number, the Nama Item/Projek and the Barang name all open the same pop-up
+    fireEvent.click(screen.getAllByRole('button', { name: 'Lihat rincian 1' })[0]);
+    const dialog = screen.getByRole('dialog', { name: 'Rincian Barang Keluar' });
+    expect(within(dialog).getByText('Triplex')).toBeTruthy();
+    expect(within(dialog).getByText('Paku')).toBeTruthy();
+    expect(within(dialog).getByText('Sudah lewat 1 hari, tidak bisa diedit')).toBeTruthy();
+    expect(within(dialog).getByText(/\d{2}-\d{2}-2026 \d{2}:\d{2}/)).toBeTruthy(); // Dicatat
+    fireEvent.click(within(dialog).getByLabelText('Tutup rincian'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(screen.getByText('Proyek 1'));
+    expect(screen.getByRole('dialog', { name: 'Rincian Barang Keluar' })).toBeTruthy();
+  });
+
+  it('edits a line from the rincian pop-up, which closes before the edit form opens', async () => {
+    const api = setup({}, paged([baru()]));
+    await screen.findAllByText('Klien 1');
+    await waitFor(() => expect(api.calls('GET /api/v1/items').length).toBeGreaterThan(0));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Lihat rincian 1' })[0]);
+    const dialog = screen.getByRole('dialog', { name: 'Rincian Barang Keluar' });
+    expect(within(dialog).getByText(/Bisa diedit sampai/)).toBeTruthy();
+    fireEvent.click(within(dialog).getByLabelText('Edit barang keluar 1 Paku'));
+    expect(screen.queryByRole('dialog', { name: 'Rincian Barang Keluar' })).toBeNull();
+    expect(label('Jumlah').value).toBe('9');
   });
 
   it('shows empty state', async () => {
@@ -128,6 +240,21 @@ describe('BarangKeluar create', () => {
     expect(api.calls('POST /api/v1/outbound').length).toBe(0);
   });
 
+  it('keeps Scan Barang and the camera disabled until Nama Pengambil is filled', async () => {
+    const api = setup();
+    await openForm(api);
+    const scanBtn = screen.getByText('Scan Barang').closest('button') as HTMLButtonElement;
+    expect(scanBtn.disabled).toBe(true);
+    expect(screen.getByText('Isi Nama Pengambil dulu')).not.toBeNull();
+    fireEvent.click(scanBtn);
+    expect(screen.queryByLabelText('Hasil scan')).toBeNull();
+    typePengambil();
+    expect(scanBtn.disabled).toBe(false);
+    expect(screen.queryByText('Isi Nama Pengambil dulu')).toBeNull();
+    fireEvent.click(scanBtn);
+    expect((screen.getByText('Kamera').closest('button') as HTMLButtonElement).disabled).toBe(false);
+  });
+
   it('stacks the header fields and fills Client from the chosen SPK', async () => {
     const api = setup();
     await openForm(api);
@@ -135,28 +262,50 @@ describe('BarangKeluar create', () => {
     expect(label('Client').readOnly).toBe(true);
     expect(label('Client').value).toBe('');
     await choose(label('SPK'), 'SPK-7');
-    expect(label('Client').value).toBe('PT Jaya');
+    await waitFor(() => expect(label('Client').value).toBe('PT Jaya'));
   });
 
-  it('offers the Item Produksi of the chosen SPK plus Stok as Nama Produk/Proyek choices', async () => {
-    const api = setup({
-      'GET /api/v1/material-requests': paged([
-        { id: 1, spk: 'SPK-9', productionItem: 'Lemari Dapur' },
-        { id: 2, spk: 'SPK-9', productionItem: 'Lemari Dapur' },
-        { id: 3, spk: 'SPK-90', productionItem: 'Meja Lain' },
-      ]),
-    });
+  it('searches SPK on the server with the typed text, not only the loaded list', async () => {
+    const api = setup();
+    await openForm(api);
+    fireEvent.click(label('SPK'));
+    fireEvent.change(await screen.findByLabelText('Cari SPK'), { target: { value: ' maju ' } });
+    await waitFor(() => expect(api.calls('GET /api/v1/tracking/spk').some((c) => c.query.get('search') === 'maju')).toBe(true));
+    const cari = api.calls('GET /api/v1/tracking/spk').find((c) => c.query.get('search') === 'maju')!;
+    expect(cari.query.get('limit')).toBe('50');
+  });
+
+  it('offers the products of the chosen SPK from tracking plus Stok as Nama Produk/Proyek choices', async () => {
+    const api = setup();
     await openForm(api);
     await choose(label('SPK'), 'SPK-9');
     fireEvent.click(label('Nama Produk/Proyek'));
-    await screen.findByRole('option', { name: 'Lemari Dapur' });
-    expect(within(screen.getByRole('listbox')).getAllByRole('option').map((o) => o.textContent)).toEqual(['Lemari Dapur', 'Stok']);
-    expect(api.calls('GET /api/v1/material-requests')[0].query.get('search')).toBe('SPK-9');
+    await screen.findByRole('option', { name: 'Lemari (2 unit)' });
+    expect(within(screen.getByRole('listbox')).getAllByRole('option').map((o) => o.textContent)).toEqual(['Lemari (2 unit)', 'Meja (1 unit)', 'Stok']);
+    expect(api.calls('GET /api/v1/tracking/spk/SPK-9')).toHaveLength(1);
+  });
+
+  it('offers only Stok when tracking has no products for the SPK', async () => {
+    const api = setup();
+    await openForm(api);
+    await choose(label('SPK'), 'SPK-7');
+    await waitFor(() => expect(label('Client').value).toBe('PT Jaya'));
+    fireEvent.click(label('Nama Produk/Proyek'));
+    expect(within(screen.getByRole('listbox')).getAllByRole('option').map((o) => o.textContent)).toEqual(['Stok']);
+  });
+
+  it('shows a message under Nama Produk/Proyek when the tracking detail fails', async () => {
+    const api = setup();
+    await openForm(api);
+    await choose(label('SPK'), 'SPK-8');
+    expect(await screen.findByText('Gagal memuat produk dari tracking. Pilih SPK lagi.')).not.toBeNull();
+    expect(api.calls('GET /api/v1/tracking/spk/SPK-8')).toHaveLength(1);
   });
 
   it('shows the scanner input only after pressing Scan Barang, and the table headers', async () => {
     const api = setup();
     await openForm(api);
+    typePengambil();
     expect(screen.queryByLabelText('Hasil scan')).toBeNull();
     fireEvent.click(screen.getByText('Scan Barang'));
     expect(document.activeElement).toBe(label('Hasil scan'));
@@ -167,6 +316,7 @@ describe('BarangKeluar create', () => {
   it('fills a row per scanned item, adds 1 on a repeat scan and reports unknown codes', async () => {
     const api = setup();
     await openForm(api);
+    typePengambil();
     scan('BRG-1');
     await screen.findByText('Triplex', { selector: 'td' });
     expect(cellsOf('Triplex').slice(0, 4)).toEqual(['1', 'Triplex', 'lembar', 'BRG-1']);
@@ -183,6 +333,7 @@ describe('BarangKeluar create', () => {
   it('pulls the Dokubah kuota of the scanned material from the approved dokubah of the SPK', async () => {
     const api = setup();
     await openForm(api);
+    typePengambil();
     scan('HPL-01');
     await screen.findByText('HPL Putih', { selector: 'td' });
     expect(cellsOf('HPL Putih')[4]).toBe('Pilih SPK dulu');
@@ -200,6 +351,7 @@ describe('BarangKeluar create', () => {
     const api = setup({ 'GET /api/v1/dokubah': paged([]) });
     await openForm(api);
     await choose(label('SPK'), 'SPK-7');
+    typePengambil();
     scan('BRG-1');
     await screen.findByText('Triplex', { selector: 'td' });
     await waitFor(() => expect(cellsOf('Triplex')[4]).toBe('Tidak ada di dokubah'));
@@ -209,6 +361,7 @@ describe('BarangKeluar create', () => {
     const api = setup();
     await openForm(api);
     expect(label('Nama Pengambil').maxLength).toBe(191);
+    typePengambil();
     scan('BRG-1');
     await screen.findByText('Triplex', { selector: 'td' });
     const q = label('Pengambilan Triplex');
@@ -263,16 +416,15 @@ describe('BarangKeluar create', () => {
 });
 
 describe('BarangKeluar edit', () => {
-  const baru = () => ({ ...trx(1), createdAt: new Date().toISOString() });
-
   it('opens the edit pop-up within 1 day and PUTs the whole transaction with the edited line', async () => {
     const api = setup({ 'PUT /api/v1/outbound/1': { id: 1 } }, paged([baru()]));
     await screen.findAllByText('Klien 1');
     await waitFor(() => expect(api.calls('GET /api/v1/items').length).toBeGreaterThan(0));
+    fireEvent.click(screen.getByRole('button', { name: 'Buka rincian barang 1' }));
     fireEvent.click(screen.getByLabelText('Edit barang keluar 1 Paku'));
     expect(label('Nama Client').value).toBe('Klien 1');
     expect(label('Jumlah').value).toBe('9');
-    fireEvent.change(label('SPK'), { target: { value: 'SPK-9' } });
+    await choose(label('SPK'), 'SPK-9');
     expect(label('Nama Client').value).toBe('PT Maju');
     fireEvent.change(label('Jumlah'), { target: { value: '12' } });
     fireEvent.click(screen.getByText('Simpan Perubahan'));
@@ -288,6 +440,7 @@ describe('BarangKeluar edit', () => {
     const api = setup({ 'PUT /api/v1/outbound/1': { id: 1 } }, paged([baru()]));
     await screen.findAllByText('Klien 1');
     await waitFor(() => expect(api.calls('GET /api/v1/items').length).toBeGreaterThan(0));
+    fireEvent.click(screen.getByRole('button', { name: 'Buka rincian barang 1' }));
     fireEvent.click(screen.getByLabelText('Edit barang keluar 1 Paku'));
     expect(screen.getByText('Simpan Perubahan')).toBeTruthy();
     // Only Date is faked so waitFor keeps working; move the clock 25h past createdAt
@@ -299,15 +452,59 @@ describe('BarangKeluar edit', () => {
     expect(api.calls('PUT /api/v1/outbound/1')).toHaveLength(0);
   });
 
+  it('shows the Client of the SPK even when it is outside the first 50 of the list', async () => {
+    const api = setup({ 'GET /api/v1/tracking/spk': [{ noSpk: 'SPK-1', client: 'Klien 1' }] }, paged([{ ...baru(), spk: 'SPK-9' }]));
+    await screen.findAllByText('Klien 1');
+    fireEvent.click(screen.getByRole('button', { name: 'Buka rincian barang 1' }));
+    fireEvent.click(screen.getByLabelText('Edit barang keluar 1 Paku'));
+    await waitFor(() => expect(label('Nama Client').value).toBe('PT Maju'));
+    expect(screen.getByLabelText('SPK').textContent).toContain('SPK-9');
+    expect(api.calls('GET /api/v1/tracking/spk/SPK-9')).toHaveLength(1);
+  });
+
   it('locks Edit after 1 day and shows a warning instead of the form', async () => {
     const api = setup({}, paged([trx(1)]));
     await screen.findAllByText('Klien 1');
+    fireEvent.click(screen.getByRole('button', { name: 'Buka rincian barang 1' }));
     const tombol = screen.getByLabelText('Edit barang keluar 1 Triplex (terkunci)');
     expect((tombol as HTMLButtonElement).disabled).toBe(true);
     // A native disabled button swallows clicks, so the warning pop-up is not reachable from here.
     fireEvent.click(tombol);
     expect(screen.queryByText('Simpan Perubahan')).toBeNull();
     expect(api.calls('PUT /api/v1/outbound/1').length).toBe(0);
+  });
+});
+
+describe('BarangKeluar camera', () => {
+  beforeEach(() => {
+    Object.defineProperty(window, 'isSecureContext', { value: true, configurable: true });
+    qr.cb = null; qr.start.mockClear(); qr.stop.mockClear(); qr.destroy.mockClear();
+  });
+
+  it('starts the camera, adds a line per decoded QR and stops it on toggle off', async () => {
+    const api = setup();
+    await openForm(api);
+    typePengambil();
+    fireEvent.click(screen.getByText('Scan Barang'));
+    fireEvent.click(screen.getByText('Kamera'));
+    await waitFor(() => expect(qr.start).toHaveBeenCalled());
+    qr.cb!({ data: 'BRG-1' });
+    await screen.findByText('Triplex', { selector: 'td' });
+    expect(label('Pengambilan Triplex').value).toBe('1');
+    fireEvent.click(screen.getByText('Matikan kamera'));
+    expect(qr.stop).toHaveBeenCalled();
+    expect(qr.destroy).toHaveBeenCalled();
+  });
+
+  it('stops the camera when the form is closed', async () => {
+    const api = setup();
+    await openForm(api);
+    typePengambil();
+    fireEvent.click(screen.getByText('Scan Barang'));
+    fireEvent.click(screen.getByText('Kamera'));
+    await waitFor(() => expect(qr.start).toHaveBeenCalled());
+    fireEvent.click(screen.getByLabelText('Tutup form'));
+    await waitFor(() => expect(qr.stop).toHaveBeenCalled());
   });
 });
 
