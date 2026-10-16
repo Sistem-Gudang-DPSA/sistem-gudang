@@ -26,16 +26,12 @@ const textbox = (ph: string) => screen.getByPlaceholderText(ph) as HTMLInputElem
 const dateSelect = (placeholder: string) => screen.getByRole('option', { name: placeholder }).closest('select') as HTMLSelectElement;
 
 async function openBaru(api: ReturnType<typeof installFakeApi>) {
-  await waitFor(() => expect(api.calls('GET /api/v1/suppliers').length).toBeGreaterThan(0));
   await screen.findByText('Triplex 1');
   fireEvent.click(screen.getByText('Barang Baru'));
   await screen.findByText('FORM BARANG MASUK');
-  await screen.findByText('PT Kayu', { selector: 'option' });
 }
 function fillBaru() {
   fireEvent.change(textbox('Isi Nama Barang'), { target: { value: 'Triplex 1' } });
-  const sup = (screen.getByText('Sesuaikan supplier') as HTMLElement).parentElement!;
-  fireEvent.change(sup, { target: { value: '7' } });
   const qty = screen.getAllByPlaceholderText('0') as HTMLInputElement[];
   fireEvent.change(qty[0], { target: { value: '15' } });
   fireEvent.change(qty[1], { target: { value: '20' } });
@@ -45,7 +41,6 @@ describe('BarangMasuk list', () => {
   it('shows rows incl. return rows and requests page 1 / pageSize 20', async () => {
     const { api } = setup();
     expect(await screen.findByText('Triplex 1')).not.toBeNull();
-    expect(screen.getByText('Retur - Budi')).not.toBeNull();
     expect(screen.getAllByText('05-03-2026').length).toBe(2);
     const q = lastList(api);
     expect(q.get('page')).toBe('1');
@@ -87,6 +82,16 @@ describe('BarangMasuk list', () => {
   });
 });
 
+describe('BarangMasuk scan', () => {
+  it('opens the scan session from the Scan Barang button', async () => {
+    const { api } = setup();
+    await screen.findByText('Triplex 1');
+    expect(api.calls('GET /api/v1/items').length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByText('Scan Barang'));
+    expect(await screen.findByLabelText('Hasil scan')).not.toBeNull();
+  });
+});
+
 describe('BarangMasuk create inbound', () => {
   it('validates required fields', async () => {
     const { api } = setup();
@@ -115,7 +120,7 @@ describe('BarangMasuk create inbound', () => {
     fireEvent.change(document.querySelector('select option[value="PARTIAL_RETUR"]')!.parentElement!, { target: { value: 'PARTIAL_RETUR' } });
     fireEvent.click(screen.getByText('Simpan'));
     await waitFor(() => expect(api.calls('POST /api/v1/inbound').length).toBe(1));
-    expect(api.calls('POST /api/v1/inbound')[0].body).toEqual({ itemId: 1, supplierId: 7, date: '2026-04-01', qtyArrived: 15, qtyPurchased: 20, statusQc: 'PARTIAL_RETUR' });
+    expect(api.calls('POST /api/v1/inbound')[0].body).toEqual({ itemId: 1, date: '2026-04-01', qtyArrived: 15, qtyPurchased: 20, statusQc: 'PARTIAL_RETUR' });
     await waitFor(() => expect(screen.queryByText('FORM BARANG MASUK')).toBeNull());
   });
 

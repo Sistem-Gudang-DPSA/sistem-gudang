@@ -2,9 +2,10 @@
 
 import { useCan } from '@/domains/auth/user-context';
 import React, { useEffect, useRef, useState } from 'react';
-import { Search, Calendar, Plus, AlertCircle, Download, X, ChevronDown, Pencil, Lock, Filter } from 'lucide-react';
-import { createOutbound, exportOutboundReport, listOutbound, listItems, listMaterialRequests, updateOutbound, deleteItem } from '@/domains/inventory/api';
-import { listTrackingSpk } from '@/domains/ppic/api';
+import { Search, Calendar, Plus, Minus, AlertCircle, Download, X, ChevronDown, Pencil, Lock, Filter, ScanLine, Trash2 } from 'lucide-react';
+import { createOutbound, exportOutboundReport, getItemByCode, listOutbound, listItems, listMaterialRequests, updateOutbound, deleteItem } from '@/domains/inventory/api';
+import { getDokubah, listDokubah, listTrackingSpk } from '@/domains/ppic/api';
+import type { BahanDokubah } from '@/domains/ppic/data/dokubah';
 import type { RecipientType, ItemListRow, OutboundRow } from '@/domains/inventory/types';
 import { displayDate, todayIso, toDateRange } from '@/domains/inventory/date';
 import { ApiError } from '@/shared/lib/api-client';
@@ -16,12 +17,12 @@ import DateFilter from '@/shared/components/DateFilter';
 import SearchableSelect from '@/shared/components/SearchableSelect';
 
 
-// Satu baris di tabel form. SPK, client, dan item/project ada per baris di desain, sedangkan API
-// menyimpannya per transaksi, jadi saat simpan baris dikelompokkan menjadi satu transaksi per kombinasi itu.
-type BarisForm = { spk: string; namaItem: string; itemId: string; qty: string };
+// Satu baris barang hasil scan. SPK dan Nama Produk/Proyek diisi sekali di atas untuk seluruh transaksi.
+type BarisForm = { itemId: number; code: string; name: string; unit: string; stock: number; qty: string };
 
-const barisKosong = (): BarisForm => ({ spk: "", namaItem: "", itemId: "", qty: "" });
 const PAGE_SIZE = 20;
+// Pilihan tambahan di Nama Produk/Proyek untuk barang yang keluar bukan untuk produk SPK tertentu
+const PILIHAN_STOK = 'Stok';
 
 type TableRow = {
   trx: OutboundRow;
@@ -33,9 +34,17 @@ type TableRow = {
 const formKosong = () => ({
   namaPengambil: "",
   tanggal: todayIso(),
-  recipientType: "" as RecipientType | "",
-  baris: [barisKosong(), barisKosong(), barisKosong()],
+  spk: "",
+  namaItem: "",
+  // Form tidak punya pilihan penerima lagi, sedangkan API mewajibkannya; barang keluar gudang diambil untuk produksi
+  recipientType: "PRODUKSI" as RecipientType,
+  baris: [] as BarisForm[],
 });
+
+const tambahSatu = (baris: BarisForm[], itemId: number) =>
+  baris.map((b) => (b.itemId === itemId ? { ...b, qty: String(Number(b.qty) + 1) } : b));
+
+const samaNama = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
 // Barang keluar hanya bisa diedit selama 1 hari (24 jam) sejak transaksi dicatat
 const BATAS_EDIT_MS = 24 * 60 * 60 * 1000;
@@ -56,8 +65,10 @@ type EditForm = { tanggal: string; spk: string; namaItem: string; itemId: string
 
 const formCellClass = 'border-b border-r border-gray-300';
 const formHeadClass = `${formCellClass} px-2 py-2.5 font-medium whitespace-nowrap`;
-const formInputClass = 'w-full px-2 py-2 bg-transparent text-sm text-gray-800 focus:outline-none focus:bg-orange-50/60';
 const labelClass = 'block text-sm text-gray-800 mb-1.5';
+const rowClass = 'grid grid-cols-1 sm:grid-cols-[140px_1fr] sm:items-center gap-x-4 gap-y-1.5';
+const rowLabelClass = "text-sm text-gray-800 sm:flex sm:justify-between sm:after:content-[':']";
+const selectClass = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors';
 const fieldClass = 'w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors';
 const orangeButtonClass = 'flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed';
 
@@ -82,6 +93,13 @@ export default function BarangKeluarGudang() {
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState("");
   const formTanggalRef = useRef<HTMLInputElement>(null);
+
+  const [scanOpen, setScanOpen] = useState(false);
+  const [scanValue, setScanValue] = useState("");
+  const [scanError, setScanError] = useState("");
+  const scanRef = useRef<HTMLInputElement>(null);
+  // Scan bisa datang lebih cepat dari render, jadi pengecekan kode yang sudah ada memakai ref
+  const barisRef = useRef<BarisForm[]>([]);
 
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   const [editForm, setEditForm] = useState<EditForm | null>(null);
@@ -126,9 +144,29 @@ export default function BarangKeluarGudang() {
       .catch(() => {});
   };
 
+  // Kuota material per SPK dari dokubah PPIC. Tidak ada key = belum dimuat, null = gagal dimuat.
+  const [dokubahBySpk, setDokubahBySpk] = useState<Record<string, BahanDokubah[] | 'loading' | null>>({});
+  const muatDokubah = (spk: string) => {
+    const sekarang = dokubahBySpk[spk];
+    if (!spk || (sekarang !== undefined && sekarang !== null)) return;
+    setDokubahBySpk((prev) => ({ ...prev, [spk]: 'loading' }));
+    listDokubah({ search: spk, pageSize: 100 })
+      .then(async (res) => {
+        const milikSpk = res.rows.filter((d) => d.noSpk === spk);
+        // Dokubah yang sudah disetujui yang dipakai; kalau belum ada, dokubah SPK itu yang pertama
+        const dipakai = milikSpk.find((d) => d.status === 'Approved') ?? milikSpk[0];
+        const bahan = dipakai ? (await getDokubah(dipakai.id)).bahan : [];
+        setDokubahBySpk((prev) => ({ ...prev, [spk]: bahan }));
+      })
+      .catch(() => setDokubahBySpk((prev) => ({ ...prev, [spk]: null })));
+  };
+
   useEffect(() => {
     listItems({ pageSize: 100 }).then((res) => setItems(res.rows)).catch(() => {});
   }, []);
+
+  useEffect(() => { barisRef.current = form.baris; }, [form.baris]);
+  useEffect(() => { if (scanOpen) scanRef.current?.focus(); }, [scanOpen]);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 60_000);
@@ -221,64 +259,108 @@ export default function BarangKeluarGudang() {
   const openModal = () => {
     setForm(formKosong());
     setModalError("");
+    setScanOpen(false);
+    setScanValue("");
+    setScanError("");
     setIsModalOpen(true);
   };
 
-  const updateBaris = (index: number, patch: Partial<BarisForm>) =>
-    setForm((prev) => ({ ...prev, baris: prev.baris.map((b, i) => (i === index ? { ...b, ...patch } : b)) }));
+  const setBaris = (fn: (baris: BarisForm[]) => BarisForm[]) => setForm((prev) => ({ ...prev, baris: fn(prev.baris) }));
+  const patchBaris = (itemId: number, patch: Partial<BarisForm>) =>
+    setBaris((bs) => bs.map((b) => (b.itemId === itemId ? { ...b, ...patch } : b)));
 
-  const tambahBaris = () => setForm((prev) => ({ ...prev, baris: [...prev.baris, barisKosong()] }));
+  const bukaScan = () => {
+    if (scanOpen) scanRef.current?.focus();
+    else setScanOpen(true);
+  };
+
+  // Barang yang sudah ada di tabel cukup ditambah jumlahnya, barang baru diambil datanya dari database
+  const tambahKode = async (code: string) => {
+    setScanError("");
+    const ada = barisRef.current.find((b) => b.code === code);
+    if (ada) { setBaris((bs) => tambahSatu(bs, ada.itemId)); return; }
+    try {
+      const item = await getItemByCode(code);
+      // Dua scan cepat untuk kode baru yang sama sama-sama sampai di sini sebelum barisnya ada
+      setBaris((bs) => bs.some((b) => b.itemId === item.id)
+        ? tambahSatu(bs, item.id)
+        : [...bs, { itemId: item.id, code: item.code ?? code, name: item.name, unit: item.unit, stock: item.stock, qty: '1' }]);
+    } catch (err) {
+      setScanError(err instanceof ApiError && err.status === 404 ? `Kode "${code}" tidak dikenal.` : err instanceof ApiError ? err.message : 'Gagal membaca kode.');
+    }
+  };
+
+  // Scanner USB mengetik kode lalu menekan Enter; Enter juga tidak boleh mengirim form
+  const onScanKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const code = scanValue.trim();
+    setScanValue("");
+    if (code) void tambahKode(code);
+  };
+
+  const pilihSpk = (spk: string) => {
+    setForm((prev) => ({ ...prev, spk, namaItem: "" }));
+    muatProduk(spk);
+    muatDokubah(spk);
+  };
+
+  const dokubahSpk = dokubahBySpk[form.spk];
+  // Material dokubah dicocokkan lewat kode barang, kalau tidak ketemu lewat nama
+  const bahanDokubah = (b: BarisForm) => Array.isArray(dokubahSpk)
+    ? dokubahSpk.find((m) => m.kodeBarang === b.code) ?? dokubahSpk.find((m) => samaNama(m.namaBahan, b.name))
+    : undefined;
+
+  const selDokubah = (b: BarisForm) => {
+    if (!form.spk) return <span className="text-xs text-gray-400">Pilih SPK dulu</span>;
+    if (dokubahSpk === 'loading' || dokubahSpk === undefined) return <span className="text-xs text-gray-400">Memuat...</span>;
+    if (dokubahSpk === null) return <span className="text-xs text-red-500">Gagal dimuat</span>;
+    const bahan = bahanDokubah(b);
+    if (!bahan) return <span className="text-xs text-gray-400">Tidak ada di dokubah</span>;
+    const sisa = bahan.kuota - bahan.realisasi;
+    return (
+      <div className="flex flex-col">
+        <span className="font-medium text-gray-900">{bahan.kuota} {bahan.satuan}</span>
+        <span className={`text-xs ${Number(b.qty) > sisa ? 'text-red-600 font-semibold' : 'text-gray-500'}`}>sisa {sisa}</span>
+      </div>
+    );
+  };
+
+  const pilihanProduk = [...new Set([...(produkBySpk[form.spk] ?? []), PILIHAN_STOK])];
 
   const handleSimpan = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const { namaPengambil, tanggal, recipientType } = form;
-    // Baris yang belum diisi sama sekali diabaikan
-    const terisi = form.baris.filter((b) => Object.values(b).some((v) => v.trim() !== ""));
-    if (!namaPengambil.trim() || !tanggal || !recipientType) {
-      setModalError("Lengkapi nama pengambil, tanggal, dan penerima.");
+    const { namaPengambil, tanggal, spk, namaItem, recipientType, baris } = form;
+    if (!tanggal || !spk || !namaPengambil.trim() || !namaItem.trim()) {
+      setModalError("Lengkapi tanggal, SPK, nama pengambil, dan nama produk/proyek.");
       return;
     }
-    if (terisi.length === 0 || terisi.some((b) => !b.spk || !b.namaItem.trim() || !b.itemId || !b.qty)) {
-      setModalError("Isi No. SPK, nama item/project, barang, dan jumlah di setiap baris yang dipakai.");
+    if (baris.length === 0) {
+      setModalError("Scan minimal satu barang yang keluar.");
       return;
     }
-
-    const kelompok = new Map<string, BarisForm[]>();
-    for (const b of terisi) {
-      const kunci = JSON.stringify([b.spk, b.namaItem.trim()]);
-      kelompok.set(kunci, [...(kelompok.get(kunci) ?? []), b]);
+    if (baris.some((b) => !b.qty || Number(b.qty) <= 0)) {
+      setModalError("Isi jumlah pengambilan di setiap barang.");
+      return;
     }
 
     setSaving(true);
     setModalError("");
-    const tersimpan = new Set<BarisForm>();
     try {
-      for (const lines of kelompok.values()) {
-        const [pertama] = lines;
-        await createOutbound({
-          date: tanggal,
-          spk: pertama.spk,
-          itemName: pertama.namaItem.trim(),
-          recipientType,
-          // API belum punya kolom nama pengambil, jadi dicatat di notes
-          notes: `Pengambil: ${namaPengambil.trim()}`,
-          // Form tidak punya kolom PIC lagi, sedangkan API mewajibkan pic per baris, jadi diisi nama pengambil
-          lines: lines.map((b) => ({ itemId: Number(b.itemId), qty: Number(b.qty), pic: namaPengambil.trim() })),
-        });
-        lines.forEach((b) => tersimpan.add(b));
-      }
+      await createOutbound({
+        date: tanggal,
+        spk,
+        itemName: namaItem.trim(),
+        recipientType,
+        // API belum punya kolom nama pengambil, jadi dicatat di notes
+        notes: `Pengambil: ${namaPengambil.trim()}`,
+        // Form tidak punya kolom PIC lagi, sedangkan API mewajibkan pic per baris, jadi diisi nama pengambil
+        lines: baris.map((b) => ({ itemId: b.itemId, qty: Number(b.qty), pic: namaPengambil.trim() })),
+      });
       setIsModalOpen(false);
       reload();
     } catch (err) {
-      const pesan = err instanceof ApiError ? err.message : "Gagal menyimpan barang keluar.";
-      if (tersimpan.size > 0) {
-        // Transaksi yang sudah tersimpan dikeluarkan dari form supaya tidak terkirim dua kali
-        setForm((prev) => ({ ...prev, baris: prev.baris.filter((b) => !tersimpan.has(b)) }));
-        setModalError(`Sebagian baris sudah tersimpan dan dihapus dari form. Baris yang tersisa gagal: ${pesan}`);
-        reload();
-      } else {
-        setModalError(pesan);
-      }
+      setModalError(err instanceof ApiError ? err.message : "Gagal menyimpan barang keluar.");
     } finally {
       setSaving(false);
     }
@@ -463,7 +545,7 @@ export default function BarangKeluarGudang() {
           <form
             onSubmit={handleSimpan}
             noValidate
-            className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-full overflow-y-auto p-6 sm:p-8 relative animate-in zoom-in-95 duration-200"
+            className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-full overflow-y-auto p-6 sm:p-8 relative animate-in zoom-in-95 duration-200"
           >
             <button
               type="button"
@@ -476,10 +558,10 @@ export default function BarangKeluarGudang() {
 
             <h2 className="text-[18px] font-extrabold text-black tracking-wide uppercase mb-6">Form Barang Keluar</h2>
 
-            {/* Data transaksi */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mb-8">
-              <div>
-                <label htmlFor="form-bk-transaksi" className={labelClass}>No. Transaksi</label>
+            {/* Data transaksi, dua kolom: kiri No. Transaksi, Tanggal, Nama Pengambil; kanan Client, SPK, Nama Produk/Proyek */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-4 mb-8">
+              <div className={rowClass}>
+                <label htmlFor="form-bk-transaksi" className={rowLabelClass}>No. Transaksi</label>
                 <input
                   id="form-bk-transaksi"
                   type="text"
@@ -489,20 +571,19 @@ export default function BarangKeluarGudang() {
                   className={`${fieldClass} bg-gray-50 cursor-default`}
                 />
               </div>
-              <div>
-                <label htmlFor="form-bk-pengambil" className={labelClass}>Nama Pengambil/PIC</label>
+              <div className={rowClass}>
+                <label htmlFor="form-bk-client" className={rowLabelClass}>Client</label>
                 <input
-                  id="form-bk-pengambil"
+                  id="form-bk-client"
                   type="text"
-                  value={form.namaPengambil}
-                  maxLength={191}
-                  onChange={(e) => setForm((prev) => ({ ...prev, namaPengambil: e.target.value }))}
-                  placeholder="Isi nama pengambil"
-                  className={fieldClass}
+                  readOnly
+                  value={clientOf(form.spk)}
+                  placeholder="Terisi otomatis dari SPK"
+                  className={`${fieldClass} bg-gray-50 cursor-default`}
                 />
               </div>
-              <div>
-                <label htmlFor="form-bk-tanggal" className={labelClass}>Tanggal</label>
+              <div className={rowClass}>
+                <label htmlFor="form-bk-tanggal" className={rowLabelClass}>Tanggal</label>
                 <div className="relative">
                   <input
                     ref={formTanggalRef}
@@ -522,100 +603,121 @@ export default function BarangKeluarGudang() {
                   </button>
                 </div>
               </div>
-              <div>
-                <label htmlFor="form-bk-penerima" className={labelClass}>Tujuan / Penerima</label>
-                <div className="relative">
-                  <select
-                    id="form-bk-penerima"
-                    value={form.recipientType}
-                    onChange={(e) => setForm((prev) => ({ ...prev, recipientType: e.target.value as RecipientType }))}
-                    className={`${fieldClass} appearance-none cursor-pointer`}
-                  >
-                    <option value="" disabled>Pilih penerima</option>
-                    <option value="PRODUKSI">Tukang / Produksi</option>
-                    <option value="KLIEN">Klien</option>
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
-                </div>
+              <div className={rowClass}>
+                <span className={rowLabelClass}>SPK</span>
+                <SearchableSelect
+                  value={form.spk}
+                  onChange={pilihSpk}
+                  options={(spkList ?? []).map((t) => ({ value: t.noSpk, label: t.noSpk }))}
+                  placeholder="Pilih SPK"
+                  aria-label="SPK"
+                  className={selectClass}
+                />
+              </div>
+              <div className={rowClass}>
+                <label htmlFor="form-bk-pengambil" className={rowLabelClass}>Nama Pengambil</label>
+                <input
+                  id="form-bk-pengambil"
+                  type="text"
+                  value={form.namaPengambil}
+                  maxLength={191}
+                  onChange={(e) => setForm((prev) => ({ ...prev, namaPengambil: e.target.value }))}
+                  placeholder="Isi nama pengambil"
+                  className={fieldClass}
+                />
+              </div>
+              <div className={rowClass}>
+                <span className={rowLabelClass}>Nama Produk/Proyek</span>
+                <SearchableSelect
+                  value={form.namaItem}
+                  onChange={(namaItem) => setForm((prev) => ({ ...prev, namaItem }))}
+                  options={pilihanProduk.map((nama) => ({ value: nama, label: nama }))}
+                  placeholder="Pilih produk/proyek atau stok"
+                  aria-label="Nama Produk/Proyek"
+                  className={selectClass}
+                />
               </div>
             </div>
 
-            {/* Daftar barang yang keluar */}
-            <div className="overflow-x-auto border-t border-l border-gray-300 rounded-sm">
+            {/* Daftar barang yang keluar, diisi dengan scan QR barang */}
+            <button type="button" onClick={bukaScan} className={orangeButtonClass}>
+              <ScanLine className="w-4 h-4" strokeWidth={2.5} />
+              <span>Scan Barang</span>
+            </button>
+
+            {scanOpen && (
+              <div className="relative mt-4">
+                <ScanLine className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  ref={scanRef}
+                  type="text"
+                  autoComplete="off"
+                  maxLength={191}
+                  value={scanValue}
+                  onChange={(e) => setScanValue(e.target.value)}
+                  onKeyDown={onScanKey}
+                  placeholder="Arahkan scanner ke QR barang..."
+                  aria-label="Hasil scan"
+                  className="w-full border-2 border-orange-200 rounded-lg py-3 pl-10 pr-4 text-sm text-gray-800 focus:outline-none focus:border-[#FF8A00]/60 focus:ring-2 focus:ring-[#FF8A00]/20"
+                />
+              </div>
+            )}
+            {scanError && <p role="alert" className="mt-3 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{scanError}</p>}
+
+            <div className="mt-4 overflow-x-auto border-t border-l border-gray-300 rounded-sm">
               <table className="w-full text-sm border-collapse">
                 <thead className="bg-gray-100 text-gray-900 font-medium text-base">
                   <tr>
                     <th scope="col" className={`${formHeadClass} w-10`}>No</th>
-                    <th scope="col" className={`${formHeadClass} min-w-32`}>Nama Client</th>
-                    <th scope="col" className={`${formHeadClass} min-w-36`}>No. SPK</th>
-                    <th scope="col" className={`${formHeadClass} min-w-40`}>Nama Item/Produk</th>
-                    <th scope="col" className={`${formHeadClass} min-w-40`}>Nama Barang</th>
+                    <th scope="col" className={`${formHeadClass} min-w-48 text-left`}>Nama Material</th>
+                    <th scope="col" className={`${formHeadClass} min-w-24`}>Satuan/Vol</th>
                     <th scope="col" className={`${formHeadClass} min-w-24`}>Kode</th>
-                    <th scope="col" className={`${formHeadClass} w-24`}>Jumlah Pengambilan</th>
-                    <th scope="col" className={`${formHeadClass} min-w-24`}>Jumlah Stok</th>
+                    <th scope="col" className={`${formHeadClass} min-w-28`}>Dokubah</th>
+                    <th scope="col" className={`${formHeadClass} min-w-36`}>Pengambilan</th>
+                    <th scope="col" className={`${formHeadClass} w-10`}><span className="sr-only">Hapus</span></th>
                   </tr>
                 </thead>
                 <tbody>
+                  {form.baris.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className={`${formCellClass} px-4 py-8 text-center text-gray-400`}>
+                        Belum ada barang. Tekan Scan Barang lalu scan QR pada barang yang diambil.
+                      </td>
+                    </tr>
+                  )}
                   {form.baris.map((b, i) => (
-                    <tr key={i}>
+                    <tr key={b.itemId}>
                       <td className={`${formCellClass} text-center text-gray-700`}>{i + 1}</td>
-                      <td className={formCellClass}>
-                        <span className="block px-2 py-2 text-sm text-gray-600">{clientOf(b.spk)}</span>
+                      <td className={`${formCellClass} px-2 py-2 font-medium text-gray-900`}>{b.name}</td>
+                      <td className={`${formCellClass} px-2 text-center text-gray-700`}>{b.unit}</td>
+                      <td className={`${formCellClass} px-2 text-center font-mono text-xs text-gray-600`}>{b.code}</td>
+                      <td className={`${formCellClass} px-2 text-center`}>{selDokubah(b)}</td>
+                      <td className={`${formCellClass} px-2 py-1.5`}>
+                        <div className="flex items-center justify-center">
+                          <button type="button" aria-label={`Kurangi ${b.name}`} disabled={Number(b.qty) <= 1} onClick={() => patchBaris(b.itemId, { qty: String(Math.max(Number(b.qty) - 1, 1)) })} className="p-1 text-gray-500 hover:text-gray-900 disabled:opacity-30"><Minus className="w-4 h-4" /></button>
+                          <input
+                            {...INTEGER_INPUT}
+                            maxLength={9}
+                            value={b.qty}
+                            aria-label={`Pengambilan ${b.name}`}
+                            title={`Stok ${b.stock} ${b.unit}`}
+                            onChange={(e) => patchBaris(b.itemId, { qty: digitsOnly(e.target.value) })}
+                            className={`w-16 border rounded-md py-1.5 px-2 text-center text-sm ${Number(b.qty) > b.stock ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+                          />
+                          <button type="button" aria-label={`Tambah ${b.name}`} onClick={() => setBaris((bs) => tambahSatu(bs, b.itemId))} className="p-1 text-gray-500 hover:text-gray-900"><Plus className="w-4 h-4" /></button>
+                        </div>
+                        <p className={`mt-0.5 text-center text-xs ${Number(b.qty) > b.stock ? 'text-red-600' : 'text-gray-400'}`}>stok {b.stock}</p>
                       </td>
-                      <td className={formCellClass}>
-                        <SearchableSelect
-                          value={b.spk}
-                          onChange={(spk) => { updateBaris(i, { spk, namaItem: "" }); muatProduk(spk); }}
-                          options={(spkList ?? []).map((t) => ({ value: t.noSpk, label: t.noSpk }))}
-                          placeholder="Pilih SPK"
-                          aria-label={`No. SPK baris ${i + 1}`}
-                          className={formInputClass}
-                        />
-                      </td>
-                      <td className={formCellClass}>
-                        <SearchableSelect
-                          value={b.namaItem}
-                          onChange={(namaItem) => updateBaris(i, { namaItem })}
-                          options={(produkBySpk[b.spk] ?? []).map((nama) => ({ value: nama, label: nama }))}
-                          placeholder={!clientOf(b.spk) ? 'Pilih SPK dulu' : produkBySpk[b.spk]?.length ? 'Pilih item/produk' : 'Belum ada item/produk'}
-                          emptyText={!clientOf(b.spk) ? 'Pilih SPK dulu' : 'Belum ada item/produk untuk SPK ini'}
-                          aria-label={`Nama item/project baris ${i + 1}`}
-                          className={formInputClass}
-                        />
-                      </td>
-                      <td className={formCellClass}>
-                        <SearchableSelect
-                          value={b.itemId}
-                          onChange={(itemId) => updateBaris(i, { itemId })}
-                          options={items.map((it) => ({ value: String(it.id), label: it.name }))}
-                          placeholder="Pilih barang"
-                          aria-label={`Nama barang baris ${i + 1}`}
-                          className={formInputClass}
-                        />
-                      </td>
-                      <td className={`${formCellClass} px-2 font-mono text-xs text-gray-600`}>
-                        {items.find((it) => String(it.id) === b.itemId)?.code ?? ''}
-                      </td>
-                      <td className={formCellClass}>
-                        <input {...INTEGER_INPUT} maxLength={9} value={b.qty} onChange={(e) => updateBaris(i, { qty: digitsOnly(e.target.value) })} aria-label={`Jumlah baris ${i + 1}`} className={`${formInputClass} text-right`} />
-                      </td>
-                      <td className={`${formCellClass} px-2 text-right text-gray-600`}>
-                        {items.find((it) => String(it.id) === b.itemId)?.stock ?? ''}
+                      <td className={`${formCellClass} px-2 text-center`}>
+                        <button type="button" aria-label={`Hapus ${b.name}`} onClick={() => setBaris((bs) => bs.filter((x) => x.itemId !== b.itemId))} className="text-gray-400 hover:text-red-600">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-
-            <button
-              type="button"
-              onClick={tambahBaris}
-              aria-label="Tambah baris barang"
-              className="mt-2 flex items-center justify-center w-6 h-6 rounded-md border border-[#FF8A00] text-[#FF8A00] hover:bg-orange-50 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
 
             {modalError && (
               <p role="alert" className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{modalError}</p>
