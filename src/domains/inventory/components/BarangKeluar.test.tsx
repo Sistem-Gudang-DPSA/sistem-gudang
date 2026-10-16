@@ -16,12 +16,25 @@ const trx = (id: number) => ({
   lines: [{ itemId: 1, itemCode: 'BRG-1', itemName: 'Triplex', qty: 4, pic: 'Andi' }, { itemId: 2, itemCode: 'BRG-2', itemName: 'Paku', qty: 9, pic: 'Andi' }],
 });
 const tracking = { 'GET /api/v1/tracking/spk': [{ noSpk: 'SPK-1', client: 'Klien 1' }, { noSpk: 'SPK-9', client: 'PT Maju' }, { noSpk: 'SPK-7', client: 'PT Jaya' }] };
-// Item Produksi per SPK, the choices of the Nama Item/Produk dropdown
+// Item Produksi per SPK, the choices of the Nama Produk/Proyek dropdown
 const materials = { 'GET /api/v1/material-requests': paged([{ id: 1, spk: 'SPK-9', productionItem: 'Lemari' }, { id: 2, spk: 'SPK-7', productionItem: 'Meja' }]) };
 const items = paged([{ id: 1, code: 'BRG-1', name: 'Triplex', stock: 25 }, { id: 2, code: 'BRG-2', name: 'Paku', stock: 140 }]);
+const item = (id: number, code: string, name: string, unit: string, stock: number) => ({ id, code, name, unit, stock, category: 'Bahan', price: 0, locationId: null, supplierId: null, createdAt: null, updatedAt: null });
+const scanned = {
+  'GET /api/v1/items/by-code/BRG-1': item(1, 'BRG-1', 'Triplex', 'lembar', 25),
+  'GET /api/v1/items/by-code/HPL-01': item(3, 'HPL-01', 'HPL Putih', 'lembar', 6),
+  'GET /api/v1/items/by-code/NOPE': fail(404, 'Item not found'),
+};
+// Dokubah of SPK-9: a draft and the approved one, whose materials fill the Dokubah column
+const dokubahRow = (id: number, noSpk: string, status: string) => ({ id, noSpk, client: 'PT Maju', tanggalMulai: '2026-10-01', tanggalSelesai: '2026-10-30', status, fileDokubah: null, totalAnggaran: 0, createdBy: 1, createdAt: '', updatedAt: '', totalKuota: 0, totalRealisasi: 0, totalRealisasiNilai: 0 });
+const bahan = (kodeBarang: string, namaBahan: string, kuota: number, realisasi: number) => ({ kodeBarang, namaBahan, satuan: 'lembar', hargaSatuan: 0, kuota, realisasi, keterangan: '' });
+const dokubah = {
+  'GET /api/v1/dokubah': paged([dokubahRow(4, 'SPK-9', 'DRAFT'), dokubahRow(5, 'SPK-9', 'APPROVED'), dokubahRow(6, 'SPK-90', 'APPROVED')]),
+  'GET /api/v1/dokubah/5': { ...dokubahRow(5, 'SPK-9', 'APPROVED'), bahan: [bahan('LAIN', 'hpl putih', 10, 7), bahan('BRG-1', 'Triplex 18mm', 20, 5)] },
+};
 
 function setup(extra: Record<string, unknown> = {}, rows: unknown = paged([trx(1)])) {
-  const api = installFakeApi({ 'GET /api/v1/outbound': rows, 'GET /api/v1/items': items, ...tracking, ...materials, ...extra });
+  const api = installFakeApi({ 'GET /api/v1/outbound': rows, 'GET /api/v1/items': items, ...tracking, ...materials, ...scanned, ...dokubah, ...extra });
   render(<BarangKeluar />);
   return api;
 }
@@ -29,35 +42,36 @@ const lastQ = (api: ReturnType<typeof installFakeApi>) => api.calls('GET /api/v1
 const label = (text: string) => screen.getByLabelText(text) as HTMLInputElement;
 // DateFilter selects have no label; pick each one by its placeholder option (Hari / Bulan / Tahun).
 const dateSelect = (placeholder: string) => screen.getByRole('option', { name: placeholder }).closest('select') as HTMLSelectElement;
-const cell = (name: string, row: number) => screen.getByLabelText(`${name} baris ${row}`) as HTMLInputElement;
 
 async function openForm(api: ReturnType<typeof installFakeApi>) {
   await screen.findAllByText('Klien 1');
   await waitFor(() => expect(api.calls('GET /api/v1/items').length).toBeGreaterThan(0));
   fireEvent.click(screen.getByText('Barang Keluar'));
-  await screen.findByText('Pilih penerima', { selector: 'option' });
+  await screen.findByText('Form Barang Keluar');
   await waitFor(() => expect(api.calls('GET /api/v1/tracking/spk').length).toBeGreaterThan(0));
 }
 
-// SPK, item/produk and barang are searchable dropdowns: open one and click an option
-async function pick(name: string, row: number, option: string) {
-  fireEvent.click(cell(name, row));
+// SPK and produk/proyek are searchable dropdowns: open one and click an option
+async function choose(trigger: HTMLElement, option: string) {
+  fireEvent.click(trigger);
   fireEvent.click(await screen.findByRole('option', { name: option }));
 }
-const itemName: Record<string, string> = { '1': 'Triplex', '2': 'Paku' };
 
-function fillHeader() {
-  fireEvent.change(label('Nama Pengambil/PIC'), { target: { value: 'Rudi' } });
-  fireEvent.change(label('Tujuan / Penerima'), { target: { value: 'PRODUKSI' } });
+async function fillHeader(v: { spk: string; item: string } = { spk: 'SPK-9', item: 'Lemari' }) {
+  await choose(label('SPK'), v.spk);
+  fireEvent.change(label('Nama Pengambil'), { target: { value: 'Rudi' } });
+  // the produk/proyek choices load after the SPK is picked; findByRole waits for them
+  await choose(label('Nama Produk/Proyek'), v.item);
 }
 
-async function fillRow(row: number, v: { spk: string; item: string; itemId: string; qty: string }) {
-  await pick('No. SPK', row, v.spk);
-  // the item/produk choices load after the SPK is picked; findByRole waits for them
-  await pick('Nama item/project', row, v.item);
-  await pick('Nama barang', row, itemName[v.itemId]);
-  fireEvent.change(cell('Jumlah', row), { target: { value: v.qty } });
+// The USB scanner types the code and presses Enter
+function scan(code: string) {
+  if (!screen.queryByLabelText('Hasil scan')) fireEvent.click(screen.getByText('Scan Barang'));
+  fireEvent.change(label('Hasil scan'), { target: { value: code } });
+  fireEvent.keyDown(label('Hasil scan'), { key: 'Enter' });
 }
+const rowOf = (name: string) => screen.getByText(name, { selector: 'td' }).closest('tr')!;
+const cellsOf = (name: string) => Array.from(rowOf(name).querySelectorAll('td')).map((td) => td.textContent);
 
 afterEach(() => vi.useRealTimers());
 
@@ -103,21 +117,28 @@ describe('BarangKeluar list', () => {
 });
 
 describe('BarangKeluar create', () => {
-  it('validates header then lines', async () => {
+  it('validates header, then that something was scanned', async () => {
     const api = setup();
     await openForm(api);
     fireEvent.click(screen.getByText('Simpan'));
-    expect(screen.getByText(/Lengkapi nama pengambil/)).not.toBeNull();
-    fillHeader();
+    expect(screen.getByText(/Lengkapi tanggal, SPK, nama pengambil/)).not.toBeNull();
+    await fillHeader();
     fireEvent.click(screen.getByText('Simpan'));
-    expect(screen.getByText(/Isi No\. SPK, nama item/)).not.toBeNull();
-    await pick('Nama barang', 1, 'Triplex');
-    fireEvent.click(screen.getByText('Simpan'));
-    expect(screen.getByText(/Isi No\. SPK, nama item/)).not.toBeNull();
+    expect(screen.getByText('Scan minimal satu barang yang keluar.')).not.toBeNull();
     expect(api.calls('POST /api/v1/outbound').length).toBe(0);
   });
 
-  it('offers the Item Produksi of the chosen SPK as Nama Item/Produk choices', async () => {
+  it('stacks the header fields and fills Client from the chosen SPK', async () => {
+    const api = setup();
+    await openForm(api);
+    expect(label('No. Transaksi').readOnly).toBe(true);
+    expect(label('Client').readOnly).toBe(true);
+    expect(label('Client').value).toBe('');
+    await choose(label('SPK'), 'SPK-7');
+    expect(label('Client').value).toBe('PT Jaya');
+  });
+
+  it('offers the Item Produksi of the chosen SPK plus Stok as Nama Produk/Proyek choices', async () => {
     const api = setup({
       'GET /api/v1/material-requests': paged([
         { id: 1, spk: 'SPK-9', productionItem: 'Lemari Dapur' },
@@ -126,65 +147,114 @@ describe('BarangKeluar create', () => {
       ]),
     });
     await openForm(api);
-    await pick('No. SPK', 1, 'SPK-9');
-    fireEvent.click(cell('Nama item/project', 1));
+    await choose(label('SPK'), 'SPK-9');
+    fireEvent.click(label('Nama Produk/Proyek'));
     await screen.findByRole('option', { name: 'Lemari Dapur' });
-    expect(within(screen.getByRole('listbox')).getAllByRole('option').map((o) => o.textContent)).toEqual(['Lemari Dapur']);
+    expect(within(screen.getByRole('listbox')).getAllByRole('option').map((o) => o.textContent)).toEqual(['Lemari Dapur', 'Stok']);
     expect(api.calls('GET /api/v1/material-requests')[0].query.get('search')).toBe('SPK-9');
+  });
+
+  it('shows the scanner input only after pressing Scan Barang, and the table headers', async () => {
+    const api = setup();
+    await openForm(api);
+    expect(screen.queryByLabelText('Hasil scan')).toBeNull();
+    fireEvent.click(screen.getByText('Scan Barang'));
+    expect(document.activeElement).toBe(label('Hasil scan'));
+    expect(screen.getAllByRole('columnheader').map((th) => th.textContent).slice(-7))
+      .toEqual(['No', 'Nama Material', 'Satuan/Vol', 'Kode', 'Dokubah', 'Pengambilan', 'Hapus']);
+  });
+
+  it('fills a row per scanned item, adds 1 on a repeat scan and reports unknown codes', async () => {
+    const api = setup();
+    await openForm(api);
+    scan('BRG-1');
+    await screen.findByText('Triplex', { selector: 'td' });
+    expect(cellsOf('Triplex').slice(0, 4)).toEqual(['1', 'Triplex', 'lembar', 'BRG-1']);
+    expect(label('Pengambilan Triplex').value).toBe('1');
+    scan('BRG-1');
+    await waitFor(() => expect(label('Pengambilan Triplex').value).toBe('2'));
+    expect(api.calls('GET /api/v1/items/by-code/BRG-1')).toHaveLength(1);
+    scan('NOPE');
+    expect(await screen.findByText('Kode "NOPE" tidak dikenal.')).not.toBeNull();
+    fireEvent.click(screen.getByLabelText('Hapus Triplex'));
+    expect(screen.queryByText('Triplex', { selector: 'td' })).toBeNull();
+  });
+
+  it('pulls the Dokubah kuota of the scanned material from the approved dokubah of the SPK', async () => {
+    const api = setup();
+    await openForm(api);
+    scan('HPL-01');
+    await screen.findByText('HPL Putih', { selector: 'td' });
+    expect(cellsOf('HPL Putih')[4]).toBe('Pilih SPK dulu');
+    await choose(label('SPK'), 'SPK-9');
+    // matched by name when the code differs, sisa = kuota - realisasi
+    await waitFor(() => expect(cellsOf('HPL Putih')[4]).toBe('10 lembarsisa 3'));
+    expect(api.calls('GET /api/v1/dokubah')[0].query.get('search')).toBe('SPK-9');
+    expect(api.calls('GET /api/v1/dokubah/4')).toHaveLength(0);
+    scan('BRG-1');
+    await screen.findByText('Triplex', { selector: 'td' });
+    expect(cellsOf('Triplex')[4]).toBe('20 lembarsisa 15');
+  });
+
+  it('says so when the material is not in the dokubah of the SPK', async () => {
+    const api = setup({ 'GET /api/v1/dokubah': paged([]) });
+    await openForm(api);
+    await choose(label('SPK'), 'SPK-7');
+    scan('BRG-1');
+    await screen.findByText('Triplex', { selector: 'td' });
+    await waitFor(() => expect(cellsOf('Triplex')[4]).toBe('Tidak ada di dokubah'));
   });
 
   it('enforces input limits', async () => {
     const api = setup();
     await openForm(api);
-    expect(label('Nama Pengambil/PIC').maxLength).toBe(191);
-    const q = cell('Jumlah', 1);
+    expect(label('Nama Pengambil').maxLength).toBe(191);
+    scan('BRG-1');
+    await screen.findByText('Triplex', { selector: 'td' });
+    const q = label('Pengambilan Triplex');
     fireEvent.change(q, { target: { value: 'e-1.5' } });
     expect(q.value).toBe('15');
     expect(q.maxLength).toBe(9);
   });
 
-  it('shows the stock of the chosen item in the Jumlah Stok column instead of a PIC input', async () => {
-    const api = setup();
-    await openForm(api);
-    expect(screen.getByText('Jumlah Stok', { selector: 'th' })).not.toBeNull();
-    expect(screen.queryByLabelText('PIC baris 1')).toBeNull();
-    await pick('Nama barang', 1, 'Paku');
-    expect(cell('Nama barang', 1).closest('tr')!.lastElementChild!.textContent).toBe('140');
-  });
-
-  it('groups rows per SPK/client/item into transactions, skipping blank rows', async () => {
+  it('saves one transaction with the header SPK/produk and every scanned item', async () => {
     const api = setup({ 'POST /api/v1/outbound': { id: 5 } });
     await openForm(api);
-    fillHeader();
-    await fillRow(1, { spk: 'SPK-9', item: 'Lemari', itemId: '1', qty: '4' });
-    await fillRow(2, { spk: 'SPK-9', item: 'Lemari', itemId: '2', qty: '9' });
-    await fillRow(3, { spk: 'SPK-7', item: 'Meja', itemId: '1', qty: '1' });
+    await fillHeader();
+    scan('BRG-1');
+    await screen.findByText('Triplex', { selector: 'td' });
+    fireEvent.change(label('Pengambilan Triplex'), { target: { value: '4' } });
+    scan('HPL-01');
+    await screen.findByText('HPL Putih', { selector: 'td' });
     fireEvent.click(screen.getByText('Simpan'));
-    await waitFor(() => expect(api.calls('POST /api/v1/outbound').length).toBe(2));
-    const [a, b] = api.calls('POST /api/v1/outbound').map((c) => c.body as Record<string, unknown>);
+    await waitFor(() => expect(api.calls('POST /api/v1/outbound').length).toBe(1));
+    const a = api.calls('POST /api/v1/outbound')[0].body as Record<string, unknown>;
     expect(a).toMatchObject({ spk: 'SPK-9', itemName: 'Lemari', recipientType: 'PRODUKSI', notes: 'Pengambil: Rudi' });
     expect(a).not.toHaveProperty('clientName');
     expect(a).not.toHaveProperty('warehouseType');
     expect(a.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     // PIC is no longer in the form; the API still requires it, so it carries the nama pengambil
-    expect(a.lines).toEqual([{ itemId: 1, qty: 4, pic: 'Rudi' }, { itemId: 2, qty: 9, pic: 'Rudi' }]);
-    expect(b).toMatchObject({ spk: 'SPK-7', itemName: 'Meja' });
-    expect(b.lines).toEqual([{ itemId: 1, qty: 1, pic: 'Rudi' }]);
+    expect(a.lines).toEqual([{ itemId: 1, qty: 4, pic: 'Rudi' }, { itemId: 3, qty: 1, pic: 'Rudi' }]);
     await waitFor(() => expect(screen.queryByText('Simpan')).toBeNull());
   });
 
-  it('add-row button appends a line', async () => {
-    const api = setup();
+  it('can send barang out for Stok instead of a produk of the SPK', async () => {
+    const api = setup({ 'POST /api/v1/outbound': { id: 5 } });
     await openForm(api);
-    fireEvent.click(screen.getByLabelText('Tambah baris barang'));
-    expect(cell('Jumlah', 4)).not.toBeNull();
+    await fillHeader({ spk: 'SPK-7', item: 'Stok' });
+    scan('BRG-1');
+    await screen.findByText('Triplex', { selector: 'td' });
+    fireEvent.click(screen.getByText('Simpan'));
+    await waitFor(() => expect(api.calls('POST /api/v1/outbound').length).toBe(1));
+    expect(api.calls('POST /api/v1/outbound')[0].body).toMatchObject({ spk: 'SPK-7', itemName: 'Stok' });
   });
 
   it('shows backend error, keeps form open, disables Simpan while saving', async () => {
     const api = setup({ 'POST /api/v1/outbound': fail(409, 'Stok tidak cukup') });
     await openForm(api);
-    fillHeader();
-    await fillRow(1, { spk: 'SPK-9', item: 'Lemari', itemId: '1', qty: '4' });
+    await fillHeader();
+    scan('BRG-1');
+    await screen.findByText('Triplex', { selector: 'td' });
     fireEvent.click(screen.getByText('Simpan'));
     expect((screen.getByText('Simpan') as HTMLButtonElement).disabled).toBe(true);
     expect(await screen.findByText('Stok tidak cukup')).not.toBeNull();
