@@ -38,6 +38,7 @@ const rows: Row[] = [
   ['createInbound', [{ a: 1 }], 'POST /api/v1/inbound', {}, { a: 1 }],
   ['createInboundReturn', [{ b: 1 }], 'POST /api/v1/inbound/returns', {}, { b: 1 }],
   ['createInboundBatch', [{ lines: [] }, 'key-12345678'], 'POST /api/v1/inbound/batch', {}, { lines: [] }],
+  ['createInboundScanBatch', [{ date: '2026-01-01', pass: [], retur: [] }, 'key-12345678'], 'POST /api/v1/inbound/scan-batch', {}, { date: '2026-01-01', pass: [], retur: [] }],
   ['getInboundReport', [{ q: 'x', page: 2 }], 'GET /api/v1/reports/inbound', { q: 'x', page: '2' }, undefined],
   ['exportInboundReport', [{ q: 'x' }], 'GET /api/v1/reports/inbound/export', { q: 'x' }, undefined],
   ['listOutbound', [{ page: 3 }], 'GET /api/v1/outbound', { page: '3' }, undefined],
