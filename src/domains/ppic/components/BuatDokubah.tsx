@@ -7,10 +7,11 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Plus } from 'lucide-react';
 import { dokubah_path, formatAngka, type StatusDokubah } from '@/domains/ppic/data/dokubah';
-import { createDokubah, listTrackingSpk } from '@/domains/ppic/api';
+import { createDokubah } from '@/domains/ppic/api';
+import { useSpkSearch } from '@/domains/ppic/use-spk-search';
 import { ApiError } from '@/shared/lib/api-client';
-import { useApiData } from '@/shared/lib/use-api-data';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
+import SearchableSelect from '@/shared/components/SearchableSelect';
 
 // Kuota disimpan sebagai teks selama diisi supaya kolomnya boleh dikosongkan dulu
 type BahanRow = { kodeBarang: string; namaBahan: string; kuota: string; satuan: string };
@@ -46,7 +47,7 @@ export default function BuatDokubahPPIC() {
   const [form, setForm] = useState(emptyForm);
   const [rows, setRows] = useState<BahanRow[]>(() => Array.from({ length: JUMLAH_BARIS_AWAL }, () => ({ ...emptyRow })));
   const [formError, setFormError] = useState('');
-  const { data: spkList, error: spkError } = useApiData(() => listTrackingSpk(), 'spk', 'Gagal memuat daftar SPK.');
+  const spk = useSpkSearch(form.noSpk);
 
   const handleRowChange = (index: number, field: keyof BahanRow, value: string) => {
     setRows((prev) => prev.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
@@ -121,17 +122,15 @@ export default function BuatDokubahPPIC() {
         {/* Info SPK */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-3 max-w-4xl mb-8">
           <Field id="buat-dokubah-spk" label="Pilih SPK / Proyek">
-            <select
-              id="buat-dokubah-spk"
+            <SearchableSelect
               value={form.noSpk}
-              onChange={(e) => setForm({ ...form, noSpk: e.target.value, client: spkList?.find((spk) => spk.noSpk === e.target.value)?.client ?? '' })}
-              className={`${fieldClass} cursor-pointer`}
-            >
-              <option value="" disabled>{spkError || 'No. SPK / Nama Proyek'}</option>
-              {(spkList ?? []).map((spk) => (
-                <option key={spk.noSpk} value={spk.noSpk}>{spk.noSpk}</option>
-              ))}
-            </select>
+              onChange={(noSpk) => setForm({ ...form, noSpk, client: spk.options.find((t) => t.noSpk === noSpk)?.client ?? '' })}
+              onSearch={spk.onSearch}
+              options={spk.options.map((t) => ({ value: t.noSpk, label: t.noSpk }))}
+              placeholder={spk.error || 'No. SPK / Nama Proyek'}
+              aria-label="Pilih SPK / Proyek"
+              className={fieldClass}
+            />
           </Field>
           <Field id="buat-dokubah-mulai" label="Tanggal Mulai">
             <input

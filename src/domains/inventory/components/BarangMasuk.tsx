@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { Search, Plus, Filter, ScanLine } from 'lucide-react';
 import { createInbound, createInboundReturn, listInbound, listItems } from '@/domains/inventory/api';
 import type { StatusQc, ItemListRow } from '@/domains/inventory/types';
-import { listTrackingSpk } from '@/domains/ppic/api';
+import { useSpkSearch } from '@/domains/ppic/use-spk-search';
 import { displayDate, todayIso, toDateRange } from '@/domains/inventory/date';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
@@ -15,6 +15,7 @@ import { ExportExcellButton } from '@/shared/components/Tombol';
 import { countActiveFilters, emptyBarangFilters } from '@/domains/superadmin/components/BarangFilterPanel';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import DateFilter from '@/shared/components/DateFilter';
+import SearchableSelect from '@/shared/components/SearchableSelect';
 import BarangMasukScan from './BarangMasukScan';
 
 const emptyBaru = { itemId: "", itemName: "", tanggal: todayIso(), jumlahKedatangan: "", jumlahRekap: "", statusQc: "PASS" as StatusQc };
@@ -54,7 +55,7 @@ export default function BarangMasukGudang() {
   const rows = result?.rows ?? [];
   const total = result?.total ?? 0;
 
-  const { data: spkList } = useApiData(() => listTrackingSpk(), 'spk', 'Gagal memuat daftar SPK.');
+  const spkKembali = useSpkSearch(modalKembaliData.spk);
 
   useEffect(() => {
     listItems({ pageSize: 100 }).then((res) => setItems(res.rows)).catch(() => { });
@@ -457,14 +458,15 @@ export default function BarangMasukGudang() {
               <div className="flex flex-col sm:flex-row gap-6">
                 <div className="flex-1 flex flex-col gap-2">
                   <label className="text-[15px] font-medium text-gray-900">SPK (opsional)</label>
-                  <select
+                  <SearchableSelect
                     value={modalKembaliData.spk}
-                    onChange={(e) => setModalKembaliData({ ...modalKembaliData, spk: e.target.value })}
+                    onChange={(spk) => setModalKembaliData({ ...modalKembaliData, spk })}
+                    onSearch={spkKembali.onSearch}
+                    options={[{ value: '', label: 'Tanpa SPK' }, ...spkKembali.options.map((t) => ({ value: t.noSpk, label: `${t.noSpk} - ${t.client}` }))]}
+                    placeholder="Tanpa SPK"
+                    aria-label="SPK"
                     className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white text-sm"
-                  >
-                    <option value="">Tanpa SPK</option>
-                    {(spkList ?? []).map((s) => <option key={s.noSpk} value={s.noSpk}>{s.noSpk} - {s.client}</option>)}
-                  </select>
+                  />
                 </div>
               </div>
             </div>

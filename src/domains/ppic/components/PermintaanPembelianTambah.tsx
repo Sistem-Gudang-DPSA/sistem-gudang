@@ -6,11 +6,13 @@ import { useCan } from '@/domains/auth/user-context';
 import NoPermission from './NoPermission';
 import { ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { createPurchaseRequest, resubmitApproval, listTrackingSpk } from '@/domains/ppic/api';
+import { createPurchaseRequest, resubmitApproval } from '@/domains/ppic/api';
+import { useSpkSearch } from '@/domains/ppic/use-spk-search';
 import { permintaan_pembelian_path, type PermintaanPembelian } from '@/domains/ppic/data/pembelian';
 import { todayIso } from '@/domains/inventory/date';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
+import SearchableSelect from '@/shared/components/SearchableSelect';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 import { listItems } from '@/domains/inventory/api';
 
@@ -49,7 +51,12 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
   const [page, setPage] = useState(1);
   // Server errors per row, keyed by the row index in tableData.
   const [rowErrors, setRowErrors] = useState<Record<number, string>>({});
-  const { data: spkList } = useApiData(() => listTrackingSpk(), 'spk', 'Gagal memuat daftar SPK.');
+  // Dropdown No SPK di tiap baris memakai daftar pencarian yang sama; SPK lama di baris tetap ada di pilihan
+  const spkBaris = useSpkSearch('');
+  const pilihanSpk = (noSpk: string) => [
+    ...spkBaris.options.map((t) => ({ value: t.noSpk, label: t.noSpk })),
+    ...(noSpk && !spkBaris.options.some((t) => t.noSpk === noSpk) ? [{ value: noSpk, label: noSpk }] : []),
+  ];
   const { data: loaded, loading, error: loadError, reload } = useApiData(
     () => listItems({ search: searchTerm || undefined, page, pageSize: 20 }),
     `${searchTerm}|${page}`,
@@ -334,10 +341,17 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
                         <input type="text" value={row.proyek} maxLength={191} placeholder="Isi nama proyek" onChange={(e) => handleChange(i, 'proyek', e.target.value)} className="w-full h-full px-4 text-center bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 placeholder-gray-300 not-italic" />
                       </td>
                       <td className="p-0">
-                        <select aria-label="No SPK" value={row.noSpk} onChange={(e) => handleChange(i, 'noSpk', e.target.value)} title={rowErrors[i]} className={`w-full h-full px-2 text-center bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 not-italic ${rowErrors[i] ? 'ring-1 ring-inset ring-red-500 text-red-600' : ''}`}>
-                          <option value="">Pilih SPK</option>
-                          {(spkList ?? []).map((s) => <option key={s.noSpk} value={s.noSpk}>{s.noSpk}</option>)}
-                        </select>
+                        <div title={rowErrors[i]} className="h-full">
+                          <SearchableSelect
+                            aria-label="No SPK"
+                            value={row.noSpk}
+                            onChange={(v) => handleChange(i, 'noSpk', v)}
+                            onSearch={spkBaris.onSearch}
+                            options={pilihanSpk(row.noSpk)}
+                            placeholder="Pilih SPK"
+                            className={`w-full h-full px-2 bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 not-italic ${rowErrors[i] ? 'ring-1 ring-inset ring-red-500 text-red-600' : ''}`}
+                          />
+                        </div>
                       </td>
                     </tr>
                   ))}

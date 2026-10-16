@@ -13,11 +13,13 @@ type Props = {
   'aria-label': string;
   className?: string;
   emptyText?: string;
+  // Server-side search: called with the typed text; the list is then not filtered here.
+  onSearch?: (q: string) => void;
 };
 
 // Dropdown like a native <select>, with a search box on top of the list.
 // The list is position: fixed so the scrolling table it sits in cannot clip it.
-export default function SearchableSelect({ value, onChange, options, placeholder, 'aria-label': ariaLabel, className = '', emptyText = 'Tidak ada data' }: Props) {
+export default function SearchableSelect({ value, onChange, options, placeholder, 'aria-label': ariaLabel, className = '', emptyText = 'Tidak ada data', onSearch }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
@@ -28,12 +30,13 @@ export default function SearchableSelect({ value, onChange, options, placeholder
 
   const selected = options.find((o) => o.value === value);
   const q = query.trim().toLowerCase();
-  const filtered = q ? options.filter((o) => o.label.toLowerCase().includes(q)) : options;
+  const filtered = q && !onSearch ? options.filter((o) => o.label.toLowerCase().includes(q)) : options;
 
   const buka = () => {
     const rect = buttonRef.current?.getBoundingClientRect();
     if (rect) setPos({ top: rect.bottom + 2, left: rect.left, width: Math.max(rect.width, 220) });
     setQuery('');
+    onSearch?.('');
     setActive(Math.max(0, options.findIndex((o) => o.value === value)));
     setOpen(true);
   };
@@ -108,7 +111,7 @@ export default function SearchableSelect({ value, onChange, options, placeholder
               type="text"
               autoFocus
               value={query}
-              onChange={(e) => { setQuery(e.target.value); setActive(0); }}
+              onChange={(e) => { setQuery(e.target.value); setActive(0); onSearch?.(e.target.value); }}
               onKeyDown={onKeyDown}
               placeholder="Cari..."
               aria-label={`Cari ${ariaLabel}`}
