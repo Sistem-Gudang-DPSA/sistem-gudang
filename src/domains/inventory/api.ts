@@ -57,6 +57,19 @@ export type BulkItemRow = {
 };
 export type BulkItemsResult = { dryRun: boolean; created: number; skipped: { row: number; name: string; code: string | null; reason: string }[] };
 
+export type InboundScanBatchInput = {
+  date: string;
+  pass: { itemId: number; qtyArrived: number }[];
+  retur: { itemId: number; qty: number; reason: string }[];
+};
+
+export type InboundScanBatchResult = {
+  passCount: number;
+  returCount: number;
+  items: InboundRow[];            // catatan barang masuk yang lolos QC
+  returnRequests: { id: number; supplierId: number; lineCount: number }[];
+};
+
 // All-or-nothing: one bad row rejects the whole request. The BE reports `errors` keyed "items.<row>.<field>" (row starts at 1).
 export async function importItems(body: { defaults: { category?: string; unit?: string }; items: BulkItemRow[] }) {
   try {
@@ -164,6 +177,10 @@ export function createInbound(input: CreateInboundInput) {
 // (24 hours), so a retry after a timeout or double click never adds stock twice.
 export function createInboundBatch(input: CreateInboundBatchInput, idempotencyKey: string) {
   return apiClient.post<{ count: number; items: InboundRow[] }>("/api/v1/inbound/batch", input, { "Idempotency-Key": idempotencyKey });
+}
+
+export function createInboundScanBatch(input: InboundScanBatchInput, idempotencyKey: string) {
+  return apiClient.post<InboundScanBatchResult>("/api/v1/inbound/scan-batch", input, { "Idempotency-Key": idempotencyKey });
 }
 
 export function createInboundReturn(input: CreateInboundReturnInput) {
