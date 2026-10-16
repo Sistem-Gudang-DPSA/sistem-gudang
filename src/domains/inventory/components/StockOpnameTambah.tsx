@@ -2,15 +2,16 @@
 
 import { useCan } from '@/domains/auth/user-context';
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Plus } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createStockOpname, listItems } from '@/domains/inventory/api';
 import type { ItemListRow } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
+import Pagination from '@/shared/components/Pagination';
 
 const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-const emptyRow = { itemId: "", itemName: "", jumlah: "", keterangan: "" };
+type Row = { itemId: string; itemName: string; jumlah: string; keterangan: string };
 
 export default function TambahStockOpnameGudang() {
   const router = useRouter();
@@ -20,30 +21,89 @@ export default function TambahStockOpnameGudang() {
   const [month, setMonth] = useState(String(now.getMonth() + 1));
   const [year, setYear] = useState(String(now.getFullYear()));
   const [items, setItems] = useState<ItemListRow[]>([]);
-  const [data, setData] = useState(Array.from({ length: 7 }, () => emptyRow));
+  const [data, setData] = useState<Row[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(25);
+  const [totalItems, setTotalItems] = useState(0);
+  const [loadingItems, setLoadingItems] = useState(false);
+
 
   useEffect(() => {
-    listItems({ pageSize: 100 })
-      .then((res) => setItems(res.rows))
-      .catch((err) => setError(err instanceof ApiError ? err.message : "Gagal memuat data barang."));
-  }, []);
+    let cancelled = false;
 
-  const handleChange = (index: number, patch: Partial<typeof emptyRow>) => {
-    setData((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
-  };
+    async function loadItems() {
+      setLoadingItems(true);
+      setError("");
 
-  const handleAddRow = () => {
-    setData((prev) => [...prev, emptyRow]);
+      try {
+        const res = await listItems({ page, pageSize });
+
+        if (cancelled) return;
+
+        setItems(res.rows);
+        setTotalItems(res.total);
+
+        setData((prev) => {
+          const existing = new Map(
+            prev.map((row) => [row.itemId, row])
+          );
+
+          const newRows = res.rows.map((item) => {
+            const id = String(item.id);
+            const saved = existing.get(id);
+
+            return saved ?? {
+              itemId: id,
+              itemName: item.name,
+              jumlah: "",
+              keterangan: "",
+            };
+          });
+
+          const currentPageIds = new Set(
+            res.rows.map((item) => String(item.id))
+          );
+
+          return [
+            ...prev.filter(
+              (row) => !currentPageIds.has(row.itemId)
+            ),
+            ...newRows,
+          ];
+        });
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof ApiError
+              ? err.message
+              : "Gagal memuat data barang."
+          );
+        }
+      } finally {
+        if (!cancelled) setLoadingItems(false);
+      }
+    }
+
+    loadItems();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [page, pageSize]);
+
+  const handleChange = (itemId: string, patch: Partial<Row>) => {
+    setData((prev) => prev.map((row) => row.itemId === itemId ? {...row, ...patch} : row));
   };
 
   const findItem = (itemId: string) => items.find((it) => String(it.id) === itemId);
 
   const handleSimpan = async () => {
-    const filled = data.filter((row) => row.itemId || row.itemName || row.jumlah || row.keterangan);
-    if (filled.length === 0 || filled.some((row) => !row.itemId || row.jumlah === "")) {
-      setError("Pilih barang dan isi jumlah fisik di setiap baris yang dipakai.");
+    // Only rows with a physical count go to the API; an empty row must not zero that item's stock.
+    const filled = data.filter((row) => row.jumlah !== "");
+    if (filled.length === 0) {
+      setError("Isi jumlah fisik minimal satu barang.");
       return;
     }
     const ids = filled.map((row) => row.itemId);
@@ -77,6 +137,10 @@ export default function TambahStockOpnameGudang() {
   };
 
   if (!canCreate) return <div className="p-6 text-sm text-gray-600">Anda tidak punya izin untuk membuat stock opname.</div>;
+
+  const pageData = data.filter((row) =>
+    items.some((item) => String(item.id) === row.itemId)
+  );
 
   return (
     <div className="flex flex-col bg-white min-h-screen p-6">
@@ -116,7 +180,7 @@ export default function TambahStockOpnameGudang() {
           {/* Table Wrapper */}
           <div className="overflow-hidden w-full bg-white rounded-xl shadow-sm border border-gray-200/80">
             <div className="overflow-x-auto w-full">
-              <table className="w-full text-left text-sm border-collapse">
+              <table className="w-full table-auto text-left text-sm border-collapse">
                 <thead className="bg-gray-50/80 text-gray-500 uppercase tracking-wider text-xs font-semibold">
                   <tr>
                     <th rowSpan={2} className="border-r border-b border-gray-200 px-6 py-4 align-top w-12 whitespace-nowrap text-center">No</th>
@@ -129,33 +193,29 @@ export default function TambahStockOpnameGudang() {
                     <th rowSpan={2} className="border-b border-gray-200 px-6 py-4 align-top whitespace-nowrap">Keterangan</th>
                   </tr>
                   <tr>
-                    <th className="border-r border-b border-gray-200 px-6 py-2.5 font-semibold whitespace-nowrap text-center">Jumlah</th>
-                    <th className="border-r border-b border-gray-200 px-6 py-2.5 font-semibold whitespace-nowrap text-center">Harga</th>
-                    <th className="border-r border-b border-gray-200 px-6 py-2.5 font-semibold whitespace-nowrap text-center">Jumlah</th>
-                    <th className="border-r border-b border-gray-200 px-6 py-2.5 font-semibold whitespace-nowrap text-center">Harga</th>
-                    <th className="border-r border-b border-gray-200 px-6 py-2.5 font-semibold whitespace-nowrap text-center">Jumlah</th>
-                    <th className="border-r border-b border-gray-200 px-6 py-2.5 font-semibold whitespace-nowrap text-center">Harga</th>
+                    <th colSpan={2} className="border-r border-b border-gray-200 px-6 py-2.5 font-semibold whitespace-nowrap text-center">Jumlah</th>
+                    {/* <th className="border-r border-b border-gray-200 px-6 py-2.5 font-semibold whitespace-nowrap text-center">Harga</th> */}
+                    <th colSpan={2} className="border-r border-b border-gray-200 px-6 py-2.5 font-semibold whitespace-nowrap text-center">Jumlah</th>
+                    {/* <th className="border-r border-b border-gray-200 px-6 py-2.5 font-semibold whitespace-nowrap text-center">Harga</th> */}
+                    <th colSpan={2} className="border-r border-b border-gray-200 px-6 py-2.5 font-semibold whitespace-nowrap text-center">Jumlah</th>
+                    {/* <th className="border-r border-b border-gray-200 px-6 py-2.5 font-semibold whitespace-nowrap text-center">Harga</th> */}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {data.map((row, index) => {
-                    const item = findItem(row.itemId);
+                  {pageData.map((row) => {
+                    const item = items.find((it) => String(it.id) === row.itemId);
                     // Administrasi = system stock; Fisik harga and Selisih are derived (the API only takes physical qty).
                     const adm = item ? { qty: item.stock, harga: item.stock * item.price } : null;
                     const fsk = item && row.jumlah !== "" ? { qty: Number(row.jumlah), harga: Number(row.jumlah) * item.price } : null;
                     const fmt = (n?: number) => (n === undefined ? '' : n.toLocaleString('id-ID'));
                     return (
-                      <tr key={index} className="bg-white hover:bg-orange-50/10 transition-colors duration-150">
-                        <td className="border-r border-b border-gray-100/50 h-12 text-gray-400 font-medium text-center text-xs">{index + 1}</td>
-                        <td className="border-r border-b border-gray-100/50 p-0">
-                          <input
-                            type="text"
-                            list="stock-opname-items"
-                            value={row.itemName}
-                            placeholder="Masukkan nama barang"
-                            onChange={(e) => handleChange(index, { itemName: e.target.value, itemId: String(items.find((it) => it.name === e.target.value)?.id ?? "") })}
-                            className="w-full h-full min-h-12 px-6 py-2 bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 text-gray-700 text-sm transition-all placeholder-gray-300"
-                          />
+                      <tr key={item?.id} className="bg-white hover:bg-orange-50/10 transition-colors duration-150">
+                        <td className="border-r border-b border-gray-100/50 h-12 text-gray-400 font-medium text-center text-xs"> {(page - 1) * pageSize + items.findIndex((item) => String(item.id) === row.itemId) + 1}</td>
+                        <td className="border-r border-b border-gray-100/50 p-0 whitespace-normal">
+                          <div className='flex flex-col'>
+                            <span className="font-bold text-gray-900">{row.itemName}</span>
+                            <span className="text-xs font-mono text-gray-500 mt-0.5">{item?.code ?? '-'}</span>
+                          </div>
                         </td>
                         <td className="border-r border-b border-gray-100/50 p-0 w-24">
                           <input type="text" readOnly value={item?.unit ?? ''} placeholder="Unit" className="w-full h-full min-h-12 px-4 py-2 bg-transparent text-center text-gray-700 text-sm placeholder-gray-300 focus:outline-none" />
@@ -163,45 +223,44 @@ export default function TambahStockOpnameGudang() {
                         <td className="border-r border-b border-gray-100/50 p-0 w-32">
                           <input type="text" readOnly value={item?.category ?? ''} placeholder="Kategori" className="w-full h-full min-h-12 px-4 py-2 bg-transparent text-center text-gray-700 text-sm placeholder-gray-300 focus:outline-none" />
                         </td>
-                        <td className="border-r border-b border-gray-100/50 px-4 py-2 w-28 text-center text-gray-600">{fmt(adm?.qty)}</td>
-                        <td className="border-r border-b border-gray-100/50 px-4 py-2 w-36 text-center text-gray-600">{fmt(adm?.harga)}</td>
-                        <td className="border-r border-b border-gray-100/50 p-0 w-28">
-                          <input {...INTEGER_INPUT} maxLength={9} value={row.jumlah} placeholder="0" onChange={(e) => handleChange(index, { jumlah: digitsOnly(e.target.value) })} className="w-full h-full min-h-12 px-4 py-2 bg-transparent text-center focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 text-gray-700 text-sm transition-all placeholder-gray-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                        <td colSpan={2} className="border-r border-b border-gray-100/50 px-4 py-2 w-28 text-center text-gray-600">{fmt(adm?.qty)}</td>
+                        {/* <td className="border-r border-b border-gray-100/50 px-4 py-2 w-36 text-center text-gray-600">{fmt(adm?.harga)}</td> */}
+                        <td colSpan={2} className="border-r border-b border-gray-100/50 p-0 w-28">
+                          <input {...INTEGER_INPUT} maxLength={9} value={row.jumlah} placeholder="0" onChange={(e) => handleChange(row.itemId, { jumlah: digitsOnly(e.target.value) })} className="w-full h-full min-h-12 px-4 py-2 bg-transparent text-center focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 text-gray-700 text-sm transition-all placeholder-gray-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                         </td>
-                        <td className="border-r border-b border-gray-100/50 px-4 py-2 w-36 text-center text-gray-600">{fmt(fsk?.harga)}</td>
-                        <td className="border-r border-b border-gray-100/50 px-4 py-2 w-28 text-center text-gray-600 font-bold bg-gray-50/50">{fsk && adm ? fmt(fsk.qty - adm.qty) : ''}</td>
-                        <td className="border-r border-b border-gray-100/50 px-4 py-2 w-36 text-center text-gray-600 font-bold bg-gray-50/50">{fsk && adm ? fmt(fsk.harga - adm.harga) : ''}</td>
+                        {/* <td className="border-r border-b border-gray-100/50 px-4 py-2 w-36 text-center text-gray-600">{fmt(fsk?.harga)}</td> */}
+                        <td colSpan={2} className="border-r border-b border-gray-100/50 px-4 py-2 w-28 text-center text-gray-600 font-bold bg-gray-50/50">{fsk && adm ? fmt(fsk.qty - adm.qty) : ''}</td>
+                        {/* <td className="border-r border-b border-gray-100/50 px-4 py-2 w-36 text-center text-gray-600 font-bold bg-gray-50/50">{fsk && adm ? fmt(fsk.harga - adm.harga) : ''}</td> */}
                         <td className="border-b border-gray-100/50 p-0">
-                          <input type="text" maxLength={255} value={row.keterangan} placeholder="Tambahkan catatan..." onChange={(e) => handleChange(index, { keterangan: e.target.value })} className="w-full h-full min-h-12 px-6 py-2 bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 text-gray-700 text-sm transition-all placeholder-gray-300 italic" />
+                          <input type="text" maxLength={255} value={row.keterangan} placeholder="Tambahkan catatan..." onChange={(e) => handleChange(row.itemId, { keterangan: e.target.value })} className="w-full h-full min-h-12 px-6 py-2 bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 text-gray-700 text-sm transition-all placeholder-gray-300 italic" />
                         </td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
+              {loadingItems && (
+                <p className="text-sm text-gray-500 p-4">
+                  Memuat data barang...
+                </p>
+              )}
+
+              <Pagination page={page} pageSize={pageSize} total={totalItems} onPageChange={setPage} />
             </div>
           </div>
-
-          {/* The Float (+) Button right on the bottom-left border */}
-          <button
-            onClick={handleAddRow}
-            className="absolute -left-3.5 -bottom-3.5 w-8.5 h-8.5 rounded-lg border-2 border-[#ff8a00] flex items-center justify-center text-[#ff8a00] bg-white hover:bg-orange-50 hover:shadow-md hover:-translate-y-0.5 z-10 shadow-sm leading-none transition-all duration-200"
-          >
-            <Plus size={18} strokeWidth={2.5} />
-          </button>
         </div>
+      </div>
 
-        {/* Simpan Button underneath */}
-        {error && <p className="text-sm text-red-500 text-right mt-4">{error}</p>}
-        <div className="flex justify-end mt-6">
-           <button
-             onClick={handleSimpan}
-             disabled={saving}
-             className="px-8 py-2.5 bg-[#ff8a00] text-white rounded-lg shadow-sm hover:shadow-md hover:-translate-y-0.5 hover:bg-[#eb7d00] transition-all duration-200 font-semibold text-sm disabled:opacity-60"
-           >
-             {saving ? 'Menyimpan...' : 'Simpan'}
-           </button>
-        </div>
+      {/* Simpan Button underneath */}
+      {error && <p className="text-sm text-red-500 text-right mt-4">{error}</p>}
+      <div className="flex justify-end mt-6">
+        <button
+          onClick={handleSimpan}
+          disabled={saving}
+          className="px-8 py-2.5 bg-[#ff8a00] text-white rounded-lg shadow-sm hover:shadow-md hover:-translate-y-0.5 hover:bg-[#eb7d00] transition-all duration-200 font-semibold text-sm disabled:opacity-60"
+        >
+          {saving ? 'Menyimpan...' : 'Simpan'}
+        </button>
       </div>
     </div>
   );

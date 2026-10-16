@@ -1,0 +1,200 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { installFakeApi, fail, type FakeRequest } from '@/test/fake-api';
+import BarangMasukScan from './BarangMasukScan';
+
+const qr = vi.hoisted(() => ({
+  cb: null as null | ((r: { data: string }) => void),
+  start: vi.fn(async () => {}),
+  stop: vi.fn(),
+  destroy: vi.fn(),
+}));
+vi.mock('qr-scanner', () => ({
+  default: class {
+    constructor(_video: unknown, cb: (r: { data: string }) => void) { qr.cb = cb; }
+    start = qr.start;
+    stop = qr.stop;
+    destroy = qr.destroy;
+  },
+}));
+
+const item = (id: number, code: string, name: string) => ({ id, code, name, unit: 'lbr', stock: 10, category: 'Lembaran', price: 0, locationId: 1, supplierId: 7 });
+const routes = {
+  'GET /api/v1/items/by-code/A1-01': item(1, 'A1-01', 'BB 18 MM'),
+  'GET /api/v1/items/by-code/A1-02': item(2, 'A1-02', 'MP 15 MM'),
+  'GET /api/v1/items/by-code/NOPE': fail(404, 'Item not found'),
+};
+
+function setup(extra: Record<string, unknown> = {}) {
+  const onClose = vi.fn();
+  const onSaved = vi.fn();
+  const api = installFakeApi({ ...routes, ...extra });
+  render(<BarangMasukScan onClose={onClose} onSaved={onSaved} />);
+  return { api, onClose, onSaved };
+}
+const scan = (code: string) => {
+  const input = screen.getByLabelText('Hasil scan');
+  fireEvent.change(input, { target: { value: code } });
+  fireEvent.keyDown(input, { key: 'Enter' });
+};
+const qty = (name: string) => (screen.getByLabelText(`Jumlah ${name}`) as HTMLInputElement).value;
+
+const setSecure = (value: boolean) => Object.defineProperty(window, 'isSecureContext', { value, configurable: true });
+
+beforeEach(() => { setSecure(true); localStorage.clear(); qr.cb = null; qr.start.mockClear(); qr.stop.mockClear(); qr.destroy.mockClear(); });
+
+describe('BarangMasukScan', () => {
+  it('adds a line per scan and raises the qty when the same code is scanned again', async () => {
+    const { api } = setup();
+    scan('A1-01');
+    await screen.findByText('BB 18 MM');
+    expect(qty('BB 18 MM')).toBe('1');
+    scan('A1-01');
+    await waitFor(() => expect(qty('BB 18 MM')).toBe('2'));
+    expect(api.calls('GET /api/v1/items/by-code/A1-01').length).toBe(1);
+  });
+
+  it('counts two scans of a new code that arrive before the first lookup finishes', async () => {
+    setup();
+    scan('A1-02');
+    scan('A1-02');
+    await screen.findByText('MP 15 MM');
+    await waitFor(() => expect(qty('MP 15 MM')).toBe('2'));
+    expect(screen.getAllByText('MP 15 MM').length).toBe(1);
+  });
+
+  it('shows an unknown code and adds no line', async () => {
+    setup();
+    scan('NOPE');
+    expect(await screen.findByText('Kode "NOPE" tidak dikenal.')).not.toBeNull();
+    expect(screen.getByText(/Belum ada barang/)).not.toBeNull();
+  });
+
+  it('keeps digits only and blocks review for an invalid qty', async () => {
+    setup();
+    scan('A1-01');
+    await screen.findByText('BB 18 MM');
+    const input = screen.getByLabelText('Jumlah BB 18 MM') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '1e2.5' } });
+    expect(input.value).toBe('125');
+    fireEvent.change(input, { target: { value: '0' } });
+    expect((screen.getByText('Periksa') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('reviews first, then posts one batch with an Idempotency-Key and clears the draft', async () => {
+    const { api, onSaved, onClose } = setup({ 'POST /api/v1/inbound/batch': { count: 2, items: [] } });
+    scan('A1-01');
+    await screen.findByText('BB 18 MM');
+    scan('A1-02');
+    await screen.findByText('MP 15 MM');
+    fireEvent.change(screen.getByLabelText('Jumlah BB 18 MM'), { target: { value: '30' } });
+    fireEvent.change(screen.getByLabelText('Status QC MP 15 MM'), { target: { value: 'PARTIAL_RETUR' } });
+    fireEvent.change(screen.getByLabelText('Tanggal'), { target: { value: '2026-10-15' } });
+    fireEvent.click(screen.getByText('Periksa'));
+    expect(screen.getByText(/2 jenis barang, total 31 unit/)).not.toBeNull();
+    expect(api.calls('POST /api/v1/inbound/batch').length).toBe(0);
+    fireEvent.click(screen.getByText('Konfirmasi simpan'));
+    await waitFor(() => expect(api.calls('POST /api/v1/inbound/batch').length).toBe(1));
+    const call = api.calls('POST /api/v1/inbound/batch')[0];
+    expect(call.body).toEqual({
+      date: '2026-10-15',
+      lines: [{ itemId: 1, qtyArrived: 30, statusQc: 'PASS' }, { itemId: 2, qtyArrived: 1, statusQc: 'PARTIAL_RETUR' }],
+    });
+    expect(call.headers.get('Idempotency-Key')).toMatch(/^[\w-]{8,100}$/);
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    expect(onClose).toHaveBeenCalled();
+    expect(localStorage.getItem('barang-masuk-scan-draft')).toBeNull();
+  });
+
+  it('retries with the same key after a failed save', async () => {
+    const keys: string[] = [];
+    let n = 0;
+    const { api, onSaved } = setup({
+      'POST /api/v1/inbound/batch': (req: FakeRequest) => {
+        keys.push(req.headers.get('Idempotency-Key')!);
+        return ++n === 1 ? fail(500, 'Server error') : { count: 1, items: [] };
+      },
+    });
+    scan('A1-01');
+    await screen.findByText('BB 18 MM');
+    fireEvent.click(screen.getByText('Periksa'));
+    fireEvent.click(screen.getByText('Konfirmasi simpan'));
+    expect(await screen.findByText('Server error')).not.toBeNull();
+    fireEvent.click(screen.getByText('Konfirmasi simpan'));
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    expect(api.calls('POST /api/v1/inbound/batch').length).toBe(2);
+    expect(keys[0]).toBe(keys[1]);
+  });
+
+  it('shows a per-line error with the item name', async () => {
+    setup({ 'POST /api/v1/inbound/batch': fail(400, 'Validation failed', { 'lines.0.itemId': ['Item has no supplier yet, ask Purchasing to map one first'] }) });
+    scan('A1-01');
+    await screen.findByText('BB 18 MM');
+    fireEvent.click(screen.getByText('Periksa'));
+    fireEvent.click(screen.getByText('Konfirmasi simpan'));
+    expect(await screen.findByText(/BB 18 MM: Item has no supplier yet/)).not.toBeNull();
+  });
+
+  it('restores the draft after a reload, and Batalkan sesi clears it', async () => {
+    const first = setup();
+    scan('A1-01');
+    await screen.findByText('BB 18 MM');
+    first.onClose.mockClear();
+    document.body.innerHTML = '';
+    const { onClose } = setup();
+    expect(await screen.findByText('BB 18 MM')).not.toBeNull();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    fireEvent.click(screen.getByText('Batalkan sesi'));
+    expect(onClose).toHaveBeenCalled();
+    expect(localStorage.getItem('barang-masuk-scan-draft')).toBeNull();
+  });
+
+  it('plus and minus change the qty, minus stops at 1', async () => {
+    setup();
+    scan('A1-01');
+    await screen.findByText('BB 18 MM');
+    expect((screen.getByLabelText('Kurangi BB 18 MM') as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByLabelText('Tambah BB 18 MM'));
+    fireEvent.click(screen.getByLabelText('Tambah BB 18 MM'));
+    expect(qty('BB 18 MM')).toBe('3');
+    fireEvent.click(screen.getByLabelText('Kurangi BB 18 MM'));
+    expect(qty('BB 18 MM')).toBe('2');
+  });
+});
+
+describe('BarangMasukScan camera', () => {
+  it('starts the camera, adds a line per decoded QR, ignores the same QR re-read within the cooldown, and stops on toggle off', async () => {
+    const now = vi.spyOn(Date, 'now').mockReturnValue(10_000);
+    setup();
+    fireEvent.click(screen.getByText('Kamera'));
+    await waitFor(() => expect(qr.start).toHaveBeenCalled());
+    qr.cb!({ data: 'A1-01' });
+    await screen.findByText('BB 18 MM');
+    now.mockReturnValue(10_500);
+    qr.cb!({ data: 'A1-01' });
+    await Promise.resolve();
+    expect(qty('BB 18 MM')).toBe('1');
+    now.mockReturnValue(13_000);
+    qr.cb!({ data: 'A1-01' });
+    await waitFor(() => expect(qty('BB 18 MM')).toBe('2'));
+    fireEvent.click(screen.getByText('Matikan kamera'));
+    expect(qr.stop).toHaveBeenCalled();
+    expect(qr.destroy).toHaveBeenCalled();
+    now.mockRestore();
+  });
+
+  it('explains when the camera cannot start', async () => {
+    qr.start.mockRejectedValueOnce(new Error('NotAllowedError'));
+    setup();
+    fireEvent.click(screen.getByText('Kamera'));
+    expect(await screen.findByText(/Kamera tidak bisa dibuka/)).not.toBeNull();
+  });
+
+  it('refuses to open the camera outside a secure context', async () => {
+    setSecure(false);
+    setup();
+    fireEvent.click(screen.getByText('Kamera'));
+    expect(await screen.findByText(/HTTPS atau localhost/)).not.toBeNull();
+    expect(qr.start).not.toHaveBeenCalled();
+  });
+});
