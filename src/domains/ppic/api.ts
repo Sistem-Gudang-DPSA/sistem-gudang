@@ -43,7 +43,8 @@ export const listDokubahRows = (params?: DokubahListParams) =>
 export const listTrackingSpk = (search?: string, limit?: number, client?: string) => apiClient.get<TrackingSpk[]>(`/api/v1/tracking/spk${toQuery({ search, limit, client })}`);
 
 // Unique client names from tracking, sorted. The API caps limit at 100 (default 50).
-export const listTrackingClients = (search?: string, limit?: number) => apiClient.get<string[]>(`/api/v1/tracking/clients${toQuery({ search, limit })}`);
+export const listTrackingClients = async (search?: string, limit?: number) =>
+  (await apiClient.get<{ client: string }[]>(`/api/v1/tracking/clients${toQuery({ search, limit })}`)).map((c) => c.client);
 
 // One SPK with its products. noSpk can contain '/', so it must be encoded. 404 when unknown.
 export const getTrackingSpk = (noSpk: string) => apiClient.get<TrackingSpkDetail>(`/api/v1/tracking/spk/${encodeURIComponent(noSpk)}`);

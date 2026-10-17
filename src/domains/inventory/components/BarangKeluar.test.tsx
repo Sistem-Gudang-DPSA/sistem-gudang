@@ -32,7 +32,7 @@ const trx = (id: number) => ({
 });
 // Transaksi yang baru dicatat, jadi Edit masih terbuka
 const baru = () => ({ ...trx(1), createdAt: new Date().toISOString() });
-const tracking = { 'GET /api/v1/tracking/clients': ['Klien 1', 'PT Gagal', 'PT Jaya', 'PT Maju'], 'GET /api/v1/tracking/spk': [{ noSpk: 'SPK-1', client: 'Klien 1' }, { noSpk: 'SPK-9', client: 'PT Maju' }, { noSpk: 'SPK-7', client: 'PT Jaya' }, { noSpk: 'SPK-8', client: 'PT Gagal' }] };
+const tracking = { 'GET /api/v1/tracking/clients': ['Klien 1', 'PT Gagal', 'PT Jaya', 'PT Maju'].map((client) => ({ client })), 'GET /api/v1/tracking/spk': [{ noSpk: 'SPK-1', client: 'Klien 1' }, { noSpk: 'SPK-9', client: 'PT Maju' }, { noSpk: 'SPK-7', client: 'PT Jaya' }, { noSpk: 'SPK-8', client: 'PT Gagal' }] };
 // Client and products of one SPK from tracking, the choices of the Nama Produk/Proyek dropdown
 const trackingDetail = (noSpk: string, client: string, products: { name: string; qty: number; unit: string }[]) => ({ noSpk, client, projectName: `Proyek ${noSpk}`, products });
 const details = {
