@@ -17,6 +17,7 @@ import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import DateFilter from '@/shared/components/DateFilter';
 import SearchableSelect from '@/shared/components/SearchableSelect';
 import BarangMasukScan from './BarangMasukScan';
+import { Switch } from '@base-ui/react';
 
 const emptyBaru = { itemId: "", itemName: "", tanggal: todayIso(), jumlahKedatangan: "", jumlahRekap: "", statusQc: "PASS" as StatusQc };
 const emptyKembali = { itemId: "", itemName: "", tanggal: todayIso(), jumlah: "", spk: "" };
@@ -358,8 +359,8 @@ export default function BarangMasukGudang() {
                     onChange={(e) => setModalData({ ...modalData, statusQc: e.target.value as StatusQc })}
                     className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white text-sm"
                   >
-                    <option value="PASS">Pass (IPM)</option>
-                    <option value="PARTIAL_RETUR">Part (Retur)</option>
+                    <option value="PASS">Pass</option>
+                    <option value="PARTIAL_RETUR">Retur</option>
                   </select>
                 </div>
               </div>

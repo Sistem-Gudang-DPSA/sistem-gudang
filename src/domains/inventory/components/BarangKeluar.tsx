@@ -27,12 +27,15 @@ const PAGE_SIZE = 20;
 const PILIHAN_STOK = 'Stok';
 const CAMERA_COOLDOWN_MS = 2000; // a camera reads the same QR on every frame; ignore repeats of one code for this long
 
-const formKosong = () => ({
+type JenisKeluar = 'spk' | 'stok';
+const formKosong = (jenis: JenisKeluar = 'spk') => ({
+  jenis,
+  idStok: "",
   namaPengambil: "",
   tanggal: todayIso(),
+  client: "",
   spk: "",
-  namaItem: "",
-  // Form tidak punya pilihan penerima lagi, sedangkan API mewajibkannya; barang keluar gudang diambil untuk produksi
+  namaItem: jenis === 'stok' ? PILIHAN_STOK : "",
   recipientType: "PRODUKSI" as RecipientType,
   baris: [] as BarisForm[],
 });
@@ -64,7 +67,9 @@ const formHeadClass = `${formCellClass} px-2 py-2.5 font-medium whitespace-nowra
 const labelClass = 'block text-sm text-gray-800 mb-1.5';
 const rowClass = 'grid grid-cols-1 sm:grid-cols-[140px_1fr] sm:items-center gap-x-4 gap-y-1.5';
 const rowLabelClass = "text-sm text-gray-800 sm:flex sm:justify-between sm:after:content-[':']";
-const selectClass = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors';
+const selectClass =
+  'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 bg-white ' +
+  'focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors';
 const fieldClass = 'w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors';
 const orangeButtonClass = 'flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed';
 
@@ -137,7 +142,32 @@ export default function BarangKeluarGudang() {
 
   // Dropdown SPK di form dan di Edit: pencarian dikirim ke server. The client comes from the tracking system through the SPK; the API ignores a client name from the FE.
   const spkForm = useSpkSearch(form.spk);
-  const spkPilihan = spkForm.options.map((t) => ({ value: t.noSpk, label: t.noSpk }));
+  const clientForm = useSpkSearch(form.client);
+  const clientPilihan = Array.from(
+    new Map(
+      clientForm.options
+        .filter((spk) => spk.client?.trim())
+        .map((spk) => [spk.client.trim().toLowerCase(), { value: spk.client.trim(), label: spk.client.trim() }]),
+    ).values(),
+  );
+
+  const handleClientChange = (client: string) => {
+    setForm((prev) => ({ ...prev, client, spk: "", namaItem: "" }));
+    setDetailSpk(null);
+    spkForm.onSearch(client); // asumsi: pencarian SPK di server mencocokkan nama client
+  };
+
+  const pilihSpk = (spk: string) => {
+    setForm((prev) => ({ ...prev, spk, namaItem: "" }));
+    if (!spk) { setDetailSpk(null); return; }
+    muatDokubah(spk);
+  };
+
+  const spkPilihan = spkForm.options
+    .filter((spk) => spk.client?.trim().toLowerCase() === form.client.trim().toLowerCase())
+    .map((spk) => ({ value: spk.noSpk, label: spk.noSpk }));
+
+
   const spkEdit = useSpkSearch(editForm?.spk ?? '');
   const clientOf = (spk: string) => spkEdit.options.find((t) => t.noSpk === spk)?.client ?? '';
 
@@ -155,6 +185,8 @@ export default function BarangKeluarGudang() {
   const detailAktif = detailSpk?.noSpk === form.spk ? detailSpk : null;
   const detailGagal = !!form.spk && detailAktif !== null && detailAktif.data === null;
   const detailMemuat = !!form.spk && detailAktif === null;
+  const namaProyek = detailAktif?.data?.projectName ?? ''; 
+
 
   // Kuota material per SPK dari dokubah PPIC. Tidak ada key = belum dimuat, null = gagal dimuat.
   const [dokubahBySpk, setDokubahBySpk] = useState<Record<string, BahanDokubah[] | 'loading' | null>>({});
@@ -300,9 +332,13 @@ export default function BarangKeluarGudang() {
     }
   };
 
-  const openModal = () => {
-    setForm(formKosong());
+  const spkMode = form.jenis === 'spk';
+
+  const openModal = (jenis: JenisKeluar) => {
+    setForm(formKosong(jenis));
+    setDetailSpk(null);
     setModalError("");
+    setCameraOn(false);
     setScanOpen(false);
     setScanValue("");
     setScanError("");
@@ -386,11 +422,6 @@ export default function BarangKeluarGudang() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cameraOn]);
 
-  const pilihSpk =(spk: string) => {
-    setForm((prev) => ({ ...prev, spk, namaItem: "" }));
-    muatDokubah(spk);
-  };
-
   const dokubahSpk = dokubahBySpk[form.spk];
   // Material dokubah dicocokkan lewat kode barang, kalau tidak ketemu lewat nama
   const bahanDokubah = (b: BarisForm) => Array.isArray(dokubahSpk)
@@ -414,16 +445,23 @@ export default function BarangKeluarGudang() {
 
   // Produk dari tracking, nama yang sama hanya sekali; Stok selalu ada
   const produkTracking = (detailAktif?.data?.products ?? []).filter((p, i, arr) => arr.findIndex((x) => x.name === p.name) === i);
-  const pilihanProduk = [
-    ...produkTracking.map((p) => ({ value: p.name, label: `${p.name} (${p.qty} ${p.unit})` })),
-    { value: PILIHAN_STOK, label: PILIHAN_STOK },
-  ];
+  const pilihanProduk = produkTracking.map((p) => ({ value: p.name, label: `${p.name} (${p.qty} ${p.unit})` }));
 
   const handleSimpan = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const { namaPengambil, tanggal, spk, namaItem, recipientType, baris } = form;
-    if (!tanggal || !spk || !namaPengambil.trim() || !namaItem.trim()) {
-      setModalError("Lengkapi tanggal, SPK, nama pengambil, dan nama produk/proyek.");
+    const { jenis, idStok, namaPengambil, tanggal, client, spk, namaItem, recipientType, baris } = form;
+    const modeSpk = jenis === 'spk';
+
+    if (!tanggal || !namaPengambil.trim()) {
+      setModalError("Lengkapi tanggal dan nama pengambil.");
+      return;
+    }
+    if (modeSpk && (!client || !spk || !namaItem.trim())) {
+      setModalError("Lengkapi nama client, No. SPK, dan nama item.");
+      return;
+    }
+    if (!modeSpk && !idStok.trim()) {
+      setModalError("Isi ID stok.");
       return;
     }
     if (baris.length === 0) {
@@ -440,12 +478,10 @@ export default function BarangKeluarGudang() {
     try {
       await createOutbound({
         date: tanggal,
-        spk,
-        itemName: namaItem.trim(),
+        spk: modeSpk ? spk : idStok.trim(), // asumsi backend, lihat catatan
+        itemName: modeSpk ? namaItem.trim() : PILIHAN_STOK,
         recipientType,
-        // API belum punya kolom nama pengambil, jadi dicatat di notes
         notes: `Pengambil: ${namaPengambil.trim()}`,
-        // Form tidak punya kolom PIC lagi, sedangkan API mewajibkan pic per baris, jadi diisi nama pengambil
         lines: baris.map((b) => ({ itemId: b.itemId, qty: Number(b.qty), pic: namaPengambil.trim() })),
       });
       setCameraOn(false);
@@ -486,10 +522,12 @@ export default function BarangKeluarGudang() {
 
           <div className="flex gap-2 w-full lg:w-auto lg:justify-end">
             {canCreate && (
-              <button type="button" onClick={openModal} className={orangeButtonClass}>
-                <Plus className="w-4 h-4" />
-                <span>Barang Keluar</span>
-              </button>
+              <button type="button" onClick={() => openModal('stok')} className={orangeButtonClass}>
+                <Plus className='h-3 w-3'/>Barang Keluar Stok</button>
+            )}
+            {canCreate && (
+              <button type="button" onClick={() => openModal('spk')} className={orangeButtonClass}>
+                <Plus className='h-3 w-3'/>Barang Keluar SPK</button>  
             )}
             <button
               type="button"
@@ -690,92 +728,123 @@ export default function BarangKeluarGudang() {
 
             <h2 className="text-[18px] font-extrabold text-black tracking-wide uppercase mb-6">Form Barang Keluar</h2>
 
-            {/* Data transaksi, dua kolom: kiri No. Transaksi, Tanggal, Nama Pengambil; kanan Client, SPK, Nama Produk/Proyek */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-4 mb-8">
-              <div className={rowClass}>
-                <label htmlFor="form-bk-pengambil" className={rowLabelClass}>Nama Pengambil</label>
-                <input
-                  id="form-bk-pengambil"
-                  type="text"
-                  value={form.namaPengambil}
-                  maxLength={191}
-                  onChange={(e) => setForm((prev) => ({ ...prev, namaPengambil: e.target.value }))}
-                  placeholder="Isi nama pengambil"
-                  className={fieldClass}
-                />
-              </div>
-              <div className={rowClass}>
-                <label htmlFor="form-bk-transaksi" className={rowLabelClass}>No. Transaksi</label>
-                <input
-                  id="form-bk-transaksi"
-                  type="text"
-                  readOnly
-                  value=""
-                  placeholder="Dibuat otomatis oleh sistem"
-                  className={`${fieldClass} bg-gray-50 cursor-default`}
-                />
-              </div>
-              <div className={rowClass}>
-                <label htmlFor="form-bk-client" className={rowLabelClass}>Client</label>
-                <input
-                  id="form-bk-client"
-                  type="text"
-                  readOnly
-                  value={detailAktif?.data?.client ?? ''}
-                  placeholder="Terisi otomatis dari SPK"
-                  className={`${fieldClass} bg-gray-50 cursor-default`}
-                />
-              </div>
-              <div className={rowClass}>
-                <label htmlFor="form-bk-tanggal" className={rowLabelClass}>Tanggal</label>
-                <div className="relative">
+            {/* Nomor transaksi: teks biasa (SPK) atau input ID Stok (Stok) */}
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-6 px-4 py-3 rounded-xl bg-orange-50 border border-orange-100">
+              {spkMode ? (
+                <div>
+                  <p className="text-xs text-gray-500">No. Transaksi</p>
+                  <p className="text-base font-bold font-mono text-gray-900">Dibuat otomatis saat disimpan</p>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                  <label htmlFor="form-bk-idstok" className="text-sm font-semibold text-gray-800 whitespace-nowrap">ID Stok</label>
                   <input
-                    ref={formTanggalRef}
-                    id="form-bk-tanggal"
-                    type="date"
-                    value={form.tanggal}
-                    onChange={(e) => setForm((prev) => ({ ...prev, tanggal: e.target.value }))}
-                    className={`${fieldClass} [&::-webkit-calendar-picker-indicator]:hidden`}
+                    id="form-bk-idstok"
+                    type="text"
+                    value={form.idStok}
+                    maxLength={191}
+                    onChange={(e) => setForm((prev) => ({ ...prev, idStok: e.target.value }))}
+                    placeholder="Isi ID stok"
+                    className={`${fieldClass} sm:w-64`}
                   />
-                  <button
-                    type="button"
-                    aria-label="Pilih tanggal transaksi"
-                    onClick={() => formTanggalRef.current?.showPicker()}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-800 hover:opacity-70"
-                  >
-                    <Calendar className="w-4 h-4" />
-                  </button>
                 </div>
-              </div>
-              <div className={rowClass}>
-                <span className={rowLabelClass}>SPK</span>
-                <SearchableSelect
-                  value={form.spk}
-                  onChange={pilihSpk}
-                  onSearch={spkForm.onSearch}
-                  options={spkPilihan}
-                  placeholder="Pilih SPK"
-                  aria-label="SPK"
-                  className={selectClass}
-                />
-              </div>
-              <div className={rowClass}>
-                <span className={rowLabelClass}>Nama Produk/Proyek</span>
-                <div className="min-w-0">
-                  <SearchableSelect
-                    value={form.namaItem}
-                    onChange={(namaItem) => setForm((prev) => ({ ...prev, namaItem }))}
-                    options={pilihanProduk}
-                    placeholder="Pilih produk/proyek atau stok"
-                    aria-label="Nama Produk/Proyek"
-                    className={selectClass}
-                  />
-                  {detailMemuat && <p className="mt-1 text-xs text-gray-400">Memuat produk...</p>}
-                  {detailGagal && <p className="mt-1 text-xs text-red-600">Gagal memuat produk dari tracking. Pilih SPK lagi.</p>}
-                </div>
-              </div>
+              )}
+              <span className="px-3 py-1 rounded-full text-xs font-bold bg-white text-[#FF8A00] border border-orange-200">
+                {spkMode ? 'Barang Keluar SPK' : 'Barang Keluar Stok'}
+              </span>
             </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-4 mb-8">
+              {/* Kiri */}
+              <div className="space-y-4">
+                <div className={rowClass}>
+                  <label htmlFor="form-bk-pengambil" className={rowLabelClass}>Nama Pengambil</label>
+                  <input
+                    id="form-bk-pengambil"
+                    type="text"
+                    value={form.namaPengambil}
+                    maxLength={191}
+                    onChange={(e) => setForm((prev) => ({ ...prev, namaPengambil: e.target.value }))}
+                    placeholder="Isi nama pengambil"
+                    className={fieldClass}
+                  />
+                </div>
+                <div className={rowClass}>
+                  <label htmlFor="form-bk-tanggal" className={rowLabelClass}>Tanggal</label>
+                  <div className="relative">
+                    <input
+                      ref={formTanggalRef}
+                      id="form-bk-tanggal"
+                      type="date"
+                      value={form.tanggal}
+                      onChange={(e) => setForm((prev) => ({ ...prev, tanggal: e.target.value }))}
+                      className={`${fieldClass} [&::-webkit-calendar-picker-indicator]:hidden`}
+                    />
+                    <button type="button" aria-label="Pilih tanggal transaksi" onClick={() => formTanggalRef.current?.showPicker()} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-800 hover:opacity-70">
+                      <Calendar className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+                {spkMode && (
+                  <div className={rowClass}>
+                    <label htmlFor="form-bk-proyek" className={rowLabelClass}>Nama Proyek</label>
+                    <input
+                      id="form-bk-proyek"
+                      type="text"
+                      readOnly
+                      value={namaProyek}
+                      placeholder="Terisi otomatis dari SPK"
+                      className={`${fieldClass} bg-gray-50 cursor-default`}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Kanan: hanya mode SPK */}
+              {spkMode && (
+                <div className="space-y-4">
+                  <div className={rowClass}>
+                    <span className={rowLabelClass}>Nama Client</span>
+                    <SearchableSelect
+                      value={form.client}
+                      onChange={handleClientChange}
+                      onSearch={clientForm.onSearch}
+                      options={clientPilihan}
+                      placeholder="Pilih client"
+                      aria-label="Nama Client"
+                      className={selectClass}
+                    />
+                  </div>
+                  <div className={rowClass}>
+                    <span className={rowLabelClass}>No. SPK</span>
+                    <SearchableSelect
+                      value={form.spk}
+                      onChange={pilihSpk}
+                      onSearch={spkForm.onSearch}
+                      options={spkPilihan}
+                      placeholder={form.client ? 'Pilih SPK' : 'Pilih client terlebih dahulu'}
+                      aria-label="No. SPK"
+                      className={selectClass}
+                    />
+                  </div>
+                  <div className={rowClass}>
+                    <span className={rowLabelClass}>Nama Item</span>
+                    <div className="min-w-0">
+                      <SearchableSelect
+                        value={form.namaItem}
+                        onChange={(namaItem) => setForm((prev) => ({ ...prev, namaItem }))}
+                        options={pilihanProduk}
+                        placeholder={form.spk ? 'Pilih item sesuai SPK' : 'Pilih SPK terlebih dahulu'}
+                        aria-label="Nama Item"
+                        className={selectClass}
+                      />
+                      {detailMemuat && <p className="mt-1 text-xs text-gray-400">Memuat item...</p>}
+                      {detailGagal && <p className="mt-1 text-xs text-red-600">Gagal memuat item dari tracking. Pilih SPK lagi.</p>}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
             {/* Daftar barang yang keluar, diisi dengan scan QR barang */}
             <button type="button" onClick={bukaScan} disabled={!pengambilOk} className={orangeButtonClass}>
               <ScanLine className="w-4 h-4" strokeWidth={2.5} />
@@ -824,9 +893,9 @@ export default function BarangKeluarGudang() {
                     <th scope="col" className={`${formHeadClass} min-w-48 text-left`}>Nama Material</th>
                     <th scope="col" className={`${formHeadClass} min-w-24`}>Satuan/Vol</th>
                     <th scope="col" className={`${formHeadClass} min-w-24`}>Kode</th>
-                    <th scope="col" className={`${formHeadClass} min-w-28`}>Dokubah</th>
+                    {spkMode && <th scope="col" className={`${formHeadClass} min-w-28`}>Dokubah</th>}
                     <th scope="col" className={`${formHeadClass} min-w-36`}>Pengambilan</th>
-                    <th scope="col" className={`${formHeadClass} w-10`}><span className="sr-only">Hapus</span></th>
+                    {form.baris.length !== 0 && <th scope="col" className={`${formHeadClass} w-10`}><span className="sr-only">Hapus</span></th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -843,7 +912,7 @@ export default function BarangKeluarGudang() {
                       <td className={`${formCellClass} px-2 py-2 font-medium text-gray-900`}>{b.name}</td>
                       <td className={`${formCellClass} px-2 text-center text-gray-700`}>{b.unit}</td>
                       <td className={`${formCellClass} px-2 text-center font-mono text-xs text-gray-600`}>{b.code}</td>
-                      <td className={`${formCellClass} px-2 text-center`}>{selDokubah(b)}</td>
+                      {spkMode && <td className={`${formCellClass} px-2 text-center`}>{selDokubah(b)}</td>}
                       <td className={`${formCellClass} px-2 py-1.5`}>
                         <div className="flex items-center justify-center">
                           <button type="button" aria-label={`Kurangi ${b.name}`} disabled={Number(b.qty) <= 1} onClick={() => patchBaris(b.itemId, { qty: String(Math.max(Number(b.qty) - 1, 1)) })} className="p-1 text-gray-500 hover:text-gray-900 disabled:opacity-30"><Minus className="w-4 h-4" /></button>
