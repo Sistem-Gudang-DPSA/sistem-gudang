@@ -32,7 +32,7 @@ const trx = (id: number) => ({
 });
 // Transaksi yang baru dicatat, jadi Edit masih terbuka
 const baru = () => ({ ...trx(1), createdAt: new Date().toISOString() });
-const tracking = { 'GET /api/v1/tracking/spk': [{ noSpk: 'SPK-1', client: 'Klien 1' }, { noSpk: 'SPK-9', client: 'PT Maju' }, { noSpk: 'SPK-7', client: 'PT Jaya' }, { noSpk: 'SPK-8', client: 'PT Gagal' }] };
+const tracking = { 'GET /api/v1/tracking/clients': ['Klien 1', 'PT Gagal', 'PT Jaya', 'PT Maju'], 'GET /api/v1/tracking/spk': [{ noSpk: 'SPK-1', client: 'Klien 1' }, { noSpk: 'SPK-9', client: 'PT Maju' }, { noSpk: 'SPK-7', client: 'PT Jaya' }, { noSpk: 'SPK-8', client: 'PT Gagal' }] };
 // Client and products of one SPK from tracking, the choices of the Nama Produk/Proyek dropdown
 const trackingDetail = (noSpk: string, client: string, products: { name: string; qty: number; unit: string }[]) => ({ noSpk, client, projectName: `Proyek ${noSpk}`, products });
 const details = {
@@ -70,7 +70,7 @@ async function openForm(api: ReturnType<typeof installFakeApi>) {
   await waitFor(() => expect(api.calls('GET /api/v1/items').length).toBeGreaterThan(0));
   fireEvent.click(screen.getByText('Barang Keluar'));
   await screen.findByText('Form Barang Keluar');
-  await waitFor(() => expect(api.calls('GET /api/v1/tracking/spk').length).toBeGreaterThan(0));
+  await waitFor(() => expect(api.calls('GET /api/v1/tracking/clients').length).toBeGreaterThan(0));
 }
 
 // SPK and produk/proyek are searchable dropdowns: open one and click an option
@@ -82,8 +82,15 @@ async function choose(trigger: HTMLElement, option: string) {
 // Scan Barang and the camera stay disabled until the Nama Pengambil is filled
 const typePengambil = () => fireEvent.change(label('Nama Pengambil'), { target: { value: 'Rudi' } });
 
+const clientOfSpk: Record<string, string> = { 'SPK-9': 'PT Maju', 'SPK-7': 'PT Jaya', 'SPK-8': 'PT Gagal' };
+// Client first, then one of its SPKs
+async function pickSpk(spk: string) {
+  await choose(label('Client'), clientOfSpk[spk]);
+  await choose(label('SPK'), spk);
+}
+
 async function fillHeader(v: { spk: string; item: string } = { spk: 'SPK-9', item: 'Lemari (2 unit)' }) {
-  await choose(label('SPK'), v.spk);
+  await pickSpk(v.spk);
   typePengambil();
   // the produk/proyek choices load after the SPK is picked; findByRole waits for them
   await choose(label('Nama Produk/Proyek'), v.item);
@@ -233,7 +240,7 @@ describe('BarangKeluar create', () => {
     const api = setup();
     await openForm(api);
     fireEvent.click(screen.getByText('Simpan'));
-    expect(screen.getByText(/Lengkapi tanggal, SPK, nama pengambil/)).not.toBeNull();
+    expect(screen.getByText(/Lengkapi tanggal, client, SPK, nama pengambil/)).not.toBeNull();
     await fillHeader();
     fireEvent.click(screen.getByText('Simpan'));
     expect(screen.getByText('Scan minimal satu barang yang keluar.')).not.toBeNull();
@@ -255,19 +262,21 @@ describe('BarangKeluar create', () => {
     expect((screen.getByText('Kamera').closest('button') as HTMLButtonElement).disabled).toBe(false);
   });
 
-  it('stacks the header fields and fills Client from the chosen SPK', async () => {
+  it('picks the Client first; its SPKs are fetched with that client and a new client clears the SPK', async () => {
     const api = setup();
     await openForm(api);
     expect(label('No. Transaksi').readOnly).toBe(true);
-    expect(label('Client').readOnly).toBe(true);
-    expect(label('Client').value).toBe('');
-    await choose(label('SPK'), 'SPK-7');
-    await waitFor(() => expect(label('Client').value).toBe('PT Jaya'));
+    await pickSpk('SPK-7');
+    expect(api.calls('GET /api/v1/tracking/spk').some((c) => c.query.get('client') === 'PT Jaya')).toBe(true);
+    expect(label('SPK').textContent).toContain('SPK-7');
+    await choose(label('Client'), 'PT Maju');
+    expect(label('SPK').textContent).not.toContain('SPK-7');
   });
 
   it('searches SPK on the server with the typed text, not only the loaded list', async () => {
     const api = setup();
     await openForm(api);
+    await choose(label('Client'), 'PT Maju');
     fireEvent.click(label('SPK'));
     fireEvent.change(await screen.findByLabelText('Cari SPK'), { target: { value: ' maju ' } });
     await waitFor(() => expect(api.calls('GET /api/v1/tracking/spk').some((c) => c.query.get('search') === 'maju')).toBe(true));
@@ -278,7 +287,7 @@ describe('BarangKeluar create', () => {
   it('offers the products of the chosen SPK from tracking plus Stok as Nama Produk/Proyek choices', async () => {
     const api = setup();
     await openForm(api);
-    await choose(label('SPK'), 'SPK-9');
+    await pickSpk('SPK-9');
     fireEvent.click(label('Nama Produk/Proyek'));
     await screen.findByRole('option', { name: 'Lemari (2 unit)' });
     expect(within(screen.getByRole('listbox')).getAllByRole('option').map((o) => o.textContent)).toEqual(['Lemari (2 unit)', 'Meja (1 unit)', 'Stok']);
@@ -288,8 +297,7 @@ describe('BarangKeluar create', () => {
   it('offers only Stok when tracking has no products for the SPK', async () => {
     const api = setup();
     await openForm(api);
-    await choose(label('SPK'), 'SPK-7');
-    await waitFor(() => expect(label('Client').value).toBe('PT Jaya'));
+    await pickSpk('SPK-7');
     fireEvent.click(label('Nama Produk/Proyek'));
     expect(within(screen.getByRole('listbox')).getAllByRole('option').map((o) => o.textContent)).toEqual(['Stok']);
   });
@@ -297,7 +305,7 @@ describe('BarangKeluar create', () => {
   it('shows a message under Nama Produk/Proyek when the tracking detail fails', async () => {
     const api = setup();
     await openForm(api);
-    await choose(label('SPK'), 'SPK-8');
+    await pickSpk('SPK-8');
     expect(await screen.findByText('Gagal memuat produk dari tracking. Pilih SPK lagi.')).not.toBeNull();
     expect(api.calls('GET /api/v1/tracking/spk/SPK-8')).toHaveLength(1);
   });
@@ -337,7 +345,7 @@ describe('BarangKeluar create', () => {
     scan('HPL-01');
     await screen.findByText('HPL Putih', { selector: 'td' });
     expect(cellsOf('HPL Putih')[4]).toBe('Pilih SPK dulu');
-    await choose(label('SPK'), 'SPK-9');
+    await pickSpk('SPK-9');
     // matched by name when the code differs, sisa = kuota - realisasi
     await waitFor(() => expect(cellsOf('HPL Putih')[4]).toBe('10 lembarsisa 3'));
     expect(api.calls('GET /api/v1/dokubah')[0].query.get('search')).toBe('SPK-9');
@@ -350,7 +358,7 @@ describe('BarangKeluar create', () => {
   it('says so when the material is not in the dokubah of the SPK', async () => {
     const api = setup({ 'GET /api/v1/dokubah': paged([]) });
     await openForm(api);
-    await choose(label('SPK'), 'SPK-7');
+    await pickSpk('SPK-7');
     typePengambil();
     scan('BRG-1');
     await screen.findByText('Triplex', { selector: 'td' });
@@ -386,6 +394,7 @@ describe('BarangKeluar create', () => {
     expect(a).not.toHaveProperty('clientName');
     expect(a).not.toHaveProperty('warehouseType');
     expect(a.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(api.calls('POST /api/v1/outbound')[0].headers.get('Idempotency-Key')).toMatch(/^[\w-]{8,100}$/);
     // PIC is no longer in the form; the API still requires it, so it carries the nama pengambil
     expect(a.lines).toEqual([{ itemId: 1, qty: 4, pic: 'Rudi' }, { itemId: 3, qty: 1, pic: 'Rudi' }]);
     await waitFor(() => expect(screen.queryByText('Simpan')).toBeNull());
