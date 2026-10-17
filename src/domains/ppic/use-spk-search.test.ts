@@ -15,7 +15,7 @@ describe('useSpkSearch', () => {
     const { result } = renderHook(() => useSpkSearch(''));
     await waitFor(() => expect(result.current.options).toEqual([{ noSpk: 'SPK-1', client: 'Klien 1' }]));
     act(() => result.current.onSearch(' maju '));
-    expect(listTrackingSpk).not.toHaveBeenCalledWith('maju', 50);
-    await waitFor(() => expect(listTrackingSpk).toHaveBeenCalledWith('maju', 50));
+    expect(listTrackingSpk).not.toHaveBeenCalledWith('maju', 50, undefined);
+    await waitFor(() => expect(listTrackingSpk).toHaveBeenCalledWith('maju', 50, undefined));
   });
 });

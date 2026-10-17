@@ -200,8 +200,9 @@ export function listOutbound(params?: OutboundListParams) {
   return apiClient.get<PaginatedResult<OutboundRow>>(`/api/v1/outbound${toQuery(params)}`);
 }
 
-export function createOutbound(input: CreateOutboundInput) {
-  return apiClient.post<OutboundRow>("/api/v1/outbound", input);
+// Idempotency-Key is required: one per draft, reused on retry so the stock is not cut twice.
+export function createOutbound(input: CreateOutboundInput, idempotencyKey: string) {
+  return apiClient.post<OutboundRow>("/api/v1/outbound", input, { "Idempotency-Key": idempotencyKey });
 }
 
 export function updateOutbound(id: number, input: CreateOutboundInput) {

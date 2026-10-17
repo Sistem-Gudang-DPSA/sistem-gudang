@@ -42,7 +42,7 @@ const rows: Row[] = [
   ['getInboundReport', [{ q: 'x', page: 2 }], 'GET /api/v1/reports/inbound', { q: 'x', page: '2' }, undefined],
   ['exportInboundReport', [{ q: 'x' }], 'GET /api/v1/reports/inbound/export', { q: 'x' }, undefined],
   ['listOutbound', [{ page: 3 }], 'GET /api/v1/outbound', { page: '3' }, undefined],
-  ['createOutbound', [{ c: 1 }], 'POST /api/v1/outbound', {}, { c: 1 }],
+  ['createOutbound', [{ c: 1 }, 'key-12345678'], 'POST /api/v1/outbound', {}, { c: 1 }],
   ['updateOutbound', [7, { c: 2 }], 'PUT /api/v1/outbound/7', {}, { c: 2 }],
   ['getOutboundReport', [{ q: 'y' }], 'GET /api/v1/reports/outbound', { q: 'y' }, undefined],
   ['exportOutboundReport', [{ q: 'y' }], 'GET /api/v1/reports/outbound/export', { q: 'y' }, undefined],

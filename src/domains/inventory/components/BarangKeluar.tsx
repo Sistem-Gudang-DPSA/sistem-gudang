@@ -16,7 +16,8 @@ import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import DateFilter from '@/shared/components/DateFilter';
 import SearchableSelect from '@/shared/components/SearchableSelect';
-import { useSpkSearch } from '@/domains/ppic/use-spk-search';
+import { useClientSearch, useSpkSearch } from '@/domains/ppic/use-spk-search';
+import { beepFail, beepOk } from '@/domains/inventory/beep';
 
 
 // Satu baris barang hasil scan. SPK dan Nama Produk/Proyek diisi sekali di atas untuk seluruh transaksi.
@@ -29,6 +30,7 @@ const CAMERA_COOLDOWN_MS = 2000; // a camera reads the same QR on every frame; i
 
 const formKosong = () => ({
   namaPengambil: "",
+  client: "",
   tanggal: todayIso(),
   spk: "",
   namaItem: "",
@@ -96,6 +98,10 @@ export default function BarangKeluarGudang() {
   const scanRef = useRef<HTMLInputElement>(null);
   // Scan bisa datang lebih cepat dari render, jadi pengecekan kode yang sudah ada memakai ref
   const barisRef = useRef<BarisForm[]>([]);
+  // Baris yang baru discan berkedip hijau sebentar; n berubah tiap scan supaya scan ulang kode yang sama tetap memicu efek
+  const [flash, setFlash] = useState<{ itemId: number; n: number } | null>(null);
+  // Satu key per draft: dipakai ulang saat retry atau klik ganda, ganti hanya kalau isi draft berubah
+  const draftKey = useRef({ key: '', payload: '' });
   // Kamera HP: qr-scanner hanya dimuat saat kamera dibuka, dan pembacaan ulang kode yang sama diabaikan sebentar
   const [cameraOn, setCameraOn] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -136,7 +142,9 @@ export default function BarangKeluarGudang() {
   const total = result?.total ?? 0;
 
   // Dropdown SPK di form dan di Edit: pencarian dikirim ke server. The client comes from the tracking system through the SPK; the API ignores a client name from the FE.
-  const spkForm = useSpkSearch(form.spk);
+  const clientForm = useClientSearch();
+  const clientPilihan = clientForm.options.map((c) => ({ value: c, label: c }));
+  const spkForm = useSpkSearch(form.spk, form.client);
   const spkPilihan = spkForm.options.map((t) => ({ value: t.noSpk, label: t.noSpk }));
   const spkEdit = useSpkSearch(editForm?.spk ?? '');
   const clientOf = (spk: string) => spkEdit.options.find((t) => t.noSpk === spk)?.client ?? '';
@@ -180,6 +188,18 @@ export default function BarangKeluarGudang() {
   useEffect(() => { barisRef.current = form.baris; }, [form.baris]);
   useEffect(() => { pengambilRef.current = form.namaPengambil.trim(); }, [form.namaPengambil]);
   useEffect(() => { if (scanOpen) scanRef.current?.focus(); }, [scanOpen]);
+  useEffect(() => {
+    if (!flash) return;
+    document.getElementById(`bk-baris-${flash.itemId}`)?.scrollIntoView?.({ block: 'nearest' });
+    const timer = setTimeout(() => setFlash(null), 700);
+    return () => clearTimeout(timer);
+  }, [flash]);
+  // Toast gagal scan hilang sendiri
+  useEffect(() => {
+    if (!scanError) return;
+    const timer = setTimeout(() => setScanError(''), 4000);
+    return () => clearTimeout(timer);
+  }, [scanError]);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 60_000);
@@ -322,16 +342,19 @@ export default function BarangKeluarGudang() {
   // Barang yang sudah ada di tabel cukup ditambah jumlahnya, barang baru diambil datanya dari database
   const tambahKode = async (code: string) => {
     setScanError("");
-    if (!pengambilRef.current) { setScanError("Isi nama pengambil dulu."); return; }
+    if (!pengambilRef.current) { setScanError("Isi nama pengambil dulu."); beepFail(); return; }
+    const ok = (itemId: number) => { setFlash((f) => ({ itemId, n: (f?.n ?? 0) + 1 })); beepOk(); };
     const ada = barisRef.current.find((b) => b.code === code);
-    if (ada) { setBaris((bs) => tambahSatu(bs, ada.itemId)); return; }
+    if (ada) { setBaris((bs) => tambahSatu(bs, ada.itemId)); ok(ada.itemId); return; }
     try {
       const item = await getItemByCode(code);
       // Dua scan cepat untuk kode baru yang sama sama-sama sampai di sini sebelum barisnya ada
       setBaris((bs) => bs.some((b) => b.itemId === item.id)
         ? tambahSatu(bs, item.id)
         : [...bs, { itemId: item.id, code: item.code ?? code, name: item.name, unit: item.unit, stock: item.stock, qty: '1' }]);
+      ok(item.id);
     } catch (err) {
+      beepFail();
       setScanError(err instanceof ApiError && err.status === 404 ? `Kode "${code}" tidak dikenal.` : err instanceof ApiError ? err.message : 'Gagal membaca kode.');
     }
   };
@@ -386,6 +409,10 @@ export default function BarangKeluarGudang() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cameraOn]);
 
+  const pilihClient = (client: string) => {
+    setForm((prev) => (prev.client === client ? prev : { ...prev, client, spk: "", namaItem: "" }));
+  };
+
   const pilihSpk =(spk: string) => {
     setForm((prev) => ({ ...prev, spk, namaItem: "" }));
     muatDokubah(spk);
@@ -421,9 +448,9 @@ export default function BarangKeluarGudang() {
 
   const handleSimpan = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const { namaPengambil, tanggal, spk, namaItem, recipientType, baris } = form;
-    if (!tanggal || !spk || !namaPengambil.trim() || !namaItem.trim()) {
-      setModalError("Lengkapi tanggal, SPK, nama pengambil, dan nama produk/proyek.");
+    const { namaPengambil, tanggal, client, spk, namaItem, recipientType, baris } = form;
+    if (!tanggal || !client || !spk || !namaPengambil.trim() || !namaItem.trim()) {
+      setModalError("Lengkapi tanggal, client, SPK, nama pengambil, dan nama produk/proyek.");
       return;
     }
     if (baris.length === 0) {
@@ -438,7 +465,7 @@ export default function BarangKeluarGudang() {
     setSaving(true);
     setModalError("");
     try {
-      await createOutbound({
+      const input = {
         date: tanggal,
         spk,
         itemName: namaItem.trim(),
@@ -447,7 +474,11 @@ export default function BarangKeluarGudang() {
         notes: `Pengambil: ${namaPengambil.trim()}`,
         // Form tidak punya kolom PIC lagi, sedangkan API mewajibkan pic per baris, jadi diisi nama pengambil
         lines: baris.map((b) => ({ itemId: b.itemId, qty: Number(b.qty), pic: namaPengambil.trim() })),
-      });
+      };
+      const payload = JSON.stringify(input);
+      if (!draftKey.current.key || draftKey.current.payload !== payload) draftKey.current = { key: crypto.randomUUID(), payload };
+      await createOutbound(input, draftKey.current.key);
+      draftKey.current = { key: '', payload: '' };
       setCameraOn(false);
       setIsModalOpen(false);
       reload();
@@ -590,7 +621,7 @@ export default function BarangKeluarGudang() {
 
                         <td className="px-6 py-4">
                           <div className="flex flex-col items-start">
-                            {tombolRincian(trx.id, 'font-semibold text-gray-900')}
+                            {tombolRincian(trx.noTransaksi ?? trx.id, 'font-semibold text-gray-900')}
                             <span className="text-xs text-gray-500">{displayDate(trx.date)}</span>
                           </div>
                         </td>
@@ -716,14 +747,15 @@ export default function BarangKeluarGudang() {
                 />
               </div>
               <div className={rowClass}>
-                <label htmlFor="form-bk-client" className={rowLabelClass}>Client</label>
-                <input
-                  id="form-bk-client"
-                  type="text"
-                  readOnly
-                  value={detailAktif?.data?.client ?? ''}
-                  placeholder="Terisi otomatis dari SPK"
-                  className={`${fieldClass} bg-gray-50 cursor-default`}
+                <span className={rowLabelClass}>Client</span>
+                <SearchableSelect
+                  value={form.client}
+                  onChange={pilihClient}
+                  onSearch={clientForm.onSearch}
+                  options={clientPilihan}
+                  placeholder="Pilih client"
+                  aria-label="Client"
+                  className={selectClass}
                 />
               </div>
               <div className={rowClass}>
@@ -754,7 +786,7 @@ export default function BarangKeluarGudang() {
                   onChange={pilihSpk}
                   onSearch={spkForm.onSearch}
                   options={spkPilihan}
-                  placeholder="Pilih SPK"
+                  placeholder={form.client ? "Pilih SPK" : "Pilih client dulu"}
                   aria-label="SPK"
                   className={selectClass}
                 />
@@ -814,7 +846,10 @@ export default function BarangKeluarGudang() {
               </div>
             )}
             {cameraOn && <video ref={videoRef} muted playsInline className="mt-4 w-full max-w-sm rounded-xl bg-black" />}
-            {scanError && <p role="alert" className="mt-3 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{scanError}</p>}
+            {scanError && <p role="alert" className="fixed bottom-6 right-6 z-70 max-w-sm p-3 bg-red-600 text-white text-sm rounded-lg shadow-lg">{scanError}</p>}
+            {form.baris.length > 0 && (
+              <p className="mt-3 text-sm text-gray-700">Terscan: <span className="font-bold">{form.baris.reduce((n, b) => n + (Number(b.qty) || 0), 0)}</span> item, {form.baris.length} jenis</p>
+            )}
 
             <div className="mt-4 overflow-x-auto border-t border-l border-gray-300 rounded-sm">
               <table className="w-full text-sm border-collapse">
@@ -838,7 +873,7 @@ export default function BarangKeluarGudang() {
                     </tr>
                   )}
                   {form.baris.map((b, i) => (
-                    <tr key={b.itemId}>
+                    <tr key={b.itemId} id={`bk-baris-${b.itemId}`} className={`transition-colors duration-500 ${flash?.itemId === b.itemId ? 'bg-green-200' : ''}`}>
                       <td className={`${formCellClass} text-center text-gray-700`}>{i + 1}</td>
                       <td className={`${formCellClass} px-2 py-2 font-medium text-gray-900`}>{b.name}</td>
                       <td className={`${formCellClass} px-2 text-center text-gray-700`}>{b.unit}</td>
@@ -1046,7 +1081,7 @@ export default function BarangKeluarGudang() {
 
             <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 mb-6 text-sm">
               {([
-                ['No. Transaksi', detailTrx.id],
+                ['No. Transaksi', detailTrx.noTransaksi ?? detailTrx.id],
                 ['Tanggal', displayDate(detailTrx.date)],
                 ['Client', detailTrx.clientName],
                 ['SPK', detailTrx.spk],
