@@ -145,72 +145,6 @@ describe('DataBarang assign location', () => {
   });
 });
 
-describe('DataBarang adjust stock', () => {
-  async function openStock(api: ReturnType<typeof installFakeApi>) {
-    await ready(api);
-    fireEvent.click(screen.getAllByText('Stok')[0]);
-    await screen.findByText(/SESUAIKAN STOK/);
-  }
-  const delta = () => screen.getByPlaceholderText('Contoh: 10 atau -5') as HTMLInputElement;
-  const reason = () => screen.getByPlaceholderText('Contoh: Penerimaan PO-2026-09-001') as HTMLInputElement;
-
-  it('delta keeps digits and one leading minus only; reason maxLength 255', async () => {
-    const api = setup();
-    await openStock(api);
-    fireEvent.change(delta(), { target: { value: '-5' } });
-    expect(delta().value).toBe('-5');
-    fireEvent.change(delta(), { target: { value: '1e.5' } });
-    expect(delta().value).toBe('15');
-    fireEvent.change(delta(), { target: { value: '--3-4' } });
-    expect(delta().value).toBe('-34');
-    fireEvent.change(delta(), { target: { value: '3-4' } });
-    expect(delta().value).toBe('34');
-    expect(reason().maxLength).toBe(255);
-  });
-
-  it('validates empty, zero, lone minus and missing reason', async () => {
-    const api = setup();
-    await openStock(api);
-    const msg = 'Isi jumlah perubahan (boleh negatif) dan alasan.';
-    fireEvent.click(screen.getByText('Simpan'));
-    expect(screen.getByText(msg)).not.toBeNull();
-    fireEvent.change(reason(), { target: { value: 'koreksi' } });
-    fireEvent.change(delta(), { target: { value: '0' } });
-    fireEvent.click(screen.getByText('Simpan'));
-    expect(screen.getByText(msg)).not.toBeNull();
-    fireEvent.change(delta(), { target: { value: '-' } });
-    fireEvent.click(screen.getByText('Simpan'));
-    expect(screen.getByText(msg)).not.toBeNull();
-    fireEvent.change(delta(), { target: { value: '5' } });
-    fireEvent.change(reason(), { target: { value: '' } });
-    fireEvent.click(screen.getByText('Simpan'));
-    expect(api.calls('PATCH /api/v1/items/1/stock').length).toBe(0);
-  });
-
-  it('PATCHes a negative integer delta and reloads', async () => {
-    const api = setup({ 'PATCH /api/v1/items/1/stock': { id: 1 } });
-    await openStock(api);
-    fireEvent.change(delta(), { target: { value: '-5' } });
-    fireEvent.change(reason(), { target: { value: 'rusak' } });
-    fireEvent.click(screen.getByText('Simpan'));
-    await waitFor(() => expect(api.calls('PATCH /api/v1/items/1/stock').length).toBe(1));
-    expect(api.calls('PATCH /api/v1/items/1/stock')[0].body).toEqual({ delta: -5, reason: 'rusak' });
-    await waitFor(() => expect(screen.queryByText(/SESUAIKAN STOK/)).toBeNull());
-    await waitFor(() => expect(api.calls('GET /api/v1/items').length).toBe(2));
-  });
-
-  it('shows backend error without closing and disables while saving', async () => {
-    const api = setup({ 'PATCH /api/v1/items/1/stock': fail(400, 'Stok tidak boleh negatif') });
-    await openStock(api);
-    fireEvent.change(delta(), { target: { value: '-99' } });
-    fireEvent.change(reason(), { target: { value: 'x' } });
-    fireEvent.click(screen.getByText('Simpan'));
-    expect((screen.getByText('Menyimpan...') as HTMLButtonElement).disabled).toBe(true);
-    expect(await screen.findByText('Stok tidak boleh negatif')).not.toBeNull();
-    expect(screen.getByText(/SESUAIKAN STOK/)).not.toBeNull();
-  });
-});
-
 const who = (permissions: string[], isSuperadmin = false) => ({ id: 1, username: 'u', email: 'u@x.id', roleId: 2, roleName: 'Staff', isSuperadmin, permissions });
 
 describe('DataBarang QR labels', () => {
@@ -260,27 +194,24 @@ describe('permissions', () => {
     await screen.findByText('Barang 1');
   };
 
-  it('hides assign-location and stock actions from a view-only user', async () => {
+  it('hides assign-location from a view-only user', async () => {
     await open(who([]));
     expect(screen.queryByText('Tambah Lokasi')).toBeNull();
-    expect(screen.queryByTitle('Sesuaikan stok')).toBeNull();
-  });
-
-  it('shows each action only with its own permission', async () => {
-    await open(who(['item.adjust-stock']));
-    expect(screen.queryByText('Tambah Lokasi')).toBeNull();
-    expect(screen.getAllByTitle('Sesuaikan stok').length).toBe(2);
   });
 
   it('shows assign-location with item.assign-location', async () => {
     await open(who(['item.assign-location']));
     expect(screen.getByText('Tambah Lokasi')).not.toBeNull();
-    expect(screen.queryByTitle('Sesuaikan stok')).toBeNull();
   });
 
-  it('shows everything to a superadmin', async () => {
+  it('shows assign-location to a superadmin', async () => {
     await open(who([], true));
     expect(screen.getByText('Tambah Lokasi')).not.toBeNull();
-    expect(screen.getAllByTitle('Sesuaikan stok').length).toBe(2);
+  });
+
+  // Stock is adjusted from its own sidebar menu, so Data Barang has no Stok button.
+  it('has no stock adjust action', async () => {
+    await open(who([], true));
+    expect(screen.queryByTitle('Sesuaikan stok')).toBeNull();
   });
 });

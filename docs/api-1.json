@@ -18357,7 +18357,7 @@
           "Outbound"
         ],
         "summary": "List outbound transactions",
-        "description": "Newest first, each row carries its lines. startDate and endDate are inclusive. search matches client name, SPK and item/project name.",
+        "description": "Newest first, each row carries its lines. startDate and endDate are inclusive. search matches noTransaksi, client name, SPK and item/project name.",
         "security": [
           {
             "bearerAuth": []
@@ -18468,6 +18468,10 @@
                               "id": {
                                 "type": "number"
                               },
+                              "noTransaksi": {
+                                "type": "string",
+                                "example": "OUT-000042"
+                              },
                               "date": {
                                 "type": "string",
                                 "example": "2026-09-30"
@@ -18545,6 +18549,7 @@
                             },
                             "required": [
                               "id",
+                              "noTransaksi",
                               "date",
                               "clientName",
                               "spk",
@@ -18728,10 +18733,21 @@
           "Outbound"
         ],
         "summary": "Record goods leaving the warehouse",
-        "description": "spk must be one of GET /api/v1/tracking/spk (400 otherwise) and clientName is taken from there, a clientName in the body is ignored. Lowers stock for every line in one transaction and records audit logs. If any line would push stock below 0 the whole request fails with 400 and nothing is saved.",
+        "description": "Needs outbound.create and an Idempotency-Key header (8 to 100 characters, one per draft), with the same replay rules as POST /inbound/batch: same key and payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true and stock is not lowered again; same key with a different payload returns 409; a missing or malformed key returns 400; a failed request stores no key. spk must be one of GET /api/v1/tracking/spk (400 otherwise) and clientName is taken from there, a clientName in the body is ignored. Lowers stock for every line in one transaction and records audit logs. If any line would push stock below 0 the whole request fails with 400 and nothing is saved.",
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "6f1c2d3e-0b7a-4c55-9a3e-1d2f3a4b5c6d"
+            },
+            "required": true,
+            "name": "Idempotency-Key",
+            "in": "header"
           }
         ],
         "requestBody": {
@@ -18818,7 +18834,7 @@
         },
         "responses": {
           "201": {
-            "description": "Outbound transaction created",
+            "description": "Outbound transaction created, or the stored answer of an earlier identical request",
             "content": {
               "application/json": {
                 "schema": {
@@ -18838,6 +18854,10 @@
                       "properties": {
                         "id": {
                           "type": "number"
+                        },
+                        "noTransaksi": {
+                          "type": "string",
+                          "example": "OUT-000042"
                         },
                         "date": {
                           "type": "string",
@@ -18916,6 +18936,7 @@
                       },
                       "required": [
                         "id",
+                        "noTransaksi",
                         "date",
                         "clientName",
                         "spk",
@@ -19073,6 +19094,40 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "Idempotency-Key already used with a different payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
           }
         }
       }
@@ -19121,6 +19176,10 @@
                       "properties": {
                         "id": {
                           "type": "number"
+                        },
+                        "noTransaksi": {
+                          "type": "string",
+                          "example": "OUT-000042"
                         },
                         "date": {
                           "type": "string",
@@ -19199,6 +19258,7 @@
                       },
                       "required": [
                         "id",
+                        "noTransaksi",
                         "date",
                         "clientName",
                         "spk",
@@ -19477,6 +19537,10 @@
                         "id": {
                           "type": "number"
                         },
+                        "noTransaksi": {
+                          "type": "string",
+                          "example": "OUT-000042"
+                        },
                         "date": {
                           "type": "string",
                           "example": "2026-09-30"
@@ -19554,6 +19618,7 @@
                       },
                       "required": [
                         "id",
+                        "noTransaksi",
                         "date",
                         "clientName",
                         "spk",
@@ -19755,7 +19820,7 @@
           "Dokubah"
         ],
         "summary": "List SPK numbers with their client",
-        "description": "Source of the SPK and its client for dokubah, SPK internal, outbound, material requests and client returns, and for the dropdowns of Barang Keluar. Dummy data plus a fixture built from the tracking database until the tracking system API is connected, the shape stays the same. search matches noSpk or client, case-insensitively. limit defaults to 50 and is capped at 100. Products are not listed here, use GET /api/v1/tracking/spk/{noSpk}.",
+        "description": "Source of the SPK and its client for dokubah, SPK internal, outbound, material requests and client returns, and for the dropdowns of Barang Keluar. Dummy data plus a fixture built from the tracking database until the tracking system API is connected, the shape stays the same. search matches noSpk or client, case-insensitively. client keeps only the SPK of that client name (exact, case-insensitive, trimmed), and can be combined with search. limit defaults to 50 and is capped at 100, applied after client. Products are not listed here, use GET /api/v1/tracking/spk/{noSpk}.",
         "security": [
           {
             "bearerAuth": []
@@ -19768,6 +19833,15 @@
             },
             "required": false,
             "name": "search",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "example": "PT Maju Jaya"
+            },
+            "required": false,
+            "name": "client",
             "in": "query"
           },
           {
@@ -19811,6 +19885,217 @@
                         },
                         "required": [
                           "noSpk",
+                          "client"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tracking/clients": {
+      "get": {
+        "tags": [
+          "Dokubah"
+        ],
+        "summary": "List distinct client names",
+        "description": "Client names taken from the SPK list, unique and sorted A to Z. Needs dokubah.view. search matches the client name only, case-insensitively. limit defaults to 50 and is capped at 100. Pick one name here, then list its SPK with GET /api/v1/tracking/spk?client=.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "example": "50"
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Client list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "client": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
                           "client"
                         ]
                       }
@@ -29336,6 +29621,10 @@
                               "id": {
                                 "type": "number"
                               },
+                              "noTransaksi": {
+                                "type": "string",
+                                "example": "OUT-000042"
+                              },
                               "date": {
                                 "type": "string",
                                 "example": "2026-09-30"
@@ -29413,6 +29702,7 @@
                             },
                             "required": [
                               "id",
+                              "noTransaksi",
                               "date",
                               "clientName",
                               "spk",
@@ -29657,6 +29947,10 @@
                         "id": {
                           "type": "number"
                         },
+                        "noTransaksi": {
+                          "type": "string",
+                          "example": "OUT-000042"
+                        },
                         "date": {
                           "type": "string",
                           "example": "2026-09-30"
@@ -29734,6 +30028,7 @@
                       },
                       "required": [
                         "id",
+                        "noTransaksi",
                         "date",
                         "clientName",
                         "spk",
