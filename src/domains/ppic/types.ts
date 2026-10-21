@@ -69,6 +69,19 @@ export interface TrackingSpk {
   client: string;
 }
 
+export interface TrackingSpkProduct {
+  name: string;
+  qty: number;
+  unit: string;
+}
+
+export interface TrackingSpkDetail {
+  noSpk: string;
+  client: string;
+  projectName: string;
+  products: TrackingSpkProduct[];
+}
+
 export interface CreateDokubahInput {
   noSpk: string;
   // Optional and ignored by the API, which fills the client from tracking.

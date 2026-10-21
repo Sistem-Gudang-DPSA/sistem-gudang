@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { Package, LogOut, Menu, X } from 'lucide-react';
+import { Package, LogOut, Menu, PanelLeft, X } from 'lucide-react';
 import { refreshSession, logout } from '@/domains/auth/api';
 import type { AuthUser } from '@/domains/auth/types';
 import SidebarNav from '@/domains/auth/components/SidebarNav';
@@ -20,6 +20,13 @@ export default function DashboardLayout({
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    try {
+      return localStorage.getItem('sidebarOpen') !== 'false';
+    } catch {
+      return true; // no localStorage (SSR or blocked): default open
+    }
+  });
 
   useEffect(() => {
     refreshSession()
@@ -27,6 +34,16 @@ export default function DashboardLayout({
       .catch(() => router.replace(`/?next=${encodeURIComponent(window.location.pathname)}`))
       .finally(() => setIsMounted(true));
   }, [router]);
+
+  const toggleSidebar = () => {
+    const next = !sidebarOpen;
+    setSidebarOpen(next);
+    try {
+      localStorage.setItem('sidebarOpen', String(next));
+    } catch {
+      // ignore: the choice just won't persist
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -46,7 +63,7 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row font-sans">
       {/* Sidebar for Desktop */}
-      <aside className="hidden md:flex flex-col w-64 shrink-0 bg-white shadow-xl border-r border-gray-100 z-10 md:sticky md:top-0 md:h-screen self-start">
+      <aside className={`hidden ${sidebarOpen ? 'md:flex' : ''} flex-col w-64 shrink-0 bg-white shadow-xl border-r border-gray-100 z-10 md:sticky md:top-0 md:h-screen self-start`}>
         <div className="flex items-center justify-center h-20 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <Package className="w-8 h-8 text-blue-600" />
@@ -119,7 +136,15 @@ export default function DashboardLayout({
             </div>
           </div>
           
-          <div className="hidden md:flex flex-1">
+          <div className="hidden md:flex flex-1 items-center gap-3">
+             <button
+               onClick={toggleSidebar}
+               className="p-2 text-gray-600 rounded-lg hover:bg-gray-100"
+               aria-label={sidebarOpen ? "Tutup sidebar" : "Buka sidebar"}
+               aria-expanded={sidebarOpen}
+             >
+               <PanelLeft className="w-5 h-5" />
+             </button>
              <div className="relative w-full max-w-md">
                 <input type="text" placeholder="Search anything..." className="w-full bg-gray-100/50 text-gray-700 text-sm rounded-full px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:bg-white transition-all"/>
              </div>

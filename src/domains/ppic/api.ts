@@ -2,7 +2,7 @@ import { apiClient, toQuery } from "@/shared/lib/api-client";
 import type { ListParams, PaginatedResult } from "@/domains/inventory/types";
 import type { BahanDokubah, DokubahItem, StatusDokubah } from "./data/dokubah";
 import type { SpkInternal } from "./data/spk-internal";
-import type { PenawaranDetail, PenawaranHeaderInput, PenawaranRow, SavePenawaranInput, ApprovalAction, ApprovalListParams, ApprovalRequest, PurchaseRequestPayload, CreateDokubahInput, CreateSpkInternalInput, SpkInternalListParams, TrackingSpk, TrackingPic, MutationListParams, MutationRow, MutationSummary, SpkInternalSummary, StockOpnameSummary, DokubahApiDetail, DokubahApiRow, DokubahApiStatus, DokubahListParams, DokubahSummary } from "./types";
+import type { PenawaranDetail, PenawaranHeaderInput, PenawaranRow, SavePenawaranInput, ApprovalAction, ApprovalListParams, ApprovalRequest, PurchaseRequestPayload, CreateDokubahInput, CreateSpkInternalInput, SpkInternalListParams, TrackingSpk, TrackingPic, MutationListParams, MutationRow, MutationSummary, SpkInternalSummary, StockOpnameSummary, DokubahApiDetail, DokubahApiRow, DokubahApiStatus, DokubahListParams, DokubahSummary, TrackingSpkDetail } from "./types";
 
 // The screens use title-case statuses, the API uses UPPER_SNAKE.
 export const STATUS_TO_UI: Record<DokubahApiStatus, StatusDokubah> = {
@@ -38,8 +38,16 @@ export async function listDokubah(params?: DokubahListParams): Promise<Paginated
 export const listDokubahRows = (params?: DokubahListParams) =>
   apiClient.get<PaginatedResult<DokubahApiRow> & { summary?: DokubahSummary }>(`/api/v1/dokubah${toQuery(params)}`);
 
-// SPK numbers and client names from the tracking system, used to pick the SPK of a new dokubah.
-export const listTrackingSpk = (search?: string) => apiClient.get<TrackingSpk[]>(`/api/v1/tracking/spk${toQuery({ search })}`);
+// SPK numbers and client names from the tracking system. The API caps limit at 100 (default 50); search matches noSpk or client.
+// With client, only that client's SPKs come back (exact name, case-insensitive).
+export const listTrackingSpk = (search?: string, limit?: number, client?: string) => apiClient.get<TrackingSpk[]>(`/api/v1/tracking/spk${toQuery({ search, limit, client })}`);
+
+// Unique client names from tracking, sorted. The API caps limit at 100 (default 50).
+export const listTrackingClients = async (search?: string, limit?: number) =>
+  (await apiClient.get<{ client: string }[]>(`/api/v1/tracking/clients${toQuery({ search, limit })}`)).map((c) => c.client);
+
+// One SPK with its products. noSpk can contain '/', so it must be encoded. 404 when unknown.
+export const getTrackingSpk = (noSpk: string) => apiClient.get<TrackingSpkDetail>(`/api/v1/tracking/spk/${encodeURIComponent(noSpk)}`);
 
 export async function getDokubah(id: number) {
   return toItem(await apiClient.get<DokubahApiDetail>(`/api/v1/dokubah/${id}`));

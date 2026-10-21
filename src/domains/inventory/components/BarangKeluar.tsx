@@ -2,9 +2,10 @@
 
 import { useCan } from '@/domains/auth/user-context';
 import React, { useEffect, useRef, useState } from 'react';
-import { Search, Calendar, Plus, Minus, AlertCircle, Download, X, ChevronDown, Pencil, Lock, Filter, ScanLine, Trash2 } from 'lucide-react';
-import { createOutbound, exportOutboundReport, getItemByCode, listOutbound, listItems, listMaterialRequests, updateOutbound, deleteItem } from '@/domains/inventory/api';
-import { getDokubah, listDokubah, listTrackingSpk } from '@/domains/ppic/api';
+import { Camera, Search, Calendar, Plus, Minus, AlertCircle, Download, X, ChevronDown, ChevronRight, Pencil, Lock, Filter, ScanLine, Trash2 } from 'lucide-react';
+import { createOutbound, exportOutboundReport, getItemByCode, listOutbound, listItems, updateOutbound, deleteItem } from '@/domains/inventory/api';
+import { getDokubah, getTrackingSpk, listDokubah } from '@/domains/ppic/api';
+import type { TrackingSpkDetail } from '@/domains/ppic/types';
 import type { BahanDokubah } from '@/domains/ppic/data/dokubah';
 import type { RecipientType, ItemListRow, OutboundRow } from '@/domains/inventory/types';
 import { displayDate, todayIso, toDateRange } from '@/domains/inventory/date';
@@ -16,6 +17,8 @@ import { randomId } from '@/shared/lib/random-id';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import DateFilter from '@/shared/components/DateFilter';
 import SearchableSelect from '@/shared/components/SearchableSelect';
+import { useClientSearch, useSpkSearch } from '@/domains/ppic/use-spk-search';
+import { beepFail, beepOk } from '@/domains/inventory/beep';
 
 
 // Satu baris barang hasil scan. SPK dan Nama Produk/Proyek diisi sekali di atas untuk seluruh transaksi.
@@ -27,16 +30,11 @@ const barisManual = (): BarisForm => ({ key: randomId(), manual: true, itemId: n
 const PAGE_SIZE = 20;
 // Pilihan tambahan di Nama Produk/Proyek untuk barang yang keluar bukan untuk produk SPK tertentu
 const PILIHAN_STOK = 'Stok';
-
-type TableRow = {
-  trx: OutboundRow;
-  line: OutboundRow['lines'][number];
-  lineIndex: number;
-  trxNo: number; // nomor urut per transaksi
-};
+const CAMERA_COOLDOWN_MS = 2000; // a camera reads the same QR on every frame; ignore repeats of one code for this long
 
 const formKosong = () => ({
   namaPengambil: "",
+  client: "",
   tanggal: todayIso(),
   spk: "",
   namaItem: "",
@@ -104,6 +102,17 @@ export default function BarangKeluarGudang() {
   const scanRef = useRef<HTMLInputElement>(null);
   // Scan bisa datang lebih cepat dari render, jadi pengecekan kode yang sudah ada memakai ref
   const barisRef = useRef<BarisForm[]>([]);
+  // Baris yang baru discan berkedip hijau sebentar; n berubah tiap scan supaya scan ulang kode yang sama tetap memicu efek
+  const [flash, setFlash] = useState<{ itemId: number; n: number } | null>(null);
+  // Satu key per draft: dipakai ulang saat retry atau klik ganda, ganti hanya kalau isi draft berubah
+  const draftKey = useRef({ key: '', payload: '' });
+  // Kamera HP: qr-scanner hanya dimuat saat kamera dibuka, dan pembacaan ulang kode yang sama diabaikan sebentar
+  const [cameraOn, setCameraOn] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const lastCameraRead = useRef({ code: '', at: 0 });
+  // Callback kamera tidak diperbarui tiap render, jadi cek nama pengambil lewat ref
+  const pengambilRef = useRef('');
+  const pengambilOk = form.namaPengambil.trim() !== '';
 
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   const [editForm, setEditForm] = useState<EditForm | null>(null);
@@ -113,6 +122,11 @@ export default function BarangKeluarGudang() {
   const [actionError, setActionError] = useState<string>('');
   // Diperbarui tiap menit supaya tombol Edit otomatis terkunci begitu batas 1 hari lewat
   const [now, setNow] = useState(() => Date.now());
+  // Transaksi yang sedang disorot kursor; semua barisnya ikut disorot
+  const [hoverTrx, setHoverTrx] = useState<number | null>(null);
+  // Transaksi yang rincian barangnya sedang dibuka di tabel, dan transaksi yang rinciannya tampil di pop-up
+  const [expanded, setExpanded] = useState<Set<number>>(() => new Set());
+  const [detailTrx, setDetailTrx] = useState<OutboundRow | null>(null);
   const editTanggalRef = useRef<HTMLInputElement>(null);
 
   const dateRange = toDateRange(filterDay, filterMonth, filterYear);
@@ -131,22 +145,28 @@ export default function BarangKeluarGudang() {
   const rows = result?.rows ?? [];
   const total = result?.total ?? 0;
 
-  // The client comes from the tracking system through the SPK; the API ignores a client name from the FE.
-  const { data: spkList } = useApiData(() => listTrackingSpk(), 'spk', 'Gagal memuat daftar SPK.');
-  const clientOf = (spk: string) => spkList?.find((t) => t.noSpk === spk)?.client ?? '';
+  // Dropdown SPK di form dan di Edit: pencarian dikirim ke server. The client comes from the tracking system through the SPK; the API ignores a client name from the FE.
+  const clientForm = useClientSearch();
+  const clientPilihan = clientForm.options.map((c) => ({ value: c, label: c }));
+  const spkForm = useSpkSearch(form.spk, form.client);
+  const spkPilihan = spkForm.options.map((t) => ({ value: t.noSpk, label: t.noSpk }));
+  const spkEdit = useSpkSearch(editForm?.spk ?? '');
+  const clientOf = (spk: string) => spkEdit.options.find((t) => t.noSpk === spk)?.client ?? '';
 
-  // Pilihan Nama Item/Produk: Item Produksi dari permintaan material SPK itu, dimuat sekali per SPK.
-  const [produkBySpk, setProdukBySpk] = useState<Record<string, string[]>>({});
-  const muatProduk = (spk: string) => {
-    if (!spkList?.some((t) => t.noSpk === spk) || produkBySpk[spk]) return;
-    setProdukBySpk((prev) => ({ ...prev, [spk]: [] }));
-    listMaterialRequests({ search: spk, pageSize: 100 })
-      .then((res) => {
-        const produk = [...new Set(res.rows.filter((r) => r.spk === spk).map((r) => r.productionItem))];
-        setProdukBySpk((prev) => ({ ...prev, [spk]: produk }));
-      })
-      .catch(() => {});
-  };
+  // Detail SPK (client dan produk) dari tracking, dimuat tiap SPK di form dipilih
+  const [detailSpk, setDetailSpk] = useState<{ noSpk: string; data: TrackingSpkDetail | null } | null>(null);
+  useEffect(() => {
+    if (!form.spk) return;
+    const spk = form.spk;
+    let batal = false;
+    getTrackingSpk(spk)
+      .then((data) => !batal && setDetailSpk({ noSpk: spk, data }))
+      .catch(() => !batal && setDetailSpk({ noSpk: spk, data: null }));
+    return () => { batal = true; };
+  }, [form.spk]);
+  const detailAktif = detailSpk?.noSpk === form.spk ? detailSpk : null;
+  const detailGagal = !!form.spk && detailAktif !== null && detailAktif.data === null;
+  const detailMemuat = !!form.spk && detailAktif === null;
 
   // Kuota material per SPK dari dokubah PPIC. Tidak ada key = belum dimuat, null = gagal dimuat.
   const [dokubahBySpk, setDokubahBySpk] = useState<Record<string, BahanDokubah[] | 'loading' | null>>({});
@@ -170,20 +190,28 @@ export default function BarangKeluarGudang() {
   }, []);
 
   useEffect(() => { barisRef.current = form.baris; }, [form.baris]);
+  useEffect(() => { pengambilRef.current = form.namaPengambil.trim(); }, [form.namaPengambil]);
   useEffect(() => { if (scanOpen) scanRef.current?.focus(); }, [scanOpen]);
+  useEffect(() => {
+    if (!flash) return;
+    document.getElementById(`bk-baris-${flash.itemId}`)?.scrollIntoView?.({ block: 'nearest' });
+    const timer = setTimeout(() => setFlash(null), 700);
+    return () => clearTimeout(timer);
+  }, [flash]);
+  // Toast gagal scan hilang sendiri
+  useEffect(() => {
+    if (!scanError) return;
+    const timer = setTimeout(() => setScanError(''), 4000);
+    return () => clearTimeout(timer);
+  }, [scanError]);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(timer);
   }, []);
 
-  // The table shows one row per item line, the API returns one row per transaction.
-  const tableRows: TableRow[] = rows.flatMap((trx, trxIndex) =>
-    trx.lines.map((line, lineIndex) => ({
-      trx, line, lineIndex,
-      trxNo: (page - 1) * PAGE_SIZE + trxIndex + 1,
-    })),
-  );
+  // Tabel menampilkan satu baris per transaksi, nomor urut dihitung dari halaman
+  const trxRows = rows.map((trx, trxIndex) => ({ trx, trxNo: (page - 1) * PAGE_SIZE + trxIndex + 1 }));
 
   const openEdit = (trx: OutboundRow, lineIndex: number) => {
     const line = trx.lines[lineIndex];
@@ -201,6 +229,42 @@ export default function BarangKeluarGudang() {
   const closeEdit = () => {
     setEditTarget(null);
     setEditForm(null);
+  };
+
+  const toggleExpand = (id: number) => setExpanded((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    return next;
+  });
+
+  // Tombol Edit satu baris barang; terkunci setelah 1 hari. onBuka dipanggil dulu, misalnya untuk menutup pop-up rincian
+  const tombolEdit = (trx: OutboundRow, lineIndex: number, onBuka?: () => void) => {
+    if (!canUpdate) return null;
+    const line = trx.lines[lineIndex];
+    return bisaEdit(trx, now) ? (
+      <button
+        type="button"
+        onClick={() => { onBuka?.(); openEdit(trx, lineIndex); }}
+        title={`Bisa diedit sampai ${tampilWaktu(batasEdit(trx))}`}
+        aria-label={`Edit barang keluar ${trx.id} ${line.itemName}`}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#FF8A00] text-[#FF8A00] text-xs font-semibold hover:bg-orange-50 transition-colors"
+      >
+        <Pencil className="w-3.5 h-3.5" />
+        <span>Edit</span>
+      </button>
+    ) : (
+      <button
+        type="button"
+        disabled
+        title="Sudah lewat 1 hari, tidak bisa diedit"
+        aria-label={`Edit barang keluar ${trx.id} ${line.itemName} (terkunci)`}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-gray-50 text-gray-400 text-xs font-semibold cursor-not-allowed opacity-70"
+      >
+        <Lock className="w-3.5 h-3.5" />
+        <span>Edit</span>
+      </button>
+    );
   };
 
   const editLine = editTarget ? editTarget.trx.lines[editTarget.lineIndex] : undefined;
@@ -286,6 +350,7 @@ export default function BarangKeluarGudang() {
     .map((it) => ({ value: String(it.id), label: it.code ? `${it.name} (${it.code})` : it.name }));
 
   const bukaScan = () => {
+    if (!pengambilRef.current) return;
     if (scanOpen) scanRef.current?.focus();
     else setScanOpen(true);
   };
@@ -293,18 +358,19 @@ export default function BarangKeluarGudang() {
   // Barang yang sudah ada di tabel cukup ditambah jumlahnya, barang baru diambil datanya dari database
   const tambahKode = async (code: string) => {
     setScanError("");
+    if (!pengambilRef.current) { setScanError("Isi nama pengambil dulu."); beepFail(); return; }
+    const ok = (itemId: number) => { setFlash((f) => ({ itemId, n: (f?.n ?? 0) + 1 })); beepOk(); };
     const ada = barisRef.current.find((b) => b.code === code);
-    if (ada) { setBaris((bs) => tambahSatu(bs, ada.key)); return; }
+    if (ada) { setBaris((bs) => tambahSatu(bs, ada.itemId)); ok(ada.itemId); return; }
     try {
       const item = await getItemByCode(code);
       // Dua scan cepat untuk kode baru yang sama sama-sama sampai di sini sebelum barisnya ada
-      setBaris((bs) => {
-        const sama = bs.find((b) => b.itemId === item.id);
-        return sama
-          ? tambahSatu(bs, sama.key)
-          : [...bs, { key: randomId(), manual: false, itemId: item.id, code: item.code ?? code, name: item.name, unit: item.unit, stock: item.stock, qty: '1' }];
-      });
+      setBaris((bs) => bs.some((b) => b.itemId === item.id)
+        ? tambahSatu(bs, item.id)
+        : [...bs, { itemId: item.id, code: item.code ?? code, name: item.name, unit: item.unit, stock: item.stock, qty: '1' }]);
+      ok(item.id);
     } catch (err) {
+      beepFail();
       setScanError(err instanceof ApiError && err.status === 404 ? `Kode "${code}" tidak dikenal.` : err instanceof ApiError ? err.message : 'Gagal membaca kode.');
     }
   };
@@ -318,9 +384,53 @@ export default function BarangKeluarGudang() {
     if (code) void tambahKode(code);
   };
 
-  const pilihSpk = (spk: string) => {
+  // Phone camera. Needs HTTPS (or localhost) for getUserMedia. Stopped by toggling off, closing the form, or unmount.
+  useEffect(() => {
+    if (!cameraOn || !videoRef.current) return;
+    let stop = () => {};
+    let cancelled = false;
+    (async () => {
+      if (!window.isSecureContext) {
+        setScanError('Kamera hanya jalan di HTTPS atau localhost.');
+        setCameraOn(false);
+        return;
+      }
+      try {
+        const { default: QrScanner } = await import('qr-scanner');
+        if (cancelled || !videoRef.current) return;
+        const scanner = new QrScanner(
+          videoRef.current,
+          (result) => {
+            const code = result.data.trim();
+            const last = lastCameraRead.current;
+            const now = Date.now();
+            if (!code || (code === last.code && now - last.at < CAMERA_COOLDOWN_MS)) return;
+            lastCameraRead.current = { code, at: now };
+            void tambahKode(code);
+          },
+          { preferredCamera: 'environment', highlightScanRegion: true, returnDetailedScanResult: true },
+        );
+        stop = () => { scanner.stop(); scanner.destroy(); };
+        await scanner.start();
+        if (cancelled) stop();
+      } catch {
+        if (!cancelled) {
+          setScanError('Kamera tidak bisa dibuka. Periksa izin kamera di browser.');
+          setCameraOn(false);
+        }
+      }
+    })();
+    return () => { cancelled = true; stop(); };
+    // tambahKode only uses refs and functional state updates, so the scanner is not restarted on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cameraOn]);
+
+  const pilihClient = (client: string) => {
+    setForm((prev) => (prev.client === client ? prev : { ...prev, client, spk: "", namaItem: "" }));
+  };
+
+  const pilihSpk =(spk: string) => {
     setForm((prev) => ({ ...prev, spk, namaItem: "" }));
-    muatProduk(spk);
     muatDokubah(spk);
   };
 
@@ -346,13 +456,18 @@ export default function BarangKeluarGudang() {
     );
   };
 
-  const pilihanProduk = [...new Set([...(produkBySpk[form.spk] ?? []), PILIHAN_STOK])];
+  // Produk dari tracking, nama yang sama hanya sekali; Stok selalu ada
+  const produkTracking = (detailAktif?.data?.products ?? []).filter((p, i, arr) => arr.findIndex((x) => x.name === p.name) === i);
+  const pilihanProduk = [
+    ...produkTracking.map((p) => ({ value: p.name, label: `${p.name} (${p.qty} ${p.unit})` })),
+    { value: PILIHAN_STOK, label: PILIHAN_STOK },
+  ];
 
   const handleSimpan = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const { namaPengambil, tanggal, spk, namaItem, recipientType, baris } = form;
-    if (!tanggal || !spk || !namaPengambil.trim() || !namaItem.trim()) {
-      setModalError("Lengkapi tanggal, SPK, nama pengambil, dan nama produk/proyek.");
+    const { namaPengambil, tanggal, client, spk, namaItem, recipientType, baris } = form;
+    if (!tanggal || !client || !spk || !namaPengambil.trim() || !namaItem.trim()) {
+      setModalError("Lengkapi tanggal, client, SPK, nama pengambil, dan nama produk/proyek.");
       return;
     }
     // Baris input manual yang belum dipilih materialnya diabaikan
@@ -369,7 +484,7 @@ export default function BarangKeluarGudang() {
     setSaving(true);
     setModalError("");
     try {
-      await createOutbound({
+      const input = {
         date: tanggal,
         spk,
         itemName: namaItem.trim(),
@@ -377,8 +492,13 @@ export default function BarangKeluarGudang() {
         // API belum punya kolom nama pengambil, jadi dicatat di notes
         notes: `Pengambil: ${namaPengambil.trim()}`,
         // Form tidak punya kolom PIC lagi, sedangkan API mewajibkan pic per baris, jadi diisi nama pengambil
-        lines: terisi.map((b) => ({ itemId: b.itemId, qty: Number(b.qty), pic: namaPengambil.trim() })),
-      });
+        lines: baris.map((b) => ({ itemId: b.itemId, qty: Number(b.qty), pic: namaPengambil.trim() })),
+      };
+      const payload = JSON.stringify(input);
+      if (!draftKey.current.key || draftKey.current.payload !== payload) draftKey.current = { key: crypto.randomUUID(), payload };
+      await createOutbound(input, draftKey.current.key);
+      draftKey.current = { key: '', payload: '' };
+      setCameraOn(false);
       setIsModalOpen(false);
       reload();
     } catch (err) {
@@ -457,6 +577,7 @@ export default function BarangKeluarGudang() {
                   <SortableTh label="Transaksi" sortKey="tanggal" sort={sort} onSort={toggle} />
                   <SortableTh label="Client / SPK" sortKey="clientName" sort={sort} onSort={toggle} />
                   <SortableTh label="Nama Item/Projek" sortKey="itemName" sort={sort} onSort={toggle} />
+                  <th scope="col" className="px-6 py-4">Pengambil</th>
                   <th scope="col" className="px-6 py-4">Barang</th>
                   <th scope="col" className="px-6 py-4 text-right">Jumlah</th>
                   <th scope="col" className="px-6 py-4 text-center">Action</th>
@@ -464,82 +585,121 @@ export default function BarangKeluarGudang() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {loading && (
-                  <tr><td colSpan={7} className="px-6 py-10 text-center text-gray-400">Memuat data...</td></tr>
+                  <tr><td colSpan={8} className="px-6 py-10 text-center text-gray-400">Memuat data...</td></tr>
                 )}
                 {!loading && error && (
-                  <tr><td colSpan={7} className="px-6 py-10 text-center text-red-500">{error}</td></tr>
+                  <tr><td colSpan={8} className="px-6 py-10 text-center text-red-500">{error}</td></tr>
                 )}
-                {!loading && !error && tableRows.map(({ trx, line, lineIndex, trxNo }) => (
-                  <tr
-                    key={`${trx.id}-${lineIndex}`}
-                    className={`hover:bg-[#FF8A00]/5 transition-colors group ${lineIndex === 0 ? 'border-t border-gray-100' : ''}`}
-                  >
-                    <td className="px-6 py-4 text-gray-500">{lineIndex === 0 ? `${trxNo}.` : ''}</td>
+                {!loading && !error && trxRows.map(({ trx, trxNo }) => {
+                  // Satu transaksi punya satu warna zebra, satu sorotan hover, dan satu garis aksen di semua barisnya, termasuk baris rincian
+                  const aktif = hoverTrx === trx.id;
+                  const zebra = trxNo % 2 === 0 ? 'bg-gray-50/60' : 'bg-white';
+                  const garisKiri = `border-l-[3px] ${aktif ? 'border-[#FF8A00]' : 'border-transparent'}`;
+                  const barisClass = `transition-colors group ${aktif ? 'bg-[#FF8A00]/5' : zebra}`;
+                  const hoverProps = {
+                    'data-hover': aktif ? 'true' : undefined,
+                    onMouseEnter: () => setHoverTrx(trx.id),
+                    onMouseLeave: () => setHoverTrx(null),
+                  };
+                  const terbuka = expanded.has(trx.id);
+                  const banyak = trx.lines.length > 1;
+                  const pertama = trx.lines[0];
+                  const jumlah = trx.lines.reduce((sum, l) => sum + l.qty, 0);
+                  // Nama yang bisa diklik membuka pop-up rincian transaksi
+                  const tombolRincian = (teks: React.ReactNode, className: string) => (
+                    <button
+                      type="button"
+                      onClick={() => setDetailTrx(trx)}
+                      aria-label={`Lihat rincian ${trx.id}`}
+                      className={`text-left hover:underline ${className}`}
+                    >
+                      {teks}
+                    </button>
+                  );
+                  return (
+                    <React.Fragment key={trx.id}>
+                      <tr {...hoverProps} className={`${barisClass} border-t border-gray-100`}>
+                        <td className={`px-6 py-4 text-gray-500 ${garisKiri}`}>
+                          <div className="flex items-center gap-2">
+                            {banyak ? (
+                              <button
+                                type="button"
+                                onClick={() => toggleExpand(trx.id)}
+                                aria-expanded={terbuka}
+                                aria-label={`${terbuka ? 'Tutup' : 'Buka'} rincian barang ${trx.id}`}
+                                className="p-0.5 rounded text-gray-500 hover:text-gray-900 hover:bg-gray-200/60"
+                              >
+                                <ChevronRight className={`w-4 h-4 transition-transform ${terbuka ? 'rotate-90' : ''}`} />
+                              </button>
+                            ) : (
+                              <span className="w-5" />
+                            )}
+                            <span>{trxNo}.</span>
+                          </div>
+                        </td>
 
-                    <td className="px-6 py-4">
-                      {lineIndex === 0 && (
-                        <div className="flex flex-col">
-                          <span className="font-semibold text-gray-900">{trx.id}</span>
-                          <span className="text-xs text-gray-500">{displayDate(trx.date)}</span>
-                        </div>
-                      )}
-                    </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col items-start">
+                            {tombolRincian(trx.noTransaksi ?? trx.id, 'font-semibold text-gray-900')}
+                            <span className="text-xs text-gray-500">{displayDate(trx.date)}</span>
+                          </div>
+                        </td>
 
-                    <td className="px-6 py-4">
-                      {lineIndex === 0 && (
-                        <div className="flex flex-col">
-                          <span className="font-medium text-gray-900">{trx.clientName}</span>
-                          <span className="text-xs text-gray-500">{trx.spk}</span>
-                        </div>
-                      )}
-                    </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col">
+                            <span className="font-medium text-gray-900">{trx.clientName}</span>
+                            <span className="text-xs text-gray-500">{trx.spk}</span>
+                          </div>
+                        </td>
 
-                    <td className="px-6 py-4 text-gray-600">{lineIndex === 0 ? trx.itemName : ''}</td>
+                        <td className="px-6 py-4 text-gray-600">{tombolRincian(trx.itemName, 'text-gray-600')}</td>
 
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col">
-                        <span className="font-medium text-gray-900">{line.itemName}</span>
-                        <span className="text-xs font-mono text-gray-500 mt-0.5">{line.itemCode ?? '-'}</span>
-                      </div>
-                    </td>
+                        <td className="px-6 py-4 text-gray-700">{pertama?.pic ?? '-'}</td>
 
-                    <td className="px-6 py-4 text-right font-bold text-gray-800">{line.qty}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col items-start">
+                            {tombolRincian(pertama?.itemName ?? '-', 'font-medium text-gray-900')}
+                            <span className="text-xs font-mono text-gray-500 mt-0.5">{pertama?.itemCode ?? '-'}</span>
+                            {banyak && <span className="text-xs text-gray-400 mt-0.5">{`+${trx.lines.length - 1} barang lainnya`}</span>}
+                          </div>
+                        </td>
 
-                    <td className="px-6 py-4">
-                        {/* Menggunakan kontainer flex agar tombol berjejer rapi ke samping */}
-                        <div className="flex items-center justify-center gap-2">
-                          {/* Kondisional Tombol Edit */}
-                          {canUpdate && (bisaEdit(trx, now) ? (
-                            <button
-                              type="button"
-                              onClick={() => openEdit(trx, lineIndex)}
-                              title={`Bisa diedit sampai ${tampilWaktu(batasEdit(trx))}`}
-                              aria-label={`Edit barang keluar ${trx.id} ${line.itemName}`}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#FF8A00] text-[#FF8A00] text-xs font-semibold hover:bg-orange-50 transition-colors"
-                            >
-                              <Pencil className="w-3.5 h-3.5" />
-                              <span>Edit</span>
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              disabled
-                              title="Sudah lewat 1 hari, tidak bisa diedit"
-                              aria-label={`Edit barang keluar ${trx.id} ${line.itemName} (terkunci)`}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-gray-50 text-gray-400 text-xs font-semibold cursor-not-allowed opacity-70"
-                            >
-                              <Lock className="w-3.5 h-3.5" />
-                              <span>Edit</span>
-                            </button>
-                          ))}
-                          
-                        </div>
-                      </td>
-                  </tr>
-                ))}
-                {!loading && !error && tableRows.length === 0 && (
+                        <td className="px-6 py-4 text-right font-bold text-gray-800">{jumlah}</td>
+
+                        <td className="px-6 py-4">
+                          {/* Menggunakan kontainer flex agar tombol berjejer rapi ke samping */}
+                          <div className="flex items-center justify-center gap-2">
+                            {/* Transaksi satu barang punya Edit di sini; transaksi banyak barang Edit ada per baris di rincian */}
+                            {!banyak && pertama && tombolEdit(trx, 0)}
+                          </div>
+                        </td>
+                      </tr>
+
+                      {terbuka && banyak && trx.lines.map((line, lineIndex) => (
+                        <tr key={lineIndex} {...hoverProps} className={barisClass}>
+                          <td className={`px-6 py-3 ${garisKiri}`} />
+                          <td className="px-6 py-3" />
+                          <td className="px-6 py-3" />
+                          <td className="px-6 py-3" />
+                          <td className="px-6 py-3" />
+                          <td className="py-3 pl-12 pr-6">
+                            <div className="flex flex-col">
+                              <span className="font-medium text-gray-900">{line.itemName}</span>
+                              <span className="text-xs font-mono text-gray-500 mt-0.5">{line.itemCode ?? '-'}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-3 text-right font-bold text-gray-800">{line.qty}</td>
+                          <td className="px-6 py-3">
+                            <div className="flex items-center justify-center gap-2">{tombolEdit(trx, lineIndex)}</div>
+                          </td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  );
+                })}
+                {!loading && !error && rows.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-6 py-10 text-center text-gray-400 italic">
+                    <td colSpan={8} className="px-6 py-10 text-center text-gray-400 italic">
                       Data tidak ditemukan untuk filter tersebut.
                     </td>
                   </tr>
@@ -571,7 +731,7 @@ export default function BarangKeluarGudang() {
           >
             <button
               type="button"
-              onClick={() => setIsModalOpen(false)}
+              onClick={() => { setCameraOn(false); setIsModalOpen(false); }}
               aria-label="Tutup form"
               className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
             >
@@ -582,6 +742,18 @@ export default function BarangKeluarGudang() {
 
             {/* Data transaksi, dua kolom: kiri No. Transaksi, Tanggal, Nama Pengambil; kanan Client, SPK, Nama Produk/Proyek */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-4 mb-8">
+              <div className={rowClass}>
+                <label htmlFor="form-bk-pengambil" className={rowLabelClass}>Nama Pengambil</label>
+                <input
+                  id="form-bk-pengambil"
+                  type="text"
+                  value={form.namaPengambil}
+                  maxLength={191}
+                  onChange={(e) => setForm((prev) => ({ ...prev, namaPengambil: e.target.value }))}
+                  placeholder="Isi nama pengambil"
+                  className={fieldClass}
+                />
+              </div>
               <div className={rowClass}>
                 <label htmlFor="form-bk-transaksi" className={rowLabelClass}>No. Transaksi</label>
                 <input
@@ -594,14 +766,15 @@ export default function BarangKeluarGudang() {
                 />
               </div>
               <div className={rowClass}>
-                <label htmlFor="form-bk-client" className={rowLabelClass}>Client</label>
-                <input
-                  id="form-bk-client"
-                  type="text"
-                  readOnly
-                  value={clientOf(form.spk)}
-                  placeholder="Terisi otomatis dari SPK"
-                  className={`${fieldClass} bg-gray-50 cursor-default`}
+                <span className={rowLabelClass}>Client</span>
+                <SearchableSelect
+                  value={form.client}
+                  onChange={pilihClient}
+                  onSearch={clientForm.onSearch}
+                  options={clientPilihan}
+                  placeholder="Pilih client"
+                  aria-label="Client"
+                  className={selectClass}
                 />
               </div>
               <div className={rowClass}>
@@ -630,34 +803,27 @@ export default function BarangKeluarGudang() {
                 <SearchableSelect
                   value={form.spk}
                   onChange={pilihSpk}
-                  options={(spkList ?? []).map((t) => ({ value: t.noSpk, label: t.noSpk }))}
-                  placeholder="Pilih SPK"
+                  onSearch={spkForm.onSearch}
+                  options={spkPilihan}
+                  placeholder={form.client ? "Pilih SPK" : "Pilih client dulu"}
                   aria-label="SPK"
                   className={selectClass}
                 />
               </div>
               <div className={rowClass}>
-                <label htmlFor="form-bk-pengambil" className={rowLabelClass}>Nama Pengambil</label>
-                <input
-                  id="form-bk-pengambil"
-                  type="text"
-                  value={form.namaPengambil}
-                  maxLength={191}
-                  onChange={(e) => setForm((prev) => ({ ...prev, namaPengambil: e.target.value }))}
-                  placeholder="Isi nama pengambil"
-                  className={fieldClass}
-                />
-              </div>
-              <div className={rowClass}>
                 <span className={rowLabelClass}>Nama Produk/Proyek</span>
-                <SearchableSelect
-                  value={form.namaItem}
-                  onChange={(namaItem) => setForm((prev) => ({ ...prev, namaItem }))}
-                  options={pilihanProduk.map((nama) => ({ value: nama, label: nama }))}
-                  placeholder="Pilih produk/proyek atau stok"
-                  aria-label="Nama Produk/Proyek"
-                  className={selectClass}
-                />
+                <div className="min-w-0">
+                  <SearchableSelect
+                    value={form.namaItem}
+                    onChange={(namaItem) => setForm((prev) => ({ ...prev, namaItem }))}
+                    options={pilihanProduk}
+                    placeholder="Pilih produk/proyek atau stok"
+                    aria-label="Nama Produk/Proyek"
+                    className={selectClass}
+                  />
+                  {detailMemuat && <p className="mt-1 text-xs text-gray-400">Memuat produk...</p>}
+                  {detailGagal && <p className="mt-1 text-xs text-red-600">Gagal memuat produk dari tracking. Pilih SPK lagi.</p>}
+                </div>
               </div>
             </div>
 
@@ -678,23 +844,40 @@ export default function BarangKeluarGudang() {
             </div>
 
             {scanOpen && (
-              <div className="relative mt-4">
-                <ScanLine className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  ref={scanRef}
-                  type="text"
-                  autoComplete="off"
-                  maxLength={191}
-                  value={scanValue}
-                  onChange={(e) => setScanValue(e.target.value)}
-                  onKeyDown={onScanKey}
-                  placeholder="Arahkan scanner ke QR barang..."
-                  aria-label="Hasil scan"
-                  className="w-full border-2 border-orange-200 rounded-lg py-3 pl-10 pr-4 text-sm text-gray-800 focus:outline-none focus:border-[#FF8A00]/60 focus:ring-2 focus:ring-[#FF8A00]/20"
-                />
+              <div className="flex gap-2 mt-4">
+                <div className="relative flex-1">
+                  <ScanLine className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    ref={scanRef}
+                    type="text"
+                    autoComplete="off"
+                    maxLength={191}
+                    value={scanValue}
+                    onChange={(e) => setScanValue(e.target.value)}
+                    onKeyDown={onScanKey}
+                    placeholder="Arahkan scanner ke QR barang..."
+                    aria-label="Hasil scan"
+                    className="w-full border-2 border-orange-200 rounded-lg py-3 pl-10 pr-4 text-sm text-gray-800 focus:outline-none focus:border-[#FF8A00]/60 focus:ring-2 focus:ring-[#FF8A00]/20"
+                  />
+                </div>
+                {/* Saat kamera sudah menyala tombol tetap bisa dipakai untuk mematikannya, walau nama pengambil kosong */}
+                <button
+                  type="button"
+                  onClick={() => { setScanError(''); setCameraOn((v) => !v); }}
+                  disabled={!pengambilOk && !cameraOn}
+                  aria-pressed={cameraOn}
+                  className={`flex items-center justify-center gap-2 px-4 border-2 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed ${cameraOn ? 'bg-orange-50 border-orange-300 text-orange-700' : 'border-orange-200 text-gray-700 hover:bg-gray-50'}`}
+                >
+                  <Camera className="w-4 h-4" />
+                  {cameraOn ? 'Matikan kamera' : 'Kamera'}
+                </button>
               </div>
             )}
-            {scanError && <p role="alert" className="mt-3 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{scanError}</p>}
+            {cameraOn && <video ref={videoRef} muted playsInline className="mt-4 w-full max-w-sm rounded-xl bg-black" />}
+            {scanError && <p role="alert" className="fixed bottom-6 right-6 z-70 max-w-sm p-3 bg-red-600 text-white text-sm rounded-lg shadow-lg">{scanError}</p>}
+            {form.baris.length > 0 && (
+              <p className="mt-3 text-sm text-gray-700">Terscan: <span className="font-bold">{form.baris.reduce((n, b) => n + (Number(b.qty) || 0), 0)}</span> item, {form.baris.length} jenis</p>
+            )}
 
             <div className="mt-4 overflow-x-auto border-t border-l border-gray-300 rounded-sm">
               <table className="w-full text-sm border-collapse">
@@ -837,11 +1020,16 @@ export default function BarangKeluarGudang() {
                 <input id="edit-bk-client" type="text" readOnly value={clientOf(editForm.spk)} className={fieldClass} />
               </div>
               <div>
-                <label htmlFor="edit-bk-spk" className={labelClass}>SPK</label>
-                <select id="edit-bk-spk" value={editForm.spk} onChange={(e) => updateEdit({ spk: e.target.value })} className={fieldClass}>
-                  <option value="">Pilih SPK</option>
-                  {(spkList ?? []).map((t) => <option key={t.noSpk} value={t.noSpk}>{t.noSpk}</option>)}
-                </select>
+                <span className={labelClass}>SPK</span>
+                <SearchableSelect
+                  value={editForm.spk}
+                  onChange={(spk) => updateEdit({ spk })}
+                  onSearch={spkEdit.onSearch}
+                  options={spkEdit.options.map((t) => ({ value: t.noSpk, label: t.noSpk }))}
+                  placeholder="Pilih SPK"
+                  aria-label="SPK"
+                  className={fieldClass}
+                />
               </div>
               <div>
                 <label htmlFor="edit-bk-item" className={labelClass}>Nama Item/Projek</label>
@@ -917,6 +1105,79 @@ export default function BarangKeluarGudang() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Pop-up rincian transaksi: header, semua barang, dan status edit */}
+      {detailTrx && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md transition-opacity duration-300 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="rincian-bk-judul"
+            className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-full overflow-y-auto p-6 sm:p-8 relative animate-in zoom-in-95 duration-200"
+          >
+            <button
+              type="button"
+              onClick={() => setDetailTrx(null)}
+              aria-label="Tutup rincian"
+              className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+            >
+              <X className="h-4 w-4" strokeWidth={2.5} />
+            </button>
+
+            <h2 id="rincian-bk-judul" className="text-[18px] font-extrabold text-black tracking-wide uppercase mb-6">Rincian Barang Keluar</h2>
+
+            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 mb-6 text-sm">
+              {([
+                ['No. Transaksi', detailTrx.noTransaksi ?? detailTrx.id],
+                ['Tanggal', displayDate(detailTrx.date)],
+                ['Client', detailTrx.clientName],
+                ['SPK', detailTrx.spk],
+                ['Nama Item/Projek', detailTrx.itemName],
+                ['Pengambil', detailTrx.lines[0]?.pic ?? '-'],
+                ['Dicatat', tampilWaktu(new Date(detailTrx.createdAt).getTime())],
+              ] as const).map(([k, v]) => (
+                <div key={k} className="flex flex-col">
+                  <dt className="text-gray-500">{k}</dt>
+                  <dd className="font-semibold text-gray-900">{v}</dd>
+                </div>
+              ))}
+            </dl>
+
+            <div className="overflow-x-auto border border-gray-200 rounded-lg">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-gray-50 text-gray-600 font-semibold">
+                  <tr>
+                    <th scope="col" className="px-4 py-2.5">No</th>
+                    <th scope="col" className="px-4 py-2.5">Nama Barang</th>
+                    <th scope="col" className="px-4 py-2.5">Kode</th>
+                    <th scope="col" className="px-4 py-2.5 text-right">Jumlah</th>
+                    <th scope="col" className="px-4 py-2.5 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {detailTrx.lines.map((line, i) => (
+                    <tr key={i}>
+                      <td className="px-4 py-2.5 text-gray-500">{i + 1}</td>
+                      <td className="px-4 py-2.5 font-medium text-gray-900">{line.itemName}</td>
+                      <td className="px-4 py-2.5 font-mono text-xs text-gray-500">{line.itemCode ?? '-'}</td>
+                      <td className="px-4 py-2.5 text-right font-bold text-gray-800">{line.qty}</td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex justify-center">{tombolEdit(detailTrx, i, () => setDetailTrx(null))}</div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <p className={`mt-4 text-sm ${bisaEdit(detailTrx, now) ? 'text-gray-600' : 'text-red-600'}`}>
+              {bisaEdit(detailTrx, now)
+                ? `Bisa diedit sampai ${tampilWaktu(batasEdit(detailTrx))}`
+                : 'Sudah lewat 1 hari, tidak bisa diedit'}
+            </p>
+          </div>
         </div>
       )}
 
