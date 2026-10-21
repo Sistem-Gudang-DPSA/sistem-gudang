@@ -9,6 +9,7 @@ import type { StatusQc } from '@/domains/inventory/types';
 import { todayIso } from '@/domains/inventory/date';
 import { ApiError } from '@/shared/lib/api-client';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
+import { randomId } from '@/shared/lib/random-id';
 
 type Kind = 'pass' | 'retur';
 type Step = 'hub' | Kind | 'review';
@@ -22,7 +23,7 @@ const CAMERA_COOLDOWN_MS = 2000; // a camera reads the same QR on every frame; i
 const KINDS: Kind[] = ['pass', 'retur'];
 const KIND_LABEL: Record<Kind, string> = { pass: 'Barang Lolos QC', retur: 'Barang Retur' };
 
-const newDraft = (): Draft => ({ key: crypto.randomUUID(), date: todayIso(), pass: [], retur: [] });
+const newDraft = (): Draft => ({ key: randomId(), date: todayIso(), pass: [], retur: [] });
 
 // The draft survives a reload, so a scan session is not lost halfway. Storage may be blocked, so every access is guarded.
 function loadDraft(): Draft {

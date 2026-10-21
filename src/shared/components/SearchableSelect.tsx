@@ -13,13 +13,14 @@ type Props = {
   'aria-label': string;
   className?: string;
   emptyText?: string;
+  disabled?: boolean;
   // Server-side search: called with the typed text; the list is then not filtered here.
   onSearch?: (q: string) => void;
 };
 
 // Dropdown like a native <select>, with a search box on top of the list.
 // The list is position: fixed so the scrolling table it sits in cannot clip it.
-export default function SearchableSelect({ value, onChange, options, placeholder, 'aria-label': ariaLabel, className = '', emptyText = 'Tidak ada data', onSearch }: Props) {
+export default function SearchableSelect({ value, onChange, options, placeholder, 'aria-label': ariaLabel, className = '', emptyText = 'Tidak ada data', disabled = false, onSearch }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
@@ -90,17 +91,18 @@ export default function SearchableSelect({ value, onChange, options, placeholder
       <button
         ref={buttonRef}
         type="button"
+        disabled={disabled}
         onClick={() => (open ? setOpen(false) : buka())}
         aria-label={ariaLabel}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className={`flex items-center justify-between gap-2 text-left cursor-pointer ${className}`}
+        className={`flex items-center justify-between gap-2 text-left cursor-pointer disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400 ${className}`}
       >
         <span className={`truncate ${selected ? '' : 'text-gray-800'}`}>{selected?.label ?? placeholder}</span>
         <ChevronDown className="w-4 h-4 shrink-0 text-gray-800" strokeWidth={2.5} />
       </button>
 
-      {open && (
+      {open && !disabled && (
         <div
           ref={panelRef}
           style={{ top: pos.top, left: pos.left, width: pos.width }}

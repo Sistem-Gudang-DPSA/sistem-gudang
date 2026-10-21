@@ -13,7 +13,14 @@ export function useSpkSearch(selected: string, client?: string) {
     const timer = setTimeout(() => setQuery(input.trim() || undefined), 300);
     return () => clearTimeout(timer);
   }, [input]);
-  const { data: hasil, error } = useApiData(() => (client === '' ? Promise.resolve([]) : listTrackingSpk(query, 50, client)), `spk-search|${client ?? ''}|${query ?? ''}`, 'Gagal memuat daftar SPK.');
+  const { data: response, error } = useApiData(async () => ({
+    client,
+    rows: client === '' ? [] : await listTrackingSpk(query, 50, client),
+  }), `spk-search|${client === undefined ? 'all' : `client:${client}`}|${query ?? ''}`, 'Gagal memuat daftar SPK.');
+  // useApiData retains the previous response while loading; never show another client's SPKs.
+  const hasil = response?.client === client
+    ? response?.rows.filter((spk) => client === undefined || spk.client === client) ?? []
+    : [];
 
   // SPK terpilih di luar hasil (mis. Edit dengan SPK lama) diambil dulu supaya client-nya diketahui
   const adaDiHasil = !!selected && !!hasil?.some((t) => t.noSpk === selected);
@@ -29,7 +36,8 @@ export function useSpkSearch(selected: string, client?: string) {
 
   const options: TrackingSpk[] = [
     ...(hasil ?? []),
-    ...(selected && !adaDiHasil ? [terpilih && terpilih.noSpk === selected ? terpilih : { noSpk: selected, client: '' }] : []),
+    ...(selected && !adaDiHasil && client !== '' && (client === undefined || (terpilih?.noSpk === selected && terpilih.client === client))
+      ? [terpilih && terpilih.noSpk === selected ? terpilih : { noSpk: selected, client: '' }] : []),
   ];
   return { options, onSearch: setInput, error };
 }
