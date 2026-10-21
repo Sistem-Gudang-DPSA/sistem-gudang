@@ -9,6 +9,7 @@ import type { StatusQc } from '@/domains/inventory/types';
 import { todayIso } from '@/domains/inventory/date';
 import { ApiError } from '@/shared/lib/api-client';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
+import { randomId } from '@/shared/lib/random-id';
 
 type Kind = 'pass' | 'retur';
 type Step = 'hub' | Kind | 'review';

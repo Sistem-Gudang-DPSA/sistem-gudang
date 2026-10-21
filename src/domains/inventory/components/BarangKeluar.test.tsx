@@ -243,7 +243,11 @@ describe('BarangKeluar create', () => {
     expect(screen.getByText(/Lengkapi tanggal, client, SPK, nama pengambil/)).not.toBeNull();
     await fillHeader();
     fireEvent.click(screen.getByText('Simpan'));
-    expect(screen.getByText('Scan minimal satu barang yang keluar.')).not.toBeNull();
+    expect(screen.getByText('Scan atau pilih minimal satu barang yang keluar.')).not.toBeNull();
+    // a manual row whose material was never picked is ignored
+    fireEvent.click(screen.getByText('Input Manual'));
+    fireEvent.click(screen.getByText('Simpan'));
+    expect(screen.getByText('Scan atau pilih minimal satu barang yang keluar.')).not.toBeNull();
     expect(api.calls('POST /api/v1/outbound').length).toBe(0);
   });
 
@@ -398,6 +402,27 @@ describe('BarangKeluar create', () => {
     // PIC is no longer in the form; the API still requires it, so it carries the nama pengambil
     expect(a.lines).toEqual([{ itemId: 1, qty: 4, pic: 'Rudi' }, { itemId: 3, qty: 1, pic: 'Rudi' }]);
     await waitFor(() => expect(screen.queryByText('Simpan')).toBeNull());
+  });
+
+  it('adds a manual row whose material is a searchable dropdown, next to scanned rows', async () => {
+    const api = setup({ 'POST /api/v1/outbound': { id: 5 } });
+    await openForm(api);
+    await fillHeader();
+    scan('BRG-1');
+    await screen.findByText('Triplex', { selector: 'td' });
+    fireEvent.click(screen.getByText('Input Manual'));
+    fireEvent.click(label('Nama material baris 2'));
+    // Triplex is already in the table, so only Paku is offered; the list is searchable
+    expect(within(screen.getByRole('listbox')).getAllByRole('option').map((o) => o.textContent)).toEqual(['Paku (BRG-2)']);
+    fireEvent.change(label('Cari Nama material baris 2'), { target: { value: 'pak' } });
+    fireEvent.click(screen.getByRole('option', { name: 'Paku (BRG-2)' }));
+    const row = label('Nama material Paku').closest('tr')!;
+    expect(Array.from(row.querySelectorAll('td')).slice(2, 4).map((td) => td.textContent)).toEqual(['kg', 'BRG-2']);
+    fireEvent.change(label('Pengambilan Paku'), { target: { value: '7' } });
+    fireEvent.click(screen.getByText('Simpan'));
+    await waitFor(() => expect(api.calls('POST /api/v1/outbound').length).toBe(1));
+    expect((api.calls('POST /api/v1/outbound')[0].body as Record<string, unknown>).lines)
+      .toEqual([{ itemId: 1, qty: 1, pic: 'Rudi' }, { itemId: 2, qty: 7, pic: 'Rudi' }]);
   });
 
   it('can send barang out for Stok instead of a produk of the SPK', async () => {

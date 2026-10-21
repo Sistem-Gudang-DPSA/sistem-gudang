@@ -13,6 +13,7 @@ import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
+import { randomId } from '@/shared/lib/random-id';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import DateFilter from '@/shared/components/DateFilter';
 import SearchableSelect from '@/shared/components/SearchableSelect';
@@ -21,7 +22,10 @@ import { beepFail, beepOk } from '@/domains/inventory/beep';
 
 
 // Satu baris barang hasil scan. SPK dan Nama Produk/Proyek diisi sekali di atas untuk seluruh transaksi.
-type BarisForm = { itemId: number; code: string; name: string; unit: string; stock: number; qty: string };
+// Baris input manual dibuat kosong (itemId null) sampai materialnya dipilih dari dropdown.
+type BarisForm = { key: string; manual: boolean; itemId: number | null; code: string; name: string; unit: string; stock: number; qty: string };
+
+const barisManual = (): BarisForm => ({ key: randomId(), manual: true, itemId: null, code: '', name: '', unit: '', stock: 0, qty: '1' });
 
 const PAGE_SIZE = 20;
 // Pilihan tambahan di Nama Produk/Proyek untuk barang yang keluar bukan untuk produk SPK tertentu
@@ -39,8 +43,8 @@ const formKosong = () => ({
   baris: [] as BarisForm[],
 });
 
-const tambahSatu = (baris: BarisForm[], itemId: number) =>
-  baris.map((b) => (b.itemId === itemId ? { ...b, qty: String(Number(b.qty) + 1) } : b));
+const tambahSatu = (baris: BarisForm[], key: string) =>
+  baris.map((b) => (b.key === key ? { ...b, qty: String(Number(b.qty) + 1) } : b));
 
 const samaNama = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
@@ -330,8 +334,20 @@ export default function BarangKeluarGudang() {
   };
 
   const setBaris = (fn: (baris: BarisForm[]) => BarisForm[]) => setForm((prev) => ({ ...prev, baris: fn(prev.baris) }));
-  const patchBaris = (itemId: number, patch: Partial<BarisForm>) =>
-    setBaris((bs) => bs.map((b) => (b.itemId === itemId ? { ...b, ...patch } : b)));
+  const patchBaris = (key: string, patch: Partial<BarisForm>) =>
+    setBaris((bs) => bs.map((b) => (b.key === key ? { ...b, ...patch } : b)));
+
+  const tambahManual = () => setBaris((bs) => [...bs, barisManual()]);
+
+  const pilihMaterial = (key: string, itemId: string) => {
+    const item = items.find((it) => String(it.id) === itemId);
+    if (item) patchBaris(key, { itemId: item.id, code: item.code ?? '', name: item.name, unit: item.unit, stock: item.stock });
+  };
+
+  // Material yang sudah ada di baris lain tidak ditawarkan lagi, jumlahnya cukup ditambah di baris itu
+  const pilihanMaterial = (b: BarisForm) => items
+    .filter((it) => it.id === b.itemId || !form.baris.some((x) => x.itemId === it.id))
+    .map((it) => ({ value: String(it.id), label: it.code ? `${it.name} (${it.code})` : it.name }));
 
   const bukaScan = () => {
     if (!pengambilRef.current) return;
@@ -425,6 +441,7 @@ export default function BarangKeluarGudang() {
     : undefined;
 
   const selDokubah = (b: BarisForm) => {
+    if (b.itemId === null) return null;
     if (!form.spk) return <span className="text-xs text-gray-400">Pilih SPK dulu</span>;
     if (dokubahSpk === 'loading' || dokubahSpk === undefined) return <span className="text-xs text-gray-400">Memuat...</span>;
     if (dokubahSpk === null) return <span className="text-xs text-red-500">Gagal dimuat</span>;
@@ -453,11 +470,13 @@ export default function BarangKeluarGudang() {
       setModalError("Lengkapi tanggal, client, SPK, nama pengambil, dan nama produk/proyek.");
       return;
     }
-    if (baris.length === 0) {
-      setModalError("Scan minimal satu barang yang keluar.");
+    // Baris input manual yang belum dipilih materialnya diabaikan
+    const terisi = baris.flatMap((b) => (b.itemId === null ? [] : [{ ...b, itemId: b.itemId }]));
+    if (terisi.length === 0) {
+      setModalError("Scan atau pilih minimal satu barang yang keluar.");
       return;
     }
-    if (baris.some((b) => !b.qty || Number(b.qty) <= 0)) {
+    if (terisi.some((b) => !b.qty || Number(b.qty) <= 0)) {
       setModalError("Isi jumlah pengambilan di setiap barang.");
       return;
     }
@@ -808,12 +827,21 @@ export default function BarangKeluarGudang() {
               </div>
             </div>
 
-            {/* Daftar barang yang keluar, diisi dengan scan QR barang */}
-            <button type="button" onClick={bukaScan} disabled={!pengambilOk} className={orangeButtonClass}>
-              <ScanLine className="w-4 h-4" strokeWidth={2.5} />
-              <span>Scan Barang</span>
-            </button>
-            {!pengambilOk && <p className="mt-2 text-xs text-gray-500">Isi Nama Pengambil dulu</p>}
+            {/* Daftar barang yang keluar, diisi dengan scan QR barang atau input manual */}
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={bukaScan} className={orangeButtonClass}>
+                <ScanLine className="w-4 h-4" strokeWidth={2.5} />
+                <span>Scan Barang</span>
+              </button>
+              <button
+                type="button"
+                onClick={tambahManual}
+                className="flex items-center justify-center gap-2 px-5 py-2.5 border border-[#FF8A00] text-[#FF8A00] font-semibold rounded-xl hover:bg-orange-50 transition-colors text-sm"
+              >
+                <Plus className="w-4 h-4" strokeWidth={2.5} />
+                <span>Input Manual</span>
+              </button>
+            </div>
 
             {scanOpen && (
               <div className="flex gap-2 mt-4">
@@ -868,40 +896,61 @@ export default function BarangKeluarGudang() {
                   {form.baris.length === 0 && (
                     <tr>
                       <td colSpan={7} className={`${formCellClass} px-4 py-8 text-center text-gray-400`}>
-                        Belum ada barang. Tekan Scan Barang lalu scan QR pada barang yang diambil.
+                        Belum ada barang. Tekan Scan Barang lalu scan QR barang, atau Input Manual untuk memilih material.
                       </td>
                     </tr>
                   )}
-                  {form.baris.map((b, i) => (
-                    <tr key={b.itemId} id={`bk-baris-${b.itemId}`} className={`transition-colors duration-500 ${flash?.itemId === b.itemId ? 'bg-green-200' : ''}`}>
-                      <td className={`${formCellClass} text-center text-gray-700`}>{i + 1}</td>
-                      <td className={`${formCellClass} px-2 py-2 font-medium text-gray-900`}>{b.name}</td>
-                      <td className={`${formCellClass} px-2 text-center text-gray-700`}>{b.unit}</td>
-                      <td className={`${formCellClass} px-2 text-center font-mono text-xs text-gray-600`}>{b.code}</td>
-                      <td className={`${formCellClass} px-2 text-center`}>{selDokubah(b)}</td>
-                      <td className={`${formCellClass} px-2 py-1.5`}>
-                        <div className="flex items-center justify-center">
-                          <button type="button" aria-label={`Kurangi ${b.name}`} disabled={Number(b.qty) <= 1} onClick={() => patchBaris(b.itemId, { qty: String(Math.max(Number(b.qty) - 1, 1)) })} className="p-1 text-gray-500 hover:text-gray-900 disabled:opacity-30"><Minus className="w-4 h-4" /></button>
-                          <input
-                            {...INTEGER_INPUT}
-                            maxLength={9}
-                            value={b.qty}
-                            aria-label={`Pengambilan ${b.name}`}
-                            title={`Stok ${b.stock} ${b.unit}`}
-                            onChange={(e) => patchBaris(b.itemId, { qty: digitsOnly(e.target.value) })}
-                            className={`w-16 border rounded-md py-1.5 px-2 text-center text-sm ${Number(b.qty) > b.stock ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
-                          />
-                          <button type="button" aria-label={`Tambah ${b.name}`} onClick={() => setBaris((bs) => tambahSatu(bs, b.itemId))} className="p-1 text-gray-500 hover:text-gray-900"><Plus className="w-4 h-4" /></button>
-                        </div>
-                        <p className={`mt-0.5 text-center text-xs ${Number(b.qty) > b.stock ? 'text-red-600' : 'text-gray-400'}`}>stok {b.stock}</p>
-                      </td>
-                      <td className={`${formCellClass} px-2 text-center`}>
-                        <button type="button" aria-label={`Hapus ${b.name}`} onClick={() => setBaris((bs) => bs.filter((x) => x.itemId !== b.itemId))} className="text-gray-400 hover:text-red-600">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {form.baris.map((b, i) => {
+                    // Baris manual yang belum dipilih materialnya belum punya nama untuk label tombolnya
+                    const nama = b.name || `baris ${i + 1}`;
+                    const lebihStok = b.itemId !== null && Number(b.qty) > b.stock;
+                    return (
+                      <tr key={b.key}>
+                        <td className={`${formCellClass} text-center text-gray-700`}>{i + 1}</td>
+                        {b.manual ? (
+                          <td className={`${formCellClass} px-1 py-1`}>
+                            <SearchableSelect
+                              value={b.itemId === null ? '' : String(b.itemId)}
+                              onChange={(itemId) => pilihMaterial(b.key, itemId)}
+                              options={pilihanMaterial(b)}
+                              placeholder="Pilih material"
+                              emptyText="Material tidak ditemukan"
+                              aria-label={`Nama material ${nama}`}
+                              className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                            />
+                          </td>
+                        ) : (
+                          <td className={`${formCellClass} px-2 py-2 font-medium text-gray-900`}>{b.name}</td>
+                        )}
+                        <td className={`${formCellClass} px-2 text-center text-gray-700`}>{b.unit}</td>
+                        <td className={`${formCellClass} px-2 text-center font-mono text-xs text-gray-600`}>{b.code}</td>
+                        <td className={`${formCellClass} px-2 text-center`}>{selDokubah(b)}</td>
+                        <td className={`${formCellClass} px-2 py-1.5`}>
+                          <div className="flex items-center justify-center">
+                            <button type="button" aria-label={`Kurangi ${nama}`} disabled={Number(b.qty) <= 1} onClick={() => patchBaris(b.key, { qty: String(Math.max(Number(b.qty) - 1, 1)) })} className="p-1 text-gray-500 hover:text-gray-900 disabled:opacity-30"><Minus className="w-4 h-4" /></button>
+                            <input
+                              {...INTEGER_INPUT}
+                              maxLength={9}
+                              value={b.qty}
+                              aria-label={`Pengambilan ${nama}`}
+                              title={b.itemId === null ? undefined : `Stok ${b.stock} ${b.unit}`}
+                              onChange={(e) => patchBaris(b.key, { qty: digitsOnly(e.target.value) })}
+                              className={`w-16 border rounded-md py-1.5 px-2 text-center text-sm ${lebihStok ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+                            />
+                            <button type="button" aria-label={`Tambah ${nama}`} onClick={() => setBaris((bs) => tambahSatu(bs, b.key))} className="p-1 text-gray-500 hover:text-gray-900"><Plus className="w-4 h-4" /></button>
+                          </div>
+                          {b.itemId !== null && (
+                            <p className={`mt-0.5 text-center text-xs ${lebihStok ? 'text-red-600' : 'text-gray-400'}`}>stok {b.stock}</p>
+                          )}
+                        </td>
+                        <td className={`${formCellClass} px-2 text-center`}>
+                          <button type="button" aria-label={`Hapus ${nama}`} onClick={() => setBaris((bs) => bs.filter((x) => x.key !== b.key))} className="text-gray-400 hover:text-red-600">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
