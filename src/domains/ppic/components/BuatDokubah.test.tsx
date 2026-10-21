@@ -16,12 +16,12 @@ const type = (label: string, value: string) => fireEvent.change(screen.getByLabe
 async function renderForm(extra: Record<string, unknown> = {}) {
   const api = installFakeApi({ 'GET /api/v1/tracking/spk': spk, 'POST /api/v1/dokubah': { id: 9, status: 'DRAFT', bahan: [] }, ...extra });
   render(<BuatDokubah />);
-  await screen.findByText('SPK-001');
   return api;
 }
 
-const fillHeader = (mulai = '2026-05-01', selesai = '2026-05-31') => {
-  fireEvent.change(screen.getByLabelText('Pilih SPK / Proyek'), { target: { value: 'SPK-001' } });
+const fillHeader = async (mulai = '2026-05-01', selesai = '2026-05-31') => {
+  fireEvent.click(screen.getByLabelText('Pilih SPK / Proyek'));
+  fireEvent.click(await screen.findByRole('option', { name: 'SPK-001' }));
   type('Tanggal Mulai', mulai);
   type('Tanggal Selesai', selesai);
 };
@@ -37,9 +37,10 @@ beforeEach(() => replace.mockClear());
 describe('BuatDokubah', () => {
   it('fills the client from the chosen SPK and lists SPKs', async () => {
     await renderForm();
-    fillHeader();
+    await fillHeader();
     expect(val('Nama Client').value).toBe('PT Maju');
-    expect(screen.getByText('SPK-002')).toBeTruthy();
+    fireEvent.click(screen.getByLabelText('Pilih SPK / Proyek'));
+    expect(await screen.findByRole('option', { name: 'SPK-002' })).toBeTruthy();
   });
 
   it('shows the tracking load error in the SPK placeholder', async () => {
@@ -50,7 +51,7 @@ describe('BuatDokubah', () => {
 
   it('Simpan Draft posts DRAFT with integer kuota, dropping blank rows', async () => {
     const api = await renderForm();
-    fillHeader();
+    await fillHeader();
     fillRow(1, ' BRG-1 ', ' Triplex 18mm ', '25');
     fillRow(3, 'BRG-2', 'Paku', '0', 'kg');
     fireEvent.click(screen.getByText('Simpan Draft'));
@@ -66,7 +67,7 @@ describe('BuatDokubah', () => {
 
   it('Draft can be saved without any material', async () => {
     const api = await renderForm();
-    fillHeader();
+    await fillHeader();
     fireEvent.click(screen.getByText('Simpan Draft'));
     await waitFor(() => expect(replace).toHaveBeenCalled());
     expect((api.calls('POST /api/v1/dokubah')[0].body as { bahan: unknown[] }).bahan).toEqual([]);
@@ -74,7 +75,7 @@ describe('BuatDokubah', () => {
 
   it('Rilis posts PENDING', async () => {
     const api = await renderForm();
-    fillHeader();
+    await fillHeader();
     fillRow(1, 'BRG-1', 'Triplex', '5');
     fireEvent.click(screen.getByText('Rilis'));
     await waitFor(() => expect(replace).toHaveBeenCalled());
@@ -83,7 +84,7 @@ describe('BuatDokubah', () => {
 
   it('Rilis requires at least one material', async () => {
     const api = await renderForm();
-    fillHeader();
+    await fillHeader();
     fireEvent.click(screen.getByText('Rilis'));
     expect(await screen.findByText('Isi minimal satu bahan sebelum Rilis.')).toBeTruthy();
     expect(api.calls('POST /api/v1/dokubah')).toHaveLength(0);
@@ -98,7 +99,7 @@ describe('BuatDokubah', () => {
 
   it('rejects selesai before mulai', async () => {
     const api = await renderForm();
-    fillHeader('2026-05-10', '2026-05-01');
+    await fillHeader('2026-05-10', '2026-05-01');
     fireEvent.click(screen.getByText('Simpan Draft'));
     expect(await screen.findByText('Tanggal Selesai tidak boleh sebelum Tanggal Mulai.')).toBeTruthy();
     expect(api.calls('POST /api/v1/dokubah')).toHaveLength(0);
@@ -106,14 +107,14 @@ describe('BuatDokubah', () => {
 
   it('accepts same-day start and end', async () => {
     const api = await renderForm();
-    fillHeader('2026-05-10', '2026-05-10');
+    await fillHeader('2026-05-10', '2026-05-10');
     fireEvent.click(screen.getByText('Simpan Draft'));
     await waitFor(() => expect(api.calls('POST /api/v1/dokubah')).toHaveLength(1));
   });
 
   it('a filled row needs kode, nama and kuota', async () => {
     const api = await renderForm();
-    fillHeader();
+    await fillHeader();
     type('Kode barang baris 1', 'BRG-1');
     fireEvent.click(screen.getByText('Simpan Draft'));
     expect(await screen.findByText(/Setiap baris bahan yang diisi wajib punya/)).toBeTruthy();
@@ -122,7 +123,7 @@ describe('BuatDokubah', () => {
 
   it('rejects duplicate kode barang (case-insensitive)', async () => {
     const api = await renderForm();
-    fillHeader();
+    await fillHeader();
     fillRow(1, 'BRG-1', 'A', '1');
     fillRow(2, 'brg-1', 'B', '2');
     fireEvent.click(screen.getByText('Simpan Draft'));
@@ -132,7 +133,7 @@ describe('BuatDokubah', () => {
 
   it('displays a backend error and stays on the page', async () => {
     await renderForm({ 'POST /api/v1/dokubah': fail(409, 'No. SPK sudah punya Dokubah') });
-    fillHeader();
+    await fillHeader();
     fireEvent.click(screen.getByText('Simpan Draft'));
     expect(await screen.findByText('No. SPK sudah punya Dokubah')).toBeTruthy();
     expect(replace).not.toHaveBeenCalled();
@@ -176,7 +177,7 @@ describe('permissions', () => {
   it('a view-only user keeps the screen but not the actions', async () => {
     installFakeApi({ 'GET /api/v1/tracking/spk': spk });
     render(withUser(<BuatDokubah />, ['dokubah.view']));
-    await screen.findByText(/Anda tidak punya izin|SPK-001/);
+    await screen.findByText(/Anda tidak punya izin|Simpan Draft/);
     expect(screen.getByText(/Anda tidak punya izin/)).toBeTruthy();
     expect(screen.queryByText('Simpan Draft')).toBeNull();
   });
@@ -187,7 +188,7 @@ describe('permissions', () => {
   ])('a user who %s sees the actions', async (_label, perms, isSuperadmin) => {
     installFakeApi({ 'GET /api/v1/tracking/spk': spk });
     render(withUser(<BuatDokubah />, perms, isSuperadmin));
-    await screen.findByText(/Anda tidak punya izin|SPK-001/);
+    await screen.findByText(/Anda tidak punya izin|Simpan Draft/);
     expect(screen.getByText('Simpan Draft')).toBeTruthy();
   });
 });

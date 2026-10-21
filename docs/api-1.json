@@ -17577,6 +17577,451 @@
         }
       }
     },
+    "/api/v1/inbound/scan-batch": {
+      "post": {
+        "tags": [
+          "Inbound"
+        ],
+        "summary": "Record a scanner session: goods that passed QC and goods returned to the supplier",
+        "description": "Needs inbound.create and an Idempotency-Key header (8 to 100 characters), with the same replay rules as POST /inbound/batch: same key and payload within 24 hours returns the stored answer with Idempotency-Replayed: true and adds nothing, same key with a different payload is 409. pass lines are SUPPLIER receipts with statusQc PASS and raise stock. retur lines are only recorded as a return to the item's supplier, one return request per supplier, and never change stock. Both take supplierId from items.supplierId. pass and retur each hold 0 to 200 lines, at least one line in total, qty at most 100000 per line, reason 1 to 255 characters. All or nothing: a bad line fails the whole request with 400 and errors keyed pass.<index>.<field> or retur.<index>.<field>, index from 0, for example retur.2.itemId for an unknown item or an item without a supplier.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "6f1c2d3e-0b7a-4c55-9a3e-1d2f3a4b5c6d"
+            },
+            "required": true,
+            "name": "Idempotency-Key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "pass": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "itemId": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        },
+                        "qtyArrived": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true,
+                          "maximum": 100000
+                        }
+                      },
+                      "required": [
+                        "itemId",
+                        "qtyArrived"
+                      ]
+                    },
+                    "maxItems": 200,
+                    "default": []
+                  },
+                  "retur": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "itemId": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        },
+                        "qty": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true,
+                          "maximum": 100000
+                        },
+                        "reason": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        }
+                      },
+                      "required": [
+                        "itemId",
+                        "qty",
+                        "reason"
+                      ]
+                    },
+                    "maxItems": 200,
+                    "default": []
+                  }
+                },
+                "required": [
+                  "date"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Recorded, or the stored answer of an earlier identical request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "passCount": {
+                          "type": "number"
+                        },
+                        "returCount": {
+                          "type": "number"
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "number"
+                              },
+                              "date": {
+                                "type": "string",
+                                "example": "2026-09-30"
+                              },
+                              "itemId": {
+                                "type": "number"
+                              },
+                              "itemCode": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "itemName": {
+                                "type": "string"
+                              },
+                              "locationCode": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Where the item is stored now"
+                              },
+                              "supplierId": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "supplierName": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "source": {
+                                "type": "string",
+                                "enum": [
+                                  "SUPPLIER",
+                                  "PRODUKSI",
+                                  "KLIEN"
+                                ]
+                              },
+                              "qtyArrived": {
+                                "type": "number"
+                              },
+                              "qtyPurchased": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "statusQc": {
+                                "type": "string",
+                                "nullable": true,
+                                "enum": [
+                                  "PASS",
+                                  "PARTIAL_RETUR",
+                                  null
+                                ]
+                              },
+                              "referenceNo": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "supplierDeliveryNo": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "clientName": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "spk": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "notes": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "createdBy": {
+                                "type": "number"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "date",
+                              "itemId",
+                              "itemCode",
+                              "itemName",
+                              "locationCode",
+                              "supplierId",
+                              "supplierName",
+                              "source",
+                              "qtyArrived",
+                              "qtyPurchased",
+                              "statusQc",
+                              "referenceNo",
+                              "supplierDeliveryNo",
+                              "clientName",
+                              "spk",
+                              "notes",
+                              "createdBy",
+                              "createdAt"
+                            ]
+                          }
+                        },
+                        "returnRequests": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "number"
+                              },
+                              "supplierId": {
+                                "type": "number"
+                              },
+                              "lineCount": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "supplierId",
+                              "lineCount"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "passCount",
+                        "returCount",
+                        "items",
+                        "returnRequests"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Idempotency-Key already used with a different payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/inbound/returns": {
       "post": {
         "tags": [
@@ -19310,7 +19755,7 @@
           "Dokubah"
         ],
         "summary": "List SPK numbers with their client",
-        "description": "Source of the SPK and its client for dokubah, SPK internal, outbound, material requests and client returns. Dummy data until the tracking system API is connected, the shape stays the same. search matches noSpk or client.",
+        "description": "Source of the SPK and its client for dokubah, SPK internal, outbound, material requests and client returns, and for the dropdowns of Barang Keluar. Dummy data plus a fixture built from the tracking database until the tracking system API is connected, the shape stays the same. search matches noSpk or client, case-insensitively. limit defaults to 50 and is capped at 100. Products are not listed here, use GET /api/v1/tracking/spk/{noSpk}.",
         "security": [
           {
             "bearerAuth": []
@@ -19323,6 +19768,15 @@
             },
             "required": false,
             "name": "search",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "example": "50"
+            },
+            "required": false,
+            "name": "limit",
             "in": "query"
           }
         ],
@@ -19360,6 +19814,237 @@
                           "client"
                         ]
                       }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tracking/spk/{noSpk}": {
+      "get": {
+        "tags": [
+          "Dokubah"
+        ],
+        "summary": "Get one SPK with its client and products",
+        "description": "Needs dokubah.view. noSpk is matched exactly. Numbers can contain slashes, so send them URL-encoded (encodeURIComponent). products are what tracking knows for that SPK, merged when tracking holds the same number more than once, and may be empty: then Barang Keluar only offers Stok. outbound itemName is not validated against products. 404 when the SPK is unknown.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "SPK-2026-001"
+            },
+            "required": true,
+            "name": "noSpk",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SPK found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "noSpk": {
+                          "type": "string"
+                        },
+                        "client": {
+                          "type": "string"
+                        },
+                        "projectName": {
+                          "type": "string"
+                        },
+                        "products": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": {
+                                "type": "string"
+                              },
+                              "qty": {
+                                "type": "number"
+                              },
+                              "unit": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "name",
+                              "qty",
+                              "unit"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "noSpk",
+                        "client",
+                        "projectName",
+                        "products"
+                      ]
                     }
                   },
                   "required": [

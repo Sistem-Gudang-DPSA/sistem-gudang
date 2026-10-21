@@ -178,6 +178,8 @@ export interface OutboundLine {
 
 export interface OutboundRow {
   id: number;
+  // Made by the API (OUT-000042).
+  noTransaksi?: string;
   date: string;
   clientName: string;
   spk: string;

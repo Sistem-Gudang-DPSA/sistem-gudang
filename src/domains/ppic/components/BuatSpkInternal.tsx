@@ -7,11 +7,13 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, ChevronDown, Plus } from 'lucide-react';
 import { spk_internal_path } from '@/domains/ppic/data/spk-internal';
-import { createSpkInternal, listTrackingPic, listTrackingSpk } from '@/domains/ppic/api';
+import { createSpkInternal, listTrackingPic } from '@/domains/ppic/api';
+import { useSpkSearch } from '@/domains/ppic/use-spk-search';
 import { listItems } from '@/domains/inventory/api';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
+import SearchableSelect from '@/shared/components/SearchableSelect';
 
 type BarangRow = { id: number; kodeSku: string; namaBarang: string; totalQty: string; alokasiSpkKlien: string; alokasiStokBebas: string };
 type BarangField = Exclude<keyof BarangRow, 'id'>;
@@ -60,7 +62,7 @@ export default function BuatSpkInternalPPIC() {
   const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
-  const { data: spkList } = useApiData(() => listTrackingSpk(), 'spk', 'Gagal memuat daftar SPK.');
+  const spkKlien = useSpkSearch(form.spkKlienInduk);
   const { data: picList } = useApiData(() => listTrackingPic(), 'pic', 'Gagal memuat daftar penanggung jawab.');
   // ponytail: the SKU suggestions are the first 100 items
   const { data: itemResult } = useApiData(() => listItems({ pageSize: 100 }), 'items', 'Gagal memuat daftar barang.');
@@ -176,7 +178,15 @@ export default function BuatSpkInternalPPIC() {
           <div className="hidden lg:block" />
 
           <Field id="spk-internal-klien" label="SPK Klien Induk">
-            <SelectField id="spk-internal-klien" value={form.spkKlienInduk} onChange={(v) => setField('spkKlienInduk', v)} placeholder="Pilih SPK Klien Induk" options={(spkList ?? []).map((spk) => spk.noSpk)} />
+            <SearchableSelect
+              value={form.spkKlienInduk}
+              onChange={(v) => setField('spkKlienInduk', v)}
+              onSearch={spkKlien.onSearch}
+              options={spkKlien.options.map((t) => ({ value: t.noSpk, label: t.noSpk }))}
+              placeholder="Pilih SPK Klien Induk"
+              aria-label="SPK Klien Induk"
+              className={fieldClass}
+            />
           </Field>
         </div>
 
