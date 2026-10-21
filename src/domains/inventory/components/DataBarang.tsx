@@ -358,14 +358,14 @@ export default function DataBarangGudang() {
                         <QrCode className="w-3.5 h-3.5" strokeWidth={2.5} />
                         QR
                       </button>}
-                      {canAdjust && <button
+                      {/* {canAdjust && <button
                         onClick={() => openStockModal(item)}
                         className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-100 transition-all duration-200 opacity-90 group-hover:opacity-100"
                         title="Sesuaikan stok"
                       >
                         <Edit2 className="w-3.5 h-3.5" strokeWidth={2.5} />
                         Stok
-                      </button>}
+                      </button>} */}
                     </div>
                   </td>
                 </tr>
