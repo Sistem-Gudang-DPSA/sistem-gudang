@@ -434,9 +434,11 @@ describe('BarangKeluar create', () => {
     fireEvent.click(screen.getByText('Barang Keluar Stok'));
     await screen.findByText('Form Barang Keluar Stok');
     expect(screen.queryByLabelText('SPK')).toBeNull();
-    expect((screen.getByLabelText('Nama Item') as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.change(label('ID Stok'), { target: { value: 'STK-1' } });
+    // Until PPIC issues stock IDs the field starts with a manual STOCK-{yyyy-mm-dd}
+    expect(label('ID Stok').value).toMatch(/^STOCK-\d{4}-\d{2}-\d{2}$/);
     expect((screen.getByLabelText('Nama Item') as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.change(label('ID Stok'), { target: { value: '' } });
+    expect((screen.getByLabelText('Nama Item') as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByText('Simpan') as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText('Data stok belum tersedia.')).not.toBeNull();
     expect(api.calls('POST /api/v1/outbound').length).toBe(0);

@@ -31,6 +31,10 @@ const PAGE_SIZE = 20;
 // Pilihan tambahan di Nama Produk/Proyek untuk barang yang keluar bukan untuk produk SPK tertentu
 const CAMERA_COOLDOWN_MS = 2000; // a camera reads the same QR on every frame; ignore repeats of one code for this long
 
+// ID Stok: nomor untuk barang yang diproduksi beberapa satuan sekaligus (bukan per biji) demi efisiensi.
+// ponytail: ID Stok resmi akan dibuat oleh PPIC; sementara diisi manual dengan STOCK-{yyyy-mm-dd}.
+const stockIdManual = () => `STOCK-${todayIso()}`;
+
 const formKosong = () => ({
   namaPengambil: "",
   client: "",
@@ -327,7 +331,7 @@ export default function BarangKeluarGudang() {
 
   const openModal = (mode: 'spk' | 'stok') => {
     setModeKeluar(mode);
-    setForm(formKosong());
+    setForm(mode === 'stok' ? { ...formKosong(), stockId: stockIdManual() } : formKosong());
     setModalError("");
     setScanOpen(false);
     setScanValue("");
