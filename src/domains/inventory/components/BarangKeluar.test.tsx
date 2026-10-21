@@ -40,7 +40,7 @@ const details = {
   'GET /api/v1/tracking/spk/SPK-7': trackingDetail('SPK-7', 'PT Jaya', []),
   'GET /api/v1/tracking/spk/SPK-8': fail(502, 'Tracking tidak tersedia'),
 };
-const items = paged([{ id: 1, code: 'BRG-1', name: 'Triplex', stock: 25 }, { id: 2, code: 'BRG-2', name: 'Paku', stock: 140 }]);
+const items = paged([{ id: 1, code: 'BRG-1', name: 'Triplex', unit: 'lembar', stock: 25 }, { id: 2, code: 'BRG-2', name: 'Paku', unit: 'kg', stock: 140 }]);
 const item = (id: number, code: string, name: string, unit: string, stock: number) => ({ id, code, name, unit, stock, category: 'Bahan', price: 0, locationId: null, supplierId: null, createdAt: null, updatedAt: null });
 const scanned = {
   'GET /api/v1/items/by-code/BRG-1': item(1, 'BRG-1', 'Triplex', 'lembar', 25),
@@ -68,8 +68,8 @@ const dateSelect = (placeholder: string) => screen.getByRole('option', { name: p
 async function openForm(api: ReturnType<typeof installFakeApi>) {
   await screen.findAllByText('Klien 1');
   await waitFor(() => expect(api.calls('GET /api/v1/items').length).toBeGreaterThan(0));
-  fireEvent.click(screen.getByText('Barang Keluar'));
-  await screen.findByText('Form Barang Keluar');
+  fireEvent.click(screen.getByText('Barang Keluar SPK'));
+  await screen.findByText('Form Barang Keluar SPK');
   await waitFor(() => expect(api.calls('GET /api/v1/tracking/clients').length).toBeGreaterThan(0));
 }
 
@@ -93,7 +93,7 @@ async function fillHeader(v: { spk: string; item: string } = { spk: 'SPK-9', ite
   await pickSpk(v.spk);
   typePengambil();
   // the produk/proyek choices load after the SPK is picked; findByRole waits for them
-  await choose(label('Nama Produk/Proyek'), v.item);
+  await choose(label('Nama Item'), v.item);
 }
 
 // The USB scanner types the code and presses Enter
@@ -243,7 +243,11 @@ describe('BarangKeluar create', () => {
     expect(screen.getByText(/Lengkapi tanggal, client, SPK, nama pengambil/)).not.toBeNull();
     await fillHeader();
     fireEvent.click(screen.getByText('Simpan'));
-    expect(screen.getByText('Scan minimal satu barang yang keluar.')).not.toBeNull();
+    expect(screen.getByText('Scan atau pilih minimal satu barang yang keluar.')).not.toBeNull();
+    // a manual row whose material was never picked is ignored
+    fireEvent.click(screen.getByText('Input Manual'));
+    fireEvent.click(screen.getByText('Simpan'));
+    expect(screen.getByText('Scan atau pilih minimal satu barang yang keluar.')).not.toBeNull();
     expect(api.calls('POST /api/v1/outbound').length).toBe(0);
   });
 
@@ -265,7 +269,7 @@ describe('BarangKeluar create', () => {
   it('picks the Client first; its SPKs are fetched with that client and a new client clears the SPK', async () => {
     const api = setup();
     await openForm(api);
-    expect(label('No. Transaksi').readOnly).toBe(true);
+    expect(screen.getByText('No. Transaksi :')).not.toBeNull();
     await pickSpk('SPK-7');
     expect(api.calls('GET /api/v1/tracking/spk').some((c) => c.query.get('client') === 'PT Jaya')).toBe(true);
     expect(label('SPK').textContent).toContain('SPK-7');
@@ -284,22 +288,24 @@ describe('BarangKeluar create', () => {
     expect(cari.query.get('limit')).toBe('50');
   });
 
-  it('offers the products of the chosen SPK from tracking plus Stok as Nama Produk/Proyek choices', async () => {
+  it('offers the products of the chosen SPK from tracking as Nama Item choices', async () => {
     const api = setup();
     await openForm(api);
     await pickSpk('SPK-9');
-    fireEvent.click(label('Nama Produk/Proyek'));
+    fireEvent.click(label('Nama Item'));
     await screen.findByRole('option', { name: 'Lemari (2 unit)' });
-    expect(within(screen.getByRole('listbox')).getAllByRole('option').map((o) => o.textContent)).toEqual(['Lemari (2 unit)', 'Meja (1 unit)', 'Stok']);
+    expect(within(screen.getByRole('listbox')).getAllByRole('option').map((o) => o.textContent)).toEqual(['Lemari (2 unit)', 'Meja (1 unit)']);
     expect(api.calls('GET /api/v1/tracking/spk/SPK-9')).toHaveLength(1);
   });
 
-  it('offers only Stok when tracking has no products for the SPK', async () => {
+  it('offers no item when tracking has no products for the SPK', async () => {
     const api = setup();
     await openForm(api);
     await pickSpk('SPK-7');
-    fireEvent.click(label('Nama Produk/Proyek'));
-    expect(within(screen.getByRole('listbox')).getAllByRole('option').map((o) => o.textContent)).toEqual(['Stok']);
+    await waitFor(() => expect(api.calls('GET /api/v1/tracking/spk/SPK-7')).toHaveLength(1));
+    fireEvent.click(label('Nama Item'));
+    expect(await screen.findByText('Tidak ada item pada SPK ini')).not.toBeNull();
+    expect(within(screen.getByRole('listbox')).queryAllByRole('option')).toHaveLength(0);
   });
 
   it('shows a message under Nama Produk/Proyek when the tracking detail fails', async () => {
@@ -344,7 +350,7 @@ describe('BarangKeluar create', () => {
     typePengambil();
     scan('HPL-01');
     await screen.findByText('HPL Putih', { selector: 'td' });
-    expect(cellsOf('HPL Putih')[4]).toBe('Pilih SPK dulu');
+    expect(cellsOf('HPL Putih')[4]).toBe('Pilih Item');
     await pickSpk('SPK-9');
     // matched by name when the code differs, sisa = kuota - realisasi
     await waitFor(() => expect(cellsOf('HPL Putih')[4]).toBe('10 lembarsisa 3'));
@@ -400,15 +406,42 @@ describe('BarangKeluar create', () => {
     await waitFor(() => expect(screen.queryByText('Simpan')).toBeNull());
   });
 
-  it('can send barang out for Stok instead of a produk of the SPK', async () => {
+  it('adds a manual row whose material is a searchable dropdown, next to scanned rows', async () => {
     const api = setup({ 'POST /api/v1/outbound': { id: 5 } });
     await openForm(api);
-    await fillHeader({ spk: 'SPK-7', item: 'Stok' });
+    await fillHeader();
     scan('BRG-1');
     await screen.findByText('Triplex', { selector: 'td' });
+    fireEvent.click(screen.getByText('Input Manual'));
+    fireEvent.click(label('Nama material baris 2'));
+    // Triplex is already in the table, so only Paku is offered; the list is searchable
+    expect(within(screen.getByRole('listbox')).getAllByRole('option').map((o) => o.textContent)).toEqual(['Paku (BRG-2)']);
+    fireEvent.change(label('Cari Nama material baris 2'), { target: { value: 'pak' } });
+    fireEvent.click(screen.getByRole('option', { name: 'Paku (BRG-2)' }));
+    const row = label('Nama material Paku').closest('tr')!;
+    expect(Array.from(row.querySelectorAll('td')).slice(2, 4).map((td) => td.textContent)).toEqual(['kg', 'BRG-2']);
+    fireEvent.change(label('Pengambilan Paku'), { target: { value: '7' } });
     fireEvent.click(screen.getByText('Simpan'));
     await waitFor(() => expect(api.calls('POST /api/v1/outbound').length).toBe(1));
-    expect(api.calls('POST /api/v1/outbound')[0].body).toMatchObject({ spk: 'SPK-7', itemName: 'Stok' });
+    expect((api.calls('POST /api/v1/outbound')[0].body as Record<string, unknown>).lines)
+      .toEqual([{ itemId: 1, qty: 1, pic: 'Rudi' }, { itemId: 2, qty: 7, pic: 'Rudi' }]);
+  });
+
+  // BE has no stock outbound yet (POST /outbound needs a known SPK), so the Stok form cannot save
+  it('opens a Stok form whose Simpan stays disabled', async () => {
+    const api = setup();
+    await screen.findAllByText('Klien 1');
+    fireEvent.click(screen.getByText('Barang Keluar Stok'));
+    await screen.findByText('Form Barang Keluar Stok');
+    expect(screen.queryByLabelText('SPK')).toBeNull();
+    // Until PPIC issues stock IDs the field starts with a manual STOCK-{yyyy-mm-dd}
+    expect(label('ID Stok').value).toMatch(/^STOCK-\d{4}-\d{2}-\d{2}$/);
+    expect((screen.getByLabelText('Nama Item') as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.change(label('ID Stok'), { target: { value: '' } });
+    expect((screen.getByLabelText('Nama Item') as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByText('Simpan') as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText('Data stok belum tersedia.')).not.toBeNull();
+    expect(api.calls('POST /api/v1/outbound').length).toBe(0);
   });
 
   it('shows backend error, keeps form open, disables Simpan while saving', async () => {
@@ -534,7 +567,7 @@ describe('permissions', () => {
 
   it('shows them to a user with the permissions', async () => {
     await open(who(['outbound.create', 'outbound.update', 'report.view']));
-    expect(screen.getByText('Barang Keluar')).not.toBeNull();
+    expect(screen.getByText('Barang Keluar SPK')).not.toBeNull();
     expect(screen.getByText('Download')).not.toBeNull();
   });
 
@@ -545,6 +578,6 @@ describe('permissions', () => {
 
   it('shows them to a superadmin', async () => {
     await open(who([], true));
-    expect(screen.getByText('Barang Keluar')).not.toBeNull();
+    expect(screen.getByText('Barang Keluar SPK')).not.toBeNull();
   });
 });

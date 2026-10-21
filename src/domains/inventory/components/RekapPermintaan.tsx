@@ -8,13 +8,10 @@ import type { MaterialRequestDetail, MaterialRequestStatus } from '@/domains/inv
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
+import StatusBadge from '@/shared/components/StatusBadge';
+import { REQUEST_STATUS as STATUS_LABEL } from '@/domains/inventory/status';
 import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';
 
-const STATUS_LABEL: Record<MaterialRequestStatus, { label: string; cls: string }> = {
-    PENDING: { label: 'Menunggu PPIC', cls: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
-    PROSES: { label: 'Menunggu Proses', cls: 'bg-blue-100 text-blue-800 border-blue-200' },
-    SELESAI: { label: 'Selesai', cls: 'bg-green-100 text-green-800 border-green-200' },
-};
 
 const monthStart = () => {
     const now = new Date();
@@ -291,9 +288,7 @@ export default function RekapPermintaan(){
                             </td>
                             <td className="px-4 py-3 text-center text-gray-700">{item.toolGroup}</td>
                             <td className="px-4 py-3 text-center">
-                                <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border ${STATUS_LABEL[item.status].cls}`}>
-                                    {STATUS_LABEL[item.status].label}
-                                </span>
+                                <StatusBadge tone={STATUS_LABEL[item.status].tone}>{STATUS_LABEL[item.status].label}</StatusBadge>
                             </td>
                             <td className="px-4 py-3 text-center print:hidden">
                                 <button
@@ -354,7 +349,7 @@ export default function RekapPermintaan(){
                             </div>
                             <div className="flex justify-between py-1 border-b border-gray-50">
                                 <span className="text-gray-500">Status</span>
-                                <span className="font-semibold text-gray-800">{STATUS_LABEL[detail.status].label}</span>
+                                <StatusBadge tone={STATUS_LABEL[detail.status].tone}>{STATUS_LABEL[detail.status].label}</StatusBadge>
                             </div>
                             <div className="py-1">
                                 <span className="text-gray-500 block mb-1">Barang diminta:</span>
