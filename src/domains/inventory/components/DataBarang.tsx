@@ -3,7 +3,7 @@
 import { useCan } from '@/domains/auth/user-context';
 import React, { useEffect, useRef, useState } from 'react';
 import { Search, Plus, Filter, Edit2, QrCode } from 'lucide-react';
-import { adjustItemStock, assignItemLocation, listItemCategories, listItems, listItemUnits, listLocations, suggestItemCode } from '@/domains/inventory/api';
+import { assignItemLocation, listItemCategories, listItems, listItemUnits, listLocations, suggestItemCode } from '@/domains/inventory/api';
 import type { ItemListRow, Location } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
 import type { Supplier } from '@/domains/purchasing/types';
@@ -18,7 +18,6 @@ import { printItemLabels } from '@/domains/inventory/label-print';
 
 export default function DataBarangGudang() {
   const canAssign = useCan('item.assign-location');
-  const canAdjust = useCan('item.adjust-stock');
   const { sort, toggle, params: sortParams } = useSort();
   const seen = useRef(new Map<number, ItemListRow>());
   const [filters, setFilters] = useState(emptyBarangFilters);
@@ -36,13 +35,6 @@ export default function DataBarangGudang() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [printError, setPrintError] = useState("");
 
-
-  const [isStockModalOpen, setIsStockModalOpen] = useState(false);
-  const [stockItem, setStockItem] = useState<ItemListRow | null>(null);
-  const [stockDelta, setStockDelta] = useState("");
-  const [stockReason, setStockReason] = useState("");
-  const [stockSaving, setStockSaving] = useState(false);
-  const [stockError, setStockError] = useState("");
 
   const filterKey = JSON.stringify([searchQuery, filters, sortParams]);
   const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
@@ -106,33 +98,6 @@ export default function DataBarangGudang() {
       setModalError(err instanceof ApiError ? err.message : "Gagal menyimpan lokasi barang.");
     } finally {
       setSaving(false);
-    }
-  };
-
-  const openStockModal = (item: ItemListRow) => {
-    setStockItem(item);
-    setStockDelta("");
-    setStockReason("");
-    setStockError("");
-    setIsStockModalOpen(true);
-  };
-
-  const handleSimpanStok = async () => {
-    const delta = Number(stockDelta);
-    if (!stockItem || !stockDelta || Number.isNaN(delta) || delta === 0 || !stockReason) {
-      setStockError("Isi jumlah perubahan (boleh negatif) dan alasan.");
-      return;
-    }
-    setStockSaving(true);
-    setStockError("");
-    try {
-      await adjustItemStock(stockItem.id, { delta, reason: stockReason });
-      reload();
-      setIsStockModalOpen(false);
-    } catch (err) {
-      setStockError(err instanceof ApiError ? err.message : "Gagal menyesuaikan stok.");
-    } finally {
-      setStockSaving(false);
     }
   };
 
@@ -258,7 +223,8 @@ export default function DataBarangGudang() {
                 <th scope="col" className="px-6 py-4">Foto</th>
                 <SortableTh label="Informasi Barang" sortKey="name" sort={sort} onSort={toggle} />
                 <SortableTh label="Supplier" sortKey="supplierName" sort={sort} onSort={toggle} />
-                <SortableTh label="Stok & Satuan" sortKey="stock" sort={sort} onSort={toggle} />
+                <SortableTh label="Stok" sortKey="stock" sort={sort} onSort={toggle} />
+                <th scope="col" className="px-6 py-4">Satuan</th>
                 <SortableTh label="Kategori" sortKey="category" sort={sort} onSort={toggle} />
                 <SortableTh label="Lokasi" sortKey="locationCode" sort={sort} onSort={toggle} />
                 <SortableTh label="Keterangan" sortKey="detail" sort={sort} onSort={toggle} />
@@ -267,10 +233,10 @@ export default function DataBarangGudang() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading && (
-                <tr><td colSpan={10} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
+                <tr><td colSpan={11} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
               )}
               {!loading && dataBarang.length === 0 && (
-                <tr><td colSpan={10} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
+                <tr><td colSpan={11} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
               )}
               {!loading && dataBarang.map((item, index) => (
                 <tr key={item.id} className="hover:bg-[#FF8A00]/5 transition-colors group">
@@ -302,14 +268,16 @@ export default function DataBarangGudang() {
                     </div>
                   </td>
 
-                  {/* Stok & Satuan */}
+                  {/* Stok */}
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
                        <span className={`font-bold ${item.stock < 20 ? 'text-red-600' : item.stock < 50 ? 'text-amber-600' : 'text-gray-800'}`}>
                          {item.stock}
                        </span>
-                       <span className="text-gray-500 text-xs bg-gray-100 px-2 py-0.5 rounded-md">{item.unit}</span>
-                    </div>
+                  </td>
+
+                  {/* Satuan */}
+                  <td className="px-6 py-4 text-gray-600">
+                    {item.unit}
                   </td>
 
                   {/* Kategori */}
@@ -358,14 +326,6 @@ export default function DataBarangGudang() {
                         <QrCode className="w-3.5 h-3.5" strokeWidth={2.5} />
                         QR
                       </button>}
-                      {/* {canAdjust && <button
-                        onClick={() => openStockModal(item)}
-                        className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-100 transition-all duration-200 opacity-90 group-hover:opacity-100"
-                        title="Sesuaikan stok"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" strokeWidth={2.5} />
-                        Stok
-                      </button>} */}
                     </div>
                   </td>
                 </tr>
@@ -433,72 +393,6 @@ export default function DataBarangGudang() {
                 className="px-6 py-2.5 bg-[#FF8A00] text-white font-medium rounded-xl hover:bg-[#E67A00] shadow-sm shadow-[#FF8A00]/20 transition-all text-sm disabled:opacity-60"
               >
                 {saving ? "Menyimpan..." : "Simpan"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Sesuaikan Stok */}
-      {isStockModalOpen && stockItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl w-full max-w-lg p-6 sm:p-8 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-900 uppercase tracking-wide">
-                SESUAIKAN STOK · {stockItem.name}
-              </h2>
-              <button
-                onClick={() => setIsStockModalOpen(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <p className="text-sm text-gray-500 mb-6">
-              Stok saat ini: <span className="font-bold text-gray-800">{stockItem.stock} {stockItem.unit}</span>
-            </p>
-
-            <div className="flex flex-col sm:flex-row gap-6 mb-6">
-              <div className="flex-1">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Perubahan Jumlah</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  maxLength={10}
-                  placeholder="Contoh: 10 atau -5"
-                  className="w-full border border-gray-200 bg-gray-50/50 rounded-xl py-2.5 px-4 text-gray-700 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all duration-200"
-                  value={stockDelta}
-                  onChange={(e) => setStockDelta(e.target.value.replace(/(?!^-)\D/g, ""))}
-                />
-              </div>
-              <div className="flex-1">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Alasan</label>
-                <input
-                  type="text"
-                  placeholder="Contoh: Penerimaan PO-2026-09-001"
-                  className="w-full border border-gray-200 bg-gray-50/50 rounded-xl py-2.5 px-4 text-gray-700 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all duration-200"
-                  value={stockReason}
-                  maxLength={255}
-                  onChange={(e) => setStockReason(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {stockError && (
-              <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{stockError}</div>
-            )}
-
-            <div className="flex justify-end gap-3 mt-4">
-              <button
-                onClick={handleSimpanStok}
-                disabled={stockSaving}
-                className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 shadow-sm shadow-blue-500/20 transition-all text-sm disabled:opacity-60"
-              >
-                {stockSaving ? "Menyimpan..." : "Simpan"}
               </button>
             </div>
           </div>

@@ -7,6 +7,7 @@ import { ArrowLeft } from 'lucide-react';
 import { formatAngka, formatRupiah, gudang_rekap_dokubah_path } from '@/domains/ppic/data/dokubah';
 import { getDokubah } from '@/domains/ppic/api';
 import { useApiData } from '@/shared/lib/use-api-data';
+import StatusBadge, { type BadgeTone } from '@/shared/components/StatusBadge';
 
 type StatusMaterial = 'Aman' | 'Habis' | 'Overbudget';
 
@@ -14,10 +15,10 @@ const cellClass = 'px-4 py-3 border-b border-r border-gray-300';
 const readOnlyFieldClass = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 bg-gray-50 placeholder:text-gray-400 cursor-default focus:outline-none';
 const orangeButtonClass = 'min-w-24 px-8 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm text-center';
 
-const statusBadgeClass: Record<StatusMaterial, string> = {
-  Aman: 'bg-green-100 text-green-700 border-green-200',
-  Habis: 'bg-amber-100 text-amber-700 border-amber-200',
-  Overbudget: 'bg-red-100 text-red-700 border-red-200',
+const statusTone: Record<StatusMaterial, BadgeTone> = {
+  Aman: 'green',
+  Habis: 'amber',
+  Overbudget: 'red',
 };
 
 // Sisa kuota minus berarti pengambilan sudah melebihi kuota dokubah
@@ -109,7 +110,7 @@ export default function DetailRekapDokubahPPIC() {
                     <td className={cellClass}>{formatAngka(b.realisasi)} {b.satuan}</td>
                     <td className={`${cellClass} ${sisaKuota < 0 ? 'text-red-600 font-semibold' : ''}`}>{formatRupiah(sisaKuota * b.hargaSatuan)}</td>
                     <td className={cellClass}>
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${statusBadgeClass[status]}`}>{status}</span>
+                      <StatusBadge tone={statusTone[status]}>{status}</StatusBadge>
                     </td>
                   </tr>
                 );

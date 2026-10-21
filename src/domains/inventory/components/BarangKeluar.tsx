@@ -29,12 +29,16 @@ const barisManual = (): BarisForm => ({ key: randomId(), manual: true, itemId: n
 
 const PAGE_SIZE = 20;
 // Pilihan tambahan di Nama Produk/Proyek untuk barang yang keluar bukan untuk produk SPK tertentu
-const PILIHAN_STOK = 'Stok';
 const CAMERA_COOLDOWN_MS = 2000; // a camera reads the same QR on every frame; ignore repeats of one code for this long
+
+// ID Stok: nomor untuk barang yang diproduksi beberapa satuan sekaligus (bukan per biji) demi efisiensi.
+// ponytail: ID Stok resmi akan dibuat oleh PPIC; sementara diisi manual dengan STOCK-{yyyy-mm-dd}.
+const stockIdManual = () => `STOCK-${todayIso()}`;
 
 const formKosong = () => ({
   namaPengambil: "",
   client: "",
+  stockId: "",
   tanggal: todayIso(),
   spk: "",
   namaItem: "",
@@ -89,6 +93,7 @@ export default function BarangKeluarGudang() {
   const [items, setItems] = useState<ItemListRow[]>([]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modeKeluar, setModeKeluar] = useState<'spk' | 'stok'>('spk');
   const [form, setForm] = useState(formKosong);
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState("");
@@ -164,7 +169,7 @@ export default function BarangKeluarGudang() {
       .catch(() => !batal && setDetailSpk({ noSpk: spk, data: null }));
     return () => { batal = true; };
   }, [form.spk]);
-  const detailAktif = detailSpk?.noSpk === form.spk ? detailSpk : null;
+  const detailAktif = form.spk && detailSpk?.noSpk === form.spk ? detailSpk : null;
   const detailGagal = !!form.spk && detailAktif !== null && detailAktif.data === null;
   const detailMemuat = !!form.spk && detailAktif === null;
 
@@ -324,8 +329,9 @@ export default function BarangKeluarGudang() {
     }
   };
 
-  const openModal = () => {
-    setForm(formKosong());
+  const openModal = (mode: 'spk' | 'stok') => {
+    setModeKeluar(mode);
+    setForm(mode === 'stok' ? { ...formKosong(), stockId: stockIdManual() } : formKosong());
     setModalError("");
     setScanOpen(false);
     setScanValue("");
@@ -360,14 +366,17 @@ export default function BarangKeluarGudang() {
     setScanError("");
     if (!pengambilRef.current) { setScanError("Isi nama pengambil dulu."); beepFail(); return; }
     const ok = (itemId: number) => { setFlash((f) => ({ itemId, n: (f?.n ?? 0) + 1 })); beepOk(); };
-    const ada = barisRef.current.find((b) => b.code === code);
-    if (ada) { setBaris((bs) => tambahSatu(bs, ada.itemId)); ok(ada.itemId); return; }
+    const ada = barisRef.current.find((b) => b.itemId !== null && b.code === code);
+    if (ada && ada.itemId !== null) { setBaris((bs) => tambahSatu(bs, ada.key)); ok(ada.itemId); return; }
     try {
       const item = await getItemByCode(code);
       // Dua scan cepat untuk kode baru yang sama sama-sama sampai di sini sebelum barisnya ada
-      setBaris((bs) => bs.some((b) => b.itemId === item.id)
-        ? tambahSatu(bs, item.id)
-        : [...bs, { itemId: item.id, code: item.code ?? code, name: item.name, unit: item.unit, stock: item.stock, qty: '1' }]);
+      setBaris((bs) => {
+        const sama = bs.find((b) => b.itemId === item.id);
+        return sama
+          ? tambahSatu(bs, sama.key)
+          : [...bs, { key: randomId(), manual: false, itemId: item.id, code: item.code ?? code, name: item.name, unit: item.unit, stock: item.stock, qty: '1' }];
+      });
       ok(item.id);
     } catch (err) {
       beepFail();
@@ -442,7 +451,9 @@ export default function BarangKeluarGudang() {
 
   const selDokubah = (b: BarisForm) => {
     if (b.itemId === null) return null;
-    if (!form.spk) return <span className="text-xs text-gray-400">Pilih SPK dulu</span>;
+    // TODO: Match stock materials against Dokubah once the stock API is available.
+    if (modeKeluar === 'stok') return <span className="text-xs text-gray-400">Data dokubah belum tersedia</span>;
+    if (!form.spk) return <span className="text-xs text-gray-400">Pilih Item</span>;
     if (dokubahSpk === 'loading' || dokubahSpk === undefined) return <span className="text-xs text-gray-400">Memuat...</span>;
     if (dokubahSpk === null) return <span className="text-xs text-red-500">Gagal dimuat</span>;
     const bahan = bahanDokubah(b);
@@ -456,18 +467,27 @@ export default function BarangKeluarGudang() {
     );
   };
 
-  // Produk dari tracking, nama yang sama hanya sekali; Stok selalu ada
-  const produkTracking = (detailAktif?.data?.products ?? []).filter((p, i, arr) => arr.findIndex((x) => x.name === p.name) === i);
+  // Hanya produk milik SPK dan client yang sedang dipilih.
+  const produkTracking = (detailAktif?.data?.client === form.client ? detailAktif.data.products : [])
+    .filter((p, i, arr) => arr.findIndex((x) => x.name === p.name) === i);
   const pilihanProduk = [
     ...produkTracking.map((p) => ({ value: p.name, label: `${p.name} (${p.qty} ${p.unit})` })),
-    { value: PILIHAN_STOK, label: PILIHAN_STOK },
   ];
 
   const handleSimpan = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
+    // Stock IDs and their items will come from a dedicated API, not tracking SPKs.
+    if (modeKeluar === 'stok') {
+      setModalError("Data stok belum tersedia. Barang keluar stok belum dapat disimpan.");
+      return;
+    }
     const { namaPengambil, tanggal, client, spk, namaItem, recipientType, baris } = form;
     if (!tanggal || !client || !spk || !namaPengambil.trim() || !namaItem.trim()) {
       setModalError("Lengkapi tanggal, client, SPK, nama pengambil, dan nama produk/proyek.");
+      return;
+    }
+    if (!spkPilihan.some((p) => p.value === spk) || !produkTracking.some((p) => p.name === namaItem)) {
+      setModalError("Pilih SPK milik client dan item yang tersedia pada SPK tersebut.");
       return;
     }
     // Baris input manual yang belum dipilih materialnya diabaikan
@@ -492,10 +512,10 @@ export default function BarangKeluarGudang() {
         // API belum punya kolom nama pengambil, jadi dicatat di notes
         notes: `Pengambil: ${namaPengambil.trim()}`,
         // Form tidak punya kolom PIC lagi, sedangkan API mewajibkan pic per baris, jadi diisi nama pengambil
-        lines: baris.map((b) => ({ itemId: b.itemId, qty: Number(b.qty), pic: namaPengambil.trim() })),
+        lines: terisi.map((b) => ({ itemId: b.itemId, qty: Number(b.qty), pic: namaPengambil.trim() })),
       };
       const payload = JSON.stringify(input);
-      if (!draftKey.current.key || draftKey.current.payload !== payload) draftKey.current = { key: crypto.randomUUID(), payload };
+      if (!draftKey.current.key || draftKey.current.payload !== payload) draftKey.current = { key: randomId(), payload };
       await createOutbound(input, draftKey.current.key);
       draftKey.current = { key: '', payload: '' };
       setCameraOn(false);
@@ -534,28 +554,36 @@ export default function BarangKeluarGudang() {
             />
           </div>
 
-          <div className="flex gap-2 w-full lg:w-auto lg:justify-end">
-            {canCreate && (
-              <button type="button" onClick={openModal} className={orangeButtonClass}>
-                <Plus className="w-4 h-4" />
-                <span>Barang Keluar</span>
+          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto lg:justify-end">
+              {canCreate && (
+                <>
+                  <button type="button" onClick={() => openModal('spk')} className={orangeButtonClass}>
+                    <Plus className="w-4 h-4" />
+                    <span>Barang Keluar SPK</span>
+                  </button>
+
+                  <button type="button" onClick={() => openModal('stok')} className={orangeButtonClass}>
+                    <Plus className="w-4 h-4" />
+                    <span>Barang Keluar Stok</span>
+                  </button>
+                </>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setShowFilter((v) => !v)}
+                aria-expanded={showFilter}
+                className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl transition-colors text-sm font-semibold ${
+                  showFilter || activeDateFilters > 0
+                    ? 'bg-orange-50 border-orange-300 text-orange-700'
+                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <Filter className="w-4 h-4" />
+                <span>Filter{activeDateFilters > 0 ? ` (${activeDateFilters})` : ''}</span>
               </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setShowFilter((v) => !v)}
-              aria-expanded={showFilter}
-              className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl transition-colors text-sm font-semibold ${
-                showFilter || activeDateFilters > 0
-                  ? 'bg-orange-50 border-orange-300 text-orange-700'
-                  : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <Filter className="w-4 h-4" />
-              <span>Filter{activeDateFilters > 0 ? ` (${activeDateFilters})` : ''}</span>
-            </button>
+            </div>
           </div>
-        </div>
 
         {showFilter && (
           <DateFilter
@@ -738,9 +766,15 @@ export default function BarangKeluarGudang() {
               <X className="h-4 w-4" strokeWidth={2.5} />
             </button>
 
-            <h2 className="text-[18px] font-extrabold text-black tracking-wide uppercase mb-6">Form Barang Keluar</h2>
+            <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 mb-6 pr-10">
+              <h2 className="text-[18px] font-extrabold text-black tracking-wide uppercase">Form Barang Keluar {modeKeluar === 'stok' ? 'Stok' : 'SPK'}</h2>
 
-            {/* Data transaksi, dua kolom: kiri No. Transaksi, Tanggal, Nama Pengambil; kanan Client, SPK, Nama Produk/Proyek */}
+              <p className="px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm text-gray-800">
+                <span className="font-medium">No. Transaksi :</span>{' '}
+                {/* <span className="text-gray-500">otomatis</span> */}
+              </p>
+            </div>
+            {/* Nama Pengambil / Tanggal, Client / Nama Item, lalu SPK. */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-4 mb-8">
               <div className={rowClass}>
                 <label htmlFor="form-bk-pengambil" className={rowLabelClass}>Nama Pengambil</label>
@@ -752,29 +786,6 @@ export default function BarangKeluarGudang() {
                   onChange={(e) => setForm((prev) => ({ ...prev, namaPengambil: e.target.value }))}
                   placeholder="Isi nama pengambil"
                   className={fieldClass}
-                />
-              </div>
-              <div className={rowClass}>
-                <label htmlFor="form-bk-transaksi" className={rowLabelClass}>No. Transaksi</label>
-                <input
-                  id="form-bk-transaksi"
-                  type="text"
-                  readOnly
-                  value=""
-                  placeholder="Dibuat otomatis oleh sistem"
-                  className={`${fieldClass} bg-gray-50 cursor-default`}
-                />
-              </div>
-              <div className={rowClass}>
-                <span className={rowLabelClass}>Client</span>
-                <SearchableSelect
-                  value={form.client}
-                  onChange={pilihClient}
-                  onSearch={clientForm.onSearch}
-                  options={clientPilihan}
-                  placeholder="Pilih client"
-                  aria-label="Client"
-                  className={selectClass}
                 />
               </div>
               <div className={rowClass}>
@@ -798,38 +809,68 @@ export default function BarangKeluarGudang() {
                   </button>
                 </div>
               </div>
+              {modeKeluar === 'stok' ? (
+                <div className={rowClass}>
+                  <label htmlFor="form-bk-stock-id" className={rowLabelClass}>ID Stok</label>
+                  <input
+                    id="form-bk-stock-id"
+                    type="text"
+                    value={form.stockId}
+                    maxLength={191}
+                    onChange={(e) => setForm((prev) => ({ ...prev, stockId: e.target.value, namaItem: '' }))}
+                    placeholder="Isi ID Stok"
+                    className={fieldClass}
+                  />
+                </div>
+              ) : (
               <div className={rowClass}>
+                <span className={rowLabelClass}>Client</span>
+                <SearchableSelect
+                  value={form.client}
+                  onChange={pilihClient}
+                  onSearch={clientForm.onSearch}
+                  options={clientPilihan}
+                  placeholder="Pilih client"
+                  aria-label="Client"
+                  className={selectClass}
+                />
+              </div>
+              )}
+              <div className={rowClass}>
+                <span className={rowLabelClass}>Nama Item</span>
+                <div className="min-w-0">
+                  <SearchableSelect
+                    value={form.namaItem}
+                    onChange={(namaItem) => setForm((prev) => ({ ...prev, namaItem }))}
+                    options={modeKeluar === 'stok' ? [] : pilihanProduk}
+                    disabled={modeKeluar === 'stok' && !form.stockId.trim()}
+                    placeholder={modeKeluar === 'stok' && !form.stockId ? "Pilih Item" : "Pilih Item"}
+                    emptyText={modeKeluar === 'stok' ? "Tidak ada item pada stok ini" : !form.spk ? "Pilih SPK dulu" : detailMemuat ? "Memuat item..." : "Tidak ada item pada SPK ini"}
+                    aria-label="Nama Item"
+                    className={selectClass}
+                  />
+                  {modeKeluar === 'spk' && detailMemuat && <p className="mt-1 text-xs text-gray-400">Memuat produk...</p>}
+                  {modeKeluar === 'spk' && detailGagal && <p className="mt-1 text-xs text-red-600">Gagal memuat produk dari tracking. Pilih SPK lagi.</p>}
+                </div>
+              </div>
+              {modeKeluar === 'spk' && <div className={rowClass}>
                 <span className={rowLabelClass}>SPK</span>
                 <SearchableSelect
                   value={form.spk}
                   onChange={pilihSpk}
                   onSearch={spkForm.onSearch}
                   options={spkPilihan}
-                  placeholder={form.client ? "Pilih SPK" : "Pilih client dulu"}
+                  placeholder={form.client ? "Pilih SPK" : "Pilih SPK"}
+                  emptyText={form.client ? "Tidak ada SPK untuk client ini" : "Pilih SPK"}
                   aria-label="SPK"
                   className={selectClass}
                 />
-              </div>
-              <div className={rowClass}>
-                <span className={rowLabelClass}>Nama Produk/Proyek</span>
-                <div className="min-w-0">
-                  <SearchableSelect
-                    value={form.namaItem}
-                    onChange={(namaItem) => setForm((prev) => ({ ...prev, namaItem }))}
-                    options={pilihanProduk}
-                    placeholder="Pilih produk/proyek atau stok"
-                    aria-label="Nama Produk/Proyek"
-                    className={selectClass}
-                  />
-                  {detailMemuat && <p className="mt-1 text-xs text-gray-400">Memuat produk...</p>}
-                  {detailGagal && <p className="mt-1 text-xs text-red-600">Gagal memuat produk dari tracking. Pilih SPK lagi.</p>}
-                </div>
-              </div>
+              </div>}
             </div>
 
             {/* Daftar barang yang keluar, diisi dengan scan QR barang atau input manual */}
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={bukaScan} className={orangeButtonClass}>
+              <button type="button" onClick={bukaScan} disabled={!pengambilOk} className={orangeButtonClass}>
                 <ScanLine className="w-4 h-4" strokeWidth={2.5} />
                 <span>Scan Barang</span>
               </button>
@@ -842,6 +883,7 @@ export default function BarangKeluarGudang() {
                 <span>Input Manual</span>
               </button>
             </div>
+            {!pengambilOk && <p className="mt-2 text-xs text-gray-500">Isi Nama Pengambil dulu</p>}
 
             {scanOpen && (
               <div className="flex gap-2 mt-4">
@@ -960,11 +1002,8 @@ export default function BarangKeluarGudang() {
             )}
 
             <div className="flex flex-wrap items-center justify-between gap-4 mt-3">
-              <div className="flex items-center gap-2 px-4 py-2 bg-yellow-100 rounded-full text-gray-800">
-                <AlertCircle className="w-4 h-4" strokeWidth={2.2} />
-                <span className="text-sm">Penulisan nama item tidak boleh disingkat</span>
-              </div>
-              <button type="submit" disabled={saving} className={orangeButtonClass}>Simpan</button>
+              {modeKeluar === 'stok' && <p role="status" className="text-sm text-gray-500">Data stok belum tersedia.</p>}
+              <button type="submit" disabled={saving || modeKeluar === 'stok'} className={orangeButtonClass}>Simpan</button>
             </div>
           </form>
         </div>
