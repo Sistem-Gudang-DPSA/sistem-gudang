@@ -7,6 +7,8 @@ import type { InboundRow, InboundSource } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
+import StatusBadge from '@/shared/components/StatusBadge';
+import { QC_STATUS } from '@/domains/inventory/status';
 import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 
@@ -31,10 +33,6 @@ const monthStart = () => {
 const escapeHtml = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-const QC_LABEL: Record<string, string> = {
-  PASS: 'Pass (IPM)',
-  PARTIAL_RETUR: 'Part (Retur)',
-};
 
 const formatTanggalCetak = (iso: string) => {
   if (!iso) return '-';
@@ -107,7 +105,7 @@ export default function LaporanBarangMasuk() {
         const sumber =
           escapeHtml(item.supplierName ?? item.clientName ?? '-') +
           `<div class="sub">(${escapeHtml(SUMBER_LABEL[item.source])})</div>`;
-        const qc = item.statusQc ? (QC_LABEL[item.statusQc] ?? item.statusQc) : '-';
+        const qc = item.statusQc ? QC_STATUS[item.statusQc].label : '-';
 
         return `
           <tr>
@@ -331,17 +329,9 @@ export default function LaporanBarangMasuk() {
                     {item.qtyArrived}
                   </td>
                   <td className="px-4 py-3 text-center">
-                    {item.statusQc === 'PASS' && (
-                      <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-800 border border-green-200">
-                        Pass (IPM)
-                      </span>
-                    )}
-                    {item.statusQc === 'PARTIAL_RETUR' && (
-                      <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800 border border-yellow-200">
-                        Part (Retur)
-                      </span>
-                    )}
-                    {item.statusQc === null && <span className="text-gray-400">-</span>}
+                    {item.statusQc
+                      ? <StatusBadge tone={QC_STATUS[item.statusQc].tone}>{QC_STATUS[item.statusQc].label}</StatusBadge>
+                      : <span className="text-gray-400">-</span>}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className="font-medium text-gray-900">{item.locationCode ?? '-'}</span>
@@ -419,7 +409,9 @@ export default function LaporanBarangMasuk() {
               )}
               <div className="flex justify-between py-1 border-b border-gray-50">
                 <span className="text-gray-500">Status QC</span>
-                <span className="font-semibold text-gray-800">{selectedDetail.statusQc ?? '-'}</span>
+                {selectedDetail.statusQc
+                  ? <StatusBadge tone={QC_STATUS[selectedDetail.statusQc].tone}>{QC_STATUS[selectedDetail.statusQc].label}</StatusBadge>
+                  : <span className="text-gray-400">-</span>}
               </div>
               {selectedDetail.notes && (
                 <div className="py-1">

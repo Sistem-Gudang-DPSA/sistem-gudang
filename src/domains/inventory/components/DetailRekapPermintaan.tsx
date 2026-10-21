@@ -10,6 +10,8 @@ import { getDokubah, listDokubah } from "@/domains/ppic/api";
 import type { DokubahItem } from "@/domains/ppic/data/dokubah";
 import { getMaterialRequest } from "../api";
 import { getQuotaStatus } from "../quota";
+import { QUOTA_TONE } from "../status";
+import StatusBadge from "@/shared/components/StatusBadge";
 import type { MaterialRequestDetail } from "../types";
 
 interface InfoRowProps {
@@ -156,11 +158,7 @@ export default function DetailRekapPermintaan() {
                     <td className="px-4 py-3 text-center">{row.sisaKuota ?? "-"}</td>
                     <td className="px-4 py-3 text-center">{row.stokGudang ?? "-"}</td>
                     <td className="px-4 py-3 text-center">
-                        <span className={`inline-flex px-2 py-1 text-xs font-bold rounded-full ${
-                        row.status === "Approved" ? "bg-green-100 text-green-800"
-                        : row.status === "Perlu Approval" ? "bg-amber-100 text-amber-800"
-                        : "bg-gray-100 text-gray-600"
-                        }`}>{row.status}</span>
+                        <StatusBadge tone={QUOTA_TONE[row.status]}>{row.status}</StatusBadge>
                     </td>
                     <td className="px-4 py-3 text-center">
                         <button className="text-blue-500 hover:text-blue-700">Edit</button>
