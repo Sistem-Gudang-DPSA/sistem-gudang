@@ -40,7 +40,7 @@ const details = {
   'GET /api/v1/tracking/spk/SPK-7': trackingDetail('SPK-7', 'PT Jaya', []),
   'GET /api/v1/tracking/spk/SPK-8': fail(502, 'Tracking tidak tersedia'),
 };
-const items = paged([{ id: 1, code: 'BRG-1', name: 'Triplex', stock: 25 }, { id: 2, code: 'BRG-2', name: 'Paku', stock: 140 }]);
+const items = paged([{ id: 1, code: 'BRG-1', name: 'Triplex', unit: 'lembar', stock: 25 }, { id: 2, code: 'BRG-2', name: 'Paku', unit: 'kg', stock: 140 }]);
 const item = (id: number, code: string, name: string, unit: string, stock: number) => ({ id, code, name, unit, stock, category: 'Bahan', price: 0, locationId: null, supplierId: null, createdAt: null, updatedAt: null });
 const scanned = {
   'GET /api/v1/items/by-code/BRG-1': item(1, 'BRG-1', 'Triplex', 'lembar', 25),

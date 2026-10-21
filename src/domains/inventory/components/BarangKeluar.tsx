@@ -360,14 +360,17 @@ export default function BarangKeluarGudang() {
     setScanError("");
     if (!pengambilRef.current) { setScanError("Isi nama pengambil dulu."); beepFail(); return; }
     const ok = (itemId: number) => { setFlash((f) => ({ itemId, n: (f?.n ?? 0) + 1 })); beepOk(); };
-    const ada = barisRef.current.find((b) => b.code === code);
-    if (ada) { setBaris((bs) => tambahSatu(bs, ada.itemId)); ok(ada.itemId); return; }
+    const ada = barisRef.current.find((b) => b.itemId !== null && b.code === code);
+    if (ada && ada.itemId !== null) { setBaris((bs) => tambahSatu(bs, ada.key)); ok(ada.itemId); return; }
     try {
       const item = await getItemByCode(code);
       // Dua scan cepat untuk kode baru yang sama sama-sama sampai di sini sebelum barisnya ada
-      setBaris((bs) => bs.some((b) => b.itemId === item.id)
-        ? tambahSatu(bs, item.id)
-        : [...bs, { itemId: item.id, code: item.code ?? code, name: item.name, unit: item.unit, stock: item.stock, qty: '1' }]);
+      setBaris((bs) => {
+        const sama = bs.find((b) => b.itemId === item.id);
+        return sama
+          ? tambahSatu(bs, sama.key)
+          : [...bs, { key: randomId(), manual: false, itemId: item.id, code: item.code ?? code, name: item.name, unit: item.unit, stock: item.stock, qty: '1' }];
+      });
       ok(item.id);
     } catch (err) {
       beepFail();
@@ -492,7 +495,7 @@ export default function BarangKeluarGudang() {
         // API belum punya kolom nama pengambil, jadi dicatat di notes
         notes: `Pengambil: ${namaPengambil.trim()}`,
         // Form tidak punya kolom PIC lagi, sedangkan API mewajibkan pic per baris, jadi diisi nama pengambil
-        lines: baris.map((b) => ({ itemId: b.itemId, qty: Number(b.qty), pic: namaPengambil.trim() })),
+        lines: terisi.map((b) => ({ itemId: b.itemId, qty: Number(b.qty), pic: namaPengambil.trim() })),
       };
       const payload = JSON.stringify(input);
       if (!draftKey.current.key || draftKey.current.payload !== payload) draftKey.current = { key: crypto.randomUUID(), payload };
@@ -829,7 +832,7 @@ export default function BarangKeluarGudang() {
 
             {/* Daftar barang yang keluar, diisi dengan scan QR barang atau input manual */}
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={bukaScan} className={orangeButtonClass}>
+              <button type="button" onClick={bukaScan} disabled={!pengambilOk} className={orangeButtonClass}>
                 <ScanLine className="w-4 h-4" strokeWidth={2.5} />
                 <span>Scan Barang</span>
               </button>
@@ -842,6 +845,7 @@ export default function BarangKeluarGudang() {
                 <span>Input Manual</span>
               </button>
             </div>
+            {!pengambilOk && <p className="mt-2 text-xs text-gray-500">Isi Nama Pengambil dulu</p>}
 
             {scanOpen && (
               <div className="flex gap-2 mt-4">
