@@ -18,7 +18,7 @@ const trx = (id: number) => ({
 const tracking = { 'GET /api/v1/tracking/spk': [{ noSpk: 'SPK-1', client: 'Klien 1' }, { noSpk: 'SPK-9', client: 'PT Maju' }, { noSpk: 'SPK-7', client: 'PT Jaya' }] };
 // Item Produksi per SPK, the choices of the Nama Produk/Proyek dropdown
 const materials = { 'GET /api/v1/material-requests': paged([{ id: 1, spk: 'SPK-9', productionItem: 'Lemari' }, { id: 2, spk: 'SPK-7', productionItem: 'Meja' }]) };
-const items = paged([{ id: 1, code: 'BRG-1', name: 'Triplex', stock: 25 }, { id: 2, code: 'BRG-2', name: 'Paku', stock: 140 }]);
+const items = paged([{ id: 1, code: 'BRG-1', name: 'Triplex', unit: 'lembar', stock: 25 }, { id: 2, code: 'BRG-2', name: 'Paku', unit: 'kg', stock: 140 }]);
 const item = (id: number, code: string, name: string, unit: string, stock: number) => ({ id, code, name, unit, stock, category: 'Bahan', price: 0, locationId: null, supplierId: null, createdAt: null, updatedAt: null });
 const scanned = {
   'GET /api/v1/items/by-code/BRG-1': item(1, 'BRG-1', 'Triplex', 'lembar', 25),
@@ -124,7 +124,11 @@ describe('BarangKeluar create', () => {
     expect(screen.getByText(/Lengkapi tanggal, SPK, nama pengambil/)).not.toBeNull();
     await fillHeader();
     fireEvent.click(screen.getByText('Simpan'));
-    expect(screen.getByText('Scan minimal satu barang yang keluar.')).not.toBeNull();
+    expect(screen.getByText('Scan atau pilih minimal satu barang yang keluar.')).not.toBeNull();
+    // a manual row whose material was never picked is ignored
+    fireEvent.click(screen.getByText('Input Manual'));
+    fireEvent.click(screen.getByText('Simpan'));
+    expect(screen.getByText('Scan atau pilih minimal satu barang yang keluar.')).not.toBeNull();
     expect(api.calls('POST /api/v1/outbound').length).toBe(0);
   });
 
@@ -236,6 +240,27 @@ describe('BarangKeluar create', () => {
     // PIC is no longer in the form; the API still requires it, so it carries the nama pengambil
     expect(a.lines).toEqual([{ itemId: 1, qty: 4, pic: 'Rudi' }, { itemId: 3, qty: 1, pic: 'Rudi' }]);
     await waitFor(() => expect(screen.queryByText('Simpan')).toBeNull());
+  });
+
+  it('adds a manual row whose material is a searchable dropdown, next to scanned rows', async () => {
+    const api = setup({ 'POST /api/v1/outbound': { id: 5 } });
+    await openForm(api);
+    await fillHeader();
+    scan('BRG-1');
+    await screen.findByText('Triplex', { selector: 'td' });
+    fireEvent.click(screen.getByText('Input Manual'));
+    fireEvent.click(label('Nama material baris 2'));
+    // Triplex is already in the table, so only Paku is offered; the list is searchable
+    expect(within(screen.getByRole('listbox')).getAllByRole('option').map((o) => o.textContent)).toEqual(['Paku (BRG-2)']);
+    fireEvent.change(label('Cari Nama material baris 2'), { target: { value: 'pak' } });
+    fireEvent.click(screen.getByRole('option', { name: 'Paku (BRG-2)' }));
+    const row = label('Nama material Paku').closest('tr')!;
+    expect(Array.from(row.querySelectorAll('td')).slice(2, 4).map((td) => td.textContent)).toEqual(['kg', 'BRG-2']);
+    fireEvent.change(label('Pengambilan Paku'), { target: { value: '7' } });
+    fireEvent.click(screen.getByText('Simpan'));
+    await waitFor(() => expect(api.calls('POST /api/v1/outbound').length).toBe(1));
+    expect((api.calls('POST /api/v1/outbound')[0].body as Record<string, unknown>).lines)
+      .toEqual([{ itemId: 1, qty: 1, pic: 'Rudi' }, { itemId: 2, qty: 7, pic: 'Rudi' }]);
   });
 
   it('can send barang out for Stok instead of a produk of the SPK', async () => {

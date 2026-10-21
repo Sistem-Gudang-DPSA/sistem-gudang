@@ -7,6 +7,7 @@ import type { StatusQc } from '@/domains/inventory/types';
 import { todayIso } from '@/domains/inventory/date';
 import { ApiError } from '@/shared/lib/api-client';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
+import { randomId } from '@/shared/lib/random-id';
 
 type Line = { itemId: number; code: string; name: string; unit: string; stock: number; qty: string; statusQc: StatusQc };
 type Draft = { key: string; date: string; lines: Line[] };
@@ -16,7 +17,7 @@ const MAX_QTY = 100000; // BE limit per line
 const LARGE_QTY = 1000; // flagged on the review step
 const CAMERA_COOLDOWN_MS = 2000; // a camera reads the same QR on every frame; ignore repeats of one code for this long
 
-const newDraft = (): Draft => ({ key: crypto.randomUUID(), date: todayIso(), lines: [] });
+const newDraft = (): Draft => ({ key: randomId(), date: todayIso(), lines: [] });
 
 // The draft survives a reload, so a scan session is not lost halfway. Storage may be blocked, so every access is guarded.
 function loadDraft(): Draft {
