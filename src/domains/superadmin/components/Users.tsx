@@ -11,6 +11,7 @@ import type { Role, UserAccount } from "@/domains/superadmin/types";
 import { ApiError } from "@/shared/lib/api-client";
 import { useApiData } from "@/shared/lib/use-api-data";
 import Pagination from "@/shared/components/Pagination";
+import SortableTh, { useSort } from "@/shared/components/SortableTh";
 
 const emptyForm = { username: "", email: "", password: "", roleId: "" };
 
@@ -26,9 +27,11 @@ export default function UserManagementPage() {
   const [error, setError] = useState("");
 
   const [page, setPage] = useState(1);
+  const { sort, toggle, params: sortParams } = useSort();
+  const handleSort = (by: string) => { toggle(by); setPage(1); };
   const { data: loaded, loading, error: fetchError, reload } = useApiData(
-    () => listUsers({ search: searchTerm || undefined, page, pageSize: 20 }),
-    `${searchTerm}|${page}`,
+    () => listUsers({ search: searchTerm || undefined, page, pageSize: 20, ...sortParams }),
+    `${searchTerm}|${JSON.stringify(sortParams)}|${page}`,
     "Gagal memuat data user.",
   );
   const users = loaded?.rows ?? [];
@@ -172,25 +175,27 @@ export default function UserManagementPage() {
           <table className="w-full text-left">
             <thead className="bg-gray-50/50 border-b border-gray-100">
               <tr>
-                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Username & Email</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Role</th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Dibuat</th>
+                <th scope="col" className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">No</th>
+                <SortableTh label="Username & Email" sortKey="username" sort={sort} onSort={handleSort} className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider" />
+                <SortableTh label="Role" sortKey="roleName" sort={sort} onSort={handleSort} className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider" />
+                <SortableTh label="Dibuat" sortKey="createdAt" sort={sort} onSort={handleSort} className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider" />
                 <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-sm">
               {loading && (
-                <tr><td colSpan={4} className="px-6 py-12 text-center text-gray-400">Memuat data...</td></tr>
+                <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-400">Memuat data...</td></tr>
               )}
               {!loading && users.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
                     Tidak ada data user ditemukan.
                   </td>
                 </tr>
               )}
-              {!loading && users.map((user) => (
+              {!loading && users.map((user, i) => (
                 <tr key={user.id} className="hover:bg-gray-50/50 transition-colors group">
+                  <td className="px-6 py-4 text-gray-500 text-xs">{(page - 1) * 20 + i + 1}</td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div className={`w-9 h-9 rounded-full ${getRoleColor(user.roleName)} flex items-center justify-center font-bold text-xs`}>

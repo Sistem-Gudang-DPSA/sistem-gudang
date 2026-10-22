@@ -11,7 +11,7 @@ import { ApiError } from '@/shared/lib/api-client';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { ExportExcellButton } from '@/shared/components/Tombol';
-import BarangFilterPanel, { countActiveFilters, emptyBarangFilters, toItemFilterParams } from '@/domains/superadmin/components/BarangFilterPanel';
+import BarangFilterPanel, { countActiveFilters, emptyBarangFilters, toItemFilterParams } from './BarangFilterPanel';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import ItemPhoto from './ItemPhoto';
 import { printItemLabels } from '@/domains/inventory/label-print';

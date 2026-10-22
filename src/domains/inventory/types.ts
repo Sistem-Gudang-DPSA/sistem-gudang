@@ -213,7 +213,7 @@ export interface CreateOutboundInput {
   lines: { itemId: number; qty: number; pic: string }[];
 }
 
-export interface OutboundReportParams extends Omit<OutboundListParams, "search"> {
+export interface OutboundReportParams extends Omit<OutboundListParams, "search">, SortParams {
   q?: string;
 }
 
@@ -253,7 +253,7 @@ export interface StockOpnameDetail extends Omit<StockOpnameRow, "lineCount"> {
   lines: StockOpnameLine[];
 }
 
-export interface StockOpnameListParams {
+export interface StockOpnameListParams extends SortParams {
   page?: number;
   pageSize?: number;
   search?: string;
@@ -298,7 +298,7 @@ export interface MaterialRequestDetail extends Omit<MaterialRequestRow, "lineCou
   lines: MaterialRequestLine[];
 }
 
-export interface RequestReportParams {
+export interface RequestReportParams extends SortParams {
   page?: number;
   pageSize?: number;
   q?: string;

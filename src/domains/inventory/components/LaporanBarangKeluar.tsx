@@ -7,6 +7,7 @@ import type { OutboundRow, RecipientType } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
+import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';    
 
 const PAGE_SIZE = 20;
@@ -43,13 +44,15 @@ export default function LaporanBarangKeluar(){
       recipientType: filterPenerima === 'ALL' ? undefined : filterPenerima,
     };
 
-    const filterKey = JSON.stringify(filters);
+    const { sort, toggle, params: sortParams } = useSort();
+    // a filter or sort change starts again from page 1
+    const filterKey = JSON.stringify({ ...filters, ...sortParams });
     const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
     const page = pageState.key === filterKey ? pageState.page : 1;
     const setPage = (next: number) => setPageState({ key: filterKey, page: next });
 
     const { data: report, loading, error } = useApiData(
-      () => getOutboundReport({ ...filters, page, pageSize: PAGE_SIZE }),
+      () => getOutboundReport({ ...filters, ...sortParams, page, pageSize: PAGE_SIZE }),
       `${filterKey}|${page}`,
       'Gagal memuat laporan barang keluar.',
     );
@@ -77,7 +80,7 @@ export default function LaporanBarangKeluar(){
         const penerimaText = filterPenerima === 'ALL' ? 'Semua Penerima' : RECIPIENT_LABEL[filterPenerima];
         const periodeText = `${startDate ? displayDate(startDate) : '-'} s/d ${endDate ? displayDate(endDate) : '-'}`;
 
-        const bodyRows = tableRows.map(({ trx, line }, index) => {
+        const bodyRows = tableRows.map(({ trx, line, no, firstLine }) => {
             const barang =
             escapeHtml(line.itemName) +
             `<div class="sub">${escapeHtml(line.itemCode ?? '-')}${
@@ -91,7 +94,7 @@ export default function LaporanBarangKeluar(){
 
             return `
             <tr>
-                <td class="center">${index + 1}</td>
+                ${firstLine ? `<td class="center" rowspan="${trx.lines.length}">${no}</td>` : ''}
                 <td>${barang}</td>
                 <td>${penerima}</td>
                 <td>${escapeHtml(trx.spk)}</td>
@@ -154,7 +157,14 @@ export default function LaporanBarangKeluar(){
     // The API splits the count per warehouse; only Gudang Bahan Baku exists so far, so show the total.
     const totalTransaksi = Object.values(report?.summary ?? {}).reduce((sum, n) => sum + n, 0);
     // The table shows one row per item line, the API returns one row per transaction.
-    const tableRows = rows.flatMap((trx) => trx.lines.map((line) => ({ trx, line })));
+    const tableRows = rows.flatMap((trx, trxIndex) =>
+      trx.lines.map((line, lineIndex) => ({
+        trx,
+        line,
+        no: (page - 1) * PAGE_SIZE + trxIndex + 1,
+        firstLine: lineIndex === 0,
+      })),
+    );
 
     return(
         <div className='animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10'>
@@ -237,9 +247,9 @@ export default function LaporanBarangKeluar(){
                     <tr>
                         <th className="px-4 py-3 text-center w-12">No</th>
                         <th className="px-4 py-3 text-left">Informasi Barang</th>
-                        <th className="px-4 py-3 text-left">Tujuan / Penerima</th>
-                        <th className="px-4 py-3 text-right">SPK</th>
-                        <th className="px-4 py-3 text-center">Tanggal</th>
+                        <SortableTh label="Tujuan / Penerima" sortKey="clientName" sort={sort} onSort={toggle} className="px-4 py-3" align="left" />
+                        <SortableTh label="SPK" sortKey="spk" sort={sort} onSort={toggle} className="px-4 py-3" align="right" />
+                        <SortableTh label="Tanggal" sortKey="date" sort={sort} onSort={toggle} className="px-4 py-3" align="center" />
                         <th className="px-4 py-3 text-center">Jumlah</th>
                         <th className="px-4 py-3 text-center print:hidden">Aksi</th>
                     </tr>
@@ -270,9 +280,11 @@ export default function LaporanBarangKeluar(){
                             </td>
                         </tr>
                         ) : (
-                        tableRows.map(({ trx, line }, index) => (
+                        tableRows.map(({ trx, line, no, firstLine }, index) => (
                             <tr key={`${trx.id}-${index}`} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-4 py-3 text-center text-gray-500">{index + 1}</td>
+                            {firstLine && (
+                            <td rowSpan={trx.lines.length} className="px-4 py-3 text-center text-gray-500 align-top">{no}</td>
+                            )}
                             <td className="px-4 py-3">
                                 <span className="font-medium text-gray-900">{line.itemName}</span>
                                 <span className="block text-xs font-mono text-gray-500">
