@@ -3,6 +3,8 @@
 import React, { useState } from "react";
 import { Plus, Search, Tags } from "lucide-react";
 import type { ItemLookup } from "@/domains/inventory/api";
+import type { ListParams, PaginatedResult, SortParams } from "@/domains/inventory/types";
+import Pagination from "@/shared/components/Pagination";
 import { useCan } from "@/domains/auth/user-context";
 import { ApiError } from "@/shared/lib/api-client";
 import { useApiData } from "@/shared/lib/use-api-data";
@@ -14,7 +16,7 @@ export type LookupConfig = {
   singular: string; // "Kategori"
   example: string;
   maxLength: number; // mengikuti kolom BE (kategori 100, satuan 50)
-  list: () => Promise<ItemLookup[]>;
+  list: (params: ListParams & SortParams) => Promise<PaginatedResult<ItemLookup>>;
   create: (name: string) => Promise<ItemLookup>;
   rename: (id: number, name: string) => Promise<ItemLookup>;
   remove: (id: number) => Promise<void>;
@@ -26,25 +28,30 @@ export default function MasterLookup({ config }: { config: LookupConfig }) {
   const canCreate = useCan("item.create");
   const canUpdate = useCan("item.update");
   const canDelete = useCan("item.delete");
-  const { data, loading, error, reload } = useApiData(list, singular, `Gagal memuat data ${singular.toLowerCase()}.`);
-  const [search, setSearch] = useState("");
-  const [open, setOpen] = useState(false);
   const edit = useBatchEdit();
-  const { sort, toggle } = useSort();
+  const { sort, toggle, params: sortParams } = useSort();
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
+  const [search, setSearch] = useState("");
+  const { data, loading, error, reload } = useApiData(
+    () => list({ search: search.trim() || undefined, page, pageSize, ...sortParams }),
+    `${search.trim()}|${JSON.stringify(sortParams)}|${page}`,
+    `Gagal memuat data ${singular.toLowerCase()}.`,
+  );
+  const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [actionError, setActionError] = useState("");
 
-  const q = search.trim().toLowerCase();
-  // Daftar kecil dan tidak dipaginasi, jadi diurutkan di sini
-  const shown = (data ?? [])
-    .filter((r) => !q || r.name.toLowerCase().includes(q))
-    .sort((a, b) => {
-      if (!sort) return 0;
-      const d = sort.by === "itemCount" ? (a.itemCount ?? 0) - (b.itemCount ?? 0) : a.name.localeCompare(b.name);
-      return sort.dir === "asc" ? d : -d;
-    });
+  const shown = data?.rows ?? [];
+
+  // Baris yang diedit disimpan per id; pindah halaman, cari, atau urutkan membuat baris itu tidak tampil lagi, jadi tanya dulu.
+  const leaveRows = (apply: () => void) => {
+    if (edit.dirty > 0 && !window.confirm("Ada perubahan yang belum disimpan. Buang perubahan?")) return;
+    edit.cancel();
+    apply();
+  };
 
   const close = () => {
     setOpen(false);
@@ -100,7 +107,7 @@ export default function MasterLookup({ config }: { config: LookupConfig }) {
               type="text"
               value={search}
               maxLength={maxLength}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => leaveRows(() => { setSearch(e.target.value); setPage(1); })}
               placeholder={`Cari ${singular.toLowerCase()}...`}
               className="w-full border border-gray-200 rounded-full py-2.5 pl-5 pr-10 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 text-sm text-gray-700 placeholder-gray-400 transition-all"
             />
@@ -110,7 +117,7 @@ export default function MasterLookup({ config }: { config: LookupConfig }) {
           </div>
           <div className="flex items-center gap-2">
             <span className="px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-600">
-              {data?.length ?? 0} {singular.toLowerCase()}
+              {data?.total ?? 0} {singular.toLowerCase()}
             </span>
             {canUpdate && <EditModeBar editing={edit.editing} dirty={edit.dirty} saving={edit.saving} onToggle={edit.toggle} onSave={simpanSemua} onCancel={edit.cancel} />}
             {canCreate && (
@@ -132,20 +139,20 @@ export default function MasterLookup({ config }: { config: LookupConfig }) {
             <thead className="bg-gray-50/80 text-gray-500 uppercase tracking-wider text-xs font-semibold border-b border-gray-200">
               <tr>
                 <th className="px-6 py-4 w-16">No</th>
-                <SortableTh label={singular} sortKey="name" sort={sort} onSort={toggle} />
-                <SortableTh label="Jumlah Barang" sortKey="itemCount" sort={sort} onSort={toggle} align="right" />
+                <SortableTh label={singular} sortKey="name" sort={sort} onSort={(by) => leaveRows(() => { toggle(by); setPage(1); })} />
+                <SortableTh label="Jumlah Barang" sortKey="itemCount" sort={sort} onSort={(by) => leaveRows(() => { toggle(by); setPage(1); })} align="right" />
                 {canDelete && <th className="px-6 py-4 text-right">Aksi</th>}
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={4} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>}
-              {!loading && error && <tr><td colSpan={4} className="px-6 py-6 text-center text-red-500">{error}</td></tr>}
+              {loading && <tr><td colSpan={canDelete ? 4 : 3} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>}
+              {!loading && error && <tr><td colSpan={canDelete ? 4 : 3} className="px-6 py-6 text-center text-red-500">{error}</td></tr>}
               {!loading && !error && shown.length === 0 && (
-                <tr><td colSpan={4} className="px-6 py-6 text-center text-gray-400">Belum ada {singular.toLowerCase()}.</td></tr>
+                <tr><td colSpan={canDelete ? 4 : 3} className="px-6 py-6 text-center text-gray-400">Belum ada {singular.toLowerCase()}.</td></tr>
               )}
               {!loading && !error && shown.map((r, i) => (
                 <tr key={r.id} className={`${edit.isDirty(r.id) ? "bg-amber-50" : i % 2 ? "bg-gray-50" : "bg-white"} hover:bg-indigo-50/40 transition-colors`}>
-                  <td className="px-6 py-3 text-gray-500">{i + 1}</td>
+                  <td className="px-6 py-3 text-gray-500">{(page - 1) * pageSize + i + 1}</td>
                   <td className="px-6 py-3">
                     {edit.editing ? (
                       <div>
@@ -177,6 +184,7 @@ export default function MasterLookup({ config }: { config: LookupConfig }) {
             </tbody>
           </table>
         </div>
+        <Pagination page={page} pageSize={pageSize} total={data?.total ?? 0} onPageChange={(p) => leaveRows(() => setPage(p))} activeClass="bg-indigo-600 text-white border-indigo-600" />
       </div>
 
       {open && (

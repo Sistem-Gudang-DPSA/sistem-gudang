@@ -11,6 +11,9 @@ import Pagination from '@/shared/components/Pagination';
 import StatusBadge from '@/shared/components/StatusBadge';
 import { REQUEST_STATUS as STATUS_LABEL } from '@/domains/inventory/status';
 import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';
+import SortableTh, { useSort } from '@/shared/components/SortableTh';
+
+const PAGE_SIZE = 20;
 
 
 const monthStart = () => {
@@ -37,7 +40,9 @@ export default function RekapPermintaan(){
         endDate: endDate || undefined,
     };
 
-    const filterKey = JSON.stringify(filters);
+    const { sort, toggle, params: sortParams } = useSort();
+    // a filter or sort change starts again from page 1
+    const filterKey = JSON.stringify({ ...filters, ...sortParams });
     const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
     const page = pageState.key === filterKey ? pageState.page : 1;
     // Selection belongs to one filters+page view; any change of either drops it.
@@ -46,7 +51,7 @@ export default function RekapPermintaan(){
     const selected = selState.key === viewKey ? selState.ids : new Set<number>();
     const setSelected = (ids: Set<number>) => setSelState({ key: viewKey, ids });
     const { data: report, loading, error } = useApiData(
-        () => getRequestsReport({ ...filters, page, pageSize: 20 }),
+        () => getRequestsReport({ ...filters, ...sortParams, page, pageSize: PAGE_SIZE }),
         `${filterKey}|${page}`,
         'Gagal memuat rekap permintaan.',
     );
@@ -98,9 +103,9 @@ export default function RekapPermintaan(){
         const statusText = filterStatus === 'ALL' ? 'Semua Status' : STATUS_LABEL[filterStatus].label;
         const periodeText = `${startDate ? displayDate(startDate) : '-'} s/d ${endDate ? displayDate(endDate) : '-'}`;
 
-        const bodyRows = rowsToPrint.map((item, index) => `
+        const bodyRows = rowsToPrint.map((item) => `
             <tr>
-            <td class="center">${index + 1}</td>
+            <td class="center">${(page - 1) * PAGE_SIZE + rows.indexOf(item) + 1}</td>
             <td>${escapeHtml(displayDate(item.requestDate))}</td>
             <td>${escapeHtml(item.spk)}</td>
             <td>${escapeHtml(item.clientName)}</td>
@@ -233,12 +238,12 @@ export default function RekapPermintaan(){
                     <thead className="bg-gray-100 font-semibold text-gray-700">
                         <tr>
                         <th className="px-4 py-3 text-center w-12">No</th>
-                        <th className="px-4 py-3 text-left">Tgl Permintaan</th>
-                        <th className="px-4 py-3 text-left">SPK</th>
-                        <th className="px-4 py-3 text-left">Nama Klien</th>
-                        <th className="px-4 py-3 text-right">Item Produksi</th>
-                        <th className="px-4 py-3 text-center">Group Tukang</th>
-                        <th className="px-4 py-3 text-center">Status</th>
+                        <SortableTh label="Tgl Permintaan" sortKey="requestDate" sort={sort} onSort={toggle} className="px-4 py-3" align="left" />
+                        <SortableTh label="SPK" sortKey="spk" sort={sort} onSort={toggle} className="px-4 py-3" align="left" />
+                        <SortableTh label="Nama Klien" sortKey="clientName" sort={sort} onSort={toggle} className="px-4 py-3" align="left" />
+                        <SortableTh label="Item Produksi" sortKey="productionItem" sort={sort} onSort={toggle} className="px-4 py-3" align="right" />
+                        <SortableTh label="Group Tukang" sortKey="toolGroup" sort={sort} onSort={toggle} className="px-4 py-3" align="center" />
+                        <SortableTh label="Status" sortKey="status" sort={sort} onSort={toggle} className="px-4 py-3" align="center" />
                         <th className="px-4 py-3 text-center print:hidden">Aksi</th>
                         <th className="flex px-4 py-3 text-center print:hidden">
                             <div className="flex items-center justify-center">Check
@@ -278,7 +283,7 @@ export default function RekapPermintaan(){
                                 key={item.id}
                                 className={`hover:bg-gray-50 transition-colors ${anySelected && !selected.has(item.id) ? 'print:hidden' : ''}`}
                             >
-                            <td className="px-4 py-3 text-center text-gray-500">{index + 1}</td>
+                            <td className="px-4 py-3 text-center text-gray-500">{(page - 1) * PAGE_SIZE + index + 1}</td>
                             <td className="px-4 py-3 text-gray-700 font-medium">{displayDate(item.requestDate)}</td>
                             <td className="px-4 py-3 font-mono font-semibold text-blue-600">{item.spk}</td>
                             <td className="px-4 py-3 text-gray-900">{item.clientName}</td>
@@ -314,7 +319,7 @@ export default function RekapPermintaan(){
                 </table>
 
                 <div className="print:hidden">
-                    <Pagination page={page} pageSize={20} total={report?.total ?? 0} onPageChange={(next) => setPageState({ key: filterKey, page: next })} />
+                    <Pagination page={page} pageSize={PAGE_SIZE} total={report?.total ?? 0} onPageChange={(next) => setPageState({ key: filterKey, page: next })} />
                 </div>
             </div>
 

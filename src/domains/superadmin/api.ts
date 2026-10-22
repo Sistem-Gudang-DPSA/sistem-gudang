@@ -1,5 +1,5 @@
 import { ApiError, apiClient, toQuery } from "@/shared/lib/api-client";
-import type { PaginatedResult, ListParams } from "@/domains/inventory/types";
+import type { PaginatedResult, ListParams, SortParams } from "@/domains/inventory/types";
 import type { CreatedUser, CreateUserInput, Role, UpdateUserInput, UserAccount } from "./types";
 import { LocationDataImportRow } from "./components/DataLokasi";
 
@@ -7,7 +7,7 @@ export function listRoles() {
   return apiClient.get<Role[]>("/api/v1/superadmin/roles");
 }
 
-export function listUsers(params?: ListParams) {
+export function listUsers(params?: ListParams & SortParams) {
   return apiClient.get<PaginatedResult<UserAccount>>(`/api/v1/superadmin/users${toQuery(params)}`);
 }
 
@@ -30,7 +30,7 @@ export type BulkLocationsResult = { created: number; skipped: { row: number; cod
 export async function importLocationData(rows: LocationDataImportRow[]) {
   try {
     return await apiClient.post<BulkLocationsResult>("/api/v1/locations/bulk", {
-      rows: rows.map((r) => ({ rackName: r.NamaRak, rackNumber: r.NomorRak })),
+      rows: rows.map((r) => ({ code: r.code, rackName: r.NamaRak, rackNumber: r.NomorRak, description: r.description })),
     });
   } catch (err) {
     const entries = err instanceof ApiError && err.errors ? Object.entries(err.errors) : [];
