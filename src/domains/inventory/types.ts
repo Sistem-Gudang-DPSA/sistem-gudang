@@ -1,6 +1,9 @@
 export interface Item {
   id: number;
+  // kode internal, dibuat dari lokasi; null sampai barang punya lokasi
   code: string | null;
+  // kode bawaan dari file import (supplier/data lama), hanya ditampilkan di bawah nama
+  externalCode?: string | null;
   name: string;
   detail?: string | null;
   category: string;
