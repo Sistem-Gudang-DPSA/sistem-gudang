@@ -3,7 +3,7 @@
 import { useCan } from "@/domains/auth/user-context";
 import { listPenawaran } from "@/domains/ppic/api";
 import { estimasiPenawaranPath, penawaranBasePath, STATUS_UI } from "@/domains/ppic/data/penawaran-harga";
-import { countActiveFilters, emptyBarangFilters } from "@/domains/superadmin/components/BarangFilterPanel";
+import { countActiveFilters, emptyBarangFilters } from "@/domains/inventory/components/BarangFilterPanel";
 import DateFilter from "@/shared/components/DateFilter";
 import Pagination from "@/shared/components/Pagination";
 import { ExportExcellButton } from "@/shared/components/Tombol";

@@ -35,6 +35,7 @@ const rows: Row[] = [
   ['updateLocation', [3, { rackName: 'B' }], 'PUT /api/v1/locations/3', {}, { rackName: 'B' }],
   ['createLocation', [{ name: 'L' }], 'POST /api/v1/locations', {}, { name: 'L' }],
   ['deleteLocation', [7], 'DELETE /api/v1/locations/7', {}, undefined],
+  ['importLocationData', [[{ code: 'A.1.1', NamaRak: 'A', NomorRak: '1.1' }]], 'POST /api/v1/locations/bulk', {}, { rows: [{ code: 'A.1.1', rackName: 'A', rackNumber: '1.1' }] }],
   ['listInbound', [{ page: 1, startDate: '2026-01-01' }], 'GET /api/v1/inbound', { page: '1', startDate: '2026-01-01' }, undefined],
   ['getInbound', [2], 'GET /api/v1/inbound/2', {}, undefined],
   ['createInbound', [{ a: 1 }], 'POST /api/v1/inbound', {}, { a: 1 }],

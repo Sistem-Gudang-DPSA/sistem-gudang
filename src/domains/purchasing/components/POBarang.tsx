@@ -10,7 +10,7 @@ import { fetchPermintaanList } from '@/domains/ppic/data/pembelian';
 import { lihatPermintaanPath } from '@/domains/purchasing/data/pembelian';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import { ExportExcellButton } from '@/shared/components/Tombol';
-import { countActiveFilters, emptyBarangFilters } from '@/domains/superadmin/components/BarangFilterPanel';
+import { countActiveFilters, emptyBarangFilters } from '@/domains/inventory/components/BarangFilterPanel';
 import DateFilter from '@/shared/components/DateFilter';
 import { useCan } from '@/domains/auth/user-context';
 
