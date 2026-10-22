@@ -132,6 +132,11 @@ export function generateItemCodes() {
   return apiClient.post<{ generated: number; failed: { id: number; reason: string }[] }>("/api/v1/items/generate-codes", {});
 }
 
+// Superadmin only: clears the codes the newest generateItemCodes run gave.
+export function revertGeneratedItemCodes() {
+  return apiClient.post<{ reverted: number; skipped: number }>("/api/v1/items/generate-codes/revert", {});
+}
+
 // One location for many items; the BE suggests each code and reports the items it could not assign.
 export function bulkAssignItemLocation(input: { itemIds: number[]; locationId: number }) {
   return apiClient.post<{ assigned: number; failed: { id: number; reason: string }[] }>("/api/v1/items/assign-location/bulk", input);

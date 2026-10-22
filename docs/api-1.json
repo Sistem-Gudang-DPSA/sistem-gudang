@@ -11003,7 +11003,13 @@
                         },
                         "code": {
                           "type": "string",
-                          "nullable": true
+                          "nullable": true,
+                          "description": "Internal code, built from the location"
+                        },
+                        "externalCode": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "The code the item was imported with, shown under the name only"
                         },
                         "name": {
                           "type": "string"
@@ -11065,6 +11071,7 @@
                       "required": [
                         "id",
                         "code",
+                        "externalCode",
                         "name",
                         "detail",
                         "category",
@@ -11308,7 +11315,13 @@
                         },
                         "code": {
                           "type": "string",
-                          "nullable": true
+                          "nullable": true,
+                          "description": "Internal code, built from the location"
+                        },
+                        "externalCode": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "The code the item was imported with, shown under the name only"
                         },
                         "name": {
                           "type": "string"
@@ -11370,6 +11383,7 @@
                       "required": [
                         "id",
                         "code",
+                        "externalCode",
                         "name",
                         "detail",
                         "category",
@@ -11620,7 +11634,13 @@
                         },
                         "code": {
                           "type": "string",
-                          "nullable": true
+                          "nullable": true,
+                          "description": "Internal code, built from the location"
+                        },
+                        "externalCode": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "The code the item was imported with, shown under the name only"
                         },
                         "name": {
                           "type": "string"
@@ -11682,6 +11702,7 @@
                       "required": [
                         "id",
                         "code",
+                        "externalCode",
                         "name",
                         "detail",
                         "category",
@@ -13923,7 +13944,7 @@
           "Item"
         ],
         "summary": "Import many items in one transaction",
-        "description": "Names, not ids: category, unit and locationCode are resolved case-insensitively, and a row falls back to defaults for category and unit. supplier is optional per row (no defaults.supplier): a name is matched case-insensitively to suppliers.name, a name that matches no supplier or more than one is a row error under items.<row>.supplier, and left out means supplierId null until Purchasing sets one with PUT /api/v1/items/{id}. It is the first mapping only. Nothing is auto-created. An unknown or ambiguous name, a missing value, or a missing permission fails the whole request. Needs item.create, plus item.set-price when any price is not 0, item.adjust-stock when any stock is above 0, item.assign-location when any row has code or locationCode, and item.set-supplier when any row has supplier (otherwise 403). Superadmin passes all of them. A row already in the database (same code, or same name when the row has no code and the stored item has no code) or repeated earlier in the file is skipped and listed in skipped, so the same file can be imported again. Initial stock is recorded as an audit entry with reason 'Initial import'. With dryRun true nothing is written and items[].id is null. Validation failure is 400 with errors keyed like items.4.category, where the row number starts at 1.",
+        "description": "Names, not ids: category, unit and locationCode are resolved case-insensitively, and a row falls back to defaults for category and unit. supplier is optional per row (no defaults.supplier): a name is matched case-insensitively to suppliers.name, a name that matches no supplier or more than one is a row error under items.<row>.supplier, and left out means supplierId null until Purchasing sets one with PUT /api/v1/items/{id}. It is the first mapping only. Nothing is auto-created. An unknown or ambiguous name, a missing value, or a missing permission fails the whole request. Needs item.create, plus item.set-price when any price is not 0, item.adjust-stock when any stock is above 0, item.assign-location when any row has locationCode, and item.set-supplier when any row has supplier (otherwise 403). Superadmin passes all of them. A row's code is the code the item came with and is stored as externalCode, never as the internal code. A row already in the database (same code as an item's externalCode or code, or same name when the row has no code and the stored item has neither) or repeated earlier in the file is skipped and listed in skipped, so the same file can be imported again. Initial stock is recorded as an audit entry with reason 'Initial import'. With dryRun true nothing is written and items[].id is null. Validation failure is 400 with errors keyed like items.4.category, where the row number starts at 1.",
         "security": [
           {
             "bearerAuth": []
@@ -14315,7 +14336,13 @@
                         },
                         "code": {
                           "type": "string",
-                          "nullable": true
+                          "nullable": true,
+                          "description": "Internal code, built from the location"
+                        },
+                        "externalCode": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "The code the item was imported with, shown under the name only"
                         },
                         "name": {
                           "type": "string"
@@ -14377,6 +14404,7 @@
                       "required": [
                         "id",
                         "code",
+                        "externalCode",
                         "name",
                         "detail",
                         "category",
@@ -14577,7 +14605,13 @@
                           },
                           "code": {
                             "type": "string",
-                            "nullable": true
+                            "nullable": true,
+                            "description": "Internal code, built from the location"
+                          },
+                          "externalCode": {
+                            "type": "string",
+                            "nullable": true,
+                            "description": "The code the item was imported with, shown under the name only"
                           },
                           "name": {
                             "type": "string"
@@ -14639,6 +14673,7 @@
                         "required": [
                           "id",
                           "code",
+                          "externalCode",
                           "name",
                           "detail",
                           "category",
@@ -15083,7 +15118,13 @@
                         },
                         "code": {
                           "type": "string",
-                          "nullable": true
+                          "nullable": true,
+                          "description": "Internal code, built from the location"
+                        },
+                        "externalCode": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "The code the item was imported with, shown under the name only"
                         },
                         "name": {
                           "type": "string"
@@ -15145,6 +15186,7 @@
                       "required": [
                         "id",
                         "code",
+                        "externalCode",
                         "name",
                         "detail",
                         "category",
@@ -15378,7 +15420,13 @@
                         },
                         "code": {
                           "type": "string",
-                          "nullable": true
+                          "nullable": true,
+                          "description": "Internal code, built from the location"
+                        },
+                        "externalCode": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "The code the item was imported with, shown under the name only"
                         },
                         "name": {
                           "type": "string"
@@ -15440,6 +15488,7 @@
                       "required": [
                         "id",
                         "code",
+                        "externalCode",
                         "name",
                         "detail",
                         "category",
@@ -15668,7 +15717,13 @@
                         },
                         "code": {
                           "type": "string",
-                          "nullable": true
+                          "nullable": true,
+                          "description": "Internal code, built from the location"
+                        },
+                        "externalCode": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "The code the item was imported with, shown under the name only"
                         },
                         "name": {
                           "type": "string"
@@ -15730,6 +15785,7 @@
                       "required": [
                         "id",
                         "code",
+                        "externalCode",
                         "name",
                         "detail",
                         "category",
@@ -31510,6 +31566,199 @@
                       "required": [
                         "generated",
                         "failed"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/items/generate-codes/revert": {
+      "post": {
+        "tags": [
+          "Item"
+        ],
+        "summary": "Undo the newest generate-codes run (superadmin only)",
+        "description": "Clears the codes the newest not yet reverted POST /api/v1/items/generate-codes run gave. An item whose code changed since keeps it and is counted in skipped. 403 for anyone but a superadmin, 404 when there is no run to revert.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Generated item codes reverted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "reverted": {
+                          "type": "integer"
+                        },
+                        "skipped": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "reverted",
+                        "skipped"
                       ]
                     }
                   },
