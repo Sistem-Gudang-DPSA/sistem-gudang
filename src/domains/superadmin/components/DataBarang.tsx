@@ -189,9 +189,9 @@ export default function DataBarangGudang() {
   };
 
   const handleExportExcel = () => {
-    const headers = ['No,Kode Barang,Nama Barang,Supplier,Jumlah Stok,Satuan,Kategori,Lokasi'];
+    const headers = ['No,Kode Barang,Kode Bawaan,Nama Barang,Supplier,Jumlah Stok,Satuan,Kategori,Lokasi'];
     const csvData = dataBarang.map((item, index) =>
-      `${index + 1},${item.code ?? '-'},"${item.name}","${supplierName(item.supplierId)}",${item.stock},${item.unit},${item.category},${locationCode(item.locationId)}`
+      `${index + 1},${item.code ?? '-'},"${item.externalCode ?? '-'}","${item.name}","${supplierName(item.supplierId)}",${item.stock},${item.unit},${item.category},${locationCode(item.locationId)}`
     );
     const csvString = [...headers, ...csvData].join('\n');
 
@@ -359,6 +359,7 @@ export default function DataBarangGudang() {
                         <span className="font-bold text-gray-900">{item.name}</span>
                       )}
                       <span className="text-xs font-mono text-gray-500 mt-0.5">{item.code ?? '-'}</span>
+                      {item.externalCode && <span className="text-xs text-gray-400">Kode bawaan: {item.externalCode}</span>}
                       {edit.errors[item.id] && <span className="text-xs text-red-600 mt-0.5 whitespace-normal">{edit.errors[item.id]}</span>} 
                     </div>
                   </td>

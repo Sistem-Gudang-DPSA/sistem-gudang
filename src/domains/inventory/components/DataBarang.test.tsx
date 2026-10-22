@@ -10,7 +10,7 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/gudang/barang',
 }));
 
-const item = (id: number, over = {}) => ({ id, code: `BRG-${id}`, name: `Barang ${id}`, supplierId: 7, stock: 30, unit: 'pcs', category: 'Lembaran', locationId: 1, price: 1000, ...over });
+const item = (id: number, over = {}) => ({ id, code: `BRG-${id}`, externalCode: id === 1 ? 'PL-778' : null, name: `Barang ${id}`, supplierId: 7, stock: 30, unit: 'pcs', category: 'Lembaran', locationId: 1, price: 1000, ...over });
 const rows = paged([item(1), item(2, { code: null, locationId: null, stock: 5 })]);
 const locations = paged([{ id: 1, code: 'A01', rackName: 'A', rackNumber: '01' }, { id: 2, code: 'B02', rackName: 'B', rackNumber: '02' }]);
 const suppliers = paged([{ id: 7, name: 'PT Kayu' }]);
@@ -34,6 +34,7 @@ describe('DataBarang list', () => {
     expect(screen.getAllByText('PT Kayu').length).toBe(2);
     await screen.findByText('A01');
     expect(screen.getByText('BRG-1')).not.toBeNull();
+    expect(screen.getByText('Kode bawaan: PL-778')).not.toBeNull();
     expect(screen.getByText('Barang 2')).not.toBeNull();
   });
 
@@ -204,6 +205,29 @@ describe('DataBarang generate codes', () => {
     await ready(api);
     fireEvent.click(screen.getByText('Buat Kode'));
     expect(api.calls('POST /api/v1/items/generate-codes')).toHaveLength(0);
+  });
+});
+
+describe('DataBarang revert codes', () => {
+  const open = async (user: ReturnType<typeof who>, extra: Record<string, unknown> = {}) => {
+    const api = installFakeApi({ 'GET /api/v1/items': rows, 'GET /api/v1/locations': locations, 'GET /api/v1/suppliers': suppliers, ...extra });
+    render(<AuthUserProvider user={user}><DataBarang /></AuthUserProvider>);
+    await screen.findByText('Barang 1');
+    return api;
+  };
+
+  it('is hidden from a non-superadmin who can assign locations', async () => {
+    await open(who(['item.assign-location']));
+    expect(screen.getByText('Buat Kode')).not.toBeNull();
+    expect(screen.queryByText('Batalkan Kode')).toBeNull();
+  });
+
+  it('lets a superadmin undo the last run', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const api = await open(who([], true), { 'POST /api/v1/items/generate-codes/revert': { reverted: 4, skipped: 1 } });
+    fireEvent.click(screen.getByText('Batalkan Kode'));
+    expect(await screen.findByText('4 kode dibatalkan, 1 dilewati karena sudah diubah')).not.toBeNull();
+    expect(api.calls('POST /api/v1/items/generate-codes/revert')).toHaveLength(1);
   });
 });
 
