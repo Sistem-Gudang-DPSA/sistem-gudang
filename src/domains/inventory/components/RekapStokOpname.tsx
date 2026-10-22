@@ -7,6 +7,10 @@ import { displayDate } from "@/domains/inventory/date";
 import type { StockOpnameDetail } from "@/domains/inventory/types";
 import { ApiError } from "@/shared/lib/api-client";
 import { useApiData } from "@/shared/lib/use-api-data";
+import Pagination from "@/shared/components/Pagination";
+import SortableTh, { useSort } from "@/shared/components/SortableTh";
+
+const PAGE_SIZE = 20;
 
 const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
@@ -24,10 +28,16 @@ export default function RekapStokOpname() {
         month: filterDate ? Number(filterDate.slice(5, 7)) : undefined,
     };
 
-    // ponytail: loads first 100 rows only, add real pagination when the list outgrows it
+    const { sort, toggle, params: sortParams } = useSort();
+    // a filter or sort change starts again from page 1
+    const filterKey = JSON.stringify({ ...filters, ...sortParams });
+    const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
+    const page = pageState.key === filterKey ? pageState.page : 1;
+    const setPage = (next: number) => setPageState({ key: filterKey, page: next });
+
     const { data: report, loading: isLoading, error: errorMessage } = useApiData(
-        () => listStockOpname({ ...filters, pageSize: 100 }),
-        JSON.stringify(filters),
+        () => listStockOpname({ ...filters, ...sortParams, page, pageSize: PAGE_SIZE }),
+        `${filterKey}|${page}`,
         "Gagal memuat rekap stok opname.",
     );
     const filteredData = report?.rows ?? [];
@@ -91,9 +101,9 @@ export default function RekapStokOpname() {
                         <thead className="bg-gray-100 font-semibold text-gray-700">
                             <tr>
                                 <th className="px-4 py-3 text-center w-12">No</th>
-                                <th className="px-4 py-3 text-left">Stock Opname</th>
-                                <th className="px-4 py-3 text-center">Tanggal</th>
-                                <th className="px-4 py-3 text-center">Auditor</th>
+                                <SortableTh label="Stock Opname" sortKey="period" sort={sort} onSort={toggle} className="px-4 py-3" align="left" />
+                                <SortableTh label="Tanggal" sortKey="createdAt" sort={sort} onSort={toggle} className="px-4 py-3" align="center" />
+                                <SortableTh label="Auditor" sortKey="createdBy" sort={sort} onSort={toggle} className="px-4 py-3" align="center" />
                                 <th className="px-4 py-3 text-center">Aksi</th>
                             </tr>
                         </thead>
@@ -125,7 +135,7 @@ export default function RekapStokOpname() {
                         ) : (
                             filteredData.map((item, index) => (
                             <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-4 py-3 text-center text-gray-500">{index + 1}</td>
+                            <td className="px-4 py-3 text-center text-gray-500">{(page - 1) * PAGE_SIZE + index + 1}</td>
                             <td className="px-4 py-3 text-gray-700 font-medium">Stok Opname {BULAN[item.month - 1]} {item.year}</td>
                             <td className="px-4 py-3 font-mono font-semibold text-blue-600">
                                 {displayDate(item.createdAt)}
@@ -148,6 +158,7 @@ export default function RekapStokOpname() {
                         </tbody>
                     </table>
                     {actionError && <p className="px-4 py-2 text-sm text-red-500">{actionError}</p>}
+                    <Pagination page={page} pageSize={PAGE_SIZE} total={report?.total ?? 0} onPageChange={setPage} />
                 </div>
             </div>
 

@@ -14,7 +14,7 @@ import Pagination from '@/shared/components/Pagination';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import ItemPhoto from '@/domains/inventory/components/ItemPhoto';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
-import BarangFilterPanel, { countActiveFilters, emptyBarangFilters } from '@/domains/superadmin/components/BarangFilterPanel';
+import BarangFilterPanel, { countActiveFilters, emptyBarangFilters } from '@/domains/inventory/components/BarangFilterPanel';
 
 export default function DataBarangPurchasing() {
   // PUT /items/:id needs item.update, and changing the price also needs item.set-price.

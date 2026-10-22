@@ -2,13 +2,29 @@
 
 import { useCan } from '@/domains/auth/user-context';
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createStockOpname, listItems } from '@/domains/inventory/api';
 import type { ItemListRow } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 import Pagination from '@/shared/components/Pagination';
+import { useSort, type Sort } from '@/shared/components/SortableTh';
+
+// SortableTh has no rowSpan, and this header spans two rows, so the same sort button is written here.
+type SortThProps = { label: string; sortKey: string; sort: Sort; onSort: (by: string) => void; className: string; rowSpan?: number };
+function SortTh({ label, sortKey, sort, onSort, className, rowSpan }: SortThProps) {
+  const active = sort?.by === sortKey;
+  const Icon = !active ? ArrowUpDown : sort.dir === "asc" ? ArrowUp : ArrowDown;
+  return (
+    <th rowSpan={rowSpan} scope="col" aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"} className={className}>
+      <button type="button" onClick={() => onSort(sortKey)} className="flex w-full items-center gap-1.5 text-left font-[inherit] hover:text-gray-900">
+        <span>{label}</span>
+        <Icon className={`w-3.5 h-3.5 shrink-0 ${active ? "text-orange-500" : "text-gray-300"}`} strokeWidth={2.5} aria-hidden />
+      </button>
+    </th>
+  );
+}
 
 const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 type Row = { itemId: string; itemName: string; jumlah: string; keterangan: string };
@@ -28,6 +44,12 @@ export default function TambahStockOpnameGudang() {
   const [pageSize] = useState(25);
   const [totalItems, setTotalItems] = useState(0);
   const [loadingItems, setLoadingItems] = useState(false);
+  const { sort, toggle } = useSort();
+  // a sort change starts again from page 1, like the pager does
+  const sortBy = (by: string) => {
+    toggle(by);
+    setPage(1);
+  };
 
 
   useEffect(() => {
@@ -38,7 +60,7 @@ export default function TambahStockOpnameGudang() {
       setError("");
 
       try {
-        const res = await listItems({ page, pageSize });
+        const res = await listItems({ page, pageSize, sortBy: sort?.by, sortDir: sort?.dir });
 
         if (cancelled) return;
 
@@ -91,7 +113,7 @@ export default function TambahStockOpnameGudang() {
     return () => {
       cancelled = true;
     };
-  }, [page, pageSize]);
+  }, [page, pageSize, sort]);
 
   const handleChange = (itemId: string, patch: Partial<Row>) => {
     setData((prev) => prev.map((row) => row.itemId === itemId ? {...row, ...patch} : row));
@@ -184,9 +206,9 @@ export default function TambahStockOpnameGudang() {
                 <thead className="bg-gray-50/80 text-gray-500 uppercase tracking-wider text-xs font-semibold">
                   <tr>
                     <th rowSpan={2} className="border-r border-b border-gray-200 px-6 py-4 align-top w-12 whitespace-nowrap text-center">No</th>
-                    <th rowSpan={2} className="border-r border-b border-gray-200 px-6 py-4 align-top whitespace-nowrap">Nama Barang</th>
-                    <th rowSpan={2} className="border-r border-b border-gray-200 px-6 py-4 align-top whitespace-nowrap">Satuan</th>
-                    <th rowSpan={2} className="border-r border-b border-gray-200 px-6 py-4 align-top whitespace-nowrap">Kategori</th>
+                    <SortTh rowSpan={2} label="Nama Barang" sortKey="name" sort={sort} onSort={sortBy} className="border-r border-b border-gray-200 px-6 py-4 align-top whitespace-nowrap" />
+                    <SortTh rowSpan={2} label="Satuan" sortKey="unit" sort={sort} onSort={sortBy} className="border-r border-b border-gray-200 px-6 py-4 align-top whitespace-nowrap" />
+                    <SortTh rowSpan={2} label="Kategori" sortKey="category" sort={sort} onSort={sortBy} className="border-r border-b border-gray-200 px-6 py-4 align-top whitespace-nowrap" />
                     <th colSpan={2} className="border-r border-b border-gray-200 px-6 py-2.5 text-center whitespace-nowrap">Administrasi</th>
                     <th colSpan={2} className="border-r border-b border-gray-200 px-6 py-2.5 text-center whitespace-nowrap">Fisik</th>
                     <th colSpan={2} className="border-r border-b border-gray-200 px-6 py-2.5 text-center whitespace-nowrap">Selisih</th>
@@ -202,7 +224,7 @@ export default function TambahStockOpnameGudang() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {pageData.map((row) => {
+                  {pageData.map((row, index) => {
                     const item = items.find((it) => String(it.id) === row.itemId);
                     // Administrasi = system stock; Fisik harga and Selisih are derived (the API only takes physical qty).
                     const adm = item ? { qty: item.stock, harga: item.stock * item.price } : null;
@@ -210,7 +232,7 @@ export default function TambahStockOpnameGudang() {
                     const fmt = (n?: number) => (n === undefined ? '' : n.toLocaleString('id-ID'));
                     return (
                       <tr key={item?.id} className="bg-white hover:bg-orange-50/10 transition-colors duration-150">
-                        <td className="border-r border-b border-gray-100/50 h-12 text-gray-400 font-medium text-center text-xs"> {(page - 1) * pageSize + items.findIndex((item) => String(item.id) === row.itemId) + 1}</td>
+                        <td className="border-r border-b border-gray-100/50 h-12 text-gray-400 font-medium text-center text-xs"> {(page - 1) * pageSize + index + 1}</td>
                         <td className="border-r border-b border-gray-100/50 p-0 whitespace-normal">
                           <div className='flex flex-col'>
                             <span className="font-bold text-gray-900">{row.itemName}</span>
