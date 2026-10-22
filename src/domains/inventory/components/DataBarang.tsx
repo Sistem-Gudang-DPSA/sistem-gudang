@@ -3,7 +3,7 @@
 import { useCan } from '@/domains/auth/user-context';
 import React, { useEffect, useState } from 'react';
 import { Search, Plus, Filter, Edit2, QrCode } from 'lucide-react';
-import { assignItemLocation, bulkAssignItemLocation, listItemCategories, listItems, listItemUnits, listLocations, suggestItemCode } from '@/domains/inventory/api';
+import { assignItemLocation, bulkAssignItemLocation, generateItemCodes, listItemCategories, listItems, listItemUnits, listLocations, suggestItemCode } from '@/domains/inventory/api';
 import type { ItemListRow, Location } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
 import type { Supplier } from '@/domains/purchasing/types';
@@ -153,6 +153,22 @@ export default function DataBarangGudang() {
     }
   };
 
+  const handleGenerateCodes = async () => {
+    if (!window.confirm("Buat kode untuk semua barang yang sudah punya lokasi tetapi belum punya kode?")) return;
+    setSaving(true);
+    setPrintError("");
+    try {
+      const res = await generateItemCodes();
+      const gagal = res.failed.map((f) => `#${f.id}: ${f.reason}`).join("; ");
+      setNotice(`${res.generated} kode dibuat${gagal ? `. Gagal: ${gagal}` : ""}`);
+      reload();
+    } catch (err) {
+      setPrintError(err instanceof ApiError ? err.message : "Gagal membuat kode barang.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleExportExcel = () => {
     const headers = ['No,Kode Barang,Nama Barang,Supplier,Jumlah Stok,Satuan,Kategori,Lokasi'];
     const csvData = dataBarang.map((item, index) =>
@@ -205,6 +221,18 @@ export default function DataBarangGudang() {
               <QrCode className="w-4 h-4" />
               <span>Cetak Label QR{selectedPrintable.length > 0 ? ` (${selectedPrintable.length})` : ''}</span>
             </button>
+            {canAssign && (
+              <button
+                type="button"
+                onClick={handleGenerateCodes}
+                disabled={saving}
+                title="Buat kode untuk barang yang sudah punya lokasi tetapi belum punya kode"
+                className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-600 hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-50"
+              >
+                <QrCode className="w-4 h-4" />
+                <span>Buat Kode</span>
+              </button>
+            )}
             {canAssign && (
               <button
                 type="button"

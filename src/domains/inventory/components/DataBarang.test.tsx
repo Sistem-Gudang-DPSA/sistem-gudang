@@ -188,6 +188,25 @@ describe('DataBarang QR labels', () => {
   });
 });
 
+describe('DataBarang generate codes', () => {
+  it('codes the located items without a code after confirming', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const api = setup({ 'POST /api/v1/items/generate-codes': { generated: 3, failed: [] } });
+    await ready(api);
+    fireEvent.click(screen.getByText('Buat Kode'));
+    expect(await screen.findByText('3 kode dibuat')).not.toBeNull();
+    expect(api.calls('POST /api/v1/items/generate-codes')).toHaveLength(1);
+  });
+
+  it('does nothing when the user cancels', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const api = setup();
+    await ready(api);
+    fireEvent.click(screen.getByText('Buat Kode'));
+    expect(api.calls('POST /api/v1/items/generate-codes')).toHaveLength(0);
+  });
+});
+
 describe('DataBarang bulk location', () => {
   it('assigns one location to the selected items and reports failures', async () => {
     const api = setup({ 'POST /api/v1/items/assign-location/bulk': { assigned: 1, failed: [{ id: 1, reason: 'boom' }] } });
