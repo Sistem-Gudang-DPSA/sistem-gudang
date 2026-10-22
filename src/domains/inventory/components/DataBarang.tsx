@@ -1,9 +1,9 @@
 "use client";
 
-import { useCan } from '@/domains/auth/user-context';
+import { useAuthUser, useCan } from '@/domains/auth/user-context';
 import React, { useEffect, useState } from 'react';
 import { Search, Plus, Filter, Edit2, QrCode } from 'lucide-react';
-import { assignItemLocation, bulkAssignItemLocation, generateItemCodes, listItemCategories, listItems, listItemUnits, listLocations, suggestItemCode } from '@/domains/inventory/api';
+import { assignItemLocation, bulkAssignItemLocation, generateItemCodes, revertGeneratedItemCodes, listItemCategories, listItems, listItemUnits, listLocations, suggestItemCode } from '@/domains/inventory/api';
 import type { ItemListRow, Location } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
 import type { Supplier } from '@/domains/purchasing/types';
@@ -18,6 +18,7 @@ import { printItemLabels } from '@/domains/inventory/label-print';
 
 export default function DataBarangGudang() {
   const canAssign = useCan('item.assign-location');
+  const isSuperadmin = useAuthUser()?.isSuperadmin === true;
   const { sort, toggle, params: sortParams } = useSort();
   const [filters, setFilters] = useState(emptyBarangFilters);
   const [showFilter, setShowFilter] = useState(false);
@@ -169,10 +170,25 @@ export default function DataBarangGudang() {
     }
   };
 
+  const handleRevertCodes = async () => {
+    if (!window.confirm("Batalkan kode dari proses Buat Kode terakhir? Kode yang sudah diubah manual tidak ikut dibatalkan.")) return;
+    setSaving(true);
+    setPrintError("");
+    try {
+      const res = await revertGeneratedItemCodes();
+      setNotice(`${res.reverted} kode dibatalkan${res.skipped ? `, ${res.skipped} dilewati karena sudah diubah` : ""}`);
+      reload();
+    } catch (err) {
+      setPrintError(err instanceof ApiError ? err.message : "Gagal membatalkan kode barang.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleExportExcel = () => {
-    const headers = ['No,Kode Barang,Nama Barang,Supplier,Jumlah Stok,Satuan,Kategori,Lokasi'];
+    const headers = ['No,Kode Barang,Kode Bawaan,Nama Barang,Supplier,Jumlah Stok,Satuan,Kategori,Lokasi'];
     const csvData = dataBarang.map((item, index) =>
-      `${index + 1},${item.code ?? '-'},"${item.name}","${supplierName(item.supplierId)}",${item.stock},${item.unit},${item.category},${locationCode(item.locationId)}`
+      `${index + 1},${item.code ?? '-'},"${item.externalCode ?? '-'}","${item.name}","${supplierName(item.supplierId)}",${item.stock},${item.unit},${item.category},${locationCode(item.locationId)}`
     );
     const csvString = [...headers, ...csvData].join('\n');
 
@@ -231,6 +247,17 @@ export default function DataBarangGudang() {
               >
                 <QrCode className="w-4 h-4" />
                 <span>Buat Kode</span>
+              </button>
+            )}
+            {isSuperadmin && (
+              <button
+                type="button"
+                onClick={handleRevertCodes}
+                disabled={saving}
+                title="Batalkan kode dari proses Buat Kode terakhir"
+                className="flex items-center gap-2 px-3 py-2 border border-red-200 rounded-lg bg-white text-red-600 hover:bg-red-50 transition-colors text-sm font-medium disabled:opacity-50"
+              >
+                <span>Batalkan Kode</span>
               </button>
             )}
             {canAssign && (
@@ -323,6 +350,7 @@ export default function DataBarangGudang() {
                     <div className="flex flex-col">
                       <span className="font-bold text-gray-900">{item.name}</span>
                       <span className="text-xs font-mono text-gray-500 mt-0.5">{item.code ?? '-'}</span>
+                      {item.externalCode && <span className="text-xs text-gray-400">Kode bawaan: {item.externalCode}</span>}
                     </div>
                   </td>
 
