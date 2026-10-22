@@ -15,7 +15,7 @@ import { ImportExcelButton } from '@/shared/components/ImportExcelButton';
 import ImportBarangMapping from './ImportBarangMapping';
 import ItemPhoto from '@/domains/inventory/components/ItemPhoto';
 import BulkPhotoModal from '@/domains/inventory/components/BulkPhotoModal';
-import BarangFilterPanel, { countActiveFilters, emptyBarangFilters, toItemFilterParams } from './BarangFilterPanel';
+import BarangFilterPanel, { countActiveFilters, emptyBarangFilters, toItemFilterParams } from '@/domains/inventory/components/BarangFilterPanel';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import EditModeBar, { useBatchEdit } from '@/shared/components/EditModeBar';
 // Supplier, kategori, satuan dan lokasi dipetakan di langkah kedua (ImportBarangMapping), bukan di Excel.

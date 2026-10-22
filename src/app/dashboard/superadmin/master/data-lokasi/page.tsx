@@ -1,1 +1,1 @@
-export { default } from "@/domains/superadmin/components/DataLokasi";
+export { default } from "@/domains/inventory/components/DataLokasi";
