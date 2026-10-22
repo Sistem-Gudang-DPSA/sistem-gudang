@@ -127,6 +127,11 @@ export function assignItemLocation(id: number, input: { code: string; locationId
   return apiClient.put<Item>(`/api/v1/items/${id}/assign-location`, input);
 }
 
+// One location for many items; the BE suggests each code and reports the items it could not assign.
+export function bulkAssignItemLocation(input: { itemIds: number[]; locationId: number }) {
+  return apiClient.post<{ assigned: number; failed: { id: number; reason: string }[] }>("/api/v1/items/assign-location/bulk", input);
+}
+
 // Multipart field `photo`; replaces any existing photo. Only Superadmin and PPIC hold `item.upload-photo`.
 export function uploadItemPhoto(id: number, file: File) {
   const form = new FormData();
