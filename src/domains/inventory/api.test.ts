@@ -15,6 +15,7 @@ const rows: Row[] = [
   ['deleteItem', [1], 'DELETE /api/v1/items/1', {}, undefined],
   ['listUnassignedItems', [], 'GET /api/v1/items/unassigned', {}, undefined],
   ['suggestItemCode', [1, 9], 'GET /api/v1/items/1/suggest-code', { locationId: '9' }, undefined],
+  ['bulkAssignItemLocation', [{ itemIds: [1, 2], locationId: 9 }], 'POST /api/v1/items/assign-location/bulk', {}, { itemIds: [1, 2], locationId: 9 }],
   ['assignItemLocation', [1, { code: 'A1', locationId: 9 }], 'PUT /api/v1/items/1/assign-location', {}, { code: 'A1', locationId: 9 }],
   ['adjustItemStock', [1, { delta: -2, reason: 'rusak' }], 'PATCH /api/v1/items/1/stock', {}, { delta: -2, reason: 'rusak' }],
   // Multipart body (FormData) is not parsed by the fake API; ItemPhoto.test checks its contents.

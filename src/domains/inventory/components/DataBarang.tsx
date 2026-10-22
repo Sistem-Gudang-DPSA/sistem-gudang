@@ -1,9 +1,9 @@
 "use client";
 
 import { useCan } from '@/domains/auth/user-context';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Search, Plus, Filter, Edit2, QrCode } from 'lucide-react';
-import { assignItemLocation, listItemCategories, listItems, listItemUnits, listLocations, suggestItemCode } from '@/domains/inventory/api';
+import { assignItemLocation, bulkAssignItemLocation, listItemCategories, listItems, listItemUnits, listLocations, suggestItemCode } from '@/domains/inventory/api';
 import type { ItemListRow, Location } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
 import type { Supplier } from '@/domains/purchasing/types';
@@ -19,7 +19,6 @@ import { printItemLabels } from '@/domains/inventory/label-print';
 export default function DataBarangGudang() {
   const canAssign = useCan('item.assign-location');
   const { sort, toggle, params: sortParams } = useSort();
-  const seen = useRef(new Map<number, ItemListRow>());
   const [filters, setFilters] = useState(emptyBarangFilters);
   const [showFilter, setShowFilter] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -32,8 +31,12 @@ export default function DataBarangGudang() {
   const [modalData, setModalData] = useState({ locationId: "", code: "" });
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState("");
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  // keyed by id and holding the row, so a selection can span pages
+  const [selected, setSelected] = useState<Map<number, ItemListRow>>(new Map());
   const [printError, setPrintError] = useState("");
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkLocationId, setBulkLocationId] = useState("");
+  const [notice, setNotice] = useState("");
 
 
   const filterKey = JSON.stringify([searchQuery, filters, sortParams]);
@@ -47,10 +50,6 @@ export default function DataBarangGudang() {
   );
   const dataBarang = loaded?.rows ?? [];
   const total = loaded?.total ?? 0;
-
-  useEffect(() => {
-    loaded?.rows.forEach((r) => seen.current.set(r.id, r));
-  }, [loaded]);
 
   useEffect(() => {
     listLocations().then((res) => setLocations(res.rows)).catch(() => {});
@@ -113,23 +112,46 @@ export default function DataBarangGudang() {
     }
   };
 
-  const toggleSelected = (id: number) =>
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+  const toggleSelected = (item: ItemListRow) =>
+    setSelected((prev) => {
+      const next = new Map(prev);
+      if (next.has(item.id)) next.delete(item.id); else next.set(item.id, item);
       return next;
     });
-  const printable = dataBarang.filter((it) => it.code);
-  const allPageSelected = printable.length > 0 && printable.every((it) => selectedIds.has(it.id));
+  const allPageSelected = dataBarang.length > 0 && dataBarang.every((it) => selected.has(it.id));
   const toggleAllOnPage = () =>
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      for (const it of printable) { if (allPageSelected) next.delete(it.id); else next.add(it.id); }
+    setSelected((prev) => {
+      const next = new Map(prev);
+      for (const it of dataBarang) { if (allPageSelected) next.delete(it.id); else next.set(it.id, it); }
       return next;
     });
-  // `seen` keeps rows from other pages, so a selection can span pages.
+  const selectedItems = [...selected.values()];
+  // only items with a code have a label to print
+  const selectedPrintable = selectedItems.filter((it) => it.code);
+  const selectedWithLocation = selectedItems.filter((it) => it.locationId !== null).length;
   const printLabels = async (items: ItemListRow[]) => setPrintError(await printItemLabels(items) ?? "");
-  const printSelected = () => printLabels([...selectedIds].map((id) => seen.current.get(id)).filter((it): it is ItemListRow => !!it));
+  const printSelected = () => printLabels(selectedPrintable);
+
+  const handleBulkAssign = async () => {
+    if (!bulkLocationId) {
+      setModalError("Pilih lokasi.");
+      return;
+    }
+    setSaving(true);
+    setModalError("");
+    try {
+      const res = await bulkAssignItemLocation({ itemIds: [...selected.keys()], locationId: Number(bulkLocationId) });
+      const gagal = res.failed.map((f) => `${selected.get(f.id)?.name ?? `#${f.id}`}: ${f.reason}`).join("; ");
+      setNotice(`${res.assigned} barang dipindahkan ke lokasi ${locationCode(Number(bulkLocationId))}${gagal ? `. Gagal: ${gagal}` : ""}`);
+      setSelected(new Map());
+      setBulkOpen(false);
+      reload();
+    } catch (err) {
+      setModalError(err instanceof ApiError ? err.message : "Gagal menyimpan lokasi barang.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleExportExcel = () => {
     const headers = ['No,Kode Barang,Nama Barang,Supplier,Jumlah Stok,Satuan,Kategori,Lokasi'];
@@ -177,12 +199,23 @@ export default function DataBarangGudang() {
             <button
               type="button"
               onClick={printSelected}
-              disabled={selectedIds.size === 0}
+              disabled={selectedPrintable.length === 0}
               className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-600 hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <QrCode className="w-4 h-4" />
-              <span>Cetak Label QR{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}</span>
+              <span>Cetak Label QR{selectedPrintable.length > 0 ? ` (${selectedPrintable.length})` : ''}</span>
             </button>
+            {canAssign && (
+              <button
+                type="button"
+                onClick={() => { setBulkLocationId(""); setModalError(""); setBulkOpen(true); }}
+                disabled={selected.size === 0}
+                className="flex items-center gap-2 px-3 py-2 border border-[#FF8A00] rounded-lg bg-white text-[#FF8A00] hover:bg-orange-50 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Atur Lokasi{selected.size > 0 ? ` (${selected.size})` : ''}</span>
+              </button>
+            )}
             <ExportExcellButton onClick={handleExportExcel} />
             <button
               type="button"
@@ -207,6 +240,13 @@ export default function DataBarangGudang() {
           />
         )}
 
+        {notice && (
+          <div className="mx-5 mt-5 p-3 bg-green-50 text-green-700 text-sm rounded-lg flex items-start justify-between gap-3">
+            <span>{notice}</span>
+            <button type="button" onClick={() => setNotice("")} aria-label="Tutup notifikasi" className="font-bold leading-none text-green-700 hover:text-green-900">×</button>
+          </div>
+        )}
+
         {(error || printError) && (
           <div className="mx-5 mt-5 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error || printError}</div>
         )}
@@ -217,7 +257,7 @@ export default function DataBarangGudang() {
             <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
               <tr>
                 <th scope="col" className="px-4 py-4">
-                  <input type="checkbox" aria-label="Pilih semua barang berkode di halaman ini" checked={allPageSelected} disabled={printable.length === 0} onChange={toggleAllOnPage} />
+                  <input type="checkbox" aria-label="Pilih semua barang di halaman ini" checked={allPageSelected} disabled={dataBarang.length === 0} onChange={toggleAllOnPage} />
                 </th>
                 <th scope="col" className="px-6 py-4">No</th>
                 <th scope="col" className="px-6 py-4">Foto</th>
@@ -241,7 +281,7 @@ export default function DataBarangGudang() {
               {!loading && dataBarang.map((item, index) => (
                 <tr key={item.id} className="hover:bg-[#FF8A00]/5 transition-colors group">
                   <td className="px-4 py-4">
-                    <input type="checkbox" aria-label={`Pilih ${item.name} untuk cetak label`} checked={selectedIds.has(item.id)} disabled={!item.code} title={item.code ? undefined : 'Belum punya kode, tetapkan lokasi dulu'} onChange={() => toggleSelected(item.id)} />
+                    <input type="checkbox" aria-label={`Pilih ${item.name}`} checked={selected.has(item.id)} onChange={() => toggleSelected(item)} />
                   </td>
                   <td className="px-6 py-4 text-gray-500">{index + 1}</td>
 
@@ -336,6 +376,46 @@ export default function DataBarangGudang() {
 
         <Pagination page={page} pageSize={20} total={total} onPageChange={setPage} />
       </div>
+
+      {/* Modal Atur Lokasi untuk barang terpilih */}
+      {bulkOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl w-full max-w-lg p-6 sm:p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold text-gray-900 uppercase tracking-wide">ATUR LOKASI · {selected.size} BARANG</h2>
+              <button onClick={() => setBulkOpen(false)} aria-label="Tutup" className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors">×</button>
+            </div>
+            <label htmlFor="bulk-lokasi" className="block text-sm font-semibold text-gray-700 mb-2">Lokasi</label>
+            <select
+              id="bulk-lokasi"
+              className="w-full border border-gray-200 bg-gray-50/50 rounded-xl py-2.5 pl-4 pr-10 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] focus:bg-white text-sm mb-3"
+              value={bulkLocationId}
+              onChange={(e) => setBulkLocationId(e.target.value)}
+            >
+              <option value="" disabled>Pilih Lokasi</option>
+              {locations.map((loc) => (
+                <option key={loc.id} value={loc.id}>{loc.code}</option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mb-4">Kode tiap barang dibuat otomatis dari lokasi ini.</p>
+            {selectedWithLocation > 0 && (
+              <div className="mb-4 p-3 bg-amber-50 text-amber-700 text-sm rounded-lg">
+                {selectedWithLocation} barang sudah punya lokasi. Kodenya akan diganti, label QR lama perlu dicetak ulang.
+              </div>
+            )}
+            {modalError && <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{modalError}</div>}
+            <div className="flex justify-end">
+              <button
+                onClick={handleBulkAssign}
+                disabled={saving}
+                className="px-6 py-2.5 bg-[#FF8A00] text-white font-medium rounded-xl hover:bg-[#E67A00] shadow-sm transition-all text-sm disabled:opacity-60"
+              >
+                {saving ? "Menyimpan..." : `Simpan ${selected.size} barang`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Tambah Lokasi */}
       {isModalOpen && activeItem && (
