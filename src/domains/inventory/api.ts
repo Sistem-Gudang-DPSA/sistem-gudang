@@ -127,6 +127,11 @@ export function assignItemLocation(id: number, input: { code: string; locationId
   return apiClient.put<Item>(`/api/v1/items/${id}/assign-location`, input);
 }
 
+// Codes every item that has a location but no code (e.g. imported with only a location).
+export function generateItemCodes() {
+  return apiClient.post<{ generated: number; failed: { id: number; reason: string }[] }>("/api/v1/items/generate-codes", {});
+}
+
 // One location for many items; the BE suggests each code and reports the items it could not assign.
 export function bulkAssignItemLocation(input: { itemIds: number[]; locationId: number }) {
   return apiClient.post<{ assigned: number; failed: { id: number; reason: string }[] }>("/api/v1/items/assign-location/bulk", input);
