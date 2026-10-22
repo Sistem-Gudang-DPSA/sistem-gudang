@@ -155,13 +155,14 @@ describe('DataBarang QR labels', () => {
     return { doc, win };
   };
 
-  it('only lets items with a code be selected, and prints the selected labels', async () => {
+  it('prints labels only for the selected items that have a code', async () => {
     const { doc } = openSpy();
     const api = setup();
     await ready(api);
-    expect((screen.getByLabelText('Pilih Barang 2 untuk cetak label') as HTMLInputElement).disabled).toBe(true);
     expect((screen.getByText('Cetak Label QR').closest('button') as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.click(screen.getByLabelText('Pilih Barang 1 untuk cetak label'));
+    fireEvent.click(screen.getByLabelText('Pilih Barang 2'));
+    expect((screen.getByText('Cetak Label QR').closest('button') as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByLabelText('Pilih Barang 1'));
     fireEvent.click(screen.getByText(/Cetak Label QR \(1\)/));
     await waitFor(() => expect(doc.write).toHaveBeenCalledTimes(1));
     const html = doc.write.mock.calls[0][0] as string;
@@ -184,6 +185,22 @@ describe('DataBarang QR labels', () => {
     await ready(api);
     fireEvent.click(screen.getByTitle('Cetak label QR'));
     expect(await screen.findByText(/Pop-up diblokir/)).not.toBeNull();
+  });
+});
+
+describe('DataBarang bulk location', () => {
+  it('assigns one location to the selected items and reports failures', async () => {
+    const api = setup({ 'POST /api/v1/items/assign-location/bulk': { assigned: 1, failed: [{ id: 1, reason: 'boom' }] } });
+    await ready(api);
+    fireEvent.click(screen.getByLabelText('Pilih Barang 1'));
+    fireEvent.click(screen.getByLabelText('Pilih Barang 2'));
+    fireEvent.click(screen.getByText('Atur Lokasi (2)'));
+    expect(screen.getByText(/1 barang sudah punya lokasi/)).not.toBeNull();
+    fireEvent.change(screen.getByLabelText('Lokasi'), { target: { value: '2' } });
+    fireEvent.click(screen.getByText('Simpan 2 barang'));
+    await waitFor(() => expect(api.calls('POST /api/v1/items/assign-location/bulk')).toHaveLength(1));
+    expect(api.calls('POST /api/v1/items/assign-location/bulk')[0].body).toEqual({ itemIds: [1, 2], locationId: 2 });
+    expect(await screen.findByText(/1 barang dipindahkan ke lokasi B02\. Gagal: Barang 1: boom/)).not.toBeNull();
   });
 });
 
