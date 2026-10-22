@@ -4,22 +4,24 @@ import { useCan } from '@/domains/auth/user-context';
 import React, { useState } from 'react';
 import { Search, Plus } from 'lucide-react';
 import { createLocation, deleteLocation, listLocations, updateLocation } from '@/domains/inventory/api';
+import Pagination from '@/shared/components/Pagination';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import EditModeBar, { useBatchEdit } from '@/shared/components/EditModeBar';
 
-const RAK_NAMA = ['A', 'B', 'C'];
-const RAK_NOMOR = ['01', '02', '03', '04'];
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { ImportExcelButton } from '@/shared/components/ImportExcelButton';
 import { importLocationData } from '../api';
+import BatchLokasiModal from './BatchLokasiModal';
 export type LocationDataImportRow = {
+    code?: string;
     NamaRak: string;
     NomorRak: string;
+    description?: string;
 }
 
 export const LocationTemplateHeaders = ['Nama Rak', 'Nomor Rak'];
-export const LocationTemplateExample = ['A', '01'];
+export const LocationTemplateExample = ['A', '1.1'];
 
 export function LocationData(r: Record<string, unknown>, rowNumber: number): LocationDataImportRow {
   const NamaRak = String(r['Nama Rak'] ?? '').trim();
@@ -28,7 +30,7 @@ export function LocationData(r: Record<string, unknown>, rowNumber: number): Loc
   if (!NamaRak) throw new Error(`Baris ${rowNumber}: Nama Rak tidak boleh kosong`);
   if (!NomorRak) throw new Error(`Baris ${rowNumber}: Nomor Rak tidak boleh kosong`);
 
-  return { NamaRak, NomorRak };
+  return { code: `${NamaRak}.${NomorRak}`, NamaRak, NomorRak };
 }
 
 export default function DataLokasiGudang() {
@@ -38,7 +40,10 @@ export default function DataLokasiGudang() {
   const { sort, toggle, params: sortParams } = useSort();
   const edit = useBatchEdit();
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isBatchOpen, setIsBatchOpen] = useState(false);
   const [modalData, setModalData] = useState({ namaRak: "", nomerRak: "", keterangan: "" });
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -59,12 +64,20 @@ export default function DataLokasiGudang() {
 
 
   const { data: loaded, loading, error: loadError, reload } = useApiData(
-    () => listLocations({ search: searchQuery || undefined, ...sortParams }),
-    `${searchQuery}|${JSON.stringify(sortParams)}`,
+    () => listLocations({ search: searchQuery || undefined, page, pageSize, ...sortParams }),
+    `${searchQuery}|${JSON.stringify(sortParams)}|${page}`,
     "Gagal memuat data lokasi.",
   );
   const dataLokasi = loaded?.rows ?? [];
   const error = formError || loadError || actionError;
+
+  // Baris yang diedit disimpan per id; pindah halaman, cari, atau urutkan membuat baris itu tidak tampil lagi, jadi tanya dulu.
+  const leaveRows = (apply: () => void) => {
+    if (edit.dirty > 0 && !window.confirm("Ada perubahan yang belum disimpan. Buang perubahan?")) return;
+    edit.cancel();
+    apply();
+  };
+  const sortBy = (by: string) => leaveRows(() => { toggle(by); setPage(1); });
 
   const handleSimpan = async () => {
     if (!modalData.namaRak || !modalData.nomerRak) {
@@ -75,7 +88,7 @@ export default function DataLokasiGudang() {
     setFormError("");
     try {
       const input = {
-        code: `${modalData.namaRak}${modalData.nomerRak}`,
+        code: `${modalData.namaRak}.${modalData.nomerRak}`,
         rackName: modalData.namaRak,
         rackNumber: modalData.nomerRak,
         ...(modalData.keterangan.trim() && { description: modalData.keterangan.trim() }),
@@ -98,7 +111,7 @@ export default function DataLokasiGudang() {
       const rackName = patch.rackName ?? row.rackName;
       const rackNumber = patch.rackNumber ?? row.rackNumber;
       const description = 'description' in patch ? patch.description.trim() || null : undefined;
-      return updateLocation(id, { code: `${rackName}${rackNumber}`, rackName, rackNumber, ...(description !== undefined && { description }) }).then(() => undefined);
+      return updateLocation(id, { code: `${rackName}.${rackNumber}`, rackName, rackNumber, ...(description !== undefined && { description }) }).then(() => undefined);
     }, reload);
 
   const handleHapus = async (id: number) => {
@@ -126,7 +139,7 @@ export default function DataLokasiGudang() {
               type="text"
               value={searchQuery}
               maxLength={100}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => leaveRows(() => { setSearchQuery(e.target.value); setPage(1); })}
               placeholder="Cari..."
               className="w-full border border-gray-200 rounded-full py-2.5 pl-5 pr-10 shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 text-sm text-gray-700 placeholder-gray-400 transition-all duration-200"
             />
@@ -155,6 +168,13 @@ export default function DataLokasiGudang() {
                 )}
             {canUpdate && <EditModeBar editing={edit.editing} dirty={edit.dirty} saving={edit.saving} onToggle={edit.toggle} onSave={simpanSemua} onCancel={edit.cancel} />}
             {canCreate && <button
+                onClick={() => setIsBatchOpen(true)}
+                className="flex items-center gap-2 px-5 py-2.5 border border-[#ff8a00] text-[#ff8a00] rounded-lg hover:bg-orange-50 transition-all duration-200 font-semibold text-sm"
+            >
+                <Plus className="w-4 h-4" strokeWidth={2.5} />
+                Tambah Batch
+            </button>}
+            {canCreate && <button
                 onClick={() => { setModalData({ namaRak: "", nomerRak: "", keterangan: "" }); setIsModalOpen(true); }}
                 className="flex items-center gap-2 px-5 py-2.5 bg-[#ff8a00] text-white rounded-lg hover:bg-[#eb7d00] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm shadow-sm"
             >
@@ -181,10 +201,11 @@ export default function DataLokasiGudang() {
             <table className="w-4xl m-auto text-left text-sm table-fixed md:table-auto">
               <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
                 <tr>
-                  <SortableTh label="Kode Lokasi" sortKey="code" sort={sort} onSort={toggle} className="px-6 py-4 w-40 whitespace-nowrap" />
-                  <SortableTh label="Nama Rak" sortKey="rackName" sort={sort} onSort={toggle} className="px-6 py-4 w-40 whitespace-nowrap" />
-                  <SortableTh label="Nomer Rak" sortKey="rackNumber" sort={sort} onSort={toggle} className="px-6 py-4 w-40 whitespace-nowrap" />
-                  <SortableTh label="Keterangan" sortKey="description" sort={sort} onSort={toggle} className="px-3 py-4 text-left min-w-30" />
+                  <th scope="col" className="px-6 py-4 w-16 text-center">No</th>
+                  <SortableTh label="Kode Lokasi" sortKey="code" sort={sort} onSort={sortBy} className="px-6 py-4 w-40 whitespace-nowrap" />
+                  <SortableTh label="Nama Rak" sortKey="rackName" sort={sort} onSort={sortBy} className="px-6 py-4 w-40 whitespace-nowrap" />
+                  <SortableTh label="Nomer Rak" sortKey="rackNumber" sort={sort} onSort={sortBy} className="px-6 py-4 w-40 whitespace-nowrap" />
+                  <SortableTh label="Keterangan" sortKey="description" sort={sort} onSort={sortBy} className="px-3 py-4 text-left min-w-30" />
                   {dataLokasi.length !== 0 && (
                     <th className="px-6 py-4 w-28 text-center whitespace-nowrap">Aksi</th>
                   )}
@@ -192,10 +213,10 @@ export default function DataLokasiGudang() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {loading && (
-                  <tr><td colSpan={5} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
+                  <tr><td colSpan={6} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
                 )}
                 {!loading && dataLokasi.length === 0 && (
-                  <tr><td colSpan={5} className="px-6 py-6 text-center text-gray-400">Belum ada data lokasi.</td></tr>
+                  <tr><td colSpan={6} className="px-6 py-6 text-center text-gray-400">Belum ada data lokasi.</td></tr>
                 )}
                 {!loading && dataLokasi.map((item, i) => {
                   const nama = edit.value(item.id, "rackName", item.rackName);
@@ -203,22 +224,19 @@ export default function DataLokasiGudang() {
                   const sel = "w-full border border-gray-200 rounded-lg py-1.5 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
                   return (
                     <tr key={item.id} className={`${edit.isDirty(item.id) ? "bg-amber-50" : i % 2 ? "bg-gray-50" : "bg-white"} hover:bg-orange-50/50 transition-colors duration-200`}>
+                      <td className="px-6 py-4 text-center text-gray-500">{(page - 1) * pageSize + i + 1}</td>
                       <td className="px-6 py-4 h-13 text-gray-700 font-medium whitespace-nowrap">
-                        {edit.editing ? `${nama}${nomor}` : item.code}
+                        {edit.editing ? `${nama}.${nomor}` : item.code}
                         {edit.errors[item.id] && <p className="text-xs font-normal text-red-600">{edit.errors[item.id]}</p>}
                       </td>
                       <td className="px-6 py-3 text-gray-600 whitespace-nowrap">
                         {edit.editing ? (
-                          <select aria-label={`Nama rak ${item.code}`} className={sel} value={nama} onChange={(e) => edit.set(item.id, "rackName", e.target.value, item.rackName)}>
-                            {[...new Set([item.rackName, ...RAK_NAMA])].map((v) => <option key={v} value={v}>{v}</option>)}
-                          </select>
+                          <input aria-label={`Nama rak ${item.code}`} className={sel} maxLength={10} value={nama} onChange={(e) => edit.set(item.id, "rackName", e.target.value.toUpperCase(), item.rackName)} />
                         ) : item.rackName}
                       </td>
                       <td className="px-6 py-3 text-gray-600 whitespace-nowrap">
                         {edit.editing ? (
-                          <select aria-label={`Nomer rak ${item.code}`} className={sel} value={nomor} onChange={(e) => edit.set(item.id, "rackNumber", e.target.value, item.rackNumber)}>
-                            {[...new Set([item.rackNumber, ...RAK_NOMOR])].map((v) => <option key={v} value={v}>{v}</option>)}
-                          </select>
+                          <input aria-label={`Nomer rak ${item.code}`} className={sel} maxLength={10} placeholder="Kolom.Baris" value={nomor} onChange={(e) => edit.set(item.id, "rackNumber", e.target.value, item.rackNumber)} />
                         ) : item.rackNumber}
                       </td>
                       <td className="px-3 py-2 text-gray-600 max-w-50 min-w-30 w-auto">
@@ -242,7 +260,15 @@ export default function DataLokasiGudang() {
             </table>
           </div>
         </div>
+        <Pagination page={page} pageSize={pageSize} total={loaded?.total ?? 0} onPageChange={(p) => leaveRows(() => setPage(p))} activeClass="bg-teal-500 text-white border-teal-500" />
       </div>
+
+      {isBatchOpen && (
+        <BatchLokasiModal
+          onClose={() => setIsBatchOpen(false)}
+          onSaved={(msg) => { setIsBatchOpen(false); setNotice(msg); reload(); }}
+        />
+      )}
 
       {/* Modal Tambah Data Lokasi */}
       {isModalOpen && (
@@ -266,34 +292,13 @@ export default function DataLokasiGudang() {
               <div className="flex-1">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Nama Rak</label>
                 <div className="relative">
-                  <select
-                    className="w-full border border-gray-200 bg-gray-50/50 rounded-lg py-3 pl-4 pr-10 text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white appearance-none text-sm transition-all duration-200"
-                    style={{ backgroundImage: "url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20viewBox%3D%220%200%2020%2020%20%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M5%207.5L10%2012.5L15%207.5%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E')", backgroundRepeat: "no-repeat", backgroundPosition: "right 1rem center", backgroundSize: "1.2em" }}
-                    value={modalData.namaRak}
-                    onChange={(e) => setModalData({ ...modalData, namaRak: e.target.value })}
-                  >
-                    <option value="" disabled>Pilih nama rak</option>
-                    <option value="A">A</option>
-                    <option value="B">B</option>
-                    <option value="C">C</option>
-                  </select>
+                  <input aria-label="Nama rak" maxLength={10} placeholder="Contoh: A" className="w-full border border-gray-200 bg-gray-50/50 rounded-lg py-3 px-4 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-sm transition-all duration-200" value={modalData.namaRak} onChange={(e) => setModalData({ ...modalData, namaRak: e.target.value.toUpperCase() })} />
                 </div>
               </div>
               <div className="flex-1">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Nomer Rak</label>
                 <div className="relative">
-                  <select
-                    className="w-full border border-gray-200 bg-gray-50/50 rounded-lg py-3 pl-4 pr-10 text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white appearance-none text-sm transition-all duration-200"
-                    style={{ backgroundImage: "url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20viewBox%3D%220%200%2020%2020%20%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M5%207.5L10%2012.5L15%207.5%22%20stroke%3D%22%236b7280%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E')", backgroundRepeat: "no-repeat", backgroundPosition: "right 1rem center", backgroundSize: "1.2em" }}
-                    value={modalData.nomerRak}
-                    onChange={(e) => setModalData({ ...modalData, nomerRak: e.target.value })}
-                  >
-                    <option value="" disabled>Pilih nomer rak</option>
-                    <option value="01">01</option>
-                    <option value="02">02</option>
-                    <option value="03">03</option>
-                    <option value="04">04</option>
-                  </select>
+                  <input aria-label="Nomer rak" maxLength={10} placeholder="Kolom.Baris, contoh: 1.1" className="w-full border border-gray-200 bg-gray-50/50 rounded-lg py-3 px-4 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-sm transition-all duration-200" value={modalData.nomerRak} onChange={(e) => setModalData({ ...modalData, nomerRak: e.target.value })} />
                 </div>
               </div>
             </div>

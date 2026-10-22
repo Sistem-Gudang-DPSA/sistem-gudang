@@ -148,6 +148,7 @@ export default function DataSupplierPurchasing() {
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
               <tr>
+                <th scope="col" className="px-6 py-4 w-16 text-center">No</th>
                 <SortableTh label="Kode" sortKey="code" sort={sort} onSort={toggle} align="center" className="px-6 py-4 w-20" />
                 <SortableTh label="Nama Supplier" sortKey="name" sort={sort} onSort={toggle} />
                 <SortableTh label="Bank" sortKey="bank" sort={sort} onSort={toggle} align="center" />
@@ -160,10 +161,10 @@ export default function DataSupplierPurchasing() {
             </thead>
             <tbody className="divide-y divide-gray-50 text-gray-600">
               {loading && (
-                <tr><td colSpan={8} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
+                <tr><td colSpan={9} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
               )}
               {!loading && dataSupplier.length === 0 && (
-                <tr><td colSpan={7} className="px-6 py-6 text-center text-gray-400">Belum ada data supplier.</td></tr>
+                <tr><td colSpan={8} className="px-6 py-6 text-center text-gray-400">Belum ada data supplier.</td></tr>
               )}
               {!loading && dataSupplier.map((item, i) => {
                 const cell = "w-full min-w-28 border border-gray-200 rounded-lg py-1.5 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
@@ -172,6 +173,7 @@ export default function DataSupplierPurchasing() {
                 ) : item[key];
                 return (
                   <tr key={item.id} className={`${edit.isDirty(item.id) ? "bg-amber-50" : i % 2 ? "bg-gray-50" : "bg-white"} hover:bg-[#FF8A00]/5 transition-colors group`}>
+                    <td className="px-6 py-4 text-gray-500 text-center">{(page - 1) * 20 + i + 1}</td>
                     <td className="px-6 py-4 text-gray-500 text-center font-medium">{text('code', 20)}</td>
                     <td className="px-6 py-4 font-bold text-gray-900">
                       {text('name', 191)}

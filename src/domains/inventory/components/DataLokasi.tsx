@@ -6,6 +6,7 @@ import { Search, Plus } from 'lucide-react';
 import { createLocation, deleteLocation, listLocations, updateLocation } from '@/domains/inventory/api';
 import { ApiError } from '@/shared/lib/api-client';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
+import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
 import EditModeBar, { useBatchEdit } from '@/shared/components/EditModeBar';
 
@@ -17,6 +18,8 @@ export default function DataLokasiGudang() {
   const { sort, toggle, params: sortParams } = useSort();
   const edit = useBatchEdit();
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalData, setModalData] = useState({ namaRak: "", nomerRak: "", keterangan: ""});
   const [formError, setFormError] = useState("");
@@ -35,12 +38,20 @@ export default function DataLokasiGudang() {
   }, [formError, actionError]);
 
   const { data: loaded, loading, error: loadError, reload } = useApiData(
-    () => listLocations({ search: searchQuery || undefined, ...sortParams }),
-    `${searchQuery}|${JSON.stringify(sortParams)}`,
+    () => listLocations({ search: searchQuery || undefined, page, pageSize, ...sortParams }),
+    `${searchQuery}|${JSON.stringify(sortParams)}|${page}`,
     "Gagal memuat data lokasi.",
   );
   const dataLokasi = loaded?.rows ?? [];
   const error = formError || loadError || actionError;
+
+  // Baris yang diedit disimpan per id; pindah halaman, cari, atau urutkan membuat baris itu tidak tampil lagi, jadi tanya dulu.
+  const leaveRows = (apply: () => void) => {
+    if (edit.dirty > 0 && !window.confirm("Ada perubahan yang belum disimpan. Buang perubahan?")) return;
+    edit.cancel();
+    apply();
+  };
+  const sortBy = (by: string) => leaveRows(() => { toggle(by); setPage(1); });
 
   const handleSimpan = async () => {
     if (!modalData.namaRak || !modalData.nomerRak) {
@@ -103,7 +114,7 @@ export default function DataLokasiGudang() {
               type="text"
               value={searchQuery}
               maxLength={100}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => leaveRows(() => { setSearchQuery(e.target.value); setPage(1); })}
               placeholder="Cari..."
               className="w-full border border-gray-200 rounded-full py-2.5 pl-5 pr-10 shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 text-sm text-gray-700 placeholder-gray-400 transition-all duration-200"
             />
@@ -130,10 +141,11 @@ export default function DataLokasiGudang() {
             <table className="w-4xl m-auto text-left text-sm table-fixed md:table-auto">
               <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
                 <tr>
-                  <SortableTh label="Kode Lokasi" sortKey="code" sort={sort} onSort={toggle} className="px-6 py-4 w-40 whitespace-nowrap" />
-                  <SortableTh label="Nama Rak" sortKey="rackName" sort={sort} onSort={toggle} className="px-6 py-4 w-40 whitespace-nowrap" />
-                  <SortableTh label="Nomer Rak" sortKey="rackNumber" sort={sort} onSort={toggle} className="px-6 py-4 w-40 whitespace-nowrap" />
-                  <SortableTh label="Keterangan" sortKey="description" sort={sort} onSort={toggle} className="px-3 py-4 text-left min-w-30" />
+                  <th scope="col" className="px-6 py-4 w-16 text-center">No</th>
+                  <SortableTh label="Kode Lokasi" sortKey="code" sort={sort} onSort={sortBy} className="px-6 py-4 w-40 whitespace-nowrap" />
+                  <SortableTh label="Nama Rak" sortKey="rackName" sort={sort} onSort={sortBy} className="px-6 py-4 w-40 whitespace-nowrap" />
+                  <SortableTh label="Nomer Rak" sortKey="rackNumber" sort={sort} onSort={sortBy} className="px-6 py-4 w-40 whitespace-nowrap" />
+                  <SortableTh label="Keterangan" sortKey="description" sort={sort} onSort={sortBy} className="px-3 py-4 text-left min-w-30" />
                   {/* {dataLokasi.length !== 0 && (
                     <th className="px-6 py-4 w-28 text-center whitespace-nowrap">Aksi</th>
                   )} */}
@@ -141,10 +153,10 @@ export default function DataLokasiGudang() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {loading && (
-                  <tr><td colSpan={4} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
+                  <tr><td colSpan={5} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
                 )}
                 {!loading && dataLokasi.length === 0 && (
-                  <tr><td colSpan={4} className="px-6 py-6 text-center text-gray-400">Belum ada data lokasi.</td></tr>
+                  <tr><td colSpan={5} className="px-6 py-6 text-center text-gray-400">Belum ada data lokasi.</td></tr>
                 )}
                 {!loading && dataLokasi.map((item, i) => {
                   const nama = edit.value(item.id, "rackName", item.rackName);
@@ -152,6 +164,7 @@ export default function DataLokasiGudang() {
                   const sel = "w-full border border-gray-200 rounded-lg py-1.5 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
                   return (
                     <tr key={item.id} className={`${edit.isDirty(item.id) ? "bg-amber-50" : i % 2 ? "bg-gray-50" : "bg-white"} hover:bg-orange-50/50 transition-colors duration-200`}>
+                      <td className="px-6 py-4 text-center text-gray-500">{(page - 1) * pageSize + i + 1}</td>
                       <td className="px-6 py-4 h-13 text-gray-700 font-medium whitespace-nowrap">
                         {edit.editing ? `${nama}${nomor}` : item.code}
                         {edit.errors[item.id] && <p className="text-xs font-normal text-red-600">{edit.errors[item.id]}</p>}
@@ -191,6 +204,7 @@ export default function DataLokasiGudang() {
             </table>
           </div>
         </div>
+        <Pagination page={page} pageSize={pageSize} total={loaded?.total ?? 0} onPageChange={(p) => leaveRows(() => setPage(p))} activeClass="bg-teal-500 text-white border-teal-500" />
       </div>
 
       {/* Modal Tambah Data Lokasi */}

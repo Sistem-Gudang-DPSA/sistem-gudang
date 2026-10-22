@@ -4,8 +4,8 @@ import type { QuotaStatus } from './quota';
 
 // Labels and colors of the Gudang statuses, shared by every page that shows them.
 export const QC_STATUS: Record<StatusQc, { label: string; tone: BadgeTone }> = {
-  PASS: { label: 'Pass (IPM)', tone: 'green' },
-  PARTIAL_RETUR: { label: 'Part (Retur)', tone: 'amber' },
+  PASS: { label: 'PASS', tone: 'green' },
+  PARTIAL_RETUR: { label: 'RETUR', tone: 'amber' },
 };
 
 export const REQUEST_STATUS: Record<MaterialRequestStatus, { label: string; tone: BadgeTone }> = {

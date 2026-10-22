@@ -1,3 +1,5 @@
+import type { SortParams } from "@/domains/inventory/types";
+
 export type DokubahApiStatus = "DRAFT" | "PENDING" | "APPROVED" | "REJECTED";
 
 export interface DokubahApiMaterial {
@@ -54,7 +56,7 @@ export interface DokubahSummary {
   nilaiRealisasi: number;
 }
 
-export interface DokubahListParams {
+export interface DokubahListParams extends SortParams {
   page?: number;
   pageSize?: number;
   search?: string;

@@ -44,6 +44,11 @@ export function listItems(params?: ListParams & SortParams & ItemFilterParams) {
 export type ItemLookup = { id: number; name: string; itemCount?: number };
 export const listItemCategories = () => apiClient.get<ItemLookup[]>("/api/v1/items/categories");
 export const listItemUnits = () => apiClient.get<ItemLookup[]>("/api/v1/items/units");
+// paged variants for the master page (server-side pagination, search and sort)
+export const listItemCategoriesPage = (params: ListParams & SortParams) =>
+  apiClient.get<PaginatedResult<ItemLookup>>(`/api/v1/items/categories${toQuery(params)}`);
+export const listItemUnitsPage = (params: ListParams & SortParams) =>
+  apiClient.get<PaginatedResult<ItemLookup>>(`/api/v1/items/units${toQuery(params)}`);
 export const createItemCategory = (name: string) => apiClient.post<ItemLookup>("/api/v1/items/categories", { name });
 export const createItemUnit = (name: string) => apiClient.post<ItemLookup>("/api/v1/items/units", { name });
 export const renameItemCategory = (id: number, name: string) => apiClient.put<ItemLookup>(`/api/v1/items/categories/${id}`, { name });

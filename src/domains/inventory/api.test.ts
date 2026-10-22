@@ -22,6 +22,8 @@ const rows: Row[] = [
   ['uploadItemPhotosBulk', [[{ itemId: 1, file: new File(['x'], 'a.png', { type: 'image/png' }) }]], 'POST /api/v1/items/photos/bulk', {}, undefined],
   ['listItemCategories', [],'GET /api/v1/items/categories', {}, undefined],
   ['listItemUnits', [], 'GET /api/v1/items/units', {}, undefined],
+  ['listItemCategoriesPage', [{ page: 2, pageSize: 20, sortBy: 'name', sortDir: 'desc' }], 'GET /api/v1/items/categories', { page: '2', pageSize: '20', sortBy: 'name', sortDir: 'desc' }, undefined],
+  ['listItemUnitsPage', [{ page: 1, pageSize: 20 }], 'GET /api/v1/items/units', { page: '1', pageSize: '20' }, undefined],
   ['createItemCategory', ['Kayu'], 'POST /api/v1/items/categories', {}, { name: 'Kayu' }],
   ['createItemUnit', ['Pcs'], 'POST /api/v1/items/units', {}, { name: 'Pcs' }],
   ['renameItemCategory', [3, 'Kayu2'], 'PUT /api/v1/items/categories/3', {}, { name: 'Kayu2' }],

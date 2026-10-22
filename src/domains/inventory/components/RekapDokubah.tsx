@@ -10,6 +10,7 @@ import { listDokubahRows, STATUS_TO_UI, statusToApi } from '@/domains/ppic/api';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';
+import SortableTh, { useSort } from '@/shared/components/SortableTh';
 
 const cellClass = 'px-4 py-3 border-b border-r border-gray-300';
 const cardClass = 'bg-white rounded-sm border border-gray-100 shadow-md p-6 min-h-32';
@@ -32,13 +33,15 @@ export default function RekapDokubah() {
     startDate: filterDari || undefined,
     endDate: filterSampai || undefined,
   };
-  const filterKey = JSON.stringify(filters);
+  const { sort, toggle, params: sortParams } = useSort();
+  // a filter or sort change starts again from page 1
+  const filterKey = JSON.stringify({ ...filters, ...sortParams });
   const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
   const page = pageState.key === filterKey ? pageState.page : 1;
   const setPage = (next: number) => setPageState({ key: filterKey, page: next });
   // The list rows already carry the rupiah realisation, so no per-row detail calls.
   const { data: result, loading, error } = useApiData(
-    () => listDokubahRows({ ...filters, page, pageSize: 20 }),
+    () => listDokubahRows({ ...filters, ...sortParams, page, pageSize: 20 }),
     `${filterKey}|${page}`,
     'Gagal memuat rekap Dokubah.',
   );
@@ -233,12 +236,12 @@ export default function RekapDokubah() {
             <thead className="bg-gray-100 text-gray-800 font-semibold text-xs">
               <tr>
                 <th scope="col" className={`${cellClass} w-14`}>No.</th>
-                <th scope="col" className={cellClass}>No. SPK</th>
-                <th scope="col" className={cellClass}>Klien &amp; Proyek</th>
-                <th scope="col" className={cellClass}>Anggaran</th>
+                <SortableTh label="No. SPK" sortKey="noSpk" sort={sort} onSort={toggle} className={cellClass} />
+                <SortableTh label="Klien & Proyek" sortKey="client" sort={sort} onSort={toggle} className={cellClass} />
+                <SortableTh label="Anggaran" sortKey="totalAnggaran" sort={sort} onSort={toggle} className={cellClass} />
                 <th scope="col" className={cellClass}>Realisasi</th>
                 <th scope="col" className={cellClass}>Sisa Anggaran</th>
-                <th scope="col" className={cellClass}>Status</th>
+                <SortableTh label="Status" sortKey="status" sort={sort} onSort={toggle} className={cellClass} />
                 <th scope="col" className={`${cellClass} w-24`}>
                   <label className="flex items-center justify-between gap-2 cursor-pointer">
                     <span>Check</span>
