@@ -10,8 +10,17 @@ describe('buildLabelsHtml', () => {
     expect(html.match(/class="label"/g)?.length).toBe(1);
     expect(html).toContain('<svg');
     expect(html).toContain('BB 18 mm');
-    expect(html).toContain('A1-03');
+    expect(html).toContain('Kode brg: A1-03');
+    expect(html).toContain('Loc: -');
+    expect(html).not.toContain('[');
     expect(html).not.toContain('Tanpa kode');
+  });
+
+  it('shows Kode bawaan in brackets and the location code when given', async () => {
+    const html = await buildLabelsHtml([{ code: 'LEM001', name: 'Triplex', externalCode: 'TH 852 J', locationCode: 'A01' }]);
+    expect(html).toContain('[TH 852 J]');
+    expect(html).toContain('Loc: A01');
+    expect(html).toContain('Kode brg: LEM001');
   });
 
   it('escapes item names and codes', async () => {

@@ -16,15 +16,19 @@ export type LookupConfig = {
   singular: string; // "Kategori"
   example: string;
   maxLength: number; // mengikuti kolom BE (kategori 100, satuan 50)
+  withPrefix?: boolean; // kategori: kolom Prefix (3 huruf kode barang)
   list: (params: ListParams & SortParams) => Promise<PaginatedResult<ItemLookup>>;
-  create: (name: string) => Promise<ItemLookup>;
-  rename: (id: number, name: string) => Promise<ItemLookup>;
+  create: (name: string, prefix?: string) => Promise<ItemLookup>;
+  rename: (id: number, name: string, prefix?: string) => Promise<ItemLookup>;
   remove: (id: number) => Promise<void>;
 };
 
+// Prefix kode barang: huruf saja, huruf besar, maksimal 3. Kosong = default dari BE (3 huruf pertama nama).
+const toPrefix = (value: string) => value.replace(/[^A-Za-z]/g, "").slice(0, 3).toUpperCase();
+
 // Master daftar nama yang dirujuk barang (kategori, satuan). Tambah dan hapus saja; nama yang masih dipakai barang ditolak BE.
 export default function MasterLookup({ config }: { config: LookupConfig }) {
-  const { title, singular, example, maxLength, list, create, rename, remove } = config;
+  const { title, singular, example, maxLength, withPrefix = false, list, create, rename, remove } = config;
   const canCreate = useCan("item.create");
   const canUpdate = useCan("item.update");
   const canDelete = useCan("item.delete");
@@ -40,11 +44,13 @@ export default function MasterLookup({ config }: { config: LookupConfig }) {
   );
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
+  const [prefix, setPrefix] = useState("");
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [actionError, setActionError] = useState("");
 
   const shown = data?.rows ?? [];
+  const cols = 3 + (withPrefix ? 1 : 0) + (canDelete ? 1 : 0);
 
   // Baris yang diedit disimpan per id; pindah halaman, cari, atau urutkan membuat baris itu tidak tampil lagi, jadi tanya dulu.
   const leaveRows = (apply: () => void) => {
@@ -56,16 +62,18 @@ export default function MasterLookup({ config }: { config: LookupConfig }) {
   const close = () => {
     setOpen(false);
     setName("");
+    setPrefix("");
     setFormError("");
   };
 
   const save = async () => {
     const nama = name.trim();
     if (!nama) return setFormError(`Nama ${singular.toLowerCase()} wajib diisi.`);
+    if (prefix && prefix.length !== 3) return setFormError("Prefix harus 3 huruf.");
     setSaving(true);
     setFormError("");
     try {
-      await create(nama);
+      await create(nama, prefix || undefined);
       close();
       reload();
     } catch (err) {
@@ -75,7 +83,14 @@ export default function MasterLookup({ config }: { config: LookupConfig }) {
     }
   };
 
-  const simpanSemua = () => edit.save((id, patch) => rename(id, patch.name.trim()).then(() => undefined), reload);
+  const simpanSemua = () =>
+    edit.save((id, patch) => {
+      const row = shown.find((r) => r.id === id);
+      if (!row) return Promise.resolve();
+      const kode = patch.prefix ?? row.prefix ?? "";
+      if (kode && kode.length !== 3) return Promise.reject(new Error("Prefix harus 3 huruf."));
+      return rename(id, (patch.name ?? row.name).trim(), kode || undefined).then(() => undefined);
+    }, reload);
 
   const hapus = async (row: ItemLookup) => {
     if (!window.confirm(`Hapus ${singular.toLowerCase()} "${row.name}"?`)) return;
@@ -140,15 +155,16 @@ export default function MasterLookup({ config }: { config: LookupConfig }) {
               <tr>
                 <th className="px-6 py-4 w-16">No</th>
                 <SortableTh label={singular} sortKey="name" sort={sort} onSort={(by) => leaveRows(() => { toggle(by); setPage(1); })} />
+                {withPrefix && <th className="px-6 py-4">Prefix</th>}
                 <SortableTh label="Jumlah Barang" sortKey="itemCount" sort={sort} onSort={(by) => leaveRows(() => { toggle(by); setPage(1); })} align="right" />
                 {canDelete && <th className="px-6 py-4 text-right">Aksi</th>}
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={canDelete ? 4 : 3} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>}
-              {!loading && error && <tr><td colSpan={canDelete ? 4 : 3} className="px-6 py-6 text-center text-red-500">{error}</td></tr>}
+              {loading && <tr><td colSpan={cols} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>}
+              {!loading && error && <tr><td colSpan={cols} className="px-6 py-6 text-center text-red-500">{error}</td></tr>}
               {!loading && !error && shown.length === 0 && (
-                <tr><td colSpan={canDelete ? 4 : 3} className="px-6 py-6 text-center text-gray-400">Belum ada {singular.toLowerCase()}.</td></tr>
+                <tr><td colSpan={cols} className="px-6 py-6 text-center text-gray-400">Belum ada {singular.toLowerCase()}.</td></tr>
               )}
               {!loading && !error && shown.map((r, i) => (
                 <tr key={r.id} className={`${edit.isDirty(r.id) ? "bg-amber-50" : i % 2 ? "bg-gray-50" : "bg-white"} hover:bg-indigo-50/40 transition-colors`}>
@@ -171,6 +187,21 @@ export default function MasterLookup({ config }: { config: LookupConfig }) {
                       </span>
                     )}
                   </td>
+                  {withPrefix && (
+                    <td className="px-6 py-3">
+                      {edit.editing ? (
+                        <input
+                          aria-label={`Prefix ${r.name}`}
+                          value={edit.value(r.id, "prefix", r.prefix ?? "")}
+                          maxLength={3}
+                          onChange={(e) => edit.set(r.id, "prefix", toPrefix(e.target.value), r.prefix ?? "")}
+                          className="w-24 border border-gray-200 rounded-lg py-1.5 px-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        />
+                      ) : (
+                        <span className="font-mono text-sm text-gray-700">{r.prefix ?? "-"}</span>
+                      )}
+                    </td>
+                  )}
                   <td className="px-6 py-3 text-right text-gray-700 font-medium">{r.itemCount ?? "-"}</td>
                   {canDelete && (
                     <td className="px-6 py-3 text-right">
@@ -204,6 +235,22 @@ export default function MasterLookup({ config }: { config: LookupConfig }) {
               placeholder={`Contoh: ${example}`}
               className="w-full border border-gray-200 rounded-xl py-2.5 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00]"
             />
+            {withPrefix && (
+              <>
+                <label htmlFor="lookup-prefix" className="block text-sm font-semibold text-gray-700 mb-2 mt-5">
+                  Prefix <span className="font-normal text-gray-400">(opsional, 3 huruf)</span>
+                </label>
+                <input
+                  id="lookup-prefix"
+                  type="text"
+                  value={prefix}
+                  maxLength={3}
+                  onChange={(e) => setPrefix(toPrefix(e.target.value))}
+                  placeholder={toPrefix(name)}
+                  className="w-full border border-gray-200 rounded-xl py-2.5 px-4 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00]"
+                />
+              </>
+            )}
             {formError && <div className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{formError}</div>}
             <div className="flex justify-end gap-2 pt-6">
               <button type="button" onClick={close} className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Batal</button>

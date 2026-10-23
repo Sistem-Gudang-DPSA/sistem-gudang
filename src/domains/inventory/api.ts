@@ -42,7 +42,8 @@ export function listItems(params?: ListParams & SortParams & ItemFilterParams) {
 
 // Master lists of item categories and units; items reference them by name.
 // `itemCount` is how many items use the name; a name still in use cannot be deleted (409).
-export type ItemLookup = { id: number; name: string; itemCount?: number };
+// prefix: kategori saja, 3 huruf awal kode barang (LEM001); default dari BE bila tidak diisi
+export type ItemLookup = { id: number; name: string; itemCount?: number; prefix?: string };
 export const listItemCategories = () => apiClient.get<ItemLookup[]>("/api/v1/items/categories");
 export const listItemUnits = () => apiClient.get<ItemLookup[]>("/api/v1/items/units");
 // paged variants for the master page (server-side pagination, search and sort)
@@ -50,9 +51,9 @@ export const listItemCategoriesPage = (params: ListParams & SortParams) =>
   apiClient.get<PaginatedResult<ItemLookup>>(`/api/v1/items/categories${toQuery(params)}`);
 export const listItemUnitsPage = (params: ListParams & SortParams) =>
   apiClient.get<PaginatedResult<ItemLookup>>(`/api/v1/items/units${toQuery(params)}`);
-export const createItemCategory = (name: string) => apiClient.post<ItemLookup>("/api/v1/items/categories", { name });
+export const createItemCategory = (name: string, prefix?: string) => apiClient.post<ItemLookup>("/api/v1/items/categories", { name, prefix });
 export const createItemUnit = (name: string) => apiClient.post<ItemLookup>("/api/v1/items/units", { name });
-export const renameItemCategory = (id: number, name: string) => apiClient.put<ItemLookup>(`/api/v1/items/categories/${id}`, { name });
+export const renameItemCategory = (id: number, name: string, prefix?: string) => apiClient.put<ItemLookup>(`/api/v1/items/categories/${id}`, { name, prefix });
 export const renameItemUnit = (id: number, name: string) => apiClient.put<ItemLookup>(`/api/v1/items/units/${id}`, { name });
 export const deleteItemCategory = (id: number) => apiClient.delete<void>(`/api/v1/items/categories/${id}`);
 export const deleteItemUnit = (id: number) => apiClient.delete<void>(`/api/v1/items/units/${id}`);
@@ -111,6 +112,16 @@ export function updateItem(id: number, input: UpdateItemInput) {
   return apiClient.put<Item>(`/api/v1/items/${id}`, input);
 }
 
+// Superadmin only. Gives the item a new code from its current category prefix, even when it has transactions.
+export function recodeItem(id: number) {
+  return apiClient.post<Item>(`/api/v1/items/${id}/recode`);
+}
+
+// Superadmin only, max 500 items. All or nothing: one failure changes no code.
+export function bulkRecodeItems(itemIds: number[]) {
+  return apiClient.post<{ items: { id: number; oldCode: string; newCode: string }[] }>("/api/v1/items/recode/bulk", { itemIds });
+}
+
 export function deleteItem(id: number) {
   return apiClient.delete<Item>(`/api/v1/items/${id}`);
 }
@@ -119,25 +130,11 @@ export function listUnassignedItems() {
   return apiClient.get<Item[]>("/api/v1/items/unassigned");
 }
 
-export function suggestItemCode(id: number, locationId: number) {
-  return apiClient.get<{ code: string }>(`/api/v1/items/${id}/suggest-code?locationId=${locationId}`);
-}
-
-export function assignItemLocation(id: number, input: { code: string; locationId: number }) {
+export function assignItemLocation(id: number, input: { locationId: number }) {
   return apiClient.put<Item>(`/api/v1/items/${id}/assign-location`, input);
 }
 
-// Codes every item that has a location but no code (e.g. imported with only a location).
-export function generateItemCodes() {
-  return apiClient.post<{ generated: number; failed: { id: number; reason: string }[] }>("/api/v1/items/generate-codes", {});
-}
-
-// Superadmin only: clears the codes the newest generateItemCodes run gave.
-export function revertGeneratedItemCodes() {
-  return apiClient.post<{ reverted: number; skipped: number }>("/api/v1/items/generate-codes/revert", {});
-}
-
-// One location for many items; the BE suggests each code and reports the items it could not assign.
+// One location for many items; the BE reports the items it could not assign. Codes stay as they are.
 export function bulkAssignItemLocation(input: { itemIds: number[]; locationId: number }) {
   return apiClient.post<{ assigned: number; failed: { id: number; reason: string }[] }>("/api/v1/items/assign-location/bulk", input);
 }

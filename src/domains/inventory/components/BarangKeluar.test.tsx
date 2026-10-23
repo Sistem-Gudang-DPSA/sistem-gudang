@@ -538,6 +538,25 @@ describe('BarangKeluar camera', () => {
     expect(qr.destroy).toHaveBeenCalled();
   });
 
+  it('locks on the first QR and ignores others until Scan lagi', async () => {
+    const api = setup();
+    await openForm(api);
+    typePengambil();
+    fireEvent.click(screen.getByText('Scan Barang'));
+    fireEvent.click(screen.getByText('Kamera'));
+    await waitFor(() => expect(qr.start).toHaveBeenCalled());
+    qr.cb!({ data: 'BRG-1' });
+    await screen.findByText('Triplex', { selector: 'td' });
+    qr.cb!({ data: 'HPL-01' });
+    qr.cb!({ data: 'BRG-1' });
+    await Promise.resolve();
+    expect(api.calls('GET /api/v1/items/by-code/HPL-01').length).toBe(0);
+    expect(label('Pengambilan Triplex').value).toBe('1');
+    fireEvent.click(screen.getByText('Scan lagi'));
+    qr.cb!({ data: 'HPL-01' });
+    await waitFor(() => expect(api.calls('GET /api/v1/items/by-code/HPL-01').length).toBe(1));
+  });
+
   it('stops the camera when the form is closed', async () => {
     const api = setup();
     await openForm(api);
