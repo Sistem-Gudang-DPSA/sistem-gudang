@@ -16,7 +16,11 @@ import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import ItemPhoto from './ItemPhoto';
 import { printItemLabels } from '@/domains/inventory/label-print';
 
-export default function DataBarangGudang() {
+export default function DataBarangGudang({
+  paginationActiveClass,
+}: {
+  paginationActiveClass?: string;
+}) {
   const canAssign = useCan('item.assign-location');
   const isSuperadmin = useAuthUser()?.isSuperadmin === true;
   const { sort, toggle, params: sortParams } = useSort();
@@ -430,7 +434,7 @@ export default function DataBarangGudang() {
           </table>
         </div>
 
-        <Pagination page={page} pageSize={20} total={total} onPageChange={setPage} />
+        <Pagination page={page} pageSize={20} total={total} onPageChange={setPage} activeClass={paginationActiveClass} />
       </div>
 
       {/* Modal Atur Lokasi untuk barang terpilih */}
