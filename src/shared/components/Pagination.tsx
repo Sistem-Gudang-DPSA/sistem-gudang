@@ -1,20 +1,32 @@
 "use client";
 
 import React from 'react';
+import { usePathname } from 'next/navigation';
 
 interface Props {
   page: number;
   pageSize: number;
   total: number;
   onPageChange: (page: number) => void;
-  // Tailwind classes for the active page button, so each division keeps its own color.
+  // Fallback for pages outside the dashboard divisions.
   activeClass?: string;
 }
 
 const base = 'px-3 py-1 border rounded-md font-medium transition-colors';
 
+const divisionColors: Record<string, string> = {
+  gudang: 'bg-orange-500 text-white border-orange-500',
+  superadmin: 'bg-indigo-500 text-white border-indigo-500',
+  'gudang-barang-jadi': 'bg-rose-500 text-white border-rose-500',
+  ppic: 'bg-purple-500 text-white border-purple-500',
+  purchasing: 'bg-teal-500 text-white border-teal-500',
+};
+
 // Server-side pagination footer: pass the `page`/`pageSize` sent to the API and the `total` it returned.
 export default function Pagination({ page, pageSize, total, onPageChange, activeClass = 'bg-[#FF8A00] text-white border-[#FF8A00]' }: Props) {
+  const pathname = usePathname();
+  const division = pathname?.split('/')[2] ?? '';
+  const activeColor = divisionColors[division] ?? activeClass;
   const lastPage = Math.max(1, Math.ceil(total / pageSize));
   const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const to = Math.min(page * pageSize, total);
@@ -37,7 +49,7 @@ export default function Pagination({ page, pageSize, total, onPageChange, active
               type="button"
               aria-current={p === page ? 'page' : undefined}
               onClick={() => onPageChange(p)}
-              className={`${base} ${p === page ? activeClass : 'border-gray-200 text-gray-600 hover:bg-white'}`}
+              className={`${base} ${p === page ? activeColor : 'border-gray-200 text-gray-600 hover:bg-white'}`}
             >
               {p}
             </button>

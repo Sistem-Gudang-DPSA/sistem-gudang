@@ -207,7 +207,7 @@ export default function DataSupplierPurchasing() {
             </tbody>
           </table>
         </div>
-        <Pagination page={page} pageSize={20} total={loaded?.total ?? 0} onPageChange={setPage} activeClass="bg-teal-500 text-white border-teal-500" />
+        <Pagination page={page} pageSize={20} total={loaded?.total ?? 0} onPageChange={setPage} activeClass="bg-indigo-500 text-white border-indigo-500" />
       </div>
 
       {/* Modal Tambah/Edit Data */}
