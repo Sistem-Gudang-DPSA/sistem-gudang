@@ -12,12 +12,32 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/gudang/stock-opname/tambah',
 }));
 
+const qr = vi.hoisted(() => ({
+  cb: null as null | ((r: { data: string }) => void),
+  start: vi.fn(async () => {}),
+  stop: vi.fn(),
+  destroy: vi.fn(),
+}));
+vi.mock('qr-scanner', () => ({
+  default: class {
+    constructor(_video: unknown, cb: (r: { data: string }) => void) { qr.cb = cb; }
+    start = qr.start;
+    stop = qr.stop;
+    destroy = qr.destroy;
+  },
+}));
+
 const items = paged([
   { id: 1, code: 'BRG-1', name: 'Triplex', unit: 'lbr', category: 'Bahan Baku', stock: 10, price: 1000 },
   { id: 2, code: 'BRG-2', name: 'Paku', unit: 'kg', category: 'Bahan Baku', stock: 5, price: 200 },
 ]);
 
-beforeEach(() => { push.mockClear(); back.mockClear(); });
+const setSecure = (value: boolean) => Object.defineProperty(window, 'isSecureContext', { value, configurable: true });
+
+beforeEach(() => {
+  push.mockClear(); back.mockClear();
+  setSecure(true); qr.cb = null; qr.start.mockClear(); qr.stop.mockClear(); qr.destroy.mockClear();
+});
 
 async function setup(extra: Record<string, unknown> = {}, confirm = true) {
   const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(confirm);
@@ -150,5 +170,60 @@ describe('permissions', () => {
   it('shows the form to a superadmin', () => {
     open(user([], true));
     expect(screen.getByText('Simpan')).not.toBeNull();
+  });
+});
+
+describe('scan mode', () => {
+  const lem = { id: 9, code: 'LEM001', externalCode: 'OLD-7', name: 'Lem Kayu', unit: 'kg', category: 'Bahan Baku', stock: 4, price: 300, locationId: 1, supplierId: 7 };
+  const routes = {
+    'GET /api/v1/items/by-code/LEM001': lem,
+    'GET /api/v1/items/by-code/BRG-1': { ...items.rows[0] },
+    'GET /api/v1/items/by-code/NOPE': fail(404, 'Item not found'),
+  };
+  const openScanner = async () => {
+    fireEvent.click(screen.getByText('Scan QR'));
+    await waitFor(() => expect(qr.start).toHaveBeenCalled());
+  };
+  const scanCode = (code: string) => qr.cb!({ data: code });
+
+  it('scan finds an item not on this page: card shows stok sistem, its jumlah is saved', async () => {
+    const { api } = await setup({ ...routes, 'POST /api/v1/stock-opname': { id: 1 } });
+    await openScanner();
+    scanCode('LEM001');
+    expect(await screen.findByText('Lem Kayu', { selector: 'dd' })).not.toBeNull();
+    expect(screen.getByText('OLD-7')).not.toBeNull();
+    expect(screen.getByText('4 kg')).not.toBeNull();
+    fireEvent.change(screen.getByLabelText('Jumlah fisik'), { target: { value: '3' } });
+    expect(screen.getByText('-1')).not.toBeNull();
+    fireEvent.click(screen.getByText('Masukkan ke opname'));
+    expect(screen.queryByText('Masukkan ke opname')).toBeNull();
+    expect(screen.getByText('Lem Kayu dimasukkan ke opname: 3 kg.')).not.toBeNull();
+
+    fireEvent.click(screen.getByText('Simpan'));
+    await waitFor(() => expect(api.calls('POST /api/v1/stock-opname').length).toBe(1));
+    expect((api.calls('POST /api/v1/stock-opname')[0].body as { lines: unknown }).lines).toEqual([{ itemId: 9, physicalQty: 3 }]);
+  });
+
+  it('scanning an item already entered pre-fills its jumlah instead of duplicating it', async () => {
+    const { api } = await setup({ ...routes, 'POST /api/v1/stock-opname': { id: 1 } });
+    fireEvent.change(qtys()[0], { target: { value: '8' } });
+    await openScanner();
+    scanCode('BRG-1');
+    expect(await screen.findByText('Triplex', { selector: 'dd' })).not.toBeNull();
+    expect((screen.getByLabelText('Jumlah fisik') as HTMLInputElement).value).toBe('8');
+    fireEvent.change(screen.getByLabelText('Jumlah fisik'), { target: { value: '9' } });
+    fireEvent.click(screen.getByText('Masukkan ke opname'));
+    fireEvent.click(screen.getByText('Simpan'));
+    await waitFor(() => expect(api.calls('POST /api/v1/stock-opname').length).toBe(1));
+    expect((api.calls('POST /api/v1/stock-opname')[0].body as { lines: unknown }).lines).toEqual([{ itemId: 1, physicalQty: 9 }]);
+  });
+
+  it('unknown code shows the rejected message and no card', async () => {
+    await setup(routes);
+    await openScanner();
+    scanCode('NOPE');
+    expect(await screen.findByText('Kode "NOPE" tidak dikenal.')).not.toBeNull();
+    expect(screen.queryByText('Masukkan ke opname')).toBeNull();
+    expect(screen.queryByLabelText('Jumlah fisik')).toBeNull();
   });
 });

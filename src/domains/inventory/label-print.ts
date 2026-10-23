@@ -1,6 +1,6 @@
 import QRCode from 'qrcode';
 
-type LabelItem = { code: string | null; name: string };
+type LabelItem = { code: string | null; name: string; externalCode?: string | null; locationCode?: string | null };
 
 // Label size in mm; change here once the label paper is known.
 const LABEL_W = 60;
@@ -10,14 +10,15 @@ const QR_SIZE = 26;
 const escapeHtml = (value: string) =>
   value.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
-// The QR holds exactly items.code, which is what the USB scanner types into Barang Masuk.
+// The QR holds exactly items.code, which is what the USB scanner types into Barang Masuk. Kode bawaan and location are text only.
 export async function buildLabelsHtml(items: LabelItem[]): Promise<string> {
   const labels = await Promise.all(
     items
-      .filter((it): it is { code: string; name: string } => !!it.code)
+      .filter((it): it is LabelItem & { code: string } => !!it.code)
       .map(async (it) => {
         const svg = await QRCode.toString(it.code, { type: 'svg', margin: 0, errorCorrectionLevel: 'M' });
-        return `<div class="label"><div class="qr">${svg}</div><div class="txt"><b>${escapeHtml(it.name)}</b><span>${escapeHtml(it.code)}</span></div></div>`;
+        const bawaan = it.externalCode ? `<span>[${escapeHtml(it.externalCode)}]</span>` : '';
+        return `<div class="label"><div class="qr">${svg}</div><div class="txt"><span class="code">Kode brg: ${escapeHtml(it.code)}</span><b>${escapeHtml(it.name)}</b>${bawaan}<span>Loc: ${escapeHtml(it.locationCode ?? '-')}</span></div></div>`;
       }),
   );
   return `<!doctype html>
@@ -29,7 +30,7 @@ export async function buildLabelsHtml(items: LabelItem[]): Promise<string> {
   .qr { width: ${QR_SIZE}mm; height: ${QR_SIZE}mm; flex: none; }
   .qr svg { width: 100%; height: 100%; }
   .txt { display: flex; flex-direction: column; gap: 1mm; font-size: 9pt; overflow: hidden; }
-  .txt span { font-family: monospace; font-size: 10pt; }
+  .txt .code { font-family: monospace; font-size: 10pt; }
 </style></head>
 <body>${labels.join('')}</body></html>`;
 }

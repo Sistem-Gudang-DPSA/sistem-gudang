@@ -10,6 +10,7 @@ import type { BahanDokubah } from '@/domains/ppic/data/dokubah';
 import type { RecipientType, ItemListRow, OutboundRow } from '@/domains/inventory/types';
 import { displayDate, todayIso, toDateRange } from '@/domains/inventory/date';
 import { ApiError } from '@/shared/lib/api-client';
+import QrCameraScanner from '@/domains/inventory/components/QrCameraScanner';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
@@ -29,7 +30,6 @@ const barisManual = (): BarisForm => ({ key: randomId(), manual: true, itemId: n
 
 const PAGE_SIZE = 20;
 // Pilihan tambahan di Nama Produk/Proyek untuk barang yang keluar bukan untuk produk SPK tertentu
-const CAMERA_COOLDOWN_MS = 2000; // a camera reads the same QR on every frame; ignore repeats of one code for this long
 
 // ID Stok: nomor untuk barang yang diproduksi beberapa satuan sekaligus (bukan per biji) demi efisiensi.
 // ponytail: ID Stok resmi akan dibuat oleh PPIC; sementara diisi manual dengan STOCK-{yyyy-mm-dd}.
@@ -111,10 +111,9 @@ export default function BarangKeluarGudang() {
   const [flash, setFlash] = useState<{ itemId: number; n: number } | null>(null);
   // Satu key per draft: dipakai ulang saat retry atau klik ganda, ganti hanya kalau isi draft berubah
   const draftKey = useRef({ key: '', payload: '' });
-  // Kamera HP: qr-scanner hanya dimuat saat kamera dibuka, dan pembacaan ulang kode yang sama diabaikan sebentar
+  // Kamera HP: lihat QrCameraScanner, nama barang terakhir yang discan ditampilkan di kotak kamera
   const [cameraOn, setCameraOn] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const lastCameraRead = useRef({ code: '', at: 0 });
+  const [lockedName, setLockedName] = useState('');
   // Callback kamera tidak diperbarui tiap render, jadi cek nama pengambil lewat ref
   const pengambilRef = useRef('');
   const pengambilOk = form.namaPengambil.trim() !== '';
@@ -364,12 +363,14 @@ export default function BarangKeluarGudang() {
   // Barang yang sudah ada di tabel cukup ditambah jumlahnya, barang baru diambil datanya dari database
   const tambahKode = async (code: string) => {
     setScanError("");
+    setLockedName("");
     if (!pengambilRef.current) { setScanError("Isi nama pengambil dulu."); beepFail(); return; }
     const ok = (itemId: number) => { setFlash((f) => ({ itemId, n: (f?.n ?? 0) + 1 })); beepOk(); };
     const ada = barisRef.current.find((b) => b.itemId !== null && b.code === code);
-    if (ada && ada.itemId !== null) { setBaris((bs) => tambahSatu(bs, ada.key)); ok(ada.itemId); return; }
+    if (ada && ada.itemId !== null) { setBaris((bs) => tambahSatu(bs, ada.key)); setLockedName(ada.name); ok(ada.itemId); return; }
     try {
       const item = await getItemByCode(code);
+      setLockedName(item.name);
       // Dua scan cepat untuk kode baru yang sama sama-sama sampai di sini sebelum barisnya ada
       setBaris((bs) => {
         const sama = bs.find((b) => b.itemId === item.id);
@@ -393,46 +394,6 @@ export default function BarangKeluarGudang() {
     if (code) void tambahKode(code);
   };
 
-  // Phone camera. Needs HTTPS (or localhost) for getUserMedia. Stopped by toggling off, closing the form, or unmount.
-  useEffect(() => {
-    if (!cameraOn || !videoRef.current) return;
-    let stop = () => {};
-    let cancelled = false;
-    (async () => {
-      if (!window.isSecureContext) {
-        setScanError('Kamera hanya jalan di HTTPS atau localhost.');
-        setCameraOn(false);
-        return;
-      }
-      try {
-        const { default: QrScanner } = await import('qr-scanner');
-        if (cancelled || !videoRef.current) return;
-        const scanner = new QrScanner(
-          videoRef.current,
-          (result) => {
-            const code = result.data.trim();
-            const last = lastCameraRead.current;
-            const now = Date.now();
-            if (!code || (code === last.code && now - last.at < CAMERA_COOLDOWN_MS)) return;
-            lastCameraRead.current = { code, at: now };
-            void tambahKode(code);
-          },
-          { preferredCamera: 'environment', highlightScanRegion: true, returnDetailedScanResult: true },
-        );
-        stop = () => { scanner.stop(); scanner.destroy(); };
-        await scanner.start();
-        if (cancelled) stop();
-      } catch {
-        if (!cancelled) {
-          setScanError('Kamera tidak bisa dibuka. Periksa izin kamera di browser.');
-          setCameraOn(false);
-        }
-      }
-    })();
-    return () => { cancelled = true; stop(); };
-    // tambahKode only uses refs and functional state updates, so the scanner is not restarted on every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cameraOn]);
 
   const pilihClient = (client: string) => {
     setForm((prev) => (prev.client === client ? prev : { ...prev, client, spk: "", namaItem: "" }));
@@ -915,7 +876,16 @@ export default function BarangKeluarGudang() {
                 </button>
               </div>
             )}
-            {cameraOn && <video ref={videoRef} muted playsInline className="mt-4 w-full max-w-sm rounded-xl bg-black" />}
+            {cameraOn && (
+              <div className="mt-4">
+                <QrCameraScanner
+                  onScan={(code) => void tambahKode(code)}
+                  lockedLabel={lockedName}
+                  rejected={scanError !== ""}
+                  onFail={(message) => { setScanError(message); setCameraOn(false); }}
+                />
+              </div>
+            )}
             {scanError && <p role="alert" className="fixed bottom-6 right-6 z-70 max-w-sm p-3 bg-red-600 text-white text-sm rounded-lg shadow-lg">{scanError}</p>}
             {form.baris.length > 0 && (
               <p className="mt-3 text-sm text-gray-700">Terscan: <span className="font-bold">{form.baris.reduce((n, b) => n + (Number(b.qty) || 0), 0)}</span> item, {form.baris.length} jenis</p>

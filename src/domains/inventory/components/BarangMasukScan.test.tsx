@@ -180,25 +180,50 @@ describe('BarangMasukScan', () => {
 });
 
 describe('BarangMasukScan camera', () => {
-  it('starts the camera, adds a line per decoded QR, ignores the same QR re-read within the cooldown, and stops on toggle off', async () => {
-    const now = vi.spyOn(Date, 'now').mockReturnValue(10_000);
+  it('starts the camera, adds a line per decoded QR, and stops on toggle off', async () => {
     setup();
     openPass();
     fireEvent.click(screen.getByText('Kamera'));
     await waitFor(() => expect(qr.start).toHaveBeenCalled());
     qr.cb!({ data: 'A1-01' });
     await screen.findByText('BB 18 MM');
-    now.mockReturnValue(10_500);
-    qr.cb!({ data: 'A1-01' });
-    await Promise.resolve();
     expect(qty('BB 18 MM')).toBe('1');
-    now.mockReturnValue(13_000);
-    qr.cb!({ data: 'A1-01' });
-    await waitFor(() => expect(qty('BB 18 MM')).toBe('2'));
     fireEvent.click(screen.getByText('Matikan kamera'));
     expect(qr.stop).toHaveBeenCalled();
     expect(qr.destroy).toHaveBeenCalled();
-    now.mockRestore();
+  });
+
+  it('locks on the first QR and ignores other QRs until Scan lagi', async () => {
+    const { api } = setup();
+    openPass();
+    fireEvent.click(screen.getByText('Kamera'));
+    await waitFor(() => expect(qr.start).toHaveBeenCalled());
+    qr.cb!({ data: 'A1-01' });
+    qr.cb!({ data: 'A1-02' });
+    await screen.findByText('BB 18 MM');
+    expect(screen.getByText('A1-01', { selector: 'span' })).not.toBeNull();
+    qr.cb!({ data: 'A1-02' });
+    qr.cb!({ data: 'A1-01' });
+    await Promise.resolve();
+    expect(api.calls('GET /api/v1/items/by-code/A1-02').length).toBe(0);
+    expect(screen.queryByText('MP 15 MM')).toBeNull();
+    expect(qty('BB 18 MM')).toBe('1');
+    fireEvent.click(screen.getByText('Scan lagi'));
+    qr.cb!({ data: 'A1-02' });
+    await screen.findByText('MP 15 MM');
+    expect(api.calls('GET /api/v1/items/by-code/A1-02').length).toBe(1);
+  });
+
+  it('shows the red state when the code is unknown, and Scan lagi scans again', async () => {
+    setup();
+    openPass();
+    fireEvent.click(screen.getByText('Kamera'));
+    await waitFor(() => expect(qr.start).toHaveBeenCalled());
+    qr.cb!({ data: 'NOPE' });
+    expect(await screen.findByText('Kode tidak bisa dipakai. Tekan Scan lagi.')).not.toBeNull();
+    fireEvent.click(screen.getByText('Scan lagi'));
+    qr.cb!({ data: 'A1-01' });
+    await screen.findByText('BB 18 MM');
   });
 
   it('explains when the camera cannot start', async () => {

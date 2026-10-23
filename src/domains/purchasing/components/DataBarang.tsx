@@ -178,7 +178,9 @@ export default function DataBarangPurchasing() {
               <tr>
                 <th scope="col" className="px-6 py-4">No</th>
                 <th scope="col" className="px-6 py-4">Foto</th>
+                <th scope="col" className="px-6 py-4">Kode Barang</th>
                 <SortableTh label="Informasi Barang" sortKey="name" sort={sort} onSort={toggle} />
+                <th scope="col" className="px-6 py-4">Kode Bawaan</th>
                 <SortableTh label="Supplier" sortKey="supplierName" sort={sort} onSort={toggle} />
                 <SortableTh label="Stok & Satuan" sortKey="stock" sort={sort} onSort={toggle} />
                 <SortableTh label="Kategori" sortKey="category" sort={sort} onSort={toggle} />
@@ -190,10 +192,10 @@ export default function DataBarangPurchasing() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading && (
-                <tr><td colSpan={10} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
+                <tr><td colSpan={12} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
               )}
               {!loading && dataBarang.length === 0 && (
-                <tr><td colSpan={10} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
+                <tr><td colSpan={12} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
               )}
               {!loading && dataBarang.map((item, index) => (
                 <tr key={item.id} className="hover:bg-purple-50/30 transition-colors group">
@@ -204,14 +206,14 @@ export default function DataBarangPurchasing() {
                     <ItemPhoto item={item} />
                   </td>
 
+                  {/* Kode Barang */}
+                  <td className="px-6 py-4 font-mono text-xs text-gray-500">{item.code ?? '-'}</td>
+
                   {/* Informasi Barang */}
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col">
-                      <span className="font-bold text-gray-900">{item.name}</span>
-                      <span className="text-xs font-mono text-gray-500 mt-0.5">{item.code ?? '-'}</span>
-                      {item.externalCode && <span className="text-xs text-gray-400">Kode bawaan: {item.externalCode}</span>}
-                    </div>
-                  </td>
+                  <td className="px-6 py-4 font-bold text-gray-900">{item.name}</td>
+
+                  {/* Kode Bawaan */}
+                  <td className="px-6 py-4 text-gray-600">{item.externalCode || '-'}</td>
 
                   {/* Supplier */}
                   <td className="px-6 py-4">

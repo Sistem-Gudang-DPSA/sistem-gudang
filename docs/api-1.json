@@ -10662,6 +10662,9 @@
                                 "type": "number"
                               },
                               "code": {
+                                "type": "string"
+                              },
+                              "externalCode": {
                                 "type": "string",
                                 "nullable": true
                               },
@@ -10723,6 +10726,7 @@
                             "required": [
                               "id",
                               "code",
+                              "externalCode",
                               "name",
                               "detail",
                               "category",
@@ -10925,7 +10929,7 @@
           "Item"
         ],
         "summary": "Create a item",
-        "description": "price defaults to 0. Setting a price other than 0 needs the item.set-price permission (Purchasing), otherwise 403. category and unit must be names from GET /api/v1/items/categories and /units, 400 otherwise.",
+        "description": "The code is generated: category prefix + next number (LEM001) and cannot be sent. price defaults to 0. Setting a price other than 0 needs the item.set-price permission (Purchasing), otherwise 403. category and unit must be names from GET /api/v1/items/categories and /units, 400 otherwise.",
         "security": [
           {
             "bearerAuth": []
@@ -11003,8 +11007,8 @@
                         },
                         "code": {
                           "type": "string",
-                          "nullable": true,
-                          "description": "Internal code, built from the location"
+                          "description": "Internal code, category prefix + number (LEM001), generated on create, never changes",
+                          "example": "LEM001"
                         },
                         "externalCode": {
                           "type": "string",
@@ -11315,8 +11319,8 @@
                         },
                         "code": {
                           "type": "string",
-                          "nullable": true,
-                          "description": "Internal code, built from the location"
+                          "description": "Internal code, category prefix + number (LEM001), generated on create, never changes",
+                          "example": "LEM001"
                         },
                         "externalCode": {
                           "type": "string",
@@ -11550,7 +11554,7 @@
           "Item"
         ],
         "summary": "Update a item",
-        "description": "Changing price needs the item.set-price permission (Purchasing), otherwise 403. Changing supplierId, including null to clear it, needs item.set-supplier (Purchasing), otherwise 403; resending the unchanged supplierId is accepted. detail null clears the detail. Resending the unchanged price is accepted, and omitting price keeps the current one. category and unit must be names from GET /api/v1/items/categories and /units, 400 otherwise.",
+        "description": "Changing price needs the item.set-price permission (Purchasing), otherwise 403. Changing supplierId, including null to clear it, needs item.set-supplier (Purchasing), otherwise 403; resending the unchanged supplierId is accepted. detail null clears the detail. Resending the unchanged price is accepted, and omitting price keeps the current one. category and unit must be names from GET /api/v1/items/categories and /units, 400 otherwise. The code cannot be sent. When category changes and the item was never used on a transaction line (inbound, inbound return, outbound, stock opname, material request, SPK internal, dokubah material), the item gets a new code from the new category's prefix and the old and new code are written to the audit log. A used item keeps its code, so the client sees the category changed and the code did not.",
         "security": [
           {
             "bearerAuth": []
@@ -11634,8 +11638,8 @@
                         },
                         "code": {
                           "type": "string",
-                          "nullable": true,
-                          "description": "Internal code, built from the location"
+                          "description": "Internal code, category prefix + number (LEM001), generated on create, never changes",
+                          "example": "LEM001"
                         },
                         "externalCode": {
                           "type": "string",
@@ -12127,6 +12131,11 @@
                           "name": {
                             "type": "string"
                           },
+                          "prefix": {
+                            "type": "string",
+                            "description": "3 uppercase letters that start the codes of new items",
+                            "example": "LEM"
+                          },
                           "itemCount": {
                             "type": "number",
                             "description": "Items that use this name"
@@ -12135,6 +12144,7 @@
                         "required": [
                           "id",
                           "name",
+                          "prefix",
                           "itemCount"
                         ]
                       }
@@ -12292,7 +12302,7 @@
           "Item"
         ],
         "summary": "Add one of the item categories",
-        "description": "Needs item.create. A name that already exists, ignoring case, is a 409.",
+        "description": "Needs item.create. A name that already exists, ignoring case, is a 409. Categories also take an optional prefix (3 letters A-Z, 400 otherwise); left out it is the first 3 letters of the name, uppercased, and a category name under 3 letters then needs one. A prefix another category already has is a 409.",
         "security": [
           {
             "bearerAuth": []
@@ -12308,6 +12318,10 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 50
+                  },
+                  "prefix": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}$"
                   }
                 },
                 "required": [
@@ -12342,11 +12356,17 @@
                         },
                         "name": {
                           "type": "string"
+                        },
+                        "prefix": {
+                          "type": "string",
+                          "description": "3 uppercase letters that start the codes of new items",
+                          "example": "LEM"
                         }
                       },
                       "required": [
                         "id",
-                        "name"
+                        "name",
+                        "prefix"
                       ]
                     }
                   },
@@ -12538,7 +12558,7 @@
           "Item"
         ],
         "summary": "Rename one of the item categories",
-        "description": "Needs item.update. Items use the name through a foreign key with ON UPDATE CASCADE, so every item takes the new name. Old documents (purchase order lines, dokubah, penawaran) keep the name they were made with. Changing only the letter case of its own name is allowed. 404 when the id does not exist, 409 when another row has the name.",
+        "description": "Needs item.update. Items use the name through a foreign key with ON UPDATE CASCADE, so every item takes the new name. Old documents (purchase order lines, dokubah, penawaran) keep the name they were made with. Changing only the letter case of its own name is allowed. Categories may also send prefix to change it; existing item codes are not renamed. 404 when the id does not exist, 409 when another row has the name.",
         "security": [
           {
             "bearerAuth": []
@@ -12565,6 +12585,10 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 50
+                  },
+                  "prefix": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}$"
                   }
                 },
                 "required": [
@@ -12599,11 +12623,17 @@
                         },
                         "name": {
                           "type": "string"
+                        },
+                        "prefix": {
+                          "type": "string",
+                          "description": "3 uppercase letters that start the codes of new items",
+                          "example": "LEM"
                         }
                       },
                       "required": [
                         "id",
-                        "name"
+                        "name",
+                        "prefix"
                       ]
                     }
                   },
@@ -13217,7 +13247,7 @@
           "Item"
         ],
         "summary": "Add one of the units",
-        "description": "Needs item.create. A name that already exists, ignoring case, is a 409.",
+        "description": "Needs item.create. A name that already exists, ignoring case, is a 409. Categories also take an optional prefix (3 letters A-Z, 400 otherwise); left out it is the first 3 letters of the name, uppercased, and a category name under 3 letters then needs one. A prefix another category already has is a 409.",
         "security": [
           {
             "bearerAuth": []
@@ -13463,7 +13493,7 @@
           "Item"
         ],
         "summary": "Rename one of the units",
-        "description": "Needs item.update. Items use the name through a foreign key with ON UPDATE CASCADE, so every item takes the new name. Old documents (purchase order lines, dokubah, penawaran) keep the name they were made with. Changing only the letter case of its own name is allowed. 404 when the id does not exist, 409 when another row has the name.",
+        "description": "Needs item.update. Items use the name through a foreign key with ON UPDATE CASCADE, so every item takes the new name. Old documents (purchase order lines, dokubah, penawaran) keep the name they were made with. Changing only the letter case of its own name is allowed. Categories may also send prefix to change it; existing item codes are not renamed. 404 when the id does not exist, 409 when another row has the name.",
         "security": [
           {
             "bearerAuth": []
@@ -13944,7 +13974,7 @@
           "Item"
         ],
         "summary": "Import many items in one transaction",
-        "description": "Names, not ids: category, unit and locationCode are resolved case-insensitively, and a row falls back to defaults for category and unit. supplier is optional per row (no defaults.supplier): a name is matched case-insensitively to suppliers.name, a name that matches no supplier or more than one is a row error under items.<row>.supplier, and left out means supplierId null until Purchasing sets one with PUT /api/v1/items/{id}. It is the first mapping only. Nothing is auto-created. An unknown or ambiguous name, a missing value, or a missing permission fails the whole request. Needs item.create, plus item.set-price when any price is not 0, item.adjust-stock when any stock is above 0, item.assign-location when any row has locationCode, and item.set-supplier when any row has supplier (otherwise 403). Superadmin passes all of them. A row's code is the code the item came with and is stored as externalCode, never as the internal code. A row already in the database (same code as an item's externalCode or code, or same name when the row has no code and the stored item has neither) or repeated earlier in the file is skipped and listed in skipped, so the same file can be imported again. Initial stock is recorded as an audit entry with reason 'Initial import'. With dryRun true nothing is written and items[].id is null. Validation failure is 400 with errors keyed like items.4.category, where the row number starts at 1.",
+        "description": "Names, not ids: category, unit and locationCode are resolved case-insensitively, and a row falls back to defaults for category and unit. supplier is optional per row (no defaults.supplier): a name is matched case-insensitively to suppliers.name, a name that matches no supplier or more than one is a row error under items.<row>.supplier, and left out means supplierId null until Purchasing sets one with PUT /api/v1/items/{id}. It is the first mapping only. Nothing is auto-created. An unknown or ambiguous name, a missing value, or a missing permission fails the whole request. Needs item.create, plus item.set-price when any price is not 0, item.adjust-stock when any stock is above 0, item.assign-location when any row has locationCode, and item.set-supplier when any row has supplier (otherwise 403). Superadmin passes all of them. A row's code is the code the item came with and is stored as externalCode; the internal code is generated from the category prefix. A row already in the database (same code as an item's externalCode or code, or same name when the row has no code and the stored item has no externalCode) or repeated earlier in the file is skipped and listed in skipped, so the same file can be imported again. Initial stock is recorded as an audit entry with reason 'Initial import'. With dryRun true nothing is written and items[].id is null. Validation failure is 400 with errors keyed like items.4.category, where the row number starts at 1.",
         "security": [
           {
             "bearerAuth": []
@@ -14116,6 +14146,11 @@
                               },
                               "code": {
                                 "type": "string",
+                                "nullable": true,
+                                "description": "Generated internal code, null on dryRun"
+                              },
+                              "externalCode": {
+                                "type": "string",
                                 "nullable": true
                               },
                               "stock": {
@@ -14127,6 +14162,7 @@
                               "id",
                               "name",
                               "code",
+                              "externalCode",
                               "stock"
                             ]
                           }
@@ -14294,7 +14330,7 @@
           "Item"
         ],
         "summary": "Get an item by its exact code",
-        "description": "Needs item.view. Matches items.code exactly and case-sensitively per the database collation, with no LIKE, so scanning A1 never returns A10. Same body as GET /items/{id}. 404 when no item has that code, including items without a code.",
+        "description": "Needs item.view. Matches the internal items.code (LEM001) exactly, with no LIKE, so scanning LEM1 never returns LEM10. The label QR encodes only this code. Same body as GET /items/{id}. 404 when no item has that code.",
         "security": [
           {
             "bearerAuth": []
@@ -14304,7 +14340,7 @@
           {
             "schema": {
               "type": "string",
-              "example": "A01-TRI5"
+              "example": "LEM001"
             },
             "required": true,
             "name": "code",
@@ -14336,8 +14372,8 @@
                         },
                         "code": {
                           "type": "string",
-                          "nullable": true,
-                          "description": "Internal code, built from the location"
+                          "description": "Internal code, category prefix + number (LEM001), generated on create, never changes",
+                          "example": "LEM001"
                         },
                         "externalCode": {
                           "type": "string",
@@ -14605,8 +14641,8 @@
                           },
                           "code": {
                             "type": "string",
-                            "nullable": true,
-                            "description": "Internal code, built from the location"
+                            "description": "Internal code, category prefix + number (LEM001), generated on create, never changes",
+                            "example": "LEM001"
                           },
                           "externalCode": {
                             "type": "string",
@@ -14837,13 +14873,13 @@
         }
       }
     },
-    "/api/v1/items/{id}/suggest-code": {
-      "get": {
+    "/api/v1/items/{id}/assign-location": {
+      "put": {
         "tags": [
           "Item"
         ],
-        "summary": "Suggest a default code for assigning a location",
-        "description": "A suggestion only, not persisted. Inventory may edit it before assigning.",
+        "summary": "Assign a location to an item",
+        "description": "Sets items.location_id only; the item code never changes. Needs item.assign-location.",
         "security": [
           {
             "bearerAuth": []
@@ -14858,20 +14894,30 @@
             "required": true,
             "name": "id",
             "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "example": "1"
-            },
-            "required": true,
-            "name": "locationId",
-            "in": "query"
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "locationId": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true
+                  }
+                },
+                "required": [
+                  "locationId"
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
-            "description": "Suggested code",
+            "description": "Item location assigned",
             "content": {
               "application/json": {
                 "schema": {
@@ -14889,12 +14935,91 @@
                     "data": {
                       "type": "object",
                       "properties": {
+                        "id": {
+                          "type": "number"
+                        },
                         "code": {
+                          "type": "string",
+                          "description": "Internal code, category prefix + number (LEM001), generated on create, never changes",
+                          "example": "LEM001"
+                        },
+                        "externalCode": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "The code the item was imported with, shown under the name only"
+                        },
+                        "name": {
                           "type": "string"
+                        },
+                        "detail": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "category": {
+                          "type": "string"
+                        },
+                        "unit": {
+                          "type": "string"
+                        },
+                        "price": {
+                          "type": "number"
+                        },
+                        "stock": {
+                          "type": "number",
+                          "description": "Up to two decimals"
+                        },
+                        "locationId": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "supplierId": {
+                          "type": "number",
+                          "nullable": true,
+                          "description": "null until Purchasing sets it"
+                        },
+                        "photo": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "thumb": {
+                              "type": "string",
+                              "example": "/uploads/items/<uuid>-thumb.webp"
+                            },
+                            "display": {
+                              "type": "string",
+                              "example": "/uploads/items/<uuid>-display.webp"
+                            }
+                          },
+                          "required": [
+                            "thumb",
+                            "display"
+                          ],
+                          "description": "Relative URLs under /uploads (WebP), null when no photo"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "nullable": true
                         }
                       },
                       "required": [
-                        "code"
+                        "id",
+                        "code",
+                        "externalCode",
+                        "name",
+                        "detail",
+                        "category",
+                        "unit",
+                        "price",
+                        "stock",
+                        "locationId",
+                        "supplierId",
+                        "photo",
+                        "createdAt",
+                        "updatedAt"
                       ]
                     }
                   },
@@ -15046,12 +15171,483 @@
         }
       }
     },
-    "/api/v1/items/{id}/assign-location": {
-      "put": {
+    "/api/v1/items/assign-location/bulk": {
+      "post": {
         "tags": [
           "Item"
         ],
-        "summary": "Assign a location and final code to an item",
+        "summary": "Assign one location to many items",
+        "description": "Sets location_id only, the item code never changes. Each item is saved on its own, so an item that fails (unknown id) is listed in failed and the others still go through. An unknown locationId is 404 for the whole request. Needs item.assign-location.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "itemIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "exclusiveMinimum": true
+                    },
+                    "minItems": 1,
+                    "maxItems": 200
+                  },
+                  "locationId": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true
+                  }
+                },
+                "required": [
+                  "itemIds",
+                  "locationId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Item locations assigned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "assigned": {
+                          "type": "integer"
+                        },
+                        "failed": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "integer"
+                              },
+                              "reason": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "reason"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "assigned",
+                        "failed"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/items/recode/bulk": {
+      "post": {
+        "tags": [
+          "Item"
+        ],
+        "summary": "Recode many items from their current category prefixes (superadmin only)",
+        "description": "Same rules as the single recode, in one transaction: all or nothing. itemIds are unique, 1 to 500. Any unknown id is 404 listing the missing ids and nothing changes. Numbers are sequential per prefix in item id order. One audit_logs entry per item. 403 for non-superadmin.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "itemIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "exclusiveMinimum": true
+                    },
+                    "minItems": 1,
+                    "maxItems": 500
+                  }
+                },
+                "required": [
+                  "itemIds"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Items recoded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "integer"
+                              },
+                              "oldCode": {
+                                "type": "string"
+                              },
+                              "newCode": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "oldCode",
+                              "newCode"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "items"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/items/{id}/recode": {
+      "post": {
+        "tags": [
+          "Item"
+        ],
+        "summary": "Give an item a new code from its current category prefix (superadmin only)",
+        "description": "No body. Works even when the item has transactions: they reference items.id, so history is unaffected, but printed labels must be reprinted. Writes an audit_logs entry with the old and new code. 403 for non-superadmin, 404 for an unknown id.",
         "security": [
           {
             "bearerAuth": []
@@ -15068,34 +15664,9 @@
             "in": "path"
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "code": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 191
-                  },
-                  "locationId": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "exclusiveMinimum": true
-                  }
-                },
-                "required": [
-                  "code",
-                  "locationId"
-                ]
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
-            "description": "Item location assigned",
+            "description": "Item recoded",
             "content": {
               "application/json": {
                 "schema": {
@@ -15118,8 +15689,8 @@
                         },
                         "code": {
                           "type": "string",
-                          "nullable": true,
-                          "description": "Internal code, built from the location"
+                          "description": "Internal code, category prefix + number (LEM001), generated on create, never changes",
+                          "example": "LEM001"
                         },
                         "externalCode": {
                           "type": "string",
@@ -15420,8 +15991,8 @@
                         },
                         "code": {
                           "type": "string",
-                          "nullable": true,
-                          "description": "Internal code, built from the location"
+                          "description": "Internal code, category prefix + number (LEM001), generated on create, never changes",
+                          "example": "LEM001"
                         },
                         "externalCode": {
                           "type": "string",
@@ -15717,8 +16288,8 @@
                         },
                         "code": {
                           "type": "string",
-                          "nullable": true,
-                          "description": "Internal code, built from the location"
+                          "description": "Internal code, category prefix + number (LEM001), generated on create, never changes",
+                          "example": "LEM001"
                         },
                         "externalCode": {
                           "type": "string",
@@ -18494,6 +19065,32 @@
             "required": false,
             "name": "recipientType",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "date",
+                "spk",
+                "clientName"
+              ]
+            },
+            "required": false,
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            },
+            "required": false,
+            "name": "sortDir",
+            "in": "query"
           }
         ],
         "responses": {
@@ -20807,6 +21404,33 @@
             },
             "required": false,
             "name": "endDate",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "noSpk",
+                "client",
+                "totalAnggaran",
+                "status"
+              ]
+            },
+            "required": false,
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            },
+            "required": false,
+            "name": "sortDir",
             "in": "query"
           }
         ],
@@ -26770,6 +27394,32 @@
             "required": false,
             "name": "year",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "period",
+                "createdAt",
+                "createdBy"
+              ]
+            },
+            "required": false,
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            },
+            "required": false,
+            "name": "sortDir",
+            "in": "query"
           }
         ],
         "responses": {
@@ -27674,6 +28324,35 @@
             },
             "required": false,
             "name": "endDate",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "requestDate",
+                "spk",
+                "clientName",
+                "productionItem",
+                "toolGroup",
+                "status"
+              ]
+            },
+            "required": false,
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            },
+            "required": false,
+            "name": "sortDir",
             "in": "query"
           }
         ],
@@ -29647,6 +30326,32 @@
             "required": false,
             "name": "recipientType",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "date",
+                "spk",
+                "clientName"
+              ]
+            },
+            "required": false,
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            },
+            "required": false,
+            "name": "sortDir",
+            "in": "query"
           }
         ],
         "responses": {
@@ -30320,6 +31025,35 @@
             },
             "required": false,
             "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "requestDate",
+                "spk",
+                "clientName",
+                "productionItem",
+                "toolGroup",
+                "status"
+              ]
+            },
+            "required": false,
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            },
+            "required": false,
+            "name": "sortDir",
             "in": "query"
           }
         ],
@@ -31262,645 +31996,6 @@
                   },
                   "required": [
                     "status",
-                    "message"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/items/assign-location/bulk": {
-      "post": {
-        "tags": [
-          "Item"
-        ],
-        "summary": "Assign one location to many items",
-        "description": "Each item gets a code suggested as in GET /api/v1/items/{id}/suggest-code and is saved on its own, so an item that fails (unknown id, supplier gone) is listed in failed and the others still go through. An unknown locationId is 404 for the whole request. Needs item.assign-location.",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "itemIds": {
-                    "type": "array",
-                    "items": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "exclusiveMinimum": true
-                    },
-                    "minItems": 1,
-                    "maxItems": 200
-                  },
-                  "locationId": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "exclusiveMinimum": true
-                  }
-                },
-                "required": [
-                  "itemIds",
-                  "locationId"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Item locations assigned",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        true
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "assigned": {
-                          "type": "integer"
-                        },
-                        "failed": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "id": {
-                                "type": "integer"
-                              },
-                              "reason": {
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "id",
-                              "reason"
-                            ]
-                          }
-                        }
-                      },
-                      "required": [
-                        "assigned",
-                        "failed"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message",
-                    "data"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation failed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or invalid access token",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Authenticated, but not authorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/items/generate-codes": {
-      "post": {
-        "tags": [
-          "Item"
-        ],
-        "summary": "Generate codes for items that have a location but no code",
-        "description": "For items placed on a location without a code (for example imported with only locationCode). Each code is suggested as in GET /api/v1/items/{id}/suggest-code; an item that fails is listed in failed and the others still go through. Needs item.assign-location.",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Item codes generated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        true
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "generated": {
-                          "type": "integer"
-                        },
-                        "failed": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "id": {
-                                "type": "integer"
-                              },
-                              "reason": {
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "id",
-                              "reason"
-                            ]
-                          }
-                        }
-                      },
-                      "required": [
-                        "generated",
-                        "failed"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message",
-                    "data"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation failed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or invalid access token",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Authenticated, but not authorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/items/generate-codes/revert": {
-      "post": {
-        "tags": [
-          "Item"
-        ],
-        "summary": "Undo the newest generate-codes run (superadmin only)",
-        "description": "Clears the codes the newest not yet reverted POST /api/v1/items/generate-codes run gave. An item whose code changed since keeps it and is counted in skipped. 403 for anyone but a superadmin, 404 when there is no run to revert.",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Generated item codes reverted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        true
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "reverted": {
-                          "type": "integer"
-                        },
-                        "skipped": {
-                          "type": "integer"
-                        }
-                      },
-                      "required": [
-                        "reverted",
-                        "skipped"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message",
-                    "data"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation failed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or invalid access token",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Authenticated, but not authorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
                     "message"
                   ]
                 }

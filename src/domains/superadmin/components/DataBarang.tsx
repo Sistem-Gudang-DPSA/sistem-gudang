@@ -1,9 +1,9 @@
 "use client";
 
-import { useCan } from '@/domains/auth/user-context';
+import { useAuthUser, useCan } from '@/domains/auth/user-context';
 import React, { useEffect, useRef, useState } from 'react';
-import { Search, Filter, Edit2, Images } from 'lucide-react';
-import { adjustItemStock, assignItemLocation, listItemCategories, listItemUnits, listItems, listLocations, suggestItemCode, updateItem } from '@/domains/inventory/api';
+import { Search, Filter, Edit2, Images, QrCode, RefreshCw } from 'lucide-react';
+import { adjustItemStock, assignItemLocation, bulkRecodeItems, listItemCategories, listItemUnits, listItems, listLocations, recodeItem, updateItem } from '@/domains/inventory/api';
 import type { ItemListRow, Location, UpdateItemInput } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
 import type { Supplier } from '@/domains/purchasing/types';
@@ -18,6 +18,10 @@ import BulkPhotoModal from '@/domains/inventory/components/BulkPhotoModal';
 import BarangFilterPanel, { countActiveFilters, emptyBarangFilters, toItemFilterParams } from '@/domains/inventory/components/BarangFilterPanel';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import EditModeBar, { useBatchEdit } from '@/shared/components/EditModeBar';
+import { kodeKategoriNotice, type CodeChange } from '@/domains/inventory/item-code-notice';
+import { printItemLabels } from '@/domains/inventory/label-print';
+
+type CodeLabel = { code: string | null; name: string; externalCode?: string | null; locationCode: string };
 // Supplier, kategori, satuan dan lokasi dipetakan di langkah kedua (ImportBarangMapping), bukan di Excel.
 export type MasterDataImportRow = {
   code: string;
@@ -55,6 +59,8 @@ export default function DataBarangGudang() {
   const canCreate = useCan('item.create');
   const canAssign = useCan('item.assign-location');
   const canAdjust = useCan('item.adjust-stock');
+  // BE allows recode for a superadmin only; no user in context means the route guard already let us in, as in useCan
+  const isSuperadmin = useAuthUser()?.isSuperadmin ?? true;
   const canUpdate = useCan('item.update');
   const canSetPrice = useCan('item.set-price');
   const canSetSupplier = useCan('item.set-supplier');
@@ -71,6 +77,8 @@ export default function DataBarangGudang() {
   const [units, setUnits] = useState<string[]>([]);
   const [pendingImport, setPendingImport] = useState<MasterDataImportRow[]>([]);
   const [importNote, setImportNote] = useState('');
+  const [codeNotice, setCodeNotice] = useState<{ headline: string; lines: string[]; labels: CodeLabel[] } | null>(null); // hasil Ganti kode, satu atau banyak barang
+  const [actionError, setActionError] = useState('');
 
   const [isStockModalOpen, setIsStockModalOpen] = useState(false);
   const [stockItem, setStockItem] = useState<ItemListRow | null>(null);
@@ -127,11 +135,12 @@ export default function DataBarangGudang() {
   const locationCode = (id: number | null) => (id === null ? '-' : locations.find((loc) => loc.id === id)?.code ?? `#${id}`);
 
   // Simpan perubahan satu barang: data master lewat PUT /items/:id, lokasi lewat assign-location.
-  // Kode barang yang sudah ada (mis. kode resmi hasil import) dipertahankan; hanya barang tanpa kode yang memakai saran kode.
-  const simpanSemua = () =>
+  // Kode dari BE dibandingkan dengan kode sebelum simpan untuk notifikasi perubahan kategori.
+  const simpanSemua = () => {
+    const codeChanges: CodeChange[] = [];
     edit.save(async (id, patch) => {
-      const row = seen.current.get(id);
-      if (!row) return;
+      const before = seen.current.get(id);
+      if (!before) return;
       const input: UpdateItemInput = {};
       if ('name' in patch) input.name = patch.name.trim();
       if ('detail' in patch) input.detail = patch.detail.trim() || null;
@@ -141,13 +150,66 @@ export default function DataBarangGudang() {
       if ('supplierId' in patch) input.supplierId = patch.supplierId === '' ? null : Number(patch.supplierId);
       if (input.name === '') throw new Error('Nama barang wajib diisi.');
       if (input.price !== undefined && (!Number.isInteger(input.price) || input.price < 0)) throw new Error('Harga harus bilangan bulat 0 atau lebih.');
-      if (Object.keys(input).length > 0) await updateItem(id, input);
-      if ('locationId' in patch && patch.locationId) {
-        const locationId = Number(patch.locationId);
-        const code = row.code ?? (await suggestItemCode(id, locationId)).code;
-        await assignItemLocation(id, { code, locationId });
+      if (Object.keys(input).length > 0) {
+        const updated = await updateItem(id, input);
+        if (input.category !== undefined && input.category !== before.category) codeChanges.push({ from: before.code, to: updated.code });
       }
-    }, reload);
+      if ('locationId' in patch && patch.locationId) {
+        await assignItemLocation(id, { locationId: Number(patch.locationId) });
+      }
+    }, () => {
+      reload();
+      const note = kodeKategoriNotice(codeChanges);
+      if (note) setImportNote(note);
+    });
+  };
+
+  const handleGantiKode = async (item: ItemListRow) => {
+    if (!window.confirm(`Ganti kode ${item.code}? Label lama tidak bisa di-scan lagi. Cetak ulang label setelah ini.`)) return;
+    setActionError('');
+    setCodeNotice(null);
+    try {
+      const updated = await recodeItem(item.id);
+      reload();
+      setCodeNotice({
+        headline: `Kode barang berubah dari ${item.code ?? '-'} menjadi ${updated.code ?? '-'}.`,
+        lines: [],
+        labels: [{ code: updated.code, name: updated.name, externalCode: updated.externalCode, locationCode: locationCode(updated.locationId) }],
+      });
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : 'Gagal mengganti kode barang.');
+    }
+  };
+
+  const handleGantiKodeMassal = async () => {
+    const rows = [...selected.values()];
+    if (!window.confirm(`Ganti kode ${rows.length} barang? Label lama tidak bisa di-scan lagi. Cetak ulang label setelah ini.`)) return;
+    setActionError('');
+    setCodeNotice(null);
+    try {
+      const res = await bulkRecodeItems(rows.map((r) => r.id));
+      const byId = new Map(rows.map((r) => [r.id, r]));
+      reload();
+      setSelected(new Map());
+      setCodeNotice({
+        headline: `${res.items.length} kode barang diganti.`,
+        lines: [
+          ...res.items.slice(0, 10).map((c) => `${c.oldCode} → ${c.newCode}`),
+          ...(res.items.length > 10 ? [`dan ${res.items.length - 10} lainnya`] : []),
+        ],
+        labels: res.items.map((c) => {
+          const row = byId.get(c.id);
+          return { code: c.newCode, name: row?.name ?? '', externalCode: row?.externalCode ?? null, locationCode: locationCode(row?.locationId ?? null) };
+        }),
+      });
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : 'Gagal mengganti kode barang massal.');
+    }
+  };
+
+  const cetakLabel = async (labels: CodeLabel[]) => {
+    setActionError(await printItemLabels(labels) ?? '');
+  };
 
   const openStockModal = (item: ItemListRow) => {
     setStockItem(item);
@@ -259,6 +321,17 @@ export default function DataBarangGudang() {
                 {`Pasang Foto Massal (${selected.size})`}
               </button>
             )}
+            {isSuperadmin && (
+              <button
+                type="button"
+                onClick={handleGantiKodeMassal}
+                disabled={selected.size === 0}
+                className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-100 transition-colors text-sm font-medium disabled:opacity-50"
+              >
+                <RefreshCw className="w-4 h-4" />
+                {`Ganti Kode Massal (${selected.size})`}
+              </button>
+            )}
             <ExportExcellButton onClick={handleExportExcel} />
             {(canUpdate || canAssign) && <EditModeBar editing={edit.editing} dirty={edit.dirty} saving={edit.saving} onToggle={edit.toggle} onSave={simpanSemua} onCancel={edit.cancel} />}
             <button
@@ -296,8 +369,29 @@ export default function DataBarangGudang() {
 
         {importNote && <div className="mx-5 mt-5 p-3 bg-green-50 text-green-700 text-sm rounded-lg">{importNote}</div>}
 
-        {error && (
-          <div className="mx-5 mt-5 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>
+        {codeNotice && (
+          <div className="mx-5 mt-5 p-3 bg-green-50 text-green-700 text-sm rounded-lg flex items-start justify-between gap-3">
+            <div>
+              <span>{codeNotice.headline}</span>
+              {codeNotice.lines.length > 0 && (
+                <ul className="mt-1 font-mono text-xs space-y-0.5">
+                  {codeNotice.lines.map((line) => <li key={line}>{line}</li>)}
+                </ul>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => cetakLabel(codeNotice.labels)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-green-300 text-green-700 text-xs font-bold rounded-lg hover:bg-green-100 transition-colors"
+            >
+              <QrCode className="w-3.5 h-3.5" strokeWidth={2.5} />
+              Cetak label
+            </button>
+          </div>
+        )}
+
+        {(error || actionError) && (
+          <div className="mx-5 mt-5 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error || actionError}</div>
         )}
 
         {/* Table Container */}
@@ -312,7 +406,9 @@ export default function DataBarangGudang() {
                 )}
                 <th scope="col" className="px-6 py-4">No</th>
                 <th scope="col" className="px-6 py-4">Foto</th>
+                <th scope="col" className="px-6 py-4">Kode Barang</th>
                 <SortableTh label="Informasi Barang" sortKey="name" sort={sort} onSort={toggle} />
+                <th scope="col" className="px-6 py-4">Kode Bawaan</th>
                 <SortableTh label="Supplier" sortKey="supplierName" sort={sort} onSort={toggle} />
                 <SortableTh label="Stok & Satuan" sortKey="stock" sort={sort} onSort={toggle} />
                 <SortableTh label="Kategori" sortKey="category" sort={sort} onSort={toggle} />
@@ -324,10 +420,10 @@ export default function DataBarangGudang() {
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={canUploadPhoto ? 11 : 10} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
+                <tr><td colSpan={canUploadPhoto ? 13 : 12} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
               )}
               {!loading && dataBarang.length === 0 && (
-                <tr><td colSpan={canUploadPhoto ? 11 : 10} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
+                <tr><td colSpan={canUploadPhoto ? 13 : 12} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
               )}
               {!loading && dataBarang.map((item, index) => {
                 const v = (key: string, original: string) => edit.value(item.id, key, original);
@@ -350,6 +446,9 @@ export default function DataBarangGudang() {
                     <ItemPhoto item={item} canUpload={canUploadPhoto} onUploaded={reload} />
                   </td>
 
+                  {/* Kode Barang */}
+                  <td className="px-6 py-4 font-mono text-xs text-gray-500">{item.code ?? '-'}</td>
+
                   {/* Informasi Barang */}
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
@@ -358,11 +457,12 @@ export default function DataBarangGudang() {
                       ) : (
                         <span className="font-bold text-gray-900">{item.name}</span>
                       )}
-                      <span className="text-xs font-mono text-gray-500 mt-0.5">{item.code ?? '-'}</span>
-                      {item.externalCode && <span className="text-xs text-gray-400">Kode bawaan: {item.externalCode}</span>}
                       {edit.errors[item.id] && <span className="text-xs text-red-600 mt-0.5 whitespace-normal">{edit.errors[item.id]}</span>} 
                     </div>
                   </td>
+
+                  {/* Kode Bawaan */}
+                  <td className="px-6 py-4 text-gray-600">{item.externalCode || '-'}</td>
 
                   {/* Supplier */}
                   <td className="px-6 py-4">
@@ -442,14 +542,26 @@ export default function DataBarangGudang() {
                   {/* Aksi */}
                   {canAdjust && (
                     <td className="px-6 py-4 text-center">
-                      <button
-                        onClick={() => openStockModal(item)}
-                        className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-100 transition-all duration-200 opacity-90 group-hover:opacity-100"
-                        title="Sesuaikan stok"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" strokeWidth={2.5} />
-                        Stok
-                      </button>
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => openStockModal(item)}
+                          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-100 transition-all duration-200 opacity-90 group-hover:opacity-100"
+                          title="Sesuaikan stok"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" strokeWidth={2.5} />
+                          Stok
+                        </button>
+                        {isSuperadmin && (
+                            <button
+                              onClick={() => handleGantiKode(item)}
+                              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 text-xs font-bold rounded-lg hover:bg-amber-100 transition-all duration-200 opacity-90 group-hover:opacity-100"
+                              title="Ganti kode dari prefix kategori"
+                            >
+                            <RefreshCw className="w-3.5 h-3.5" strokeWidth={2.5} />
+                            Ganti kode
+                          </button>
+                        )}
+                      </div>
                     </td>
                   )}
                 </tr>

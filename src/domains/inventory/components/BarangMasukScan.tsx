@@ -10,6 +10,7 @@ import { todayIso } from '@/domains/inventory/date';
 import { ApiError } from '@/shared/lib/api-client';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 import { randomId } from '@/shared/lib/random-id';
+import QrCameraScanner from '@/domains/inventory/components/QrCameraScanner';
 
 type Kind = 'pass' | 'retur';
 type Step = 'hub' | Kind | 'review';
@@ -19,7 +20,6 @@ type Draft = { key: string; date: string; pass: Line[]; retur: Line[] };
 const STORAGE_KEY = 'barang-masuk-scan-draft';
 const MAX_QTY = 100000; // BE limit per line
 const LARGE_QTY = 1000; // flagged on the review step
-const CAMERA_COOLDOWN_MS = 2000; // a camera reads the same QR on every frame; ignore repeats of one code for this long
 const KINDS: Kind[] = ['pass', 'retur'];
 const KIND_LABEL: Record<Kind, string> = { pass: 'Barang Lolos QC', retur: 'Barang Retur' };
 
@@ -62,8 +62,7 @@ export default function BarangMasukScan({ onClose, onSaved }: { onClose: () => v
   const inputRef = useRef<HTMLInputElement>(null);
   const draftRef = useRef(draft);
   const [cameraOn, setCameraOn] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const lastCameraRead = useRef({ code: '', at: 0 });
+  const [lockedName, setLockedName] = useState('');
   const stepRef = useRef<Step>('hub');
 
   useEffect(() => { draftRef.current = draft; saveDraft(draft.pass.length + draft.retur.length > 0 ? draft : null); }, [draft]);
@@ -79,10 +78,13 @@ export default function BarangMasukScan({ onClose, onSaved }: { onClose: () => v
     const kind = stepRef.current;
     if (kind !== 'pass' && kind !== 'retur') return;
     setScanError('');
+    setLockedName('');
     // Functional updates, so scans arriving faster than a render each still count.
-    if (draftRef.current[kind].some((l) => l.code === code)) { setList(kind, (ls) => bump(ls, (l) => l.code === code)); return; }
+    const dup = draftRef.current[kind].find((l) => l.code === code);
+    if (dup) { setList(kind, (ls) => bump(ls, (l) => l.code === code)); setLockedName(dup.name); return; }
     try {
       const item = await getItemByCode(code);
+      setLockedName(item.name);
       setList(kind, (ls) =>
         ls.some((l) => l.itemId === item.id)
           ? bump(ls, (l) => l.itemId === item.id)
@@ -98,47 +100,6 @@ export default function BarangMasukScan({ onClose, onSaved }: { onClose: () => v
       );
     }
   };
-
-  // Phone camera: qr-scanner is loaded only when the camera is opened. Needs HTTPS (or localhost) for getUserMedia.
-  useEffect(() => {
-    if (!cameraOn || !videoRef.current) return;
-    let stop = () => {};
-    let cancelled = false;
-    (async () => {
-      if (!window.isSecureContext) {
-        setScanError('Kamera hanya jalan di HTTPS atau localhost.');
-        setCameraOn(false);
-        return;
-      }
-      try {
-        const { default: QrScanner } = await import('qr-scanner');
-        if (cancelled || !videoRef.current) return;
-        const scanner = new QrScanner(
-          videoRef.current,
-          (result) => {
-            const code = result.data.trim();
-            const last = lastCameraRead.current;
-            const now = Date.now();
-            if (!code || (code === last.code && now - last.at < CAMERA_COOLDOWN_MS)) return;
-            lastCameraRead.current = { code, at: now };
-            void addCode(code);
-          },
-          { preferredCamera: 'environment', highlightScanRegion: true, returnDetailedScanResult: true },
-        );
-        stop = () => { scanner.stop(); scanner.destroy(); };
-        await scanner.start();
-        if (cancelled) stop();
-      } catch {
-        if (!cancelled) {
-          setScanError('Kamera tidak bisa dibuka. Periksa izin kamera di browser.');
-          setCameraOn(false);
-        }
-      }
-    })();
-    return () => { cancelled = true; stop(); };
-    // addCode only uses refs and functional state updates, so the scanner is not restarted on every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cameraOn]);
 
   // The USB scanner types the code and presses Enter.
   const onScanKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -295,7 +256,14 @@ export default function BarangMasukScan({ onClose, onSaved }: { onClose: () => v
                   {cameraOn ? 'Matikan kamera' : 'Kamera'}
                 </button>
               </div>
-              {cameraOn && <video ref={videoRef} muted playsInline className="mb-4 w-full max-w-sm rounded-xl bg-black" />}
+              {cameraOn && (
+                <QrCameraScanner
+                  onScan={(code) => void addCode(code)}
+                  lockedLabel={lockedName}
+                  rejected={scanError !== ''}
+                  onFail={(message) => { setScanError(message); setCameraOn(false); }}
+                />
+              )}
               {scanError && <p className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg" role="alert">{scanError}</p>}
 
               <div className="border border-gray-200 rounded-xl overflow-x-auto mb-6 mt-4">
