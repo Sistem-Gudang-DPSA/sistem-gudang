@@ -410,7 +410,8 @@ export default function DataBarangGudang() {
                 <SortableTh label="Informasi Barang" sortKey="name" sort={sort} onSort={toggle} />
                 <th scope="col" className="px-6 py-4">Kode Bawaan</th>
                 <SortableTh label="Supplier" sortKey="supplierName" sort={sort} onSort={toggle} />
-                <SortableTh label="Stok & Satuan" sortKey="stock" sort={sort} onSort={toggle} />
+                <SortableTh label="Stok" sortKey="stock" sort={sort} onSort={toggle} />
+                <th scope="col" className="px-6 py-4">Satuan</th>
                 <SortableTh label="Kategori" sortKey="category" sort={sort} onSort={toggle} />
                 <SortableTh label="Harga" sortKey="price" sort={sort} onSort={toggle} />
                 <SortableTh label="Lokasi" sortKey="locationCode" sort={sort} onSort={toggle} />
@@ -481,20 +482,16 @@ export default function DataBarangGudang() {
                     )}
                   </td>
 
-                  {/* Stok & Satuan */}
+                  {/* Stok */}
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
                        <span className={`font-bold ${item.stock < 20 ? 'text-red-600' : item.stock < 50 ? 'text-amber-600' : 'text-gray-800'}`}>
                          {item.stock}
                        </span>
-                       {edit.editing && canUpdate ? (
-                         <select aria-label={`Satuan ${item.name}`} className={`${cell} min-w-24`} value={v('unit', item.unit)} onChange={setF('unit', item.unit)}>
-                           {[...new Set([item.unit, ...units])].map((u) => <option key={u} value={u}>{u}</option>)}
-                         </select>
-                       ) : (
-                         <span className="text-gray-500 text-xs bg-gray-100 px-2 py-0.5 rounded-md">{item.unit}</span>
-                       )}
-                    </div>
+                  </td>
+
+                  {/* Satuan */}
+                  <td className="px-6 py-4 text-gray-600">
+                    {item.unit}
                   </td>
 
                   {/* Kategori */}
@@ -571,7 +568,7 @@ export default function DataBarangGudang() {
           </table>
         </div>
 
-        <Pagination page={page} pageSize={20} total={total} onPageChange={setPage} />
+        <Pagination page={page} pageSize={20} total={total} onPageChange={setPage} activeClass="bg-indigo-500 text-white border-indigo-500"/>
       </div>
 
       {bulkOpen && (
