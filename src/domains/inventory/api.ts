@@ -34,6 +34,11 @@ import type {
   StockOpnameRow,
 
 } from "./types";
+import type { KartuStokData } from '@/domains/inventory/components/KartuStok';
+
+export function getStockCard(itemId: number) {
+  return apiClient.get<KartuStokData>(`/api/v1/items/${itemId}/stock-card`);
+}
 
 // `summary` covers every item matching the search, not just the requested page.
 export function listItems(params?: ListParams & SortParams & ItemFilterParams) {
