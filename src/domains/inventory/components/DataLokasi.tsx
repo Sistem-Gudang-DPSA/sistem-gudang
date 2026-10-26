@@ -57,7 +57,11 @@ function parseKodeLokasi(raw: string) {
 
 const emptyModal = { kode: "", keterangan: "" };
 
-export default function DataLokasiGudang() {
+export default function DataLokasiGudang({
+  paginationActiveClass = 'bg-orange-500 text-white border-orange-500',
+}: {
+  paginationActiveClass?: string;
+}) {
   const canDelete = useCan('location.delete');
   const canCreate = useCan('location.create');
   const canUpdate = useCan('location.update');
@@ -311,7 +315,8 @@ export default function DataLokasiGudang() {
             </table>
           </div>
         </div>
-        <Pagination page={page} pageSize={pageSize} total={loaded?.total ?? 0} onPageChange={(p) => leaveRows(() => setPage(p))} activeClass="bg-teal-500 text-white border-teal-500" />
+        <Pagination page={page} pageSize={pageSize} total={loaded?.total ?? 0} onPageChange={(p) => leaveRows(() => setPage(p))} activeClass={paginationActiveClass} />
+
       </div>
 
       {isBatchOpen && (
