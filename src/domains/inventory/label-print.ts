@@ -18,7 +18,7 @@ export async function buildLabelsHtml(items: LabelItem[]): Promise<string> {
       .map(async (it) => {
         const svg = await QRCode.toString(it.code, { type: 'svg', margin: 0, errorCorrectionLevel: 'M' });
         const bawaan = it.externalCode ? `<span>[${escapeHtml(it.externalCode)}]</span>` : '';
-        return `<div class="label"><div class="qr">${svg}</div><div class="txt"><span class="code">Kode brg: ${escapeHtml(it.code)}</span><b>${escapeHtml(it.name)}</b>${bawaan}<span>Loc: ${escapeHtml(it.locationCode ?? '-')}</span></div></div>`;
+        return `<div class="label"><div class="qr">${svg}</div><div class="txt"><span class="code"> ${escapeHtml(it.code)}</span><b>${escapeHtml(it.name)}</b>${bawaan}<span>${escapeHtml(it.locationCode ?? '-')}</span></div></div>`;
       }),
   );
   return `<!doctype html>
