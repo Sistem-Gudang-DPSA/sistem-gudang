@@ -24,9 +24,9 @@ import { beepFail, beepOk } from '@/domains/inventory/beep';
 
 // Satu baris barang hasil scan. SPK dan Nama Produk/Proyek diisi sekali di atas untuk seluruh transaksi.
 // Baris input manual dibuat kosong (itemId null) sampai materialnya dipilih dari dropdown.
-type BarisForm = { key: string; manual: boolean; itemId: number | null; code: string; name: string; unit: string; stock: number; qty: string };
+type BarisForm = { key: string; manual: boolean; itemId: number | null; code: string; name: string; unit: string; stock: number; qty: string; dokubah:string; };
 
-const barisManual = (): BarisForm => ({ key: randomId(), manual: true, itemId: null, code: '', name: '', unit: '', stock: 0, qty: '1' });
+const barisManual = (): BarisForm => ({ key: randomId(), manual: true, itemId: null, code: '', name: '', unit: '', stock: 0, qty: '1', dokubah: '' });
 
 const PAGE_SIZE = 20;
 // Pilihan tambahan di Nama Produk/Proyek untuk barang yang keluar bukan untuk produk SPK tertentu
@@ -936,7 +936,16 @@ export default function BarangKeluarGudang() {
                         )}
                         <td className={`${formCellClass} px-2 text-center text-gray-700`}>{b.unit}</td>
                         <td className={`${formCellClass} px-2 text-center font-mono text-xs text-gray-600`}>{b.code}</td>
-                        <td className={`${formCellClass} px-2 text-center`}>{selDokubah(b)}</td>
+                        <td className={`${formCellClass} px-2 text-center`}>
+                          <input
+                            type="text"
+                            value={b.dokubah}
+                            onChange={(e) => patchBaris(b.key, { dokubah: e.target.value })}
+                            placeholder="Isi Dokubah"
+                            aria-label={`Dokubah ${nama}`}
+                            className="w-full min-w-28 border border-gray-300 rounded-md px-2 py-1.5 text-sm"
+                          />
+                        </td>
                         <td className={`${formCellClass} px-2 py-1.5`}>
                           <div className="flex items-center justify-center">
                             <button type="button" aria-label={`Kurangi ${nama}`} disabled={Number(b.qty) <= 1} onClick={() => patchBaris(b.key, { qty: String(Math.max(Number(b.qty) - 1, 1)) })} className="p-1 text-gray-500 hover:text-gray-900 disabled:opacity-30"><Minus className="w-4 h-4" /></button>
