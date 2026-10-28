@@ -2,9 +2,9 @@
 
 import React from "react";
 import Link from "next/link";
-import { ChevronDown, LayoutDashboard, ShieldCheck, Users } from "lucide-react";
 import { visibleNav, type NavTheme } from "../nav";
 import type { AuthUser } from "../types";
+import { ChevronDown, LayoutDashboard, ShieldCheck, Users, Folder } from "lucide-react";
 
 // Tailwind needs full class names, so each theme lists them literally.
 const THEME: Record<NavTheme, { summary: string; icon: string; border: string; heading: string; active: string; idle: string }> = {
@@ -92,6 +92,16 @@ export default function SidebarNav({ user, pathname, onNavigate }: Props) {
         <LayoutDashboard className="w-5 h-5" />
         <span className="font-medium">Overview</span>
       </Link>
+
+     <Link 
+        href="/dashboard/daftar-proyek" 
+        onClick={onNavigate} 
+        className={topLink(checkActive(pathname, "/dashboard/daftar-proyek"))}
+      >
+        <Folder className="w-5 h-5" />
+        <span className="font-medium">Daftar Proyek</span>
+      </Link>
+
 
       {divisions.length > 0 && (
         <div className="pt-4 pb-2">
