@@ -11,10 +11,9 @@ import { useSpkSearch } from '@/domains/ppic/use-spk-search';
 import { permintaan_pembelian_path, type PermintaanPembelian } from '@/domains/ppic/data/pembelian';
 import { todayIso } from '@/domains/inventory/date';
 import { ApiError } from '@/shared/lib/api-client';
-import { useApiData } from '@/shared/lib/use-api-data';
 import SearchableSelect from '@/shared/components/SearchableSelect';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
-import { listItems } from '@/domains/inventory/api';
+import { useItemSearch } from '@/domains/inventory/use-item-search';
 
 const emptyRow = { namaBarang: "", qty: "", satuan: "", proyek: "", noSpk: "" };
 
@@ -23,8 +22,6 @@ const emptyRow = { namaBarang: "", qty: "", satuan: "", proyek: "", noSpk: "" };
 export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = permintaan_pembelian_path }: { permintaan?: PermintaanPembelian; basePath?: string }) {
   const router = useRouter();
   const canCreate = useCan("purchase-request.create");
-  const [supplierId, setSupplierId] = useState("");
-
   const [barisAktif, setBarisAktif] = useState<number | null>(null);
 
   const [posisiDropdown, setPosisiDropdown] = useState({
@@ -47,8 +44,6 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [searchTerm, setSearchTerm] = useState('');
-  const [page, setPage] = useState(1);
   // Server errors per row, keyed by the row index in tableData.
   const [rowErrors, setRowErrors] = useState<Record<number, string>>({});
   // Dropdown No SPK di tiap baris memakai daftar pencarian yang sama; SPK lama di baris tetap ada di pilihan
@@ -57,19 +52,7 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
     ...spkBaris.options.map((t) => ({ value: t.noSpk, label: t.noSpk })),
     ...(noSpk && !spkBaris.options.some((t) => t.noSpk === noSpk) ? [{ value: noSpk, label: noSpk }] : []),
   ];
-  const { data: loaded, loading, error: loadError, reload } = useApiData(
-    () => listItems({ search: searchTerm || undefined, page, pageSize: 20 }),
-    `${searchTerm}|${page}`,
-    "Gagal memuat data barang.",
-  );
-  const dataBarang = loaded?.rows ?? [];
-  const [hasilPencarian, setHasilPencarian] =
-  useState<typeof dataBarang>([]);
-
-  const barangSupplier = dataBarang.filter(
-    (item) =>
-      String(item.supplierId) === String(supplierId)
-  );
+  const { items: dataBarang, onSearch: searchItems, error: itemError } = useItemSearch();
 
   const handleChange = (index: number, field: keyof typeof emptyRow, value: string) => {
     setTableData((prev) => prev.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
@@ -241,7 +224,7 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
                               });
 
                               setBarisAktif(i);
-                              setHasilPencarian(dataBarang);
+                              searchItems(row.namaBarang);
                             }}
                             onChange={(e) => {
                               const keyword = e.target.value;
@@ -260,14 +243,7 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
                               });
 
                               setBarisAktif(i);
-
-                              setHasilPencarian(
-                                dataBarang.filter((item) =>
-                                  item.name
-                                    .toLowerCase()
-                                    .includes(keyword.toLowerCase())
-                                )
-                              );
+                              searchItems(keyword);
                             }}
                             className="w-full h-full min-h-12 px-4 text-center bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 placeholder-gray-300 not-italic"
                           />
@@ -286,8 +262,8 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
                                 }}
                                 className="max-h-56 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-xl"
                               >
-                                {hasilPencarian.length > 0 ? (
-                                  hasilPencarian.map((item) => (
+                                {dataBarang.length > 0 ? (
+                                  dataBarang.map((item) => (
                                     <div
                                       key={item.code ?? item.name}
                                       role="button"
@@ -299,7 +275,6 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
                                         handleChange(i, 'satuan', item.unit ?? '');
 
                                         setBarisAktif(null);
-                                        setHasilPencarian([]);
                                       }}
                                       onKeyDown={(e) => {
                                         if (e.key === 'Enter') {
@@ -307,7 +282,6 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
                                           handleChange(i, 'satuan', item.unit ?? '');
 
                                           setBarisAktif(null);
-                                          setHasilPencarian([]);
                                         }
                                       }}
                                       className="block w-full px-3 py-2 text-left hover:bg-orange-50 cursor-pointer"
@@ -362,7 +336,7 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
         </div>
 
         {/* Submit Action */}
-        {error && <p className="text-sm text-red-500 text-right mb-3">{error}</p>}
+        {(error || itemError) && <p className="text-sm text-red-500 text-right mb-3">{error || itemError}</p>}
         {Object.entries(rowErrors).map(([i, msg]) => <p key={i} className="text-sm text-red-500 text-right mb-1">Baris {Number(i) + 1}: {msg}</p>)}
         <div className="flex justify-end w-full">
           <button onClick={handleSubmit} disabled={saving} className="disabled:opacity-60 px-8 py-2.5 bg-[#ff8a00] text-white rounded-lg hover:bg-[#eb7d00] transition-all duration-200 font-semibold text-[14px] shadow-sm hover:shadow-md hover:-translate-y-0.5">

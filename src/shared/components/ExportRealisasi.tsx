@@ -1,7 +1,5 @@
+import { escapeHtml } from '@/shared/lib/escape-html';
 import { fmtQty, fmtRp, type RealisasiTable } from '@/domains/inventory/components/RealisasiSPK';
-
-const esc = (v: unknown) =>
-  String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 
 export async function exportRealisasiExcel(t: RealisasiTable) {
   const XLSX = await import('xlsx');
@@ -38,6 +36,7 @@ export async function exportRealisasiExcel(t: RealisasiTable) {
 // Dipanggil langsung dari klik tombol supaya jendela tidak diblokir browser
 export function printRealisasiPdf(t: RealisasiTable) {
   const win = window.open('', '_blank');
+  if (win) win.opener = null;
   if (!win) {
     alert('Pop-up diblokir browser. Izinkan pop-up untuk mencetak PDF.');
     return;
@@ -46,11 +45,11 @@ export function printRealisasiPdf(t: RealisasiTable) {
   const head =
     n === 0
       ? '<tr><th>No.</th><th>Kode Barang</th><th>Nama Barang</th><th class="r">Harga Satuan</th></tr>'
-      : `<tr><th rowspan="3">No.</th><th rowspan="3">Kode Barang</th><th rowspan="3">Nama Barang</th><th rowspan="3" class="r">Harga Satuan</th><th colspan="${n * 2}" class="c">${esc(t.client)}</th></tr>
-         <tr>${t.spks.map((no) => `<th colspan="2" class="c">${esc(no)}</th>`).join('')}</tr>
+      : `<tr><th rowspan="3">No.</th><th rowspan="3">Kode Barang</th><th rowspan="3">Nama Barang</th><th rowspan="3" class="r">Harga Satuan</th><th colspan="${n * 2}" class="c">${escapeHtml(t.client)}</th></tr>
+         <tr>${t.spks.map((no) => `<th colspan="2" class="c">${escapeHtml(no)}</th>`).join('')}</tr>
          <tr>${t.spks.map(() => '<th class="r">Jumlah</th><th class="r">Biaya</th>').join('')}</tr>`;
   const body = t.rows
-    .map((r, i) => `<tr><td class="c">${i + 1}</td><td>${esc(r.code)}</td><td>${esc(r.name)}</td><td class="r">${fmtRp(r.price)}</td>
+    .map((r, i) => `<tr><td class="c">${i + 1}</td><td>${escapeHtml(r.code)}</td><td>${escapeHtml(r.name)}</td><td class="r">${fmtRp(r.price)}</td>
       ${r.cells.map((c) => `<td class="r">${c.qty ? fmtQty(c.qty) : 0}</td><td class="r">${fmtRp(c.cost)}</td>`).join('')}</tr>`)
     .join('');
   const total = `<tr><td colspan="4"><b>Total pengeluaran</b></td>${t.totals.map((v) => `<td></td><td class="r"><b>${fmtRp(v)}</b></td>`).join('')}</tr>`;
@@ -61,7 +60,7 @@ export function printRealisasiPdf(t: RealisasiTable) {
     table { width: 100%; border-collapse: collapse; font-size: 11px; }
     th, td { border: 1px solid #999; padding: 4px 6px; text-align: left; vertical-align: middle; }
     th { background: #eee; } .c { text-align: center; } .r { text-align: right; }
-  </style></head><body><h1>Realisasi SPK${t.client ? ` · ${esc(t.client)}` : ''}</h1>
+  </style></head><body><h1>Realisasi SPK${t.client ? ` · ${escapeHtml(t.client)}` : ''}</h1>
   <table><thead>${head}</thead><tbody>${body}${total}</tbody></table></body></html>`);
   win.document.close();
   win.focus();

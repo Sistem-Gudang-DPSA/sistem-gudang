@@ -2,17 +2,14 @@ import { useEffect, useState } from 'react';
 import { getTrackingSpk, listTrackingClients, listTrackingSpk } from '@/domains/ppic/api';
 import type { TrackingSpk } from '@/domains/ppic/types';
 import { useApiData } from '@/shared/lib/use-api-data';
+import { useDebouncedValue } from '@/shared/lib/use-debounced-value';
 
-// Pilihan SPK dari tracking untuk dropdown yang dicari di server (jeda 300 ms).
+// Pilihan SPK dari tracking untuk dropdown yang dicari di server (jeda 300 ms, lihat useDebouncedValue).
 // SPK yang dipilih selalu ada di options, walau di luar hasil pencarian terakhir, dengan client-nya.
 // client: undefined = every SPK; a name = only that client's SPKs; '' = no client picked yet, so none.
 export function useSpkSearch(selected: string, client?: string) {
   const [input, setInput] = useState('');
-  const [query, setQuery] = useState<string | undefined>(undefined);
-  useEffect(() => {
-    const timer = setTimeout(() => setQuery(input.trim() || undefined), 300);
-    return () => clearTimeout(timer);
-  }, [input]);
+  const query = useDebouncedValue(input.trim() || undefined);
   const { data: response, error } = useApiData(async () => ({
     client,
     rows: client === '' ? [] : await listTrackingSpk(query, 50, client),
@@ -42,14 +39,10 @@ export function useSpkSearch(selected: string, client?: string) {
   return { options, onSearch: setInput, error };
 }
 
-// Pilihan client dari tracking, dicari di server (jeda 300 ms).
+// Pilihan client dari tracking, dicari di server (jeda 300 ms, lihat useDebouncedValue).
 export function useClientSearch() {
   const [input, setInput] = useState('');
-  const [query, setQuery] = useState<string | undefined>(undefined);
-  useEffect(() => {
-    const timer = setTimeout(() => setQuery(input.trim() || undefined), 300);
-    return () => clearTimeout(timer);
-  }, [input]);
+  const query = useDebouncedValue(input.trim() || undefined);
   const { data } = useApiData(() => listTrackingClients(query, 50), `client-search|${query ?? ''}`, 'Gagal memuat daftar client.');
   return { options: data ?? [], onSearch: setInput };
 }

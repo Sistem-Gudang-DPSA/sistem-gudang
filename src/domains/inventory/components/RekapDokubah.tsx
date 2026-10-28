@@ -1,11 +1,12 @@
 "use client";
 
+import { escapeHtml } from '@/shared/lib/escape-html';
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Search, ChevronDown, Download, FileUp } from 'lucide-react';
 import { getStatusBadge, STATUS_OPTIONS } from '@/domains/ppic/components/Dokubah';
-import { detailGudangRekapDokubahPath, escapeHtml, formatRupiah, type StatusDokubah } from '@/domains/ppic/data/dokubah';
+import { detailGudangRekapDokubahPath, formatRupiah, type StatusDokubah } from '@/domains/ppic/data/dokubah';
 import { listDokubahRows, STATUS_TO_UI, statusToApi } from '@/domains/ppic/api';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
@@ -105,6 +106,7 @@ export default function RekapDokubah() {
   // Buka jendela berisi tabel saja lalu panggil dialog print (pilih "Save as PDF")
   const handlePrintPdf = () => {
     const win = window.open('', '_blank');
+    if (win) win.opener = null;
     if (!win) {
       alert('Pop-up diblokir browser. Izinkan pop-up untuk mencetak PDF.');
       return;
@@ -117,7 +119,7 @@ export default function RekapDokubah() {
         <td class="right">${formatRupiah(item.totalAnggaran)}</td>
         <td class="right">${formatRupiah(item.realisasi)}</td>
         <td class="right">${formatRupiah(item.sisa)}</td>
-        <td>${item.status}</td>
+        <td>${escapeHtml(item.status)}</td>
       </tr>`).join('');
     win.document.write(`<!doctype html>
       <html>

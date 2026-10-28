@@ -53,6 +53,12 @@ export async function getDokubah(id: number) {
   return toItem(await apiClient.get<DokubahApiDetail>(`/api/v1/dokubah/${id}`));
 }
 
+// Bahan of many SPKs in one request (max 100), in request order. [] for an SPK without dokubah.
+export async function listDokubahBahanBySpk(spks: string[]) {
+  const query = new URLSearchParams(spks.map((spk) => ["spk", spk]));
+  return apiClient.get<{ noSpk: string; bahan: BahanDokubah[] }[]>(`/api/v1/dokubah/bahan-by-spk?${query}`);
+}
+
 export async function createDokubah(input: CreateDokubahInput) {
   return toItem(await apiClient.post<DokubahApiDetail>("/api/v1/dokubah", input));
 }
@@ -75,6 +81,9 @@ export const listSpkInternal = (params?: SpkInternalListParams) =>
 export const createSpkInternal = (input: CreateSpkInternalInput) => apiClient.post<{ id: number; noSpk: string }>("/api/v1/spk-internal", input);
 
 // Rejected with 400 unless jumlah is an integer > 0 and <= totalBisaPakai; 0 left means LOCKED.
+// One SPK internal line by id (the row shape of the list). 404 when unknown.
+export const getSpkInternal = (id: number | string) => apiClient.get<SpkInternal>(`/api/v1/spk-internal/${id}`);
+
 export const allocateSpkInternal = (id: number, jumlah: number) =>
   apiClient.post<SpkInternal>(`/api/v1/spk-internal/${id}/allocate`, { jumlah });
 

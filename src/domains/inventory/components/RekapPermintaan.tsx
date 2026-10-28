@@ -1,9 +1,10 @@
 "use client";
 
+import { escapeHtml } from '@/shared/lib/escape-html';
 import React, { useState } from 'react';
 import { Search, FileUp, Download, Eye, Loader2, AlertCircle } from 'lucide-react';
 import { exportRequestsReport, getMaterialRequest, getRequestsReport } from '@/domains/inventory/api';
-import { displayDate } from '@/domains/inventory/date';
+import { displayDate, todayIso } from '@/domains/inventory/date';
 import type { MaterialRequestDetail, MaterialRequestStatus } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
@@ -20,15 +21,12 @@ const monthStart = () => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 };
-const escapeHtml = (s: string) =>
-  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
 
 export default function RekapPermintaan(){
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [filterStatus, setFilterStatus] = useState<'ALL' | MaterialRequestStatus>('ALL');
     const [startDate, setStartDate] = useState<string>(monthStart());
-    const [endDate, setEndDate] = useState<string>(new Date().toISOString().slice(0, 10));
+    const [endDate, setEndDate] = useState<string>(todayIso());
     const [detail, setDetail] = useState<MaterialRequestDetail | null>(null);
     const [actionError, setActionError] = useState('');
     const [exporting, setExporting] = useState(false);
@@ -93,6 +91,7 @@ export default function RekapPermintaan(){
 
     const handlePrintPdf = () => {
         const win = window.open('', '_blank');
+        if (win) win.opener = null;
         if (!win) {
             setActionError('Pop-up diblokir browser. Izinkan pop-up untuk mencetak PDF.');
             return;
@@ -136,7 +135,7 @@ export default function RekapPermintaan(){
             </head>
             <body>
                 <h1>Rekap Permintaan</h1>
-                <p class="meta">Periode: ${periodeText} &nbsp;|&nbsp; Status: ${escapeHtml(statusText)}${
+                <p class="meta">Periode: ${escapeHtml(periodeText)} &nbsp;|&nbsp; Status: ${escapeHtml(statusText)}${
                 searchQuery ? ` &nbsp;|&nbsp; Pencarian: ${escapeHtml(searchQuery)}` : ''
                 }${anySelected ? ` &nbsp;|&nbsp; ${rowsToPrint.length} baris dipilih` : ''}</p>
                 <table>

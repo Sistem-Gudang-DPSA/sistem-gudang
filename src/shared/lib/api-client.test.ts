@@ -67,6 +67,7 @@ describe("apiClient", () => {
     expect(result).toEqual({ id: 42 });
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(fetchMock.mock.calls[1][0]).toContain("/api/v1/auth/refresh");
+    expect(fetchMock.mock.calls[1][1].headers).toMatchObject({ "X-Requested-With": "XMLHttpRequest" });
     expect(getAccessToken()).toBe("new-token");
   });
 
@@ -97,5 +98,19 @@ describe("apiClient", () => {
       message: "Token invalid",
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("shares one refresh request between concurrent callers", async () => {
+    const data = { accessToken: "new", user: { id: 1 } };
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, { success: true, message: "ok", data }));
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const { refreshSessionData, getAccessToken } = await import("./api-client");
+
+    const [a, b] = await Promise.all([refreshSessionData(), refreshSessionData()]);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(a).toEqual(data);
+    expect(b).toEqual(data);
+    expect(getAccessToken()).toBe("new");
   });
 });

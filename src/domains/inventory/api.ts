@@ -1,4 +1,5 @@
 import type { LocationDataImportRow } from "./components/DataLokasi";
+import { invalidateApiData } from "@/shared/lib/use-api-data";
 import { ApiError, apiClient, downloadFile, toQuery } from "@/shared/lib/api-client";
 import type {
   ItemFilterParams,
@@ -66,12 +67,12 @@ export const listItemCategoriesPage = (params: ListParams & SortParams) =>
   apiClient.get<PaginatedResult<ItemLookup>>(`/api/v1/items/categories${toQuery(params)}`);
 export const listItemUnitsPage = (params: ListParams & SortParams) =>
   apiClient.get<PaginatedResult<ItemLookup>>(`/api/v1/items/units${toQuery(params)}`);
-export const createItemCategory = (name: string, prefix?: string) => apiClient.post<ItemLookup>("/api/v1/items/categories", { name, prefix });
-export const createItemUnit = (name: string) => apiClient.post<ItemLookup>("/api/v1/items/units", { name });
-export const renameItemCategory = (id: number, name: string, prefix?: string) => apiClient.put<ItemLookup>(`/api/v1/items/categories/${id}`, { name, prefix });
-export const renameItemUnit = (id: number, name: string) => apiClient.put<ItemLookup>(`/api/v1/items/units/${id}`, { name });
-export const deleteItemCategory = (id: number) => apiClient.delete<void>(`/api/v1/items/categories/${id}`);
-export const deleteItemUnit = (id: number) => apiClient.delete<void>(`/api/v1/items/units/${id}`);
+export const createItemCategory = (name: string, prefix?: string) => apiClient.post<ItemLookup>("/api/v1/items/categories", { name, prefix }).finally(() => invalidateApiData("categories"));
+export const createItemUnit = (name: string) => apiClient.post<ItemLookup>("/api/v1/items/units", { name }).finally(() => invalidateApiData("units"));
+export const renameItemCategory = (id: number, name: string, prefix?: string) => apiClient.put<ItemLookup>(`/api/v1/items/categories/${id}`, { name, prefix }).finally(() => invalidateApiData("categories"));
+export const renameItemUnit = (id: number, name: string) => apiClient.put<ItemLookup>(`/api/v1/items/units/${id}`, { name }).finally(() => invalidateApiData("units"));
+export const deleteItemCategory = (id: number) => apiClient.delete<void>(`/api/v1/items/categories/${id}`).finally(() => invalidateApiData("categories"));
+export const deleteItemUnit = (id: number) => apiClient.delete<void>(`/api/v1/items/units/${id}`).finally(() => invalidateApiData("units"));
 
 export type BulkItemRow = {
   code?: string; name: string; detail?: string; supplier?: string; category?: string; unit?: string;
@@ -107,6 +108,8 @@ export async function importItems(body: { defaults: { category?: string; unit?: 
       return `${row ? `Baris ${row}${name ? ` "${name}"` : ""}${field ? ` (${field})` : ""}` : key}: ${msgs.join(", ")}`;
     });
     throw new Error(lines.slice(0, 10).join("; ") + (lines.length > 10 ? `; dan ${lines.length - 10} error lain` : ""));
+  } finally {
+    invalidateApiData("lokasi");
   }
 }
 
@@ -182,15 +185,15 @@ export function listLocations(params?: ListParams & SortParams) {
 }
 
 export function createLocation(input: CreateLocationInput) {
-  return apiClient.post<Location>("/api/v1/locations", input);
+  return apiClient.post<Location>("/api/v1/locations", input).finally(() => invalidateApiData("lokasi"));
 }
 
 export function updateLocation(id: number, input: Partial<CreateLocationInput>) {
-  return apiClient.put<Location>(`/api/v1/locations/${id}`, input);
+  return apiClient.put<Location>(`/api/v1/locations/${id}`, input).finally(() => invalidateApiData("lokasi"));
 }
 
 export function deleteLocation(id: number) {
-  return apiClient.delete<void>(`/api/v1/locations/${id}`);
+  return apiClient.delete<void>(`/api/v1/locations/${id}`).finally(() => invalidateApiData("lokasi"));
 }
 
 // Gudang division: inbound, outbound, stock opname and material requests.

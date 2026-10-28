@@ -18,12 +18,11 @@ const selectClass =
 
 // Semua barang (100 per permintaan, batas API), karena tabel menampilkan seluruh barang
 async function loadAllItems(): Promise<ItemListRow[]> {
-    const rows: ItemListRow[] = [];
-    for (let page = 1; ; page++) {
-        const res = await listItems({ page, pageSize: 100 });
-        rows.push(...res.rows);
-        if (res.rows.length === 0 || rows.length >= res.total) return rows;
-    }
+    const pageSize = 100;
+    const first = await listItems({ page: 1, pageSize });
+    const pages = Math.ceil(first.total / pageSize);
+    const rest = await Promise.all(Array.from({ length: Math.max(0, pages - 1) }, (_, i) => listItems({ page: i + 2, pageSize })));
+    return [first, ...rest].flatMap((r) => r.rows);
 }
 
 export default function RealisasiSpk() {

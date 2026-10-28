@@ -45,3 +45,6 @@ next-env.d.ts
 
 # database dumps (contain password hashes)
 docs/example-excel-files/*.sql
+
+# catatan lokal audit performa
+/docs/perf-issue.md

@@ -1,14 +1,16 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, ChevronDown } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { formatAngka } from '@/domains/ppic/data/dokubah';
 import { fetchPermintaan, type PermintaanPembelian } from '@/domains/ppic/data/pembelian';
 import { useApiData } from '@/shared/lib/use-api-data';
-import { createPurchaseOrder, listSuppliers } from '@/domains/purchasing/api';
-import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
+import { createPurchaseOrder } from '@/domains/purchasing/api';
+import { useSupplierSearch } from '@/domains/purchasing/use-supplier-search';
+import SearchableSelect from '@/shared/components/SearchableSelect';
+import { INTEGER_INPUT, decimalOnly, digitsOnly, parsePpn } from '@/shared/lib/input';
 import { lihatPermintaanPath, PEMESAN, rekap_pembelian_path } from '@/domains/purchasing/data/pembelian';
 import type { PurchaseOrder, Supplier } from '@/domains/purchasing/types';
 import { useCan } from '@/domains/auth/user-context';
@@ -61,9 +63,9 @@ function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
   const [saving, setSaving] = useState(false);
   const [dibuat, setDibuat] = useState<PurchaseOrder | null>(null);
   const [tanggalPo, setTanggalPo] = useState('');
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [supplierError, setSupplierError] = useState('');
-  const [supplierId, setSupplierId] = useState('');
+  const { suppliers, onSearch: cariSupplier, pending: supplierPending, error: supplierError } = useSupplierSearch();
+  // Supplier terpilih disimpan sendiri supaya tetap ada walau di luar hasil pencarian terakhir.
+  const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [picSupplier, setPicSupplier] = useState('');
   const [barisHarga, setBarisHarga] = useState<BarisHarga[]>(
     () => (permintaan?.barang ?? []).map(() => ({ kodeBarang: '', harga: '', diskon: '' })),
@@ -71,20 +73,6 @@ function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
   const [persenPpn, setPersenPpn] = useState('12');
   const [jasa, setJasa] = useState('');
   const [formError, setFormError] = useState('');
-
-  useEffect(() => {
-    let aktif = true;
-    listSuppliers({ pageSize: 100 })
-      .then((result) => {
-        if (aktif) setSuppliers(result.rows);
-      })
-      .catch((err) => {
-        if (aktif) setSupplierError(err instanceof ApiError ? err.message : 'Gagal memuat data supplier.');
-      });
-    return () => {
-      aktif = false;
-    };
-  }, []);
 
   const backPath = permintaan ? lihatPermintaanPath(permintaan.id) : rekap_pembelian_path;
 
@@ -108,7 +96,6 @@ function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
     );
   }
 
-  const supplier = suppliers.find((s) => String(s.id) === supplierId);
   const kebutuhanProyek = Array.from(new Set(permintaan.barang.map((b) => b.proyek))).join(', ');
 
   const barang = permintaan.barang.map((b, index) => {
@@ -121,7 +108,8 @@ function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
   const totalSetelahDiskon = barang.reduce((sum, b) => sum + b.total, 0);
   // DPP nilai lain = 11/12 dari harga jual; PPN dihitung dari DPP ini
   const dppLain = Math.round((totalSetelahDiskon * 11) / 12);
-  const nilaiPpn = Math.round((dppLain * toNumber(persenPpn)) / 100);
+  const ppn = parsePpn(persenPpn);
+  const nilaiPpn = Math.round((dppLain * (Number.isFinite(ppn) ? ppn : 0)) / 100);
   const totalSetelahPpn = totalSetelahDiskon + nilaiPpn;
   const grandTotal = totalSetelahPpn + toNumber(jasa);
 
@@ -151,7 +139,11 @@ function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
       setFormError('Harga satuan setiap barang wajib diisi lebih dari 0.');
       return;
     }
-    if (barang.some((b) => b.diskon < 0 || b.total < 0) || toNumber(persenPpn) < 0 || toNumber(persenPpn) > 100 || toNumber(jasa) < 0) {
+    if (!Number.isFinite(ppn)) {
+      setFormError('PPN harus berupa angka, misalnya 11 atau 11,5.');
+      return;
+    }
+    if (barang.some((b) => b.diskon < 0 || b.total < 0) || ppn < 0 || ppn > 100 || toNumber(jasa) < 0) {
       setFormError('Diskon, PPN, dan Jasa tidak boleh minus, PPN maksimal 100, dan diskon tidak boleh melebihi harga barang.');
       return;
     }
@@ -173,7 +165,7 @@ function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
             hargaSatuan: b.hargaSatuan,
             diskon: b.diskon,
           })),
-          persenPpn: toNumber(persenPpn),
+          persenPpn: ppn,
           jasa: toNumber(jasa),
         }),
       );
@@ -224,22 +216,23 @@ function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
                 <thead className="bg-gray-100">
                   <tr>
                     <th scope="col" className={`${cellClass} w-40 text-xs font-bold text-gray-900 uppercase`}>
-                      <label htmlFor="po-supplier">Data Supplier</label>
+                      <label>Data Supplier</label>
                     </th>
                     <th scope="col" className={`${cellClass} font-normal`}>
                       <div className="relative">
-                        <select
-                          id="po-supplier"
-                          value={supplierId}
-                          onChange={(e) => setSupplierId(e.target.value)}
-                          className={`${cellInputClass} appearance-none pr-8 cursor-pointer`}
-                        >
-                          <option value="" disabled>Kode Supplier</option>
-                          {suppliers.map((s) => (
-                            <option key={s.id} value={s.id}>{s.code} - {s.name}</option>
-                          ))}
-                        </select>
-                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+                        <SearchableSelect
+                          value={supplier ? String(supplier.id) : ''}
+                          onChange={(v) => setSupplier((prev) => suppliers.find((s) => String(s.id) === v) ?? (prev && String(prev.id) === v ? prev : null))}
+                          onSearch={cariSupplier}
+                          pending={supplierPending}
+                          options={[
+                            ...(supplier && !suppliers.some((s) => s.id === supplier.id) ? [{ value: String(supplier.id), label: `${supplier.code} - ${supplier.name}` }] : []),
+                            ...suppliers.map((s) => ({ value: String(s.id), label: `${s.code} - ${s.name}` })),
+                          ]}
+                          placeholder="Kode Supplier"
+                          aria-label="Data Supplier"
+                          className={cellInputClass}
+                        />
                       </div>
                     </th>
                   </tr>
@@ -408,7 +401,7 @@ function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
                 inputMode="decimal"
                 maxLength={6}
                 value={persenPpn}
-                onChange={(e) => setPersenPpn(e.target.value.replace(/[^\d.]/g, ''))}
+                onChange={(e) => setPersenPpn(decimalOnly(e.target.value.replace(',', '.')))}
                 aria-label="PPN (persen)"
                 className={`${fieldClass} text-right`}
               />

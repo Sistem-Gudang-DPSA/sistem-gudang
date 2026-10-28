@@ -6,10 +6,12 @@ import { listItems, listLocations, updateItem } from '@/domains/inventory/api';
 import type { ItemListRow, Location } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
 import type { Supplier } from '@/domains/purchasing/types';
+import { toCsv } from '@/shared/lib/csv';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { digitsOnly, INTEGER_INPUT } from '@/shared/lib/input';
 import { useCan } from '@/domains/auth/user-context';
+import { useClampPage, usePage } from '@/shared/lib/use-page';
 import Pagination from '@/shared/components/Pagination';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import ItemPhoto from '@/domains/inventory/components/ItemPhoto';
@@ -39,13 +41,14 @@ export default function DataBarangPurchasing() {
 
   const [searchTerm, setSearchTerm] = useState('');
 
-  const [page, setPage] = useState(1);
+  const [page, setPage] = usePage(`${searchTerm}|${JSON.stringify(sortParams)}`);
   const { data: loaded, loading, error: loadError, reload } = useApiData(
     () => listItems({ search: searchTerm || undefined, page, pageSize: 20, ...sortParams }),
     `${searchTerm}|${page}|${JSON.stringify(sortParams)}`,
     "Gagal memuat data barang.",
   );
   const dataBarang = loaded?.rows ?? [];
+  useClampPage(page, loaded?.total ?? 0, 20, setPage);
   const error = loadError;
 
   useEffect(() => {
@@ -84,17 +87,15 @@ export default function DataBarangPurchasing() {
 
   const handleExportCSV = () => {
     setExporting(true);
-    const headers = ['No,Kode Barang,Kode Bawaan,Nama Barang,Supplier,Jumlah Stok,Satuan,Kategori,Harga,Lokasi'];
-    const csvData = dataBarang.map((item, index) =>
-      `${index + 1},${item.code ?? '-'},"${item.externalCode ?? '-'}","${item.name}","${supplierName(item.supplierId)}",${item.stock},${item.unit},${item.category},${item.price},${locationCode(item.locationId)}`
-    );
-    const csvString = [...headers, ...csvData].join('\n');
+    const rows: unknown[][] = [['No', 'Kode Barang', 'Kode Bawaan', 'Nama Barang', 'Supplier', 'Jumlah Stok', 'Satuan', 'Kategori', 'Harga', 'Lokasi']];
+    dataBarang.forEach((item, index) => rows.push([index + 1, item.code ?? '-', item.externalCode ?? '-', item.name, supplierName(item.supplierId), item.stock, item.unit, item.category, item.price, locationCode(item.locationId)]));
+    const csvString = toCsv(rows);
 
     const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', 'Data_Barang_Purchasing.csv');
+    link.setAttribute('download', `Data_Barang_Purchasing_halaman-${page}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -135,7 +136,7 @@ export default function DataBarangPurchasing() {
               <input
                 type="text"
                 value={searchTerm}
-                onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                onChange={(e) => { setSearchTerm(e.target.value); }}
                 maxLength={100}
                 className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 sm:text-sm transition-all"
                 placeholder="Cari kode atau nama barang..."

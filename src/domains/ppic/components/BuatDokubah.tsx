@@ -47,6 +47,7 @@ export default function BuatDokubahPPIC() {
   const [form, setForm] = useState(emptyForm);
   const [rows, setRows] = useState<BahanRow[]>(() => Array.from({ length: JUMLAH_BARIS_AWAL }, () => ({ ...emptyRow })));
   const [formError, setFormError] = useState('');
+  const [saving, setSaving] = useState(false);
   const spk = useSpkSearch(form.noSpk);
 
   const handleRowChange = (index: number, field: keyof BahanRow, value: string) => {
@@ -78,6 +79,7 @@ export default function BuatDokubahPPIC() {
 
   // Simpan Draft -> status Draft, Rilis -> status Pending (menunggu approval)
   const handleSimpan = async (status: StatusDokubah) => {
+    if (saving) return;
     const rowsTerisi = rows.filter((row) => !isRowKosong(row));
     const error = validasi(status, rowsTerisi);
     if (error) {
@@ -85,6 +87,7 @@ export default function BuatDokubahPPIC() {
       return;
     }
     setFormError('');
+    setSaving(true);
     try {
       await createDokubah({
         noSpk: form.noSpk,
@@ -104,6 +107,7 @@ export default function BuatDokubahPPIC() {
       router.replace(dokubah_path);
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : 'Gagal menyimpan Dokubah.');
+      setSaving(false);
     }
   };
 
@@ -254,8 +258,8 @@ export default function BuatDokubahPPIC() {
         )}
 
         <div className="flex justify-end gap-4 mt-10">
-          <button type="button" onClick={() => handleSimpan('Draft')} className={orangeButtonClass}>Simpan Draft</button>
-          <button type="button" onClick={() => handleSimpan('Pending')} className={orangeButtonClass}>Rilis</button>
+          <button type="button" onClick={() => handleSimpan('Draft')} disabled={saving} className={orangeButtonClass}>Simpan Draft</button>
+          <button type="button" onClick={() => handleSimpan('Pending')} disabled={saving} className={orangeButtonClass}>Rilis</button>
         </div>
       </div>
     </div>
