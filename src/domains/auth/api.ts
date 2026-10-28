@@ -1,4 +1,4 @@
-import { apiClient, setAccessToken } from "@/shared/lib/api-client";
+import { apiClient, refreshSessionData, setAccessToken } from "@/shared/lib/api-client";
 import { visibleNav } from "./nav";
 import type { AuthUser, LoginResult } from "./types";
 
@@ -8,9 +8,10 @@ export async function login(email: string, password: string): Promise<AuthUser> 
   return result.user;
 }
 
+// Shares the in-flight refresh with api-client, so a page load and a 401 retry never rotate the token twice.
 export async function refreshSession(): Promise<AuthUser> {
-  const result = await apiClient.post<LoginResult>("/api/v1/auth/refresh");
-  setAccessToken(result.accessToken);
+  const result = await refreshSessionData<LoginResult>();
+  if (!result) throw new Error("Session expired");
   return result.user;
 }
 

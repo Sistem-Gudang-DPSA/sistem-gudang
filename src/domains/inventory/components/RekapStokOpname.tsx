@@ -137,13 +137,13 @@ export default function RekapStokOpname() {
                             <tr key={item.id} className="hover:bg-gray-50 transition-colors">
                             <td className="px-4 py-3 text-center text-gray-500">{(page - 1) * PAGE_SIZE + index + 1}</td>
                             <td className="px-4 py-3 text-gray-700 font-medium">Stok Opname {BULAN[item.month - 1]} {item.year}</td>
-                            <td className="px-4 py-3 font-mono font-semibold text-blue-600">
+                            <td className="px-4 py-3 font-mono font-semibold text-blue-600" align="center">
                                 {displayDate(item.createdAt)}
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="px-4 py-3" align="center">
                                 <span className="font-medium text-gray-900">User #{item.createdBy}</span>
                             </td>
-                            <td className="px-4 py-3 text-center">
+                            <td className="flex justify-center px-4 py-3 text-center">
                                 <button
                                 onClick={() => openDetail(item.id)}
                                 className="flex-1 lg:flex-none flex items-center justify-center gap-2 text-blue-600 hover:text-blue-800 font-medium text-xs bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded border border-blue-200 transition-colors"

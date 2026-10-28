@@ -103,6 +103,7 @@ export function ImportExcelButton<T>({
   };
 
   const handleSave = async () => {
+    if (saving) return;
     setSaving(true);
     try {
       await onSave(rows.map((r) => r.data));

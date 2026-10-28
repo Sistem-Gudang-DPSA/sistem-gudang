@@ -4,6 +4,7 @@ import { useCan } from '@/domains/auth/user-context';
 import React, { useState } from 'react';
 import { Search, Plus } from 'lucide-react';
 import { createLocation, deleteLocation, importLocationData, listLocations, updateLocation } from '../api';
+import { useClampPage } from '@/shared/lib/use-page';
 import Pagination from '@/shared/components/Pagination';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import EditModeBar, { useBatchEdit } from '@/shared/components/EditModeBar';
@@ -97,6 +98,7 @@ export default function DataLokasiGudang({
     "Gagal memuat data lokasi.",
   );
   const dataLokasi = loaded?.rows ?? [];
+  useClampPage(page, loaded?.total ?? 0, pageSize, setPage);
   const error = formError || loadError || actionError;
 
   // Baris yang diedit disimpan per id; pindah halaman, cari, atau urutkan membuat baris itu tidak tampil lagi, jadi tanya dulu.

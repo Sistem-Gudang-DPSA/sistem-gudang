@@ -1,11 +1,14 @@
 "use client";
 
+import { escapeHtml } from '@/shared/lib/escape-html';
 import React, { useState } from 'react';
 import { Search, Eye, Loader2, AlertCircle } from 'lucide-react';
+import { todayIso } from '@/domains/inventory/date';
 import { exportInboundReport, getInboundReport } from '@/domains/inventory/api';
 import type { InboundRow, InboundSource } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
+import { usePage } from '@/shared/lib/use-page';
 import Pagination from '@/shared/components/Pagination';
 import StatusBadge from '@/shared/components/StatusBadge';
 import { QC_STATUS } from '@/domains/inventory/status';
@@ -30,9 +33,6 @@ const monthStart = () => {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 };
 
-const escapeHtml = (s: string) =>
-  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
 
 const formatTanggalCetak = (iso: string) => {
   if (!iso) return '-';
@@ -45,7 +45,7 @@ const emptySummary = { total: 0, supplier: 0, produksi: 0, klien: 0, qtyTotal: 0
 export default function LaporanBarangMasuk() {
     const [filterSumber, setFilterSumber] = useState<'ALL' | InboundSource>('ALL');
     const [startDate, setStartDate] = useState<string>(monthStart());
-    const [endDate, setEndDate] = useState<string>(new Date().toISOString().slice(0, 10));
+    const [endDate, setEndDate] = useState<string>(todayIso());
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [selectedDetail, setSelectedDetail] = useState<InboundRow | null>(null);
 
@@ -62,13 +62,11 @@ export default function LaporanBarangMasuk() {
       source: filterSumber === 'ALL' ? undefined : filterSumber,
     };
 
-    const filterKey = JSON.stringify(filters);
-    const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
-    const page = pageState.key === filterKey ? pageState.page : 1;
-    const setPage = (next: number) => setPageState({ key: filterKey, page: next });
+    const filterKey = JSON.stringify([filters, sortParams]);
+    const [page, setPage] = usePage(filterKey);
 
     const { data: report, loading, error } = useApiData(
-      () => getInboundReport({ ...filters, page, pageSize: PAGE_SIZE }),
+      () => getInboundReport({ ...filters, ...sortParams, page, pageSize: PAGE_SIZE }),
       `${filterKey}|${page}`,
       'Gagal memuat laporan barang masuk.',
     );
@@ -87,6 +85,7 @@ export default function LaporanBarangMasuk() {
 
     const handlePrintPdf = () => {
       const win = window.open('', '_blank');
+      if (win) win.opener = null;
       if (!win) {
         setActionError('Pop-up diblokir browser. Izinkan pop-up untuk mencetak PDF.');
         return;
@@ -144,7 +143,7 @@ export default function LaporanBarangMasuk() {
           </head>
           <body>
             <h1>Rekap Barang Masuk (halaman ini)</h1>
-            <p class="meta">Periode: ${periodeText} &nbsp;|&nbsp; Sumber: ${escapeHtml(sumberText)}${
+            <p class="meta">Periode: ${escapeHtml(periodeText)} &nbsp;|&nbsp; Sumber: ${escapeHtml(sumberText)}${
               searchQuery ? ` &nbsp;|&nbsp; Pencarian: ${escapeHtml(searchQuery)}` : ''
             }</p>
             <p class="summary">
@@ -274,9 +273,9 @@ export default function LaporanBarangMasuk() {
           <thead className="bg-gray-100 font-semibold text-gray-700">
             <tr>
               <th scope="col" className="px-4 py-3 text-center w-12">No</th>
-              <SortableTh label="Tanggal & Jam Penerimaan" sortKey="tanggal" sort={sort} onSort={toggle} />
-              <SortableTh label="No. Referensi" sortKey="no. referensi" sort={sort} onSort={toggle} />
-              <SortableTh label="Sumber / Pemasok" sortKey="Sumber / Pemasok" sort={sort} onSort={toggle} />
+              <SortableTh label="Tanggal & Jam Penerimaan" sortKey="date" sort={sort} onSort={toggle} />
+              <SortableTh label="No. Referensi" sortKey="referenceNo" sort={sort} onSort={toggle} />
+              <SortableTh label="Sumber / Pemasok" sortKey="supplierName" sort={sort} onSort={toggle} />
               <th className="px-4 py-3 text-right">Total Volume Item (Qty)</th>
               <th className="px-4 py-3 text-center">Status QC</th>
               <th className="px-4 py-3 text-center">Lokasi</th>

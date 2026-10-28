@@ -117,6 +117,8 @@ export interface InboundListParams {
   startDate?: string;
   endDate?: string;
   source?: InboundSource;
+  sortBy?: string;
+  sortDir?: "asc" | "desc";
 }
 
 export interface CreateInboundInput {

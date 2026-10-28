@@ -8,8 +8,10 @@ import type { ItemListRow, Location } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
 import type { Supplier } from '@/domains/purchasing/types';
 import { ApiError } from '@/shared/lib/api-client';
+import { useClampPage } from '@/shared/lib/use-page';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
+import { useDebouncedValue } from '@/shared/lib/use-debounced-value';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import BarangFilterPanel, { countActiveFilters, emptyBarangFilters, toItemFilterParams } from './BarangFilterPanel';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
@@ -26,6 +28,7 @@ export default function DataBarangGudang({
   const [filters, setFilters] = useState(emptyBarangFilters);
   const [showFilter, setShowFilter] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearch = useDebouncedValue(searchQuery);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeItem, setActiveItem] = useState<ItemListRow | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
@@ -43,17 +46,18 @@ export default function DataBarangGudang({
   const [notice, setNotice] = useState("");
 
 
-  const filterKey = JSON.stringify([searchQuery, filters, sortParams]);
+  const filterKey = JSON.stringify([debouncedSearch, filters, sortParams]);
   const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
   const page = pageState.key === filterKey ? pageState.page : 1;
   const setPage = (next: number) => setPageState({ key: filterKey, page: next });
   const { data: loaded, loading, error, reload } = useApiData(
-    () => listItems({ page, pageSize: 20, search: searchQuery || undefined, ...toItemFilterParams(filters), ...sortParams }),
+    () => listItems({ page, pageSize: 20, search: debouncedSearch || undefined, ...toItemFilterParams(filters), ...sortParams }),
     `${filterKey}|${page}`,
     "Gagal memuat data barang.",
   );
   const dataBarang = loaded?.rows ?? [];
   const total = loaded?.total ?? 0;
+  useClampPage(page, total, 20, setPage);
 
   useEffect(() => {
     listLocations().then((res) => setLocations(res.rows)).catch(() => {});

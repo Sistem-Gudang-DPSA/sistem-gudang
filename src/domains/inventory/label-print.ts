@@ -1,4 +1,4 @@
-import QRCode from 'qrcode';
+import { escapeHtml } from '@/shared/lib/escape-html';
 
 type LabelItem = { code: string | null; name: string; externalCode?: string | null; locationCode?: string | null };
 
@@ -7,11 +7,9 @@ const LABEL_W = 60;
 const LABEL_H = 40;
 const QR_SIZE = 26;
 
-const escapeHtml = (value: string) =>
-  value.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
-
 // The QR holds exactly items.code, which is what the USB scanner types into Barang Masuk. Kode bawaan and location are text only.
 export async function buildLabelsHtml(items: LabelItem[]): Promise<string> {
+  const { default: QRCode } = await import('qrcode');
   const labels = await Promise.all(
     items
       .filter((it): it is LabelItem & { code: string } => !!it.code)
@@ -40,6 +38,7 @@ export async function printItemLabels(items: LabelItem[]): Promise<string | null
   if (!items.some((it) => it.code)) return 'Tidak ada barang berkode untuk dicetak.';
   // Open the window before the async QR work so the browser does not treat it as a blocked pop-up.
   const win = window.open('', '_blank');
+  if (win) win.opener = null;
   if (!win) return 'Pop-up diblokir browser. Izinkan pop-up untuk mencetak label.';
   try {
     win.document.write(await buildLabelsHtml(items));

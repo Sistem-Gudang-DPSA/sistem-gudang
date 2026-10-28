@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { installFakeApi } from '@/test/fake-api';
-import { getTrackingSpk, listTrackingSpk } from './api';
+import { getTrackingSpk, listDokubahBahanBySpk, listTrackingSpk } from './api';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -19,5 +19,11 @@ describe('ppic api (tracking SPK)', () => {
     const spk = await getTrackingSpk('SPK/2026/01');
     expect(fake.all()[0].path).toBe('/api/v1/tracking/spk/SPK%2F2026%2F01');
     expect(spk.client).toBe('PT Maju');
+  });
+
+  it('listDokubahBahanBySpk repeats the spk param', async () => {
+    const fake = installFakeApi({ 'GET /api/v1/dokubah/bahan-by-spk': [] });
+    await listDokubahBahanBySpk(['A/1', 'B']);
+    expect(fake.all()[0].query.getAll('spk')).toEqual(['A/1', 'B']);
   });
 });

@@ -7,17 +7,19 @@ import { Search } from "lucide-react";
 import Pagination from "@/shared/components/Pagination";
 import { listChecklistDokubah } from "@/domains/inventory/api";
 import { useApiData } from "@/shared/lib/use-api-data";
+import { useDebouncedValue } from "@/shared/lib/use-debounced-value";
 
 const PAGE_SIZE = 20;
 
 export default function CeklistDokubahPage() {
   const pathname = usePathname();
   const [query, setQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(query.trim());
   const [page, setPage] = useState(1);
 
   const { data: loaded } = useApiData(
-    () => listChecklistDokubah({ page, pageSize: PAGE_SIZE, search: query.trim() || undefined }),
-    `${query.trim()}|${page}`,
+    () => listChecklistDokubah({ page, pageSize: PAGE_SIZE, search: debouncedQuery || undefined }),
+    `${debouncedQuery}|${page}`,
     "Gagal memuat data checklist Dokubah.",
   );
   const pageRows = loaded?.rows ?? [];

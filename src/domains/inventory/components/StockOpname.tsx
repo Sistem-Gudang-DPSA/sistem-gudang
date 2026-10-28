@@ -1,5 +1,6 @@
 "use client";
 
+import { escapeHtml } from '@/shared/lib/escape-html';
 import { useCan } from '@/domains/auth/user-context';
 import React, { useState } from 'react';
 import { Search, Plus, Eye, Filter, Download } from 'lucide-react';
@@ -14,16 +15,8 @@ import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import DateFilter from '@/shared/components/DateFilter';
 import { toDateRange } from '@/domains/inventory/date';
 import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';
-import * as XLSX from "xlsx";
 
-const escapeHtml = (value: unknown) =>
-  String(value ?? "-").replace(/[&<>"']/g, (char) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;",
-  })[char]!);
+const cell = (value: unknown) => escapeHtml(value ?? '-');
 
 const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 const periodeLabel = (month: number, year: number) => `Stok Opname ${BULAN[month - 1]} ${year}`;
@@ -45,7 +38,7 @@ export default function StockOpnameMasterGudang() {
 
   const dateRange = toDateRange(filterDay, filterMonth, filterYear);
 
-  const filterKey = JSON.stringify([searchQuery, filterDay, filterMonth, filterYear]);
+  const filterKey = JSON.stringify([searchQuery, filterDay, filterMonth, filterYear, sortParams]);
   const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
   const page = pageState.key === filterKey ? pageState.page : 1;
   const viewKey = `${filterKey}|${page}`;
@@ -54,7 +47,7 @@ export default function StockOpnameMasterGudang() {
   const setPage = (next: number) => setPageState({ key: filterKey, page: next });
   const setSelected = (ids: Set<number>) => setSelState({ key: viewKey, ids });
   const { data: result, loading, error } = useApiData(
-    () => listStockOpname({ page, pageSize: 20, search: searchQuery || undefined, month: filterMonth ? Number(filterMonth) : undefined, year: filterYear ? Number(filterYear) : undefined }),
+    () => listStockOpname({ page, pageSize: 20, search: searchQuery || undefined, month: filterMonth ? Number(filterMonth) : undefined, year: filterYear ? Number(filterYear) : undefined, ...sortParams }),
     `${filterKey}|${page}`,
     'Gagal memuat data stok opname.',
   );
@@ -91,6 +84,7 @@ export default function StockOpnameMasterGudang() {
     }
 
     try {
+      const XLSX = await import("xlsx");
       const detailData = await getStockOpname(id);
 
       const headers = [
@@ -169,6 +163,7 @@ export default function StockOpnameMasterGudang() {
     }
 
     const win = window.open("", "_blank");
+    if (win) win.opener = null;
 
     if (!win) {
       setActionError(
@@ -191,18 +186,18 @@ export default function StockOpnameMasterGudang() {
       const lines = detailData.lines.map((line, index) => `
         <tr>
           <td class="center">${index + 1}</td>
-          <td>${escapeHtml(line.itemCode ?? "-")}</td>
-          <td>${escapeHtml(line.itemName)}</td>
-          <td class="center">${escapeHtml(line.unit)}</td>
-          <td>${escapeHtml(line.category)}</td>
-          <td class="center">${escapeHtml(line.systemQty)}</td>
-          <td class="center">${escapeHtml(line.physicalQty)}</td>
-          <td class="center">${escapeHtml(
+          <td>${cell(line.itemCode ?? "-")}</td>
+          <td>${cell(line.itemName)}</td>
+          <td class="center">${cell(line.unit)}</td>
+          <td>${cell(line.category)}</td>
+          <td class="center">${cell(line.systemQty)}</td>
+          <td class="center">${cell(line.physicalQty)}</td>
+          <td class="center">${cell(
             line.difference > 0
               ? `+${line.difference}`
               : line.difference
           )}</td>
-          <td>${escapeHtml(line.note ?? "-")}</td>
+          <td>${cell(line.note ?? "-")}</td>
         </tr>
       `).join("");
 
@@ -210,7 +205,7 @@ export default function StockOpnameMasterGudang() {
         <html lang="id">
         <head>
           <meta charset="utf-8">
-          <title>Stok Opname ${escapeHtml(period)}</title>
+          <title>Stok Opname ${cell(period)}</title>
           <style>
             @page { size: A4 landscape; margin: 12mm; }
             body {
@@ -239,11 +234,11 @@ export default function StockOpnameMasterGudang() {
         </head>
         <body>
           <h1>Rekap Stok Opname</h1>
-          <h2>${escapeHtml(period)}</h2>
-          <p class="meta">ID Stok Opname: ${escapeHtml(id)}</p>
+          <h2>${cell(period)}</h2>
+          <p class="meta">ID Stok Opname: ${cell(id)}</p>
           ${
             detailData.notes
-              ? `<p class="meta">Catatan: ${escapeHtml(detailData.notes)}</p>`
+              ? `<p class="meta">Catatan: ${cell(detailData.notes)}</p>`
               : ""
           }
           <table>
@@ -353,7 +348,7 @@ export default function StockOpnameMasterGudang() {
             <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
               <tr>
                 <th scope="col" className="px-6 py-4 w-16 text-center">No</th>
-                <SortableTh label='Periode Stock Opname' sortKey='periode' sort={sort} onSort={toggle} />
+                <SortableTh label='Periode Stock Opname' sortKey='period' sort={sort} onSort={toggle} />
                 <th scope="col" className="px-6 py-4 text-center">Aksi</th>
                 <th scope="col" className="px-6 py-4 text-center print:hidden w-24">
                   <div className="flex items-center justify-center gap-2">

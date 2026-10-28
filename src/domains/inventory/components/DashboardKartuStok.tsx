@@ -9,6 +9,7 @@ import { kartuStokPath } from '@/domains/inventory/components/KartuStok';
 import { exportDaftarExcel, printDaftarPdf } from '@/shared/components/ExportStok';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
+import { useDebouncedValue } from '@/shared/lib/use-debounced-value';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 
 const PAGE_SIZE = 20;
@@ -16,15 +17,16 @@ const checkboxClass = 'w-4 h-4 accent-[#FF8A00] cursor-pointer disabled:cursor-n
 
 export default function KartuStok() {
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearch = useDebouncedValue(searchQuery);
   const [selected, setSelected] = useState<Map<number, ItemListRow>>(new Map());
 
-  const filterKey = JSON.stringify([searchQuery]);
+  const filterKey = JSON.stringify([debouncedSearch]);
   const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
   const page = pageState.key === filterKey ? pageState.page : 1;
   const setPage = (next: number) => setPageState({ key: filterKey, page: next });
 
   const { data: loaded, loading, error } = useApiData(
-    () => listItems({ page, pageSize: PAGE_SIZE, search: searchQuery || undefined }),
+    () => listItems({ page, pageSize: PAGE_SIZE, search: debouncedSearch || undefined }),
     `${filterKey}|${page}`,
     "Gagal memuat data barang.",
   );
@@ -126,7 +128,7 @@ export default function KartuStok() {
                       href={kartuStokPath(item.id)}
                       className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 font-medium text-xs bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded border border-blue-200 transition-colors"
                     >
-                      <Eye className="w-3.5 h-3.5" /> View
+                      <Eye className="w-3.5 h-3.5" /> View Detail
                     </Link>
                   </td>
                   <td className="px-6 py-4 text-center">

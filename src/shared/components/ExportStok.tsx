@@ -1,19 +1,18 @@
 // domains/inventory/export/kartu-stok.ts
+import { escapeHtml } from '@/shared/lib/escape-html';
 import { displayDate } from '@/domains/inventory/date';
 import type { ItemListRow } from '@/domains/inventory/types';
 import { buildKartu, type KartuStokData } from '@/domains/inventory/components/KartuStok';
 
-const esc = (v: unknown) =>
-  String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
-
 // Dipanggil langsung dari klik tombol supaya jendela tidak diblokir browser
 function printHtml(title: string, body: string) {
   const win = window.open('', '_blank');
+  if (win) win.opener = null;
   if (!win) {
     alert('Pop-up diblokir browser. Izinkan pop-up untuk mencetak PDF.');
     return;
   }
-  win.document.write(`<!doctype html><html><head><title>${esc(title)}</title><style>
+  win.document.write(`<!doctype html><html><head><title>${escapeHtml(title)}</title><style>
     body { font-family: Arial, sans-serif; padding: 24px; color: #111; }
     h1 { font-size: 18px; margin: 0 0 12px; }
     .meta { font-size: 12px; margin-bottom: 12px; line-height: 1.6; }
@@ -45,8 +44,8 @@ export async function exportDaftarExcel(rows: ItemListRow[]) {
 
 export function printDaftarPdf(rows: ItemListRow[]) {
   const body = rows.map((item, i) => `<tr>
-    <td class="c">${i + 1}</td><td>${esc(item.code ?? '-')}</td><td>${esc(item.externalCode ?? '-')}</td>
-    <td>${esc(item.name)}</td><td>${esc(item.unit)}</td><td class="r">${item.stock}</td></tr>`).join('');
+    <td class="c">${i + 1}</td><td>${escapeHtml(item.code ?? '-')}</td><td>${escapeHtml(item.externalCode ?? '-')}</td>
+    <td>${escapeHtml(item.name)}</td><td>${escapeHtml(item.unit)}</td><td class="r">${item.stock}</td></tr>`).join('');
   printHtml('Daftar Kartu Stok', `<h1>Daftar Kartu Stok</h1>
     <table><thead><tr><th class="c">No.</th><th>Kode Barang</th><th>Kode Bawaan</th><th>Nama Barang</th><th>Satuan</th><th class="r">Stok Saat Ini</th></tr></thead>
     <tbody>${body}</tbody></table>`);
@@ -75,11 +74,11 @@ export async function exportKartuExcel(data: KartuStokData) {
 export function printKartuPdf(data: KartuStokData) {
   const { rows, saldoAkhir } = buildKartu(data);
   const body = rows.map((r, i) => `<tr>
-    <td class="c">${i + 1}</td><td>${esc(displayDate(r.date))}</td>
-    <td>${esc(r.project ?? '-')}<div class="sub">${esc(r.usage)}</div></td>
-    <td class="r">${r.qtyIn || ''}</td><td class="r">${r.qtyOut || ''}</td><td class="r">${r.saldo}</td><td>${esc(r.note ?? '')}</td></tr>`).join('');
+    <td class="c">${i + 1}</td><td>${escapeHtml(displayDate(r.date))}</td>
+    <td>${escapeHtml(r.project ?? '-')}<div class="sub">${escapeHtml(r.usage)}</div></td>
+    <td class="r">${r.qtyIn || ''}</td><td class="r">${r.qtyOut || ''}</td><td class="r">${r.saldo}</td><td>${escapeHtml(r.note ?? '')}</td></tr>`).join('');
   printHtml(`Kartu Stok ${data.item.name}`, `<h1>Kartu Stok</h1>
-    <div class="meta">Kode: <b>${esc(data.item.code ?? '-')}</b><br>Nama: <b>${esc(data.item.name)}</b><br>Satuan: ${esc(data.item.unit)}</div>
+    <div class="meta">Kode: <b>${escapeHtml(data.item.code ?? '-')}</b><br>Nama: <b>${escapeHtml(data.item.name)}</b><br>Satuan: ${escapeHtml(data.item.unit)}</div>
     <table><thead><tr><th class="c">No.</th><th>Tanggal</th><th>Informasi Mutasi</th><th class="r">Masuk</th><th class="r">Keluar</th><th class="r">Saldo</th><th>Keterangan</th></tr></thead>
     <tbody><tr><td></td><td></td><td><b>Saldo awal</b></td><td></td><td></td><td class="r">${data.openingBalance}</td><td></td></tr>
     ${body}

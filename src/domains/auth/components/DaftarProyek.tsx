@@ -6,9 +6,10 @@ import { Search } from "lucide-react";
 import Pagination from "@/shared/components/Pagination";
 import { listTrackingSpk } from "@/domains/ppic/api";
 import { useApiData } from "@/shared/lib/use-api-data";
+import { useDebouncedValue } from "@/shared/lib/use-debounced-value";
+import { usePage } from "@/shared/lib/use-page";
 
 type Proyek = {
-  id: number;
   client: string;
   namaProyek: string;
   noSpk: string;
@@ -19,15 +20,15 @@ const ITEMS_PER_PAGE = 5; // Jumlah item per halaman
 
 export default function DaftarProyekPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
+  const debouncedSearch = useDebouncedValue(searchTerm);
+  const [currentPage, setCurrentPage] = usePage(debouncedSearch);
 
   // Tracking list has no SPK date, so spkMasuk shows "-"
   const { data: spkList, loading, error } = useApiData(
-    () => listTrackingSpk(undefined, 100),
-    "daftar-proyek",
+    () => listTrackingSpk(debouncedSearch || undefined, 100),
+    `daftar-proyek|${debouncedSearch}`,
   );
-  const dataProyek: Proyek[] = (spkList ?? []).map((spk, index) => ({
-    id: index + 1,
+  const dataProyek: Proyek[] = (spkList ?? []).map((spk) => ({
     client: spk.client,
     namaProyek: spk.projectName ?? "-",
     noSpk: spk.noSpk,
@@ -49,17 +50,18 @@ export default function DaftarProyekPage() {
   // Reset ke halaman 1 saat mengetik pencarian
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
-    setCurrentPage(1);
   };
 
   return (
-    <div className="p-6 max-w-[1400px] mx-auto animate-in fade-in duration-300">
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Header Judul */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Daftar Proyek</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Kelola data proyek, SPK masuk, dan progres pekerjaan client.
-        </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Daftar Proyek</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Kelola data proyek, SPK masuk, dan progres pekerjaan client.
+          </p>
+        </div>
       </div>
 
       {/* Card Kontainer Utama */}
@@ -110,10 +112,9 @@ export default function DaftarProyekPage() {
 
                   return (
                     <tr
-                      key={item.id}
-                      className={`transition-colors hover:bg-orange-50/50 ${
-                        isHighlight ? "bg-[#FFFDF9]" : "bg-white"
-                      }`}
+                      key={item.noSpk}
+                      className={`transition-colors hover:bg-orange-50/50 ${isHighlight ? "bg-[#FFFDF9]" : "bg-white"
+                        }`}
                     >
                       <td className="py-3.5 px-4 text-center text-gray-500 font-medium">
                         {itemNumber}
@@ -125,7 +126,7 @@ export default function DaftarProyekPage() {
                         {item.namaProyek}
                       </td>
                       <td className="py-3.5 px-4 font-semibold text-blue-600 hover:underline cursor-pointer">
-                        <Link href={`/dashboard/proyek/${item.id}`}>
+                        <Link href={`/dashboard/proyek/${encodeURIComponent(item.noSpk)}`}>
                           {item.noSpk}
                         </Link>
                       </td>
@@ -148,15 +149,15 @@ export default function DaftarProyekPage() {
 
         {/* Komponen Pagination */}
         {filteredData.length > 0 && (
-        <div className="mt-6 flex justify-end border-t border-gray-100 pt-4">
-          <Pagination
-            page={currentPage}
-            pageSize={ITEMS_PER_PAGE}
-            total={filteredData.length}
-            onPageChange={setCurrentPage}
-          />
-        </div>
-      )}
+          <div className="mt-6 flex justify-end border-t border-gray-100 pt-4">
+            <Pagination
+              page={currentPage}
+              pageSize={ITEMS_PER_PAGE}
+              total={filteredData.length}
+              onPageChange={setCurrentPage}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
