@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import Pagination from "@/shared/components/Pagination";
+import { listTrackingSpk } from "@/domains/ppic/api";
+import { useApiData } from "@/shared/lib/use-api-data";
 
 type Proyek = {
   id: number;
@@ -13,27 +15,27 @@ type Proyek = {
   spkMasuk: string;
 };
 
-const DATA_PROYEK: Proyek[] = [
-  { id: 1, client: "HERMINA TASIKMALAYA", namaProyek: "RAK SEPATU TERTUTUP", noSpk: "1501/SP-Jan/2026", spkMasuk: "26 Oct 2026" },
-  { id: 2, client: "SENIOR LIVING CARE", namaProyek: "WALLPAPER DAN GORDYN", noSpk: "PO260922001", spkMasuk: "26 Oct 2026" },
-  { id: 3, client: "HERMINA PERIUK TANGERANG", namaProyek: "SOFA RUANG TUNGGU IGD P...", noSpk: "3740/SPK/Jan/2026", spkMasuk: "24 Oct 2026" },
-  { id: 4, client: "DOKTER ARFAN", namaProyek: "FURNITURE RESIDENTIAL D...", noSpk: "019 /SSDA/2026", spkMasuk: "19 Oct 2026" },
-  { id: 5, client: "RS HAMORI", namaProyek: "Pengadaan Furniture Rehab...", noSpk: "215/PT HM/2026", spkMasuk: "22 Oct 2026" },
-  { id: 6, client: "HERMINA KEMAYORAN", namaProyek: "ADD. HARGA SOFA BED DE...", noSpk: "4438/SPK/Jan/2026", spkMasuk: "23 Oct 2026" },
-  { id: 7, client: "HERMINA KEPANJEN", namaProyek: "PINTU PK 1 TANPA KACA", noSpk: "22.10/01.01...", spkMasuk: "22 Oct 2026" },
-  { id: 8, client: "RS HAMORI", namaProyek: "KAMAR RAWAT INAP VIP & ...", noSpk: "192/PT HM/2026", spkMasuk: "19 Oct 2026" },
-  { id: 9, client: "YAYASAN TARAKANITA", namaProyek: "AUDITORIUM SMA STELLA ...", noSpk: "125/BU-PO/2026", spkMasuk: "22 Oct 2026" },
-  { id: 10, client: "HERMINA ARCAMANIK", namaProyek: "Cafe Kokarmina Lt 1", noSpk: "1778/SPK/Jan/2026", spkMasuk: "22 Oct 2026" },
-];
-
 const ITEMS_PER_PAGE = 5; // Jumlah item per halaman
 
 export default function DaftarProyekPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Tracking list has no SPK date, so spkMasuk shows "-"
+  const { data: spkList, loading, error } = useApiData(
+    () => listTrackingSpk(undefined, 100),
+    "daftar-proyek",
+  );
+  const dataProyek: Proyek[] = (spkList ?? []).map((spk, index) => ({
+    id: index + 1,
+    client: spk.client,
+    namaProyek: spk.projectName ?? "-",
+    noSpk: spk.noSpk,
+    spkMasuk: "-",
+  }));
+
   // Filter Data Berdasarkan Input Pencarian
-  const filteredData = DATA_PROYEK.filter(
+  const filteredData = dataProyek.filter(
     (item) =>
       item.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.namaProyek.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -89,7 +91,19 @@ export default function DaftarProyekPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-gray-800">
-              {paginatedData.length > 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-gray-400">
+                    Memuat data...
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-red-500">
+                    {error}
+                  </td>
+                </tr>
+              ) : paginatedData.length > 0 ? (
                 paginatedData.map((item, index) => {
                   const isHighlight = index % 2 === 1;
                   const itemNumber = startIndex + index + 1;

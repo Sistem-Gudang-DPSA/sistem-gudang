@@ -3,7 +3,10 @@
 import React, { useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Plus, X } from "lucide-react";
-import { getChecklistDokubah } from "@/domains/inventory/checklist-dokubah";
+import { getChecklistDokubah, saveChecklistDokubah } from "@/domains/inventory/api";
+import type { ChecklistDokubahDetail } from "@/domains/inventory/types";
+import { ApiError } from "@/shared/lib/api-client";
+import { useApiData } from "@/shared/lib/use-api-data";
 
 type KolomRealisasi = { id: string };
 
@@ -24,9 +27,6 @@ type BarisMaterial = {
 const barisKosong = (): BarisMaterial => ({ material: "", dokubah: "", realisasi: {}, selisih: "", keterangan: "" });
 const JUMLAH_BARIS_AWAL = 5;
 const JUMLAH_REALISASI_AWAL = 3;
-
-const kolomAwal = (): KolomRealisasi[] =>
-  Array.from({ length: JUMLAH_REALISASI_AWAL }, (_, i) => ({ id: `r${i + 1}` }));
 
 // Input kosong atau bukan angka dihitung 0
 const toNumber = (value: string) => {
@@ -86,23 +86,64 @@ function DateInput({ id, value, onChange, placeholder, min, className = fieldCla
   );
 }
 
+const numStr = (n: number) => String(n);
+
+// Prefill form dari data API: realisasi array per baris -> Record<kolomId, DataRealisasi>
+function toForm(detail: ChecklistDokubahDetail) {
+  const { dokubah, checklist: cl } = detail;
+  const kolom = Array.from({ length: Math.max(JUMLAH_REALISASI_AWAL, cl?.kolomRealisasi ?? 0) }, (_, i) => ({ id: `r${i + 1}` }));
+  const baris: BarisMaterial[] = (cl?.lines ?? []).map((l) => ({
+    material: l.material,
+    dokubah: l.dokubah,
+    realisasi: Object.fromEntries(
+      l.realisasi.map((r, i) => [`r${i + 1}`, { tanggal: r.tanggal ?? "", pengambil: r.pengambil, jumlah: numStr(r.jumlah) }]),
+    ),
+    selisih: l.selisih ?? "",
+    keterangan: l.keterangan ?? "",
+  }));
+  while (baris.length < JUMLAH_BARIS_AWAL) baris.push(barisKosong());
+  return {
+    kepalaGroup: cl?.kepalaGroup ?? "",
+    item: dokubah.namaItem,
+    client: dokubah.namaClient,
+    noSpk: dokubah.noSpk,
+    tglMulai: cl?.tglMulai ?? "",
+    tglSelesai: cl?.tglSelesai ?? "",
+    kolom,
+    baris,
+  };
+}
+
 export default function ChecklistDokubahDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const checklist = getChecklistDokubah(Number(id));
-  
-  const nextKolomId = useRef(JUMLAH_REALISASI_AWAL + 1);
+  const { data: detail, loading, error } = useApiData(
+    () => getChecklistDokubah(Number(id)),
+    id,
+    "Gagal memuat checklist Dokubah.",
+  );
 
-  const [form, setForm] = useState({
-    kepalaGroup: "",
-    item: checklist?.namaItem ?? "",
-    client: checklist?.namaClient ?? "",
-    noSpk: "",
-    tglMulai: "",
-    tglSelesai: "",
-    kolom: kolomAwal(),
-    baris: Array.from({ length: JUMLAH_BARIS_AWAL }, barisKosong),
-  });
+  if (!detail) {
+    return (
+      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+        <div className="flex items-center gap-3 mb-6">
+          <button type="button" onClick={() => router.back()} className="text-gray-800 hover:opacity-70 transition-opacity">
+            <ArrowLeft className="w-5 h-5" strokeWidth={2.5} />
+          </button>
+        </div>
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-6 py-10 text-center text-gray-400 italic">
+          {loading ? "Memuat..." : error || "Checklist Dokubah tidak ditemukan."}
+        </div>
+      </div>
+    );
+  }
+  return <ChecklistForm detail={detail} />;
+}
+
+function ChecklistForm({ detail }: { detail: ChecklistDokubahDetail }) {
+  const router = useRouter();
+  const [form, setForm] = useState(() => toForm(detail));
+  const nextKolomId = useRef(form.kolom.length + 1);
   const [formError, setFormError] = useState("");
 
   const header = (
@@ -112,17 +153,6 @@ export default function ChecklistDokubahDetailPage() {
       </button>
     </div>
   );
-
-  if (!checklist) {
-    return (
-      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
-        {header}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-6 py-10 text-center text-gray-400 italic">
-          Checklist Dokubah tidak ditemukan.
-        </div>
-      </div>
-    );
-  }
 
   const setField = (field: "kepalaGroup" | "item" | "client" | "noSpk" | "tglMulai" | "tglSelesai") =>
     (value: string) => setForm((prev) => ({ ...prev, [field]: value }));
@@ -166,14 +196,34 @@ export default function ChecklistDokubahDetailPage() {
   const totalBaris = (b: BarisMaterial) =>
     form.kolom.reduce((sum, k) => sum + toNumber(b.realisasi[k.id]?.jumlah ?? ""), 0);
 
-  const handleSimpan = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSimpan = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (form.tglMulai && form.tglSelesai && form.tglSelesai < form.tglMulai) {
       setFormError("Tgl Selesai Produksi tidak boleh lebih awal dari Tgl Mulai Produksi.");
       return;
     }
-    console.log("Simpan checklist dokubah", checklist.id, form);
-    router.back();
+    setFormError("");
+    try {
+      await saveChecklistDokubah(detail.dokubah.id, {
+        kepalaGroup: form.kepalaGroup.trim() || null,
+        tglMulai: form.tglMulai || null,
+        tglSelesai: form.tglSelesai || null,
+        kolomRealisasi: form.kolom.length,
+        lines: form.baris.map((b) => ({
+          material: b.material.trim(),
+          dokubah: b.dokubah.trim(),
+          selisih: b.selisih.trim() || null,
+          realisasi: form.kolom.map((k) => {
+            const r = b.realisasi[k.id];
+            return { tanggal: r?.tanggal || null, pengambil: r?.pengambil.trim() ?? "", jumlah: toNumber(r?.jumlah ?? "") };
+          }),
+          keterangan: b.keterangan.trim() || null,
+        })),
+      });
+      router.back();
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : "Gagal menyimpan checklist Dokubah.");
+    }
   };
 
   return (

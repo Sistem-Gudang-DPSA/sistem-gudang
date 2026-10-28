@@ -60,7 +60,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
     icon: Warehouse,
     theme: "orange",
     // report.view is shared with PPIC reports, so it must not open the Gudang division by itself.
-    anyOf: ["inbound.view", "outbound.view", "stock-opname.view", "location.view", "kartu-stok.view"],
+    anyOf: ["inbound.view", "outbound.view", "stock-opname.view", "location.view"],
     groups: [
       {
         title: "Master",
@@ -74,7 +74,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
         items: [
           { href: "/dashboard/gudang/transaksi/barang-masuk", label: "Barang Masuk", anyOf: ["inbound.view"] },
           { href: "/dashboard/gudang/transaksi/barang-keluar", label: "Barang Keluar", anyOf: ["outbound.view"] },
-           { href: "/dashboard/gudang/transaksi/ceklist-dokubah", label: "Checklist Dokubah", anyOf: ["outbound.view"] },
+           { href: "/dashboard/gudang/transaksi/ceklist-dokubah", label: "Checklist Dokubah", anyOf: ["checklist-dokubah.view"] },
           { href: "/dashboard/gudang/transaksi/stock-opname", label: "Stock Opname", anyOf: ["stock-opname.view"] },
           { href: "/dashboard/gudang/transaksi/permintaan-pembelian", label: "Permintaan Pembelian", anyOf: ["purchase-request.create"] },
         ],
@@ -87,7 +87,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
           { href: "/dashboard/gudang/laporan/rekap-permintaan", label: "Rekap Permintaan", anyOf: ["report.view"] },
           { href: "/dashboard/gudang/laporan/stock-opname", label: "Rekap Stok Opname", anyOf: ["report.view"] },
           { href: "/dashboard/gudang/laporan/dokubah", label: "Rekap Dokubah", anyOf: ["dokubah.view"] },
-          { href: "/dashboard/gudang/laporan/kartu-stok", label: "Kartu Stok", anyOf: ["kartu-stok.view"]},
+          { href: "/dashboard/gudang/laporan/kartu-stok", label: "Kartu Stok", anyOf: ["item.view"] },
         ],
       },
     ],

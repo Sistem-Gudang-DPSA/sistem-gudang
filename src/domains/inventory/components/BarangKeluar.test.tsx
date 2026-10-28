@@ -47,16 +47,8 @@ const scanned = {
   'GET /api/v1/items/by-code/HPL-01': item(3, 'HPL-01', 'HPL Putih', 'lembar', 6),
   'GET /api/v1/items/by-code/NOPE': fail(404, 'Item not found'),
 };
-// Dokubah of SPK-9: a draft and the approved one, whose materials fill the Dokubah column
-const dokubahRow = (id: number, noSpk: string, status: string) => ({ id, noSpk, client: 'PT Maju', tanggalMulai: '2026-10-01', tanggalSelesai: '2026-10-30', status, fileDokubah: null, totalAnggaran: 0, createdBy: 1, createdAt: '', updatedAt: '', totalKuota: 0, totalRealisasi: 0, totalRealisasiNilai: 0 });
-const bahan = (kodeBarang: string, namaBahan: string, kuota: number, realisasi: number) => ({ kodeBarang, namaBahan, satuan: 'lembar', hargaSatuan: 0, kuota, realisasi, keterangan: '' });
-const dokubah = {
-  'GET /api/v1/dokubah': paged([dokubahRow(4, 'SPK-9', 'DRAFT'), dokubahRow(5, 'SPK-9', 'APPROVED'), dokubahRow(6, 'SPK-90', 'APPROVED')]),
-  'GET /api/v1/dokubah/5': { ...dokubahRow(5, 'SPK-9', 'APPROVED'), bahan: [bahan('LAIN', 'hpl putih', 10, 7), bahan('BRG-1', 'Triplex 18mm', 20, 5)] },
-};
-
 function setup(extra: Record<string, unknown> = {}, rows: unknown = paged([trx(1)])) {
-  const api = installFakeApi({ 'GET /api/v1/outbound': rows, 'GET /api/v1/items': items, ...tracking, ...details, ...scanned, ...dokubah, ...extra });
+  const api = installFakeApi({ 'GET /api/v1/outbound': rows, 'GET /api/v1/items': items, ...tracking, ...details, ...scanned, ...extra });
   render(<BarangKeluar />);
   return api;
 }
@@ -344,31 +336,15 @@ describe('BarangKeluar create', () => {
     expect(screen.queryByText('Triplex', { selector: 'td' })).toBeNull();
   });
 
-  it('pulls the Dokubah kuota of the scanned material from the approved dokubah of the SPK', async () => {
+  it('keeps the typed Dokubah of each row in a text input', async () => {
     const api = setup();
     await openForm(api);
     typePengambil();
-    scan('HPL-01');
-    await screen.findByText('HPL Putih', { selector: 'td' });
-    expect(cellsOf('HPL Putih')[4]).toBe('Pilih Item');
-    await pickSpk('SPK-9');
-    // matched by name when the code differs, sisa = kuota - realisasi
-    await waitFor(() => expect(cellsOf('HPL Putih')[4]).toBe('10 lembarsisa 3'));
-    expect(api.calls('GET /api/v1/dokubah')[0].query.get('search')).toBe('SPK-9');
-    expect(api.calls('GET /api/v1/dokubah/4')).toHaveLength(0);
     scan('BRG-1');
     await screen.findByText('Triplex', { selector: 'td' });
-    expect(cellsOf('Triplex')[4]).toBe('20 lembarsisa 15');
-  });
-
-  it('says so when the material is not in the dokubah of the SPK', async () => {
-    const api = setup({ 'GET /api/v1/dokubah': paged([]) });
-    await openForm(api);
-    await pickSpk('SPK-7');
-    typePengambil();
-    scan('BRG-1');
-    await screen.findByText('Triplex', { selector: 'td' });
-    await waitFor(() => expect(cellsOf('Triplex')[4]).toBe('Tidak ada di dokubah'));
+    expect(label('Dokubah Triplex').value).toBe('');
+    fireEvent.change(label('Dokubah Triplex'), { target: { value: 'DKB-12' } });
+    expect(label('Dokubah Triplex').value).toBe('DKB-12');
   });
 
   it('enforces input limits', async () => {

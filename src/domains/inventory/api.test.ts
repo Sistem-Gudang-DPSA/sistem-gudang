@@ -55,7 +55,11 @@ const rows: Row[] = [
   ['getStockOpname', [4], 'GET /api/v1/stock-opname/4', {}, undefined],
   ['createStockOpname', [{ d: 1 }], 'POST /api/v1/stock-opname', {}, { d: 1 }],
   ['getRequestsReport', [{ q: 'z' }], 'GET /api/v1/reports/requests', { q: 'z' }, undefined],
+  ['getStockCard', [7], 'GET /api/v1/items/7/stock-card', {}, undefined],
   ['listMaterialRequests', [{ search: 'SPK-1', pageSize: 100 }], 'GET /api/v1/material-requests', { search: 'SPK-1', pageSize: '100' }, undefined],
+  ['listChecklistDokubah', [{ page: 2, search: 'a' }], 'GET /api/v1/checklist-dokubah', { page: '2', search: 'a' }, undefined],
+  ['getChecklistDokubah', [3], 'GET /api/v1/checklist-dokubah/3', {}, undefined],
+  ['saveChecklistDokubah', [3, { kepalaGroup: null }], 'PUT /api/v1/checklist-dokubah/3', {}, { kepalaGroup: null }],
   ['getMaterialRequest', [5], 'GET /api/v1/material-requests/5', {}, undefined],
   ['exportRequestsReport', [{ q: 'z', ids: [1, 2] }], 'GET /api/v1/reports/requests/export', { q: 'z', ids: '1,2' }, undefined],
 ];
