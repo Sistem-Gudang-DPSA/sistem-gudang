@@ -40,11 +40,13 @@ export const listDokubahRows = (params?: DokubahListParams) =>
 
 // SPK numbers and client names from the tracking system. The API caps limit at 100 (default 50); search matches noSpk or client.
 // With client, only that client's SPKs come back (exact name, case-insensitive).
-export const listTrackingSpk = (search?: string, limit?: number, client?: string) => apiClient.get<TrackingSpk[]>(`/api/v1/tracking/spk${toQuery({ search, limit, client })}`);
+// refresh: true makes the API reload its tracking cache first (~2 s); otherwise the cached list is served.
+export const listTrackingSpk = (search?: string, limit?: number, client?: string, refresh?: boolean) =>
+  apiClient.get<TrackingSpk[]>(`/api/v1/tracking/spk${toQuery({ search, limit, client, refresh: refresh ? 1 : undefined })}`);
 
 // Unique client names from tracking, sorted. The API caps limit at 100 (default 50).
-export const listTrackingClients = async (search?: string, limit?: number) =>
-  (await apiClient.get<{ client: string }[]>(`/api/v1/tracking/clients${toQuery({ search, limit })}`)).map((c) => c.client);
+export const listTrackingClients = async (search?: string, limit?: number, refresh?: boolean) =>
+  (await apiClient.get<{ client: string }[]>(`/api/v1/tracking/clients${toQuery({ search, limit, refresh: refresh ? 1 : undefined })}`)).map((c) => c.client);
 
 // One SPK with its products. noSpk can contain '/', so it must be encoded. 404 when unknown.
 export const getTrackingSpk = (noSpk: string) => apiClient.get<TrackingSpkDetail>(`/api/v1/tracking/spk/${encodeURIComponent(noSpk)}`);
