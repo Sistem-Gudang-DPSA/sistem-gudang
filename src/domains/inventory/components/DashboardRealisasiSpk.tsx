@@ -145,9 +145,9 @@ export default function RealisasiSpk() {
                     <p className="mx-5 mt-5 p-3 bg-blue-50 text-blue-700 text-sm rounded-lg">Pilih client untuk menampilkan realisasi per SPK.</p>
                 )}
 
-                <div className="overflow-x-auto">
+                <div className="overflow-auto max-h-[70vh]">
                     <table className="w-full text-left text-sm whitespace-nowrap">
-                        <thead className="bg-gray-50/80 text-gray-600 font-semibold">
+                        <thead className="sticky top-0 z-20 bg-gray-50 text-gray-600 font-semibold shadow-[0_1px_0_#e5e7eb]">
                             <tr className="border-b border-gray-100">
                                 <th rowSpan={n > 0 ? 3 : 1} scope="col" className={`${thKiri} text-center align-middle`}>No</th>
                                 <th rowSpan={n > 0 ? 3 : 1} scope="col" className={`${thKiri} align-middle`}>Kode Barang</th>
@@ -199,7 +199,7 @@ export default function RealisasiSpk() {
                         </tbody>
 
                         {!memuat && !error && rows.length > 0 && (
-                            <tfoot className="bg-gray-50 border-t-2 border-gray-200 font-bold text-gray-900">
+                            <tfoot className="sticky bottom-0 z-10 bg-gray-50 font-bold text-gray-900 shadow-[0_-1px_0_#e5e7eb]">
                                 <tr>
                                     <td colSpan={4} className="px-3 py-3">Total pengeluaran</td>
                                     {table.totals.map((v, k) => (
