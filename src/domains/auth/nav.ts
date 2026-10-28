@@ -60,7 +60,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
     icon: Warehouse,
     theme: "orange",
     // report.view is shared with PPIC reports, so it must not open the Gudang division by itself.
-    anyOf: ["inbound.view", "outbound.view", "stock-opname.view", "location.view", "kartu-stok.view"],
+    anyOf: ["inbound.view", "outbound.view", "stock-opname.view", "location.view", "kartu-stok.view", "realisasi-spk.view"],
     groups: [
       {
         title: "Master",
@@ -88,6 +88,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
           { href: "/dashboard/gudang/laporan/stock-opname", label: "Rekap Stok Opname", anyOf: ["report.view"] },
           { href: "/dashboard/gudang/laporan/dokubah", label: "Rekap Dokubah", anyOf: ["dokubah.view"] },
           { href: "/dashboard/gudang/laporan/kartu-stok", label: "Kartu Stok", anyOf: ["kartu-stok.view"]},
+          { href: "/dashboard/gudang/laporan/realisasi-spk", label: "Realisasi SPK", anyOf: ["realisasi-spk.view"]},
         ],
       },
     ],
