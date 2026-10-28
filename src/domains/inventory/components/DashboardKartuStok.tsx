@@ -126,7 +126,7 @@ export default function KartuStok() {
                       href={kartuStokPath(item.id)}
                       className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 font-medium text-xs bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded border border-blue-200 transition-colors"
                     >
-                      <Eye className="w-3.5 h-3.5" /> View
+                      <Eye className="w-3.5 h-3.5" /> View Detail
                     </Link>
                   </td>
                   <td className="px-6 py-4 text-center">

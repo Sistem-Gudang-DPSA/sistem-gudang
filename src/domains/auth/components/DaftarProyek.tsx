@@ -51,13 +51,15 @@ export default function DaftarProyekPage() {
   };
 
   return (
-    <div className="p-6 max-w-[1400px] mx-auto animate-in fade-in duration-300">
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Header Judul */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Daftar Proyek</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Kelola data proyek, SPK masuk, dan progres pekerjaan client.
-        </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Daftar Proyek</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Kelola data proyek, SPK masuk, dan progres pekerjaan client.
+          </p>
+        </div>
       </div>
 
       {/* Card Kontainer Utama */}
@@ -97,9 +99,8 @@ export default function DaftarProyekPage() {
                   return (
                     <tr
                       key={item.id}
-                      className={`transition-colors hover:bg-orange-50/50 ${
-                        isHighlight ? "bg-[#FFFDF9]" : "bg-white"
-                      }`}
+                      className={`transition-colors hover:bg-orange-50/50 ${isHighlight ? "bg-[#FFFDF9]" : "bg-white"
+                        }`}
                     >
                       <td className="py-3.5 px-4 text-center text-gray-500 font-medium">
                         {itemNumber}
@@ -134,15 +135,15 @@ export default function DaftarProyekPage() {
 
         {/* Komponen Pagination */}
         {filteredData.length > 0 && (
-        <div className="mt-6 flex justify-end border-t border-gray-100 pt-4">
-          <Pagination
-            page={currentPage}
-            pageSize={ITEMS_PER_PAGE}
-            total={filteredData.length}
-            onPageChange={setCurrentPage}
-          />
-        </div>
-      )}
+          <div className="mt-6 flex justify-end border-t border-gray-100 pt-4">
+            <Pagination
+              page={currentPage}
+              pageSize={ITEMS_PER_PAGE}
+              total={filteredData.length}
+              onPageChange={setCurrentPage}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
