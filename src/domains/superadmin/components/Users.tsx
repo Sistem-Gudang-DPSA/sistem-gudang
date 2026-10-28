@@ -10,12 +10,17 @@ import { createUser, deleteUser, listRoles, listUsers, updateUser } from "@/doma
 import type { Role, UserAccount } from "@/domains/superadmin/types";
 import { ApiError } from "@/shared/lib/api-client";
 import { useApiData } from "@/shared/lib/use-api-data";
+import { useCan } from "@/domains/auth/user-context";
+import { useClampPage } from "@/shared/lib/use-page";
 import Pagination from "@/shared/components/Pagination";
 import SortableTh, { useSort } from "@/shared/components/SortableTh";
 
 const emptyForm = { username: "", email: "", password: "", roleId: "" };
 
 export default function UserManagementPage() {
+  const canCreate = useCan("user.create");
+  const canUpdate = useCan("user.update");
+  const canDelete = useCan("user.delete");
   const [roles, setRoles] = useState<Role[]>([]);
   const [actionError, setActionError] = useState("");
   const [showModal, setShowModal] = useState(false);
@@ -35,6 +40,7 @@ export default function UserManagementPage() {
     "Gagal memuat data user.",
   );
   const users = loaded?.rows ?? [];
+  useClampPage(page, loaded?.total ?? 0, 20, setPage);
   const loadError = actionError || fetchError;
 
   useEffect(() => {
@@ -135,13 +141,13 @@ export default function UserManagementPage() {
           <h1 className="text-2xl font-bold text-gray-800 tracking-tight">Kelola Data User</h1>
           <p className="text-gray-500 text-sm mt-1">Manajemen akun pengguna dan hak akses sistem.</p>
         </div>
-        <button
+        {canCreate && <button
           onClick={handleMulaiTambah}
           className="flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 active:scale-95 transition-all text-sm"
         >
           <UserPlus className="w-4 h-4" />
           Tambah User Baru
-        </button>
+        </button>}
       </div>
 
       {/* Search & Stats */}
@@ -216,20 +222,20 @@ export default function UserManagementPage() {
                   <td className="px-6 py-4 text-gray-500 text-xs">{user.createdAt ?? '-'}</td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <button
+                      {canUpdate && <button
                         onClick={() => handleEdit(user)}
                         className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
                         title="Edit user"
                       >
                         <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
+                      </button>}
+                      {canDelete && <button
                         onClick={() => handleDelete(user)}
                         className="p-2 text-gray-400 hover:text-red-600 transition-colors"
                         title="Hapus user"
                       >
                         <Trash2 className="w-4 h-4" />
-                      </button>
+                      </button>}
                     </div>
                   </td>
                 </tr>

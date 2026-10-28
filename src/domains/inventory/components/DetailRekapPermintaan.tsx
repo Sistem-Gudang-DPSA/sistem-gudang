@@ -4,8 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { ApiError } from "@/shared/lib/api-client";
-import { listItems } from "@/domains/inventory/api";
-import type { ItemListRow } from "@/domains/inventory/types";
+import { getItem } from "@/domains/inventory/api";
 import { getDokubah, listDokubah } from "@/domains/ppic/api";
 import type { DokubahItem } from "@/domains/ppic/data/dokubah";
 import { getMaterialRequest } from "../api";
@@ -47,7 +46,7 @@ export default function DetailRekapPermintaan() {
   const requestId = Number(params.id);
 
   const [detail, setDetail] = useState<MaterialRequestDetail | null>(null);
-  const [stock, setStock] = useState<ItemListRow[]>([]);
+  const [stock, setStock] = useState<{ id: number; stock: number }[]>([]);
   // Dokubah of the request's SPK: the quota that decides whether the items can be taken.
   const [dokubah, setDokubah] = useState<DokubahItem | null>(null);
   const [loading, setLoading] = useState(true);
@@ -58,14 +57,20 @@ export default function DetailRekapPermintaan() {
       setLoading(true);
       setError("");
       try {
-        const [d, items] = await Promise.all([
-          getMaterialRequest(requestId),
-          listItems({ pageSize: 100 }),
-        ]);
+        const d = await getMaterialRequest(requestId);
         setDetail(d);
-        setStock(items.rows);
+        // Stok hanya untuk barang di permintaan ini, bukan dari daftar 100 barang pertama.
+        const items = await Promise.all(d.lines.map((l) => getItem(l.itemId).catch(() => null)));
+        setStock(items.filter((it) => it !== null));
         // No dokubah (or no dokubah.view permission) just means the quota is unknown.
-        const match = (await listDokubah({ search: d.spk, pageSize: 100 }).catch(() => null))?.rows.find((x) => x.noSpk === d.spk);
+        // search is a substring match, so page on until the exact SPK shows up.
+        const match = await (async () => {
+          for (let page = 1; ; page++) {
+            const res = await listDokubah({ search: d.spk, page, pageSize: 100 });
+            const found = res.rows.find((x) => x.noSpk === d.spk);
+            if (found || res.rows.length === 0 || page * 100 >= res.total) return found;
+          }
+        })().catch(() => null);
         setDokubah(match ? await getDokubah(match.id).catch(() => null) : null);
       } catch (err) {
         setError(err instanceof ApiError ? err.message : "Gagal memuat detail permintaan.");

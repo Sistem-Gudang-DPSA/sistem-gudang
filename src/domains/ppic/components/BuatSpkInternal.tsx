@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useCan } from '@/domains/auth/user-context';
 import NoPermission from './NoPermission';
 import { useRouter } from 'next/navigation';
@@ -9,7 +9,8 @@ import { ArrowLeft, ChevronDown, Plus } from 'lucide-react';
 import { spk_internal_path } from '@/domains/ppic/data/spk-internal';
 import { createSpkInternal, listTrackingPic } from '@/domains/ppic/api';
 import { useSpkSearch } from '@/domains/ppic/use-spk-search';
-import { listItems } from '@/domains/inventory/api';
+import { getItemByCode } from '@/domains/inventory/api';
+import { useItemSearch } from '@/domains/inventory/use-item-search';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
@@ -64,10 +65,15 @@ export default function BuatSpkInternalPPIC() {
   const [saving, setSaving] = useState(false);
   const spkKlien = useSpkSearch(form.spkKlienInduk);
   const { data: picList } = useApiData(() => listTrackingPic(), 'pic', 'Gagal memuat daftar penanggung jawab.');
-  // ponytail: the SKU suggestions are the first 100 items
-  const { data: itemResult } = useApiData(() => listItems({ pageSize: 100 }), 'items', 'Gagal memuat daftar barang.');
-  const items = itemResult?.rows ?? [];
-  const [rows, setRows] = useState<BarangRow[]>(() => Array.from({ length: JUMLAH_BARIS_AWAL }, (_, i) => createRow(i + 1)));
+  // Saran SKU dicari di server menurut kode yang terakhir diketik; kode lain dicek per kode saat simpan.
+  const { items, onSearch: searchItems, error: itemError } = useItemSearch();
+  const [rawRows, setRows] = useState<BarangRow[]>(() => Array.from({ length: JUMLAH_BARIS_AWAL }, (_, i) => createRow(i + 1)));
+
+  // A known SKU fills an empty item name once the search result for it arrives.
+  const rows = useMemo(
+    () => rawRows.map((row) => (row.kodeSku && !row.namaBarang ? { ...row, namaBarang: items.find((it) => it.code === row.kodeSku)?.name ?? '' } : row)),
+    [rawRows, items],
+  );
 
   const setField = (field: keyof typeof emptyForm, value: string) => setForm((prev) => ({ ...prev, [field]: value }));
 
@@ -76,15 +82,12 @@ export default function BuatSpkInternalPPIC() {
       prev.map((row) => {
         if (row.id !== id) return row;
         const next = { ...row, [field]: value };
-        // Picking a known SKU fills the item name
-        if (field === 'kodeSku') {
-          const item = items.find((it) => it.code === value);
-          if (item) next.namaBarang = item.name;
-        }
         return next;
       }),
     );
+    if (field === 'kodeSku') searchItems(value);
   };
+
 
   const handleSimpan = async () => {
     const { tanggalTerbit, tujuanProduksi, spkKlienInduk, penanggungJawab, targetSelesai, catatan } = form;
@@ -102,8 +105,21 @@ export default function BuatSpkInternalPPIC() {
       return;
     }
     const lines = [];
+    const byCode = new Map<string, { id: number }>(items.map((it) => [it.code ?? "", it]));
     for (const row of filled) {
-      const item = items.find((it) => it.code === row.kodeSku.trim());
+      const kode = row.kodeSku.trim();
+      let item = byCode.get(kode);
+      if (!item && kode) {
+        try {
+          item = await getItemByCode(kode);
+          byCode.set(kode, item);
+        } catch (err) {
+          if (!(err instanceof ApiError && err.status === 404)) {
+            setFormError(err instanceof ApiError ? err.message : 'Gagal memeriksa kode SKU.');
+            return;
+          }
+        }
+      }
       const [total, klien, bebas] = [row.totalQty, row.alokasiSpkKlien, row.alokasiStokBebas].map(Number);
       if (!item) {
         setFormError(`Kode SKU "${row.kodeSku}" tidak ditemukan di daftar barang.`);
@@ -306,7 +322,7 @@ export default function BuatSpkInternalPPIC() {
           className={`${fieldClass} max-w-4xl resize-y`}
         />
 
-        {formError && <p className="mt-6 p-3 bg-red-50 text-red-600 text-sm rounded-lg max-w-4xl">{formError}</p>}
+        {(formError || itemError) && <p className="mt-6 p-3 bg-red-50 text-red-600 text-sm rounded-lg max-w-4xl">{formError || itemError}</p>}
 
         <div className="flex flex-wrap items-center justify-between gap-4 mt-10">
           <Link href={spk_internal_path} className={orangeButtonClass}>Batal</Link>

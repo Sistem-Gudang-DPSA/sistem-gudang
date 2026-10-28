@@ -143,6 +143,7 @@ export default function ChecklistDokubahDetailPage() {
 function ChecklistForm({ detail }: { detail: ChecklistDokubahDetail }) {
   const router = useRouter();
   const [form, setForm] = useState(() => toForm(detail));
+  const [saving, setSaving] = useState(false);
   const nextKolomId = useRef(form.kolom.length + 1);
   const [formError, setFormError] = useState("");
 
@@ -198,11 +199,13 @@ function ChecklistForm({ detail }: { detail: ChecklistDokubahDetail }) {
 
   const handleSimpan = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (saving) return;
     if (form.tglMulai && form.tglSelesai && form.tglSelesai < form.tglMulai) {
       setFormError("Tgl Selesai Produksi tidak boleh lebih awal dari Tgl Mulai Produksi.");
       return;
     }
     setFormError("");
+    setSaving(true);
     try {
       await saveChecklistDokubah(detail.dokubah.id, {
         kepalaGroup: form.kepalaGroup.trim() || null,
@@ -223,6 +226,7 @@ function ChecklistForm({ detail }: { detail: ChecklistDokubahDetail }) {
       router.back();
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "Gagal menyimpan checklist Dokubah.");
+      setSaving(false);
     }
   };
 
@@ -369,7 +373,7 @@ function ChecklistForm({ detail }: { detail: ChecklistDokubahDetail }) {
         )}
 
         <div className="flex justify-end mt-10">
-          <button type="submit" className={orangeButtonClass}>Simpan</button>
+          <button type="submit" disabled={saving} className={orangeButtonClass}>Simpan</button>
         </div>
       </form>
     </div>

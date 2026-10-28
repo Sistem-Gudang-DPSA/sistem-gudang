@@ -33,11 +33,14 @@ const type = (label: string, value: string) => fireEvent.change(screen.getByLabe
 
 async function ready() {
   await screen.findByText('Pemesanan Pembelian');
-  await waitFor(() => expect(document.querySelector('option[value="3"]')).not.toBeNull());
 }
-function fillValid() {
+async function pickSupplier() {
+  fireEvent.click(screen.getByLabelText('Data Supplier'));
+  fireEvent.click(await screen.findByText('S3 - PT Kayu'));
+}
+async function fillValid() {
   fireEvent.change(screen.getByLabelText('Tanggal PO'), { target: { value: '2026-03-10' } });
-  fireEvent.change(screen.getByLabelText('Data Supplier'), { target: { value: '3' } });
+  await pickSupplier();
   type('PIC / Telp', ' Andi / 0811 ');
   type('Kode barang Triplex', 'TRP-1');
   type('Kode barang Paku', 'PKU-1');
@@ -75,7 +78,7 @@ describe('PemesananPembelian preview totals', () => {
   it('uses subtotal, dppLain=round(sub*11/12), ppn=round(dpp*ppn/100), grand=sub+ppn+jasa', async () => {
     setup();
     await ready();
-    fillValid();
+    await fillValid();
     type('Jasa', '300');
     expect(val('Total harga setelah diskon')).toBe('14.500');
     expect((document.getElementById('po-dpp') as HTMLInputElement).value).toBe('13.292');
@@ -106,7 +109,7 @@ describe('PemesananPembelian submit', () => {
       'POST /api/v1/purchase-orders': { id: 1, nomorPo: 'PO/2026/0001', supplierName: 'PT Kayu', grandTotal: 16395 },
     });
     await ready();
-    fillValid();
+    await fillValid();
     type('Jasa', '300');
     submit();
     expect(await screen.findByText('PO PO/2026/0001 berhasil dibuat')).not.toBeNull();
@@ -132,7 +135,7 @@ describe('PemesananPembelian submit', () => {
   it('shows backend 409 and stays on the form', async () => {
     setup('approved', { 'POST /api/v1/purchase-orders': fail(409, 'PO untuk permintaan ini sudah ada') });
     await ready();
-    fillValid();
+    await fillValid();
     submit();
     expect(await screen.findByText('PO untuk permintaan ini sudah ada')).not.toBeNull();
     expect(screen.getByText('Pemesanan Pembelian')).not.toBeNull();
@@ -154,7 +157,7 @@ describe('PemesananPembelian submit', () => {
     const api = setup();
     await ready();
     fireEvent.change(screen.getByLabelText('Tanggal PO'), { target: { value: '2026-03-10' } });
-    fireEvent.change(screen.getByLabelText('Data Supplier'), { target: { value: '3' } });
+    await pickSupplier();
     submit();
     expect(await screen.findByText('PIC supplier wajib diisi.')).not.toBeNull();
     type('PIC / Telp', 'Andi');

@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from 'next/dynamic';
 import { useAuthUser, useCan } from '@/domains/auth/user-context';
 import React, { useEffect, useRef, useState } from 'react';
 import { Search, Filter, Edit2, Images, QrCode, RefreshCw } from 'lucide-react';
@@ -8,13 +9,15 @@ import type { ItemListRow, Location, UpdateItemInput } from '@/domains/inventory
 import { listSuppliers } from '@/domains/purchasing/api';
 import type { Supplier } from '@/domains/purchasing/types';
 import { ApiError } from '@/shared/lib/api-client';
+import { useClampPage } from '@/shared/lib/use-page';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
+import { useDebouncedValue } from '@/shared/lib/use-debounced-value';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import { ImportExcelButton } from '@/shared/components/ImportExcelButton';
 import ImportBarangMapping from './ImportBarangMapping';
 import ItemPhoto from '@/domains/inventory/components/ItemPhoto';
-import BulkPhotoModal from '@/domains/inventory/components/BulkPhotoModal';
+const BulkPhotoModal = dynamic(() => import('@/domains/inventory/components/BulkPhotoModal'), { ssr: false });
 import BarangFilterPanel, { countActiveFilters, emptyBarangFilters, toItemFilterParams } from '@/domains/inventory/components/BarangFilterPanel';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import EditModeBar, { useBatchEdit } from '@/shared/components/EditModeBar';
@@ -71,6 +74,7 @@ export default function DataBarangGudang() {
   const [filters, setFilters] = useState(emptyBarangFilters);
   const [showFilter, setShowFilter] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearch = useDebouncedValue(searchQuery);
   const [locations, setLocations] = useState<Location[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
@@ -87,12 +91,12 @@ export default function DataBarangGudang() {
   const [stockSaving, setStockSaving] = useState(false);
   const [stockError, setStockError] = useState("");
 
-  const filterKey = JSON.stringify([searchQuery, filters, sortParams]);
+  const filterKey = JSON.stringify([debouncedSearch, filters, sortParams]);
   const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
   const page = pageState.key === filterKey ? pageState.page : 1;
   const setPage = (next: number) => setPageState({ key: filterKey, page: next });
   const { data: loaded, loading, error, reload } = useApiData(
-    () => listItems({ page, pageSize: 20, search: searchQuery || undefined, ...toItemFilterParams(filters), ...sortParams }),
+    () => listItems({ page, pageSize: 20, search: debouncedSearch || undefined, ...toItemFilterParams(filters), ...sortParams }),
     `${filterKey}|${page}`,
     "Gagal memuat data barang.",
   );
@@ -120,6 +124,7 @@ export default function DataBarangGudang() {
       return next;
     });
   const total = loaded?.total ?? 0;
+  useClampPage(page, total, 20, setPage);
   useEffect(() => {
     loaded?.rows.forEach((r) => seen.current.set(r.id, r));
   }, [loaded]);

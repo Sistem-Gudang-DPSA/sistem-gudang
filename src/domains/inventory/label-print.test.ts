@@ -25,4 +25,10 @@ describe('buildLabelsHtml', () => {
     expect(html).toContain('&lt;img');
     expect(html).toContain('X&lt;1&gt;');
   });
+
+  it('neutralises a <script> in the item name', async () => {
+    const html = await buildLabelsHtml([{ code: 'X1', name: '<script>alert(1)</script>' }]);
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('&lt;script&gt;');
+  });
 });

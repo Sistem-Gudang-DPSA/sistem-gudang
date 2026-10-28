@@ -32,6 +32,7 @@ for (const [p, ops] of Object.entries(spec.paths))
 
 // Contract endpoints the FE intentionally does not call (yet).
 const UNUSED_ALLOWLIST: Record<string, string> = {
+  "post /api/v1/auth/refresh": "called with raw fetch in api-client (shared refresh promise), not via apiClient",
   "post /api/v1/superadmin/roles": "admin only, no role UI yet",
   "put /api/v1/superadmin/roles/{param}/permissions": "admin only, no role UI yet",
   "get /api/v1/approvals/{param}/actions": "not needed yet (actions come with approval detail)",

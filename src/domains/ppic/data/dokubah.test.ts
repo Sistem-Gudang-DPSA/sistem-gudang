@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buat_dokubah_path, detailRekapDokubahPath, dokubah_path, editMaterialPath, escapeHtml, formatAngka, formatRupiah, formatTanggal, viewDokubahPath } from './dokubah';
+import { buat_dokubah_path, detailRekapDokubahPath, dokubah_path, editMaterialPath, formatAngka, formatRupiah, formatTanggal, viewDokubahPath } from './dokubah';
 import { alokasiBarangPath, buat_spk_internal_path, spk_internal_path } from './spk-internal';
 
 describe('dokubah formatters', () => {
@@ -13,10 +13,6 @@ describe('dokubah formatters', () => {
     expect(formatRupiah(1500000)).toBe('Rp. 1.500.000');
     expect(formatRupiah(0)).toBe('Rp. 0');
     expect(formatRupiah(-2500)).toBe('-Rp. 2.500');
-  });
-  it('escapeHtml escapes special chars', () => {
-    expect(escapeHtml(`<a href="x">&'</a>`)).toBe('&lt;a href=&quot;x&quot;&gt;&amp;&#39;&lt;/a&gt;');
-    expect(escapeHtml('plain')).toBe('plain');
   });
   it('paths', () => {
     expect(buat_dokubah_path).toBe(`${dokubah_path}/buat-dokubah`);

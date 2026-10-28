@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Plus, Search, Tags } from "lucide-react";
 import type { ItemLookup } from "@/domains/inventory/api";
 import type { ListParams, PaginatedResult, SortParams } from "@/domains/inventory/types";
+import { useClampPage } from '@/shared/lib/use-page';
 import Pagination from "@/shared/components/Pagination";
 import { useCan } from "@/domains/auth/user-context";
 import { ApiError } from "@/shared/lib/api-client";
@@ -42,6 +43,7 @@ export default function MasterLookup({ config }: { config: LookupConfig }) {
     `${search.trim()}|${JSON.stringify(sortParams)}|${page}`,
     `Gagal memuat data ${singular.toLowerCase()}.`,
   );
+  useClampPage(page, data?.total ?? 0, pageSize, setPage);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [prefix, setPrefix] = useState("");

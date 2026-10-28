@@ -1,7 +1,9 @@
 "use client";
 
+import { escapeHtml } from '@/shared/lib/escape-html';
 import React, { useState } from 'react';
 import { Search, FileUp, Download, Eye, Loader2, AlertCircle } from 'lucide-react';
+import { todayIso } from '@/domains/inventory/date';
 import { exportOutboundReport, getOutboundReport } from '@/domains/inventory/api';
 import type { OutboundRow, RecipientType } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
@@ -24,14 +26,11 @@ const monthStart = () => {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 };
 
-const escapeHtml = (s: string) =>
-  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
 export default function LaporanBarangKeluar(){
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [filterPenerima, setFilterPenerima] = useState<'ALL' | RecipientType>('ALL');
     const [startDate, setStartDate] = useState<string>(monthStart());
-    const [endDate, setEndDate] = useState<string>(new Date().toISOString().slice(0, 10));
+    const [endDate, setEndDate] = useState<string>(todayIso());
     const [selectedDetail, setSelectedDetail] = useState<OutboundRow | null>(null);
 
     const [actionError, setActionError] = useState('');
@@ -71,6 +70,7 @@ export default function LaporanBarangKeluar(){
 
     const handlePrintPdf = () => {
         const win = window.open('', '_blank');
+        if (win) win.opener = null;
         if (!win) {
             setActionError('Pop-up diblokir browser. Izinkan pop-up untuk mencetak PDF.');
             return;
@@ -127,7 +127,7 @@ export default function LaporanBarangKeluar(){
             </head>
             <body>
                 <h1>Rekap Barang Keluar (halaman ini)</h1>
-                <p class="meta">Periode: ${periodeText} &nbsp;|&nbsp; Penerima: ${escapeHtml(penerimaText)}${
+                <p class="meta">Periode: ${escapeHtml(periodeText)} &nbsp;|&nbsp; Penerima: ${escapeHtml(penerimaText)}${
                 searchQuery ? ` &nbsp;|&nbsp; Pencarian: ${escapeHtml(searchQuery)}` : ''
                 }</p>
                 <p class="summary">

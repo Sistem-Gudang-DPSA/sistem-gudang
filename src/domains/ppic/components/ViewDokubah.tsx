@@ -1,6 +1,7 @@
 "use client";
 
-import React, {useState} from 'react';
+import { escapeHtml } from '@/shared/lib/escape-html';
+import React from 'react';
 import { useCan } from '@/domains/auth/user-context';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -8,25 +9,24 @@ import { ArrowLeft, Edit2, Printer } from 'lucide-react';
 import {
   dokubah_path,
   editMaterialPath,
-  escapeHtml,
   formatAngka,
   formatRupiah,
   formatTanggal,
   viewDokubahPath,
 } from '@/domains/ppic/data/dokubah';
-import { approveDokubah, getDokubah, listDokubah, rejectDokubah, submitDokubah } from '@/domains/ppic/api';
-import type { BahanDokubah, DokubahItem } from '@/domains/ppic/data/dokubah';
+import { approveDokubah, getDokubah, rejectDokubah, submitDokubah } from '@/domains/ppic/api';
+import type { DokubahItem } from '@/domains/ppic/data/dokubah';
 import { PrintPdfButton } from '@/shared/components/Tombol';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
+import SearchableSelect from '@/shared/components/SearchableSelect';
+import { useDokubahSearch } from '@/domains/ppic/use-dokubah-search';
 
 const cellClass = 'px-4 py-3 border-b border-r border-gray-200';
 const fieldClass = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors';
 const readOnlyFieldClass = `${fieldClass} bg-gray-50 cursor-default`;
 const cardClass = 'bg-white rounded-xl border border-gray-100 shadow-md p-6 min-h-32';
 
-type BahanDraft = Omit<BahanDokubah, 'kuota' | 'hargaSatuan'> & { kuota: string; hargaSatuan: string };
-const toDraft = (b: BahanDokubah): BahanDraft => ({ ...b, kuota: String(b.kuota), hargaSatuan: String(b.hargaSatuan) });
 
 function Field({ id, label, children }: { id: string; label: string; children: React.ReactNode }) {
   return (
@@ -51,14 +51,10 @@ export default function ViewDokubahPPIC() {
   const [note, setNote] = React.useState('');
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  // ponytail: the SPK picker lists the first 100 dokubah only
-  const { data: listResult } = useApiData(() => listDokubah({ pageSize: 100 }), 'list', 'Gagal memuat daftar Dokubah.');
-  const list = listResult?.rows ?? [];
+  const { rows: list, onSearch: searchDokubah, pending: dokubahPending } = useDokubahSearch();
   const { data: fetched, loading, error } = useApiData(() => getDokubah(Number(id)), id, 'Gagal memuat Dokubah.');
 
   const dokubah = updated && updated.id === fetched?.id ? updated : fetched;
-
-  const [draft, setDraft] = useState<BahanDraft[]>(() => dokubah?.bahan.map(toDraft) ?? []);
 
   const header = (
     <div className="flex items-center gap-3 mb-6">
@@ -111,17 +107,14 @@ export default function ViewDokubahPPIC() {
   const canSubmit = canUpdate && (dokubah.status === 'Draft' || dokubah.status === 'Rejected');
   const canDecide = canApprove && dokubah.status === 'Pending';
 
-  const handlePilihSpk = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    router.replace(viewDokubahPath(e.target.value));
-  };
-
-  const handleHapus = (kodeBarang: string) => {
-    setDraft((prev) => prev.filter((b) => b.kodeBarang !== kodeBarang));
+  const handlePilihSpk = (value: string) => {
+    router.replace(viewDokubahPath(value));
   };
 
   // Buka jendela berisi dokubah saja lalu panggil dialog print (pilih "Save as PDF")
   const handlePrintPdf = () => {
     const win = window.open('', '_blank');
+    if (win) win.opener = null;
     if (!win) {
       alert('Pop-up diblokir browser. Izinkan pop-up untuk mencetak Dokubah.');
       return;
@@ -157,9 +150,9 @@ export default function ViewDokubahPPIC() {
           <table class="info">
             <tr><td>No. SPK / Proyek</td><td>: ${escapeHtml(dokubah.noSpk)}</td></tr>
             <tr><td>Nama Client</td><td>: ${escapeHtml(dokubah.client)}</td></tr>
-            <tr><td>Status Dokubah</td><td>: ${dokubah.status}</td></tr>
-            <tr><td>Tanggal Mulai</td><td>: ${formatTanggal(dokubah.tanggalMulai)}</td></tr>
-            <tr><td>Tanggal Selesai</td><td>: ${formatTanggal(dokubah.tanggalSelesai)}</td></tr>
+            <tr><td>Status Dokubah</td><td>: ${escapeHtml(dokubah.status)}</td></tr>
+            <tr><td>Tanggal Mulai</td><td>: ${escapeHtml(formatTanggal(dokubah.tanggalMulai))}</td></tr>
+            <tr><td>Tanggal Selesai</td><td>: ${escapeHtml(formatTanggal(dokubah.tanggalSelesai))}</td></tr>
             <tr><td>Total Anggaran SPK</td><td>: ${formatRupiah(dokubah.totalAnggaran)}</td></tr>
             <tr><td>Total Biaya Aktual (HPP)</td><td>: ${formatRupiah(totalHpp)}</td></tr>
             <tr><td>Margin / Sisa Anggaran</td><td>: ${formatRupiah(margin)}</td></tr>
@@ -185,11 +178,20 @@ export default function ViewDokubahPPIC() {
         {/* Info SPK */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-3 max-w-4xl mb-8">
           <Field id="view-dokubah-spk" label="Pilih SPK / Proyek">
-            <select id="view-dokubah-spk" value={dokubah.id} onChange={handlePilihSpk} className={`${fieldClass} bg-white cursor-pointer`}>
-              {list.map((item) => (
-                <option key={item.id} value={item.id}>{item.noSpk}</option>
-              ))}
-            </select>
+            <SearchableSelect
+              value={String(dokubah.id)}
+              onChange={handlePilihSpk}
+              onSearch={searchDokubah}
+              pending={dokubahPending}
+              // Dokubah yang sedang dibuka tetap ada di pilihan walau di luar hasil pencarian
+              options={[
+                ...(list.some((item) => item.id === dokubah.id) ? [] : [{ value: String(dokubah.id), label: dokubah.noSpk }]),
+                ...list.map((item) => ({ value: String(item.id), label: item.noSpk })),
+              ]}
+              placeholder="Pilih SPK / Proyek"
+              aria-label="Pilih SPK / Proyek"
+              className={`${fieldClass} bg-white`}
+            />
           </Field>
           <div className="hidden lg:block" />
 
@@ -274,7 +276,6 @@ export default function ViewDokubahPPIC() {
                       <td className={`${cellClass} text-center gap-0.5 flex justify-center`}>
                         <button
                           type="button"
-                          onClick={() => handleHapus(b.kodeBarang)}
                           aria-label={`Hapus material ${b.kodeBarang}`}
                           className="px-4 py-1.5 bg-[#FF8A00] text-white text-xs font-semibold rounded-lg hover:bg-orange-600 transition-colors"
                         >
