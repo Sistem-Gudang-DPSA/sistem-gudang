@@ -4,9 +4,8 @@ import { useCan } from '@/domains/auth/user-context';
 import React, { useEffect, useRef, useState } from 'react';
 import { Camera, Search, Calendar, Plus, Minus, AlertCircle, Download, X, ChevronDown, ChevronRight, Pencil, Lock, Filter, ScanLine, Trash2 } from 'lucide-react';
 import { createOutbound, exportOutboundReport, getItemByCode, listOutbound, listItems, updateOutbound, deleteItem } from '@/domains/inventory/api';
-import { getDokubah, getTrackingSpk, listDokubah } from '@/domains/ppic/api';
+import { getTrackingSpk } from '@/domains/ppic/api';
 import type { TrackingSpkDetail } from '@/domains/ppic/types';
-import type { BahanDokubah } from '@/domains/ppic/data/dokubah';
 import type { RecipientType, ItemListRow, OutboundRow } from '@/domains/inventory/types';
 import { displayDate, todayIso, toDateRange } from '@/domains/inventory/date';
 import { ApiError } from '@/shared/lib/api-client';
@@ -49,8 +48,6 @@ const formKosong = () => ({
 
 const tambahSatu = (baris: BarisForm[], key: string) =>
   baris.map((b) => (b.key === key ? { ...b, qty: String(Number(b.qty) + 1) } : b));
-
-const samaNama = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
 // Barang keluar hanya bisa diedit selama 1 hari (24 jam) sejak transaksi dicatat
 const BATAS_EDIT_MS = 24 * 60 * 60 * 1000;
@@ -171,23 +168,6 @@ export default function BarangKeluarGudang() {
   const detailAktif = form.spk && detailSpk?.noSpk === form.spk ? detailSpk : null;
   const detailGagal = !!form.spk && detailAktif !== null && detailAktif.data === null;
   const detailMemuat = !!form.spk && detailAktif === null;
-
-  // Kuota material per SPK dari dokubah PPIC. Tidak ada key = belum dimuat, null = gagal dimuat.
-  const [dokubahBySpk, setDokubahBySpk] = useState<Record<string, BahanDokubah[] | 'loading' | null>>({});
-  const muatDokubah = (spk: string) => {
-    const sekarang = dokubahBySpk[spk];
-    if (!spk || (sekarang !== undefined && sekarang !== null)) return;
-    setDokubahBySpk((prev) => ({ ...prev, [spk]: 'loading' }));
-    listDokubah({ search: spk, pageSize: 100 })
-      .then(async (res) => {
-        const milikSpk = res.rows.filter((d) => d.noSpk === spk);
-        // Dokubah yang sudah disetujui yang dipakai; kalau belum ada, dokubah SPK itu yang pertama
-        const dipakai = milikSpk.find((d) => d.status === 'Approved') ?? milikSpk[0];
-        const bahan = dipakai ? (await getDokubah(dipakai.id)).bahan : [];
-        setDokubahBySpk((prev) => ({ ...prev, [spk]: bahan }));
-      })
-      .catch(() => setDokubahBySpk((prev) => ({ ...prev, [spk]: null })));
-  };
 
   useEffect(() => {
     listItems({ pageSize: 100 }).then((res) => setItems(res.rows)).catch(() => {});
@@ -376,7 +356,7 @@ export default function BarangKeluarGudang() {
         const sama = bs.find((b) => b.itemId === item.id);
         return sama
           ? tambahSatu(bs, sama.key)
-          : [...bs, { key: randomId(), manual: false, itemId: item.id, code: item.code ?? code, name: item.name, unit: item.unit, stock: item.stock, qty: '1' }];
+          : [...bs, { key: randomId(), manual: false, itemId: item.id, code: item.code ?? code, name: item.name, unit: item.unit, stock: item.stock, qty: '1', dokubah: '' }];
       });
       ok(item.id);
     } catch (err) {
@@ -401,31 +381,6 @@ export default function BarangKeluarGudang() {
 
   const pilihSpk =(spk: string) => {
     setForm((prev) => ({ ...prev, spk, namaItem: "" }));
-    muatDokubah(spk);
-  };
-
-  const dokubahSpk = dokubahBySpk[form.spk];
-  // Material dokubah dicocokkan lewat kode barang, kalau tidak ketemu lewat nama
-  const bahanDokubah = (b: BarisForm) => Array.isArray(dokubahSpk)
-    ? dokubahSpk.find((m) => m.kodeBarang === b.code) ?? dokubahSpk.find((m) => samaNama(m.namaBahan, b.name))
-    : undefined;
-
-  const selDokubah = (b: BarisForm) => {
-    if (b.itemId === null) return null;
-    // TODO: Match stock materials against Dokubah once the stock API is available.
-    if (modeKeluar === 'stok') return <span className="text-xs text-gray-400">Data dokubah belum tersedia</span>;
-    if (!form.spk) return <span className="text-xs text-gray-400">Pilih Item</span>;
-    if (dokubahSpk === 'loading' || dokubahSpk === undefined) return <span className="text-xs text-gray-400">Memuat...</span>;
-    if (dokubahSpk === null) return <span className="text-xs text-red-500">Gagal dimuat</span>;
-    const bahan = bahanDokubah(b);
-    if (!bahan) return <span className="text-xs text-gray-400">Tidak ada di dokubah</span>;
-    const sisa = bahan.kuota - bahan.realisasi;
-    return (
-      <div className="flex flex-col">
-        <span className="font-medium text-gray-900">{bahan.kuota} {bahan.satuan}</span>
-        <span className={`text-xs ${Number(b.qty) > sisa ? 'text-red-600 font-semibold' : 'text-gray-500'}`}>sisa {sisa}</span>
-      </div>
-    );
   };
 
   // Hanya produk milik SPK dan client yang sedang dipilih.

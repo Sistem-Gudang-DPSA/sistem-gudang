@@ -11,6 +11,9 @@ import type {
   CreateLocationInput,
   CreateOutboundInput,
   CreateStockOpnameInput,
+  ChecklistDokubahDetail,
+  ChecklistDokubahInput,
+  ChecklistDokubahRow,
   InboundListParams,
   InboundReport,
   InboundReportParams,
@@ -36,6 +39,13 @@ import type {
 } from "./types";
 import type { KartuStokData } from '@/domains/inventory/components/KartuStok';
 
+export const listChecklistDokubah = (params?: ListParams) =>
+  apiClient.get<PaginatedResult<ChecklistDokubahRow>>(`/api/v1/checklist-dokubah${toQuery(params)}`);
+export const getChecklistDokubah = (dokubahId: number) =>
+  apiClient.get<ChecklistDokubahDetail>(`/api/v1/checklist-dokubah/${dokubahId}`);
+export const saveChecklistDokubah = (dokubahId: number, input: ChecklistDokubahInput) =>
+  apiClient.put<ChecklistDokubahDetail>(`/api/v1/checklist-dokubah/${dokubahId}`, input);
+
 export function getStockCard(itemId: number) {
   return apiClient.get<KartuStokData>(`/api/v1/items/${itemId}/stock-card`);
 }
@@ -47,7 +57,7 @@ export function listItems(params?: ListParams & SortParams & ItemFilterParams) {
 
 // Master lists of item categories and units; items reference them by name.
 // `itemCount` is how many items use the name; a name still in use cannot be deleted (409).
-// prefix: kategori saja, 3 huruf awal kode barang (LEM001); default dari BE bila tidak diisi
+// prefix: kategori saja, 3 huruf awal kode barang (LBR001); default dari BE bila tidak diisi
 export type ItemLookup = { id: number; name: string; itemCount?: number; prefix?: string };
 export const listItemCategories = () => apiClient.get<ItemLookup[]>("/api/v1/items/categories");
 export const listItemUnits = () => apiClient.get<ItemLookup[]>("/api/v1/items/units");

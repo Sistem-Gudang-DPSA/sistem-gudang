@@ -1,32 +1,27 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Search } from "lucide-react";
 import Pagination from "@/shared/components/Pagination";
-import { getChecklistDokubahList } from "@/domains/inventory/checklist-dokubah";
+import { listChecklistDokubah } from "@/domains/inventory/api";
+import { useApiData } from "@/shared/lib/use-api-data";
 
 const PAGE_SIZE = 20;
 
 export default function CeklistDokubahPage() {
   const pathname = usePathname();
-  const data = getChecklistDokubahList();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
 
-  const filteredData = useMemo(() => {
-    const keyword = query.trim().toLowerCase();
-    if (!keyword) return data;
-
-    return data.filter((row) =>
-      [row.kodeDokubah, row.namaClient, row.namaItem]
-        .some((value) => value.toLowerCase().includes(keyword)),
-    );
-  }, [data, query]);
-
-  const total = filteredData.length;
-  const pageRows = filteredData.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const { data: loaded } = useApiData(
+    () => listChecklistDokubah({ page, pageSize: PAGE_SIZE, search: query.trim() || undefined }),
+    `${query.trim()}|${page}`,
+    "Gagal memuat data checklist Dokubah.",
+  );
+  const pageRows = loaded?.rows ?? [];
+  const total = loaded?.total ?? 0;
 
   return (
     <main className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -73,7 +68,7 @@ export default function CeklistDokubahPage() {
                   const no = (page - 1) * PAGE_SIZE + index + 1;
                   return (
                     <tr
-                      key={row.id}
+                      key={row.dokubahId}
                       className={`transition-colors hover:bg-[#FF8A00]/5 ${no % 2 === 0 ? "bg-gray-50/60" : "bg-white"}`}
                     >
                       <td className="px-6 py-4 text-gray-500">{no}.</td>
@@ -84,7 +79,7 @@ export default function CeklistDokubahPage() {
                         <div className="flex items-center justify-center">
                           {/* Membuka halaman Checklist Dokubah: [alamat halaman ini]/[id] */}
                           <Link
-                            href={`${pathname}/${row.id}`}
+                            href={`${pathname}/${row.dokubahId}`}
                             className="inline-block px-4 py-1.5 bg-[#FF8A00] text-white text-xs font-semibold rounded-lg hover:bg-orange-600 transition-colors"
                           >
                             Detail
