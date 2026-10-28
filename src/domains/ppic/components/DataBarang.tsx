@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from 'next/dynamic';
 import React, { useEffect, useState } from 'react';
 import { useCan } from '@/domains/auth/user-context';
 import { Search, Plus, Download, Edit2, Trash2, Filter, MoreHorizontal, Images } from 'lucide-react';
@@ -7,13 +8,16 @@ import { listItems, createItem, deleteItem, listLocations, updateItem, listItemC
 import type { ItemListRow, Location } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
 import type { Supplier } from '@/domains/purchasing/types';
+import { toCsv } from '@/shared/lib/csv';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
+import { useDebouncedValue } from '@/shared/lib/use-debounced-value';
+import { useClampPage, usePage } from '@/shared/lib/use-page';
 import Pagination from '@/shared/components/Pagination';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import ItemPhoto from '@/domains/inventory/components/ItemPhoto';
-import BulkPhotoModal from '@/domains/inventory/components/BulkPhotoModal';
+const BulkPhotoModal = dynamic(() => import('@/domains/inventory/components/BulkPhotoModal'), { ssr: false });
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import { kodeKategoriNotice } from '@/domains/inventory/item-code-notice';
 
@@ -28,6 +32,7 @@ export default function DataBarangPPIC() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [actionError, setActionError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearch = useDebouncedValue(searchTerm);
   const { sort, toggle, params: sortParams } = useSort();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -37,13 +42,14 @@ export default function DataBarangPPIC() {
   const [modalError, setModalError] = useState("");
   const [notice, setNotice] = useState("");
 
-  const [page, setPage] = useState(1);
+  const [page, setPage] = usePage(`${debouncedSearch}|${JSON.stringify(sortParams)}`);
   const { data: loaded, loading, error: loadError, reload } = useApiData(
-    () => listItems({ search: searchTerm || undefined, page, pageSize: 20, ...sortParams }),
-    `${searchTerm}|${page}|${JSON.stringify(sortParams)}`,
+    () => listItems({ search: debouncedSearch || undefined, page, pageSize: 20, ...sortParams }),
+    `${debouncedSearch}|${page}|${JSON.stringify(sortParams)}`,
     "Gagal memuat data barang.",
   );
   const dataBarang = loaded?.rows ?? [];
+  useClampPage(page, loaded?.total ?? 0, 20, setPage);
 
   // Pilihan disimpan per id agar tetap ada saat pindah halaman, cari, atau urutkan.
   const [selected, setSelected] = useState(new Map<number, ItemListRow>());
@@ -68,8 +74,8 @@ export default function DataBarangPPIC() {
     });
   const error = actionError || loadError;
 
-  const { data: units } = useApiData(() => listItemUnits(), 'units', 'Gagal memuat daftar satuan.');
-  const { data: categories } = useApiData(() => listItemCategories(), 'categories', 'Gagal memuat daftar kategori.');
+  const { data: units } = useApiData(() => listItemUnits(), 'units', 'Gagal memuat daftar satuan.', 60_000);
+  const { data: categories } = useApiData(() => listItemCategories(), 'categories', 'Gagal memuat daftar kategori.', 60_000);
 
   useEffect(() => {
     listSuppliers().then((res) => setSuppliers(res.rows)).catch(() => {});
@@ -148,17 +154,15 @@ export default function DataBarangPPIC() {
   };
 
   const handleExportCSV = () => {
-    const headers = ['No,Kode Barang,Kode Bawaan,Nama Barang,Supplier,Jumlah Stok,Satuan,Kategori,Harga,Lokasi'];
-    const csvData = dataBarang.map((item, index) =>
-      `${index + 1},${item.code ?? '-'},"${item.externalCode ?? '-'}","${item.name}","${supplierName(item.supplierId)}",${item.stock},${item.unit},${item.category},${item.price},${locationCode(item.locationId)}`
-    );
-    const csvString = [...headers, ...csvData].join('\n');
+    const rows: unknown[][] = [['No', 'Kode Barang', 'Kode Bawaan', 'Nama Barang', 'Supplier', 'Jumlah Stok', 'Satuan', 'Kategori', 'Harga', 'Lokasi']];
+    dataBarang.forEach((item, index) => rows.push([index + 1, item.code ?? '-', item.externalCode ?? '-', item.name, supplierName(item.supplierId), item.stock, item.unit, item.category, item.price, locationCode(item.locationId)]));
+    const csvString = toCsv(rows);
 
     const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', 'Data_Barang_PPIC.csv');
+    link.setAttribute('download', `Data_Barang_PPIC_halaman-${page}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -199,7 +203,7 @@ export default function DataBarangPPIC() {
               type="text"
               value={searchTerm}
               maxLength={100}
-              onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+              onChange={(e) => { setSearchTerm(e.target.value); }}
               className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 sm:text-sm transition-all"
               placeholder="Cari kode atau nama barang..."
             />

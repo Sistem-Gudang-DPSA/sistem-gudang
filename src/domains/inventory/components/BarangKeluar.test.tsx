@@ -393,7 +393,7 @@ describe('BarangKeluar create', () => {
     // Triplex is already in the table, so only Paku is offered; the list is searchable
     expect(within(screen.getByRole('listbox')).getAllByRole('option').map((o) => o.textContent)).toEqual(['Paku (BRG-2)']);
     fireEvent.change(label('Cari Nama material baris 2'), { target: { value: 'pak' } });
-    fireEvent.click(screen.getByRole('option', { name: 'Paku (BRG-2)' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Paku (BRG-2)' }));
     const row = label('Nama material Paku').closest('tr')!;
     expect(Array.from(row.querySelectorAll('td')).slice(2, 4).map((td) => td.textContent)).toEqual(['kg', 'BRG-2']);
     fireEvent.change(label('Pengambilan Paku'), { target: { value: '7' } });

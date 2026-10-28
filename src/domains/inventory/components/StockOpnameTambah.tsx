@@ -78,7 +78,8 @@ export default function TambahStockOpnameGudang() {
             const id = String(item.id);
             const saved = existing.get(id);
 
-            return saved ?? {
+            if (saved) return { ...saved, itemName: item.name, stock: item.stock };
+            return {
               itemId: id,
               itemName: item.name,
               stock: item.stock,

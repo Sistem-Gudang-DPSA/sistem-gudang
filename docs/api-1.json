@@ -646,7 +646,8 @@
                 "properties": {
                   "name": {
                     "type": "string",
-                    "minLength": 1
+                    "minLength": 1,
+                    "maxLength": 100
                   },
                   "domainId": {
                     "type": "integer",
@@ -1091,7 +1092,8 @@
                 "properties": {
                   "username": {
                     "type": "string",
-                    "minLength": 3
+                    "minLength": 3,
+                    "maxLength": 100
                   },
                   "email": {
                     "type": "string",
@@ -1603,7 +1605,8 @@
                 "properties": {
                   "username": {
                     "type": "string",
-                    "minLength": 3
+                    "minLength": 3,
+                    "maxLength": 100
                   },
                   "email": {
                     "type": "string",
@@ -7690,7 +7693,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 100
             },
             "required": false,
             "name": "search",
@@ -8030,10 +8034,21 @@
           "Purchase order"
         ],
         "summary": "Create a purchase order",
-        "description": "nomorPo is generated (PO-001, PO-002, ...). The approval request must be a purchase-request (400 when it is another type) in status approved (409 when it is not). A missing request or supplier is a 404. One request may have several POs. subtotal, dppLain, nilaiPpn and grandTotal are computed by the server and rounded to a rupiah: subtotal = sum of (jumlah * hargaSatuan - diskon), dppLain (DPP nilai lain) = subtotal * 11 / 12, nilaiPpn = dppLain * persenPpn / 100, grandTotal = subtotal + nilaiPpn + jasa. diskon is rupiah per line. Sending dppLain is a 400. A request that has a supplier mapping, or has no PO yet, is ordered through the mapping: every barang line carries lineIndex, the supplier must have that line mapped, jumlah must equal the mapped qty, and an already ordered line is a 409; anything else is a 400. Only a request that already had a PO before mapping existed may skip lineIndex.",
+        "description": "nomorPo is generated (PO-001, PO-002, ...). The approval request must be a purchase-request (400 when it is another type) in status approved (409 when it is not). A missing request or supplier is a 404. One request may have several POs. subtotal, dppLain, nilaiPpn and grandTotal are computed by the server and rounded to a rupiah: subtotal = sum of (jumlah * hargaSatuan - diskon), dppLain (DPP nilai lain) = subtotal * 11 / 12, nilaiPpn = dppLain * persenPpn / 100, grandTotal = subtotal + nilaiPpn + jasa. diskon is rupiah per line. Sending dppLain is a 400. A request that has a supplier mapping, or has no PO yet, is ordered through the mapping: every barang line carries lineIndex, the supplier must have that line mapped, jumlah must equal the mapped qty, and an already ordered line is a 409; anything else is a 400. Only a request that already had a PO before mapping existed may skip lineIndex. Optional Idempotency-Key header (8 to 100 characters): with it, the same key and payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true and does not repeat the write; the same key with a different payload is 409; a malformed key is 400. Without it the request behaves as before.",
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "6f1c2d3e-0b7a-4c55-9a3e-1d2f3a4b5c6d"
+            },
+            "required": false,
+            "name": "Idempotency-Key",
+            "in": "header"
           }
         ],
         "requestBody": {
@@ -8088,11 +8103,13 @@
                         "jumlah": {
                           "type": "integer",
                           "minimum": 0,
-                          "exclusiveMinimum": true
+                          "exclusiveMinimum": true,
+                          "maximum": 1000000
                         },
                         "hargaSatuan": {
                           "type": "integer",
-                          "minimum": 0
+                          "minimum": 0,
+                          "maximum": 2000000000
                         },
                         "diskon": {
                           "type": "integer",
@@ -8811,11 +8828,13 @@
                         "jumlah": {
                           "type": "integer",
                           "minimum": 0,
-                          "exclusiveMinimum": true
+                          "exclusiveMinimum": true,
+                          "maximum": 1000000
                         },
                         "hargaSatuan": {
                           "type": "integer",
-                          "minimum": 0
+                          "minimum": 0,
+                          "maximum": 2000000000
                         },
                         "diskon": {
                           "type": "integer",
@@ -10959,6 +10978,7 @@
                   "price": {
                     "type": "integer",
                     "minimum": 0,
+                    "maximum": 2000000000,
                     "default": 0
                   },
                   "supplierId": {
@@ -11594,7 +11614,8 @@
                   },
                   "price": {
                     "type": "integer",
-                    "minimum": 0
+                    "minimum": 0,
+                    "maximum": 2000000000
                   },
                   "supplierId": {
                     "type": "integer",
@@ -14609,7 +14630,7 @@
           "Item"
         ],
         "summary": "Stock card: every stock movement of one item",
-        "description": "Needs item.view. entries are oldest first (date, then createdAt): inbound receipts (MASUK, whatever the QC status, qtyArrived is added), outbound lines (KELUAR) and stock opname differences (PENYESUAIAN, zero differences skipped). Inbound returns and SPK internal do not change stock and are not listed. openingBalance + sum(qtyIn) - sum(qtyOut) = item.stock; manual stock adjustments and the initial import fall into openingBalance. 404 when the item does not exist.",
+        "description": "Needs item.view. entries are oldest first (date, then createdAt): inbound receipts (MASUK, whatever the QC status, qtyArrived is added), outbound lines (KELUAR) and stock opname differences (PENYESUAIAN, zero differences skipped). Inbound returns and SPK internal do not change stock and are not listed. openingBalance + sum(qtyIn) - sum(qtyOut) = item.stock. Optional startDate/endDate (YYYY-MM-DD, inclusive) narrow the entries; openingBalance is then the balance before startDate and endDate only trims the entries; manual stock adjustments and the initial import fall into openingBalance. 404 when the item does not exist.",
         "security": [
           {
             "bearerAuth": []
@@ -14624,6 +14645,26 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2026-10-01"
+            },
+            "required": false,
+            "name": "startDate",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2026-10-31"
+            },
+            "required": false,
+            "name": "endDate",
+            "in": "query"
           }
         ],
         "responses": {
@@ -16211,7 +16252,7 @@
           "Item"
         ],
         "summary": "Adjust an item's stock by a signed delta",
-        "description": "Records the change in audit_logs. Rejects deltas that would push stock below 0.",
+        "description": "Records the change in audit_logs. Rejects deltas that would push stock below 0. Optional Idempotency-Key header (8 to 100 characters): with it, the same key and payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true and does not repeat the write; the same key with a different payload is 409; a malformed key is 400. Without it the request behaves as before.",
         "security": [
           {
             "bearerAuth": []
@@ -16226,6 +16267,15 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "example": "6f1c2d3e-0b7a-4c55-9a3e-1d2f3a4b5c6d"
+            },
+            "required": false,
+            "name": "Idempotency-Key",
+            "in": "header"
           }
         ],
         "requestBody": {
@@ -16235,7 +16285,9 @@
                 "type": "object",
                 "properties": {
                   "delta": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": -1000000,
+                    "maximum": 1000000
                   },
                   "reason": {
                     "type": "string",
@@ -17097,7 +17149,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 100
             },
             "required": false,
             "name": "search",
@@ -17132,6 +17185,33 @@
             },
             "required": false,
             "name": "source",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "date",
+                "itemName",
+                "referenceNo",
+                "supplierName"
+              ]
+            },
+            "required": false,
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            },
+            "required": false,
+            "name": "sortDir",
             "in": "query"
           }
         ],
@@ -17434,10 +17514,21 @@
           "Inbound"
         ],
         "summary": "Record goods received from a supplier or production",
-        "description": "Raises the item's stock by qtyArrived in the same transaction and records audit logs. statusQc is the result of the manual QC check, not derived from the quantities. When source is SUPPLIER (the default) and supplierId is left out, it is taken from the item's mapped supplier; 400 when the item has none. qtyPurchased is optional.",
+        "description": "Raises the item's stock by qtyArrived in the same transaction and records audit logs. statusQc is the result of the manual QC check, not derived from the quantities. When source is SUPPLIER (the default) and supplierId is left out, it is taken from the item's mapped supplier; 400 when the item has none. qtyPurchased is optional. Optional Idempotency-Key header (8 to 100 characters): with it, the same key and payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true and does not repeat the write; the same key with a different payload is 409; a malformed key is 400. Without it the request behaves as before.",
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "6f1c2d3e-0b7a-4c55-9a3e-1d2f3a4b5c6d"
+            },
+            "required": false,
+            "name": "Idempotency-Key",
+            "in": "header"
           }
         ],
         "requestBody": {
@@ -17471,7 +17562,8 @@
                   "qtyArrived": {
                     "type": "integer",
                     "minimum": 0,
-                    "exclusiveMinimum": true
+                    "exclusiveMinimum": true,
+                    "maximum": 100000
                   },
                   "qtyPurchased": {
                     "type": "integer",
@@ -18940,10 +19032,21 @@
           "Inbound"
         ],
         "summary": "Record goods returned by a client",
-        "description": "Stored with source KLIEN and statusQc null. Raises the item's stock by qty in the same transaction. spk is optional; when given it must be one of GET /api/v1/tracking/spk (400 otherwise) and clientName is taken from there. Without spk, clientName is null. A clientName in the body is ignored.",
+        "description": "Stored with source KLIEN and statusQc null. Raises the item's stock by qty in the same transaction. spk is optional; when given it must be one of GET /api/v1/tracking/spk (400 otherwise) and clientName is taken from there. Without spk, clientName is null. A clientName in the body is ignored. Optional Idempotency-Key header (8 to 100 characters): with it, the same key and payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true and does not repeat the write; the same key with a different payload is 409; a malformed key is 400. Without it the request behaves as before.",
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "6f1c2d3e-0b7a-4c55-9a3e-1d2f3a4b5c6d"
+            },
+            "required": false,
+            "name": "Idempotency-Key",
+            "in": "header"
           }
         ],
         "requestBody": {
@@ -19302,7 +19405,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 100
             },
             "required": false,
             "name": "search",
@@ -19742,7 +19846,8 @@
                         "qty": {
                           "type": "integer",
                           "minimum": 0,
-                          "exclusiveMinimum": true
+                          "exclusiveMinimum": true,
+                          "maximum": 1000000
                         },
                         "pic": {
                           "type": "string",
@@ -20424,7 +20529,8 @@
                         "qty": {
                           "type": "integer",
                           "minimum": 0,
-                          "exclusiveMinimum": true
+                          "exclusiveMinimum": true,
+                          "maximum": 1000000
                         },
                         "pic": {
                           "type": "string",
@@ -21656,7 +21762,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 100
             },
             "required": false,
             "name": "search",
@@ -22107,11 +22214,13 @@
                         "hargaSatuan": {
                           "type": "integer",
                           "minimum": 0,
+                          "maximum": 2000000000,
                           "default": 0
                         },
                         "kuota": {
                           "type": "integer",
-                          "minimum": 0
+                          "minimum": 0,
+                          "maximum": 1000000
                         },
                         "keterangan": {
                           "type": "string",
@@ -22297,6 +22406,254 @@
                         "bahan",
                         "riwayat"
                       ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dokubah/bahan-by-spk": {
+      "get": {
+        "tags": [
+          "Dokubah"
+        ],
+        "summary": "Get the bahan of many SPK at once",
+        "description": "Needs dokubah.view. Repeat the spk param (?spk=A&spk=B), 1 to 100 values, 400 otherwise. Returns one entry per requested spk in request order. bahan has the same shape and realisasi as bahan in GET /api/v1/dokubah/{id}, and is [] when the SPK has no dokubah. noSpk is unique per dokubah, so there is never more than one dokubah to pick from.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1,
+              "maxItems": 100
+            },
+            "required": true,
+            "name": "spk",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bahan per SPK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "noSpk": {
+                            "type": "string"
+                          },
+                          "bahan": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "kodeBarang": {
+                                  "type": "string"
+                                },
+                                "namaBahan": {
+                                  "type": "string"
+                                },
+                                "satuan": {
+                                  "type": "string"
+                                },
+                                "hargaSatuan": {
+                                  "type": "number"
+                                },
+                                "kuota": {
+                                  "type": "number"
+                                },
+                                "realisasi": {
+                                  "type": "number",
+                                  "description": "Read-only. Quantity of outbound lines whose SPK equals the dokubah noSpk and whose item code equals kodeBarang, counted once the dokubah is APPROVED, otherwise 0"
+                                },
+                                "keterangan": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "kodeBarang",
+                                "namaBahan",
+                                "satuan",
+                                "hargaSatuan",
+                                "kuota",
+                                "realisasi",
+                                "keterangan"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "noSpk",
+                          "bahan"
+                        ]
+                      }
                     }
                   },
                   "required": [
@@ -22830,11 +23187,13 @@
                         "hargaSatuan": {
                           "type": "integer",
                           "minimum": 0,
+                          "maximum": 2000000000,
                           "default": 0
                         },
                         "kuota": {
                           "type": "integer",
-                          "minimum": 0
+                          "minimum": 0,
+                          "maximum": 1000000
                         },
                         "keterangan": {
                           "type": "string",
@@ -24222,7 +24581,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 100
             },
             "required": false,
             "name": "search",
@@ -25303,7 +25663,7 @@
                         "jumlahOrder": {
                           "type": "number",
                           "minimum": 0,
-                          "maximum": 999999999,
+                          "maximum": 1000000,
                           "default": 0
                         },
                         "hargaSatuan": {
@@ -26012,7 +26372,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 100
             },
             "required": false,
             "name": "search",
@@ -26581,7 +26942,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 100
             },
             "required": false,
             "name": "search",
@@ -27313,13 +27675,13 @@
         }
       }
     },
-    "/api/v1/spk-internal/{id}/allocate": {
-      "post": {
+    "/api/v1/spk-internal/{id}": {
+      "get": {
         "tags": [
           "SPK Internal"
         ],
-        "summary": "Allocate quantity on a line",
-        "description": "id is the line id from the list. Subtracts jumlah from totalBisaPakai. 400 when jumlah is not a positive integer or is more than totalBisaPakai. The line becomes LOCKED at 0. Item stock is not changed.",
+        "summary": "Get one SPK internal line",
+        "description": "id is the line id from the list. Same row shape as the list. 404 when unknown.",
         "security": [
           {
             "bearerAuth": []
@@ -27334,6 +27696,301 @@
             "required": true,
             "name": "id",
             "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The line",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "noSpk": {
+                          "type": "string",
+                          "example": "SPK-INT/2026/003",
+                          "description": "Generated"
+                        },
+                        "tanggalTerbit": {
+                          "type": "string",
+                          "example": "2026-10-01"
+                        },
+                        "tujuanProduksi": {
+                          "type": "string"
+                        },
+                        "spkKlienInduk": {
+                          "type": "string",
+                          "description": "A noSpk from GET /api/v1/tracking/spk"
+                        },
+                        "penanggungJawab": {
+                          "type": "string",
+                          "description": "A name from GET /api/v1/tracking/pic"
+                        },
+                        "targetSelesai": {
+                          "type": "string",
+                          "example": "2026-12-31"
+                        },
+                        "catatan": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "id": {
+                          "type": "number",
+                          "description": "Line id, the id /allocate takes"
+                        },
+                        "spkInternalId": {
+                          "type": "number"
+                        },
+                        "sku": {
+                          "type": "string",
+                          "description": "Item code, empty when the item has none"
+                        },
+                        "namaBarang": {
+                          "type": "string"
+                        },
+                        "periode": {
+                          "type": "string",
+                          "example": "Oktober 2026",
+                          "description": "Month of tanggalTerbit"
+                        },
+                        "totalQty": {
+                          "type": "number"
+                        },
+                        "alokasiSpkKlien": {
+                          "type": "number"
+                        },
+                        "alokasiStokBebas": {
+                          "type": "number"
+                        },
+                        "totalStock": {
+                          "type": "number",
+                          "description": "Same as totalQty"
+                        },
+                        "totalBisaPakai": {
+                          "type": "number",
+                          "description": "Left of alokasiStokBebas, reduced by /allocate"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "LOCKED",
+                            "BUFFER"
+                          ],
+                          "description": "LOCKED when totalBisaPakai is 0"
+                        }
+                      },
+                      "required": [
+                        "noSpk",
+                        "tanggalTerbit",
+                        "tujuanProduksi",
+                        "spkKlienInduk",
+                        "penanggungJawab",
+                        "targetSelesai",
+                        "catatan",
+                        "id",
+                        "spkInternalId",
+                        "sku",
+                        "namaBarang",
+                        "periode",
+                        "totalQty",
+                        "alokasiSpkKlien",
+                        "alokasiStokBebas",
+                        "totalStock",
+                        "totalBisaPakai",
+                        "status"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/spk-internal/{id}/allocate": {
+      "post": {
+        "tags": [
+          "SPK Internal"
+        ],
+        "summary": "Allocate quantity on a line",
+        "description": "id is the line id from the list. Subtracts jumlah from totalBisaPakai. 400 when jumlah is not a positive integer or is more than totalBisaPakai. The line becomes LOCKED at 0. Item stock is not changed. Optional Idempotency-Key header (8 to 100 characters): with it, the same key and payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true and does not repeat the write; the same key with a different payload is 409; a malformed key is 400. Without it the request behaves as before.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "example": "6f1c2d3e-0b7a-4c55-9a3e-1d2f3a4b5c6d"
+            },
+            "required": false,
+            "name": "Idempotency-Key",
+            "in": "header"
           }
         ],
         "requestBody": {
@@ -27657,7 +28314,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 100
             },
             "required": false,
             "name": "search",
@@ -27939,10 +28597,21 @@
           "Stock Opname"
         ],
         "summary": "Record a stock opname",
-        "description": "Sets each counted item's stock to physicalQty in one transaction and records audit logs. The price is not sent: systemPrice and physicalPrice on each line are both the item master price at that moment, and the master is never changed by an opname. An item may appear only once per opname.",
+        "description": "Sets each counted item's stock to physicalQty in one transaction and records audit logs. The price is not sent: systemPrice and physicalPrice on each line are both the item master price at that moment, and the master is never changed by an opname. An item may appear only once per opname. Optional Idempotency-Key header (8 to 100 characters): with it, the same key and payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true and does not repeat the write; the same key with a different payload is 409; a malformed key is 400. Without it the request behaves as before.",
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "6f1c2d3e-0b7a-4c55-9a3e-1d2f3a4b5c6d"
+            },
+            "required": false,
+            "name": "Idempotency-Key",
+            "in": "header"
           }
         ],
         "requestBody": {
@@ -27978,7 +28647,8 @@
                         },
                         "physicalQty": {
                           "type": "number",
-                          "minimum": 0
+                          "minimum": 0,
+                          "maximum": 1000000
                         },
                         "note": {
                           "type": "string",
@@ -28577,7 +29247,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 100
             },
             "required": false,
             "name": "search",
@@ -28899,10 +29570,21 @@
           "Material Request"
         ],
         "summary": "File a material request",
-        "description": "spk must be one of GET /api/v1/tracking/spk (400 otherwise) and clientName is taken from there, a clientName in the body is ignored. Always created as PENDING, with at least one item line. Creating a request or changing its status never changes stock, only outbound does.",
+        "description": "spk must be one of GET /api/v1/tracking/spk (400 otherwise) and clientName is taken from there, a clientName in the body is ignored. Always created as PENDING, with at least one item line. Creating a request or changing its status never changes stock, only outbound does. Optional Idempotency-Key header (8 to 100 characters): with it, the same key and payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true and does not repeat the write; the same key with a different payload is 409; a malformed key is 400. Without it the request behaves as before.",
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "6f1c2d3e-0b7a-4c55-9a3e-1d2f3a4b5c6d"
+            },
+            "required": false,
+            "name": "Idempotency-Key",
+            "in": "header"
           }
         ],
         "requestBody": {
@@ -29859,7 +30541,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 100
             },
             "required": false,
             "name": "q",
@@ -29894,6 +30577,33 @@
             },
             "required": false,
             "name": "source",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "date",
+                "itemName",
+                "referenceNo",
+                "supplierName"
+              ]
+            },
+            "required": false,
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            },
+            "required": false,
+            "name": "sortDir",
             "in": "query"
           }
         ],
@@ -30566,7 +31276,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 100
             },
             "required": false,
             "name": "q",
@@ -31278,7 +31989,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 100
             },
             "required": false,
             "name": "q",
@@ -31612,7 +32324,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 100
             },
             "required": false,
             "name": "q",
@@ -31817,7 +32530,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 100
             },
             "required": false,
             "name": "q",
@@ -32034,7 +32748,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 100
             },
             "required": false,
             "name": "q",
@@ -32271,7 +32986,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 100
             },
             "required": false,
             "name": "search",

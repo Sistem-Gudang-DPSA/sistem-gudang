@@ -89,8 +89,8 @@ describe('ViewDokubah', () => {
     installFakeApi({ 'GET /api/v1/dokubah/7': base, 'GET /api/v1/dokubah': listRoute });
     render(<ViewDokubah />);
     await screen.findByText('Triplex');
-    await screen.findByText('SPK-008');
-    fireEvent.change(screen.getByLabelText('Pilih SPK / Proyek'), { target: { value: '8' } });
+    fireEvent.click(screen.getByLabelText('Pilih SPK / Proyek'));
+    fireEvent.click(await screen.findByText('SPK-008'));
     expect(replace).toHaveBeenCalledWith('/dashboard/ppic/transaksi/dokubah/view-dokubah/8');
   });
 });

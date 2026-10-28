@@ -64,4 +64,13 @@ describe('SearchableSelect', () => {
     fireEvent.mouseDown(document.body);
     expect(screen.queryByRole('listbox')).toBeNull();
   });
+
+  it('ignores Enter and hides stale options while a search is pending', () => {
+    const onChange = vi.fn();
+    render(<SearchableSelect value="" onChange={onChange} onSearch={vi.fn()} pending options={options} placeholder="Pilih" aria-label="Nama barang" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Nama barang' }));
+    expect(screen.queryAllByRole('option')).toHaveLength(0);
+    fireEvent.keyDown(screen.getByLabelText('Cari Nama barang'), { key: 'Enter' });
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });

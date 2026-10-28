@@ -6,9 +6,10 @@ import { Search } from "lucide-react";
 import Pagination from "@/shared/components/Pagination";
 import { listTrackingSpk } from "@/domains/ppic/api";
 import { useApiData } from "@/shared/lib/use-api-data";
+import { useDebouncedValue } from "@/shared/lib/use-debounced-value";
+import { usePage } from "@/shared/lib/use-page";
 
 type Proyek = {
-  id: number;
   client: string;
   namaProyek: string;
   noSpk: string;
@@ -19,15 +20,15 @@ const ITEMS_PER_PAGE = 5; // Jumlah item per halaman
 
 export default function DaftarProyekPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
+  const debouncedSearch = useDebouncedValue(searchTerm);
+  const [currentPage, setCurrentPage] = usePage(debouncedSearch);
 
   // Tracking list has no SPK date, so spkMasuk shows "-"
   const { data: spkList, loading, error } = useApiData(
-    () => listTrackingSpk(undefined, 100),
-    "daftar-proyek",
+    () => listTrackingSpk(debouncedSearch || undefined, 100),
+    `daftar-proyek|${debouncedSearch}`,
   );
-  const dataProyek: Proyek[] = (spkList ?? []).map((spk, index) => ({
-    id: index + 1,
+  const dataProyek: Proyek[] = (spkList ?? []).map((spk) => ({
     client: spk.client,
     namaProyek: spk.projectName ?? "-",
     noSpk: spk.noSpk,
@@ -49,7 +50,6 @@ export default function DaftarProyekPage() {
   // Reset ke halaman 1 saat mengetik pencarian
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
-    setCurrentPage(1);
   };
 
   return (
@@ -112,7 +112,7 @@ export default function DaftarProyekPage() {
 
                   return (
                     <tr
-                      key={item.id}
+                      key={item.noSpk}
                       className={`transition-colors hover:bg-orange-50/50 ${isHighlight ? "bg-[#FFFDF9]" : "bg-white"
                         }`}
                     >
@@ -126,7 +126,7 @@ export default function DaftarProyekPage() {
                         {item.namaProyek}
                       </td>
                       <td className="py-3.5 px-4 font-semibold text-blue-600 hover:underline cursor-pointer">
-                        <Link href={`/dashboard/proyek/${item.id}`}>
+                        <Link href={`/dashboard/proyek/${encodeURIComponent(item.noSpk)}`}>
                           {item.noSpk}
                         </Link>
                       </td>

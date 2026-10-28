@@ -54,5 +54,3 @@ export const formatAngka = (value: number) => angkaFormatter.format(value);
 
 export const formatRupiah = (value: number) => `${value < 0 ? '-' : ''}Rp. ${formatAngka(Math.abs(value))}`;
 
-export const escapeHtml = (value: string) =>
-  value.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] ?? c);

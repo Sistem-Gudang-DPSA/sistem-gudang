@@ -144,14 +144,17 @@ export default function BulkPhotoModal({ items, onClose, onDone }: Props) {
 
   const matchCode = () => {
     const used = new Set(pairs.values());
+    const byName = new Map<string, string[]>(); // baseName -> unused file keys, in insertion order
+    for (const [k, e] of files) {
+      if (used.has(k)) continue;
+      const n = baseName(e.file.name);
+      byName.set(n, [...(byName.get(n) ?? []), k]);
+    }
     const entries: [number, string][] = [];
     for (const item of items) {
       if (pairs.has(item.id) || !item.code) continue;
-      const code = item.code.trim().toLowerCase();
-      const hit = [...files].find(
-        ([k, e]) => !used.has(k) && !entries.some(([, ek]) => ek === k) && baseName(e.file.name) === code,
-      );
-      if (hit) entries.push([item.id, hit[0]]);
+      const key = byName.get(item.code.trim().toLowerCase())?.shift();
+      if (key) entries.push([item.id, key]);
     }
     applyPairs(entries);
   };

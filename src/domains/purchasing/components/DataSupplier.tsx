@@ -8,6 +8,7 @@ import type { Pajak, Supplier } from '@/domains/purchasing/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { useCan } from '@/domains/auth/user-context';
+import { useClampPage, usePage } from '@/shared/lib/use-page';
 import Pagination from '@/shared/components/Pagination';
 import SortableTh, { useSort } from '@/shared/components/SortableTh'
 
@@ -29,13 +30,14 @@ export default function DataSupplierPurchasing() {
   const [actionError, setActionError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
-  const [page, setPage] = useState(1);
+  const [page, setPage] = usePage(`${searchTerm}|${JSON.stringify(sortParams)}`);
   const { data: loaded, loading, error: loadError, reload } = useApiData(
-    () => listSuppliers({ search: searchTerm || undefined, page, pageSize: 20 }),
-    `${searchTerm}|${page}`,
+    () => listSuppliers({ search: searchTerm || undefined, page, pageSize: 20, ...sortParams }),
+    `${searchTerm}|${JSON.stringify(sortParams)}|${page}`,
     "Gagal memuat data supplier.",
   );
   const dataSupplier = loaded?.rows ?? [];
+  useClampPage(page, loaded?.total ?? 0, 20, setPage);
   const error = actionError || loadError;
 
   const handleMulaiTambah = () => {
@@ -104,7 +106,7 @@ export default function DataSupplierPurchasing() {
               <input
                 type="text"
                 value={searchTerm}
-                onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                onChange={(e) => { setSearchTerm(e.target.value); }}
                 maxLength={100}
                 className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] sm:text-sm transition-all shadow-sm"
                 placeholder="Cari supplier, npwp, atau kode..."

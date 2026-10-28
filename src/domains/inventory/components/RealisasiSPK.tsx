@@ -1,4 +1,4 @@
-import { getDokubah, listDokubah } from '@/domains/ppic/api';
+import { listDokubahBahanBySpk } from '@/domains/ppic/api';
 import type { BahanDokubah } from '@/domains/ppic/data/dokubah';
 import type { ItemListRow } from '@/domains/inventory/types';
 
@@ -13,20 +13,11 @@ export const fmtRp = (n: number) =>
   n.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const fmtQty = (n: number) => n.toLocaleString('id-ID');
 
-// Material dokubah satu SPK. Dokubah yang disetujui dipakai; kalau belum ada, dokubah pertama SPK itu.
-async function loadBahanSpk(noSpk: string): Promise<SpkBahan> {
-  const res = await listDokubah({ search: noSpk, pageSize: 100 });
-  const milik = res.rows.filter((d) => d.noSpk === noSpk);
-  const dipakai = milik.find((d) => d.status === 'Approved') ?? milik[0];
-  const bahan = dipakai ? (await getDokubah(dipakai.id)).bahan : [];
-  return { noSpk, bahan };
-}
-
-// Dimuat 5 SPK sekaligus supaya tidak membanjiri server
+// Material dokubah per SPK (yang disetujui, kalau belum ada yang pertama), satu request per 100 SPK
 export async function loadRealisasi(spks: string[]): Promise<SpkBahan[]> {
   const out: SpkBahan[] = [];
-  for (let i = 0; i < spks.length; i += 5) {
-    out.push(...(await Promise.all(spks.slice(i, i + 5).map(loadBahanSpk))));
+  for (let i = 0; i < spks.length; i += 100) {
+    out.push(...(await listDokubahBahanBySpk(spks.slice(i, i + 100))));
   }
   return out;
 }

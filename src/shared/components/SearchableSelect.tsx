@@ -16,11 +16,13 @@ type Props = {
   disabled?: boolean;
   // Server-side search: called with the typed text; the list is then not filtered here.
   onSearch?: (q: string) => void;
+  // True while the search result is stale (typing/debounce/request): Enter does nothing and the list shows a loading text.
+  pending?: boolean;
 };
 
 // Dropdown like a native <select>, with a search box on top of the list.
 // The list is position: fixed so the scrolling table it sits in cannot clip it.
-export default function SearchableSelect({ value, onChange, options, placeholder, 'aria-label': ariaLabel, className = '', emptyText = 'Tidak ada data', disabled = false, onSearch }: Props) {
+export default function SearchableSelect({ value, onChange, options, placeholder, 'aria-label': ariaLabel, className = '', emptyText = 'Tidak ada data', disabled = false, onSearch, pending = false }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
@@ -78,7 +80,7 @@ export default function SearchableSelect({ value, onChange, options, placeholder
       setActive((i) => Math.max(i - 1, 0));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (filtered[active]) pilih(filtered[active]);
+      if (!pending && filtered[active]) pilih(filtered[active]);
     } else if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
@@ -122,8 +124,8 @@ export default function SearchableSelect({ value, onChange, options, placeholder
             />
           </div>
           <ul id={listId} role="listbox" aria-label={`Pilihan ${ariaLabel}`} className="max-h-56 overflow-y-auto py-1">
-            {filtered.length === 0 && <li className="px-3 py-2 text-sm text-gray-400 italic">{emptyText}</li>}
-            {filtered.map((o, i) => (
+            {(pending || filtered.length === 0) && <li className="px-3 py-2 text-sm text-gray-400 italic">{pending ? 'Memuat...' : emptyText}</li>}
+            {!pending && filtered.map((o, i) => (
               <li
                 key={o.value}
                 role="option"
