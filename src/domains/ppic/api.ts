@@ -40,17 +40,25 @@ export const listDokubahRows = (params?: DokubahListParams) =>
 
 // SPK numbers and client names from the tracking system. The API caps limit at 100 (default 50); search matches noSpk or client.
 // With client, only that client's SPKs come back (exact name, case-insensitive).
-export const listTrackingSpk = (search?: string, limit?: number, client?: string) => apiClient.get<TrackingSpk[]>(`/api/v1/tracking/spk${toQuery({ search, limit, client })}`);
+// refresh: true makes the API reload its tracking cache first (~2 s); otherwise the cached list is served.
+export const listTrackingSpk = (search?: string, limit?: number, client?: string, refresh?: boolean) =>
+  apiClient.get<TrackingSpk[]>(`/api/v1/tracking/spk${toQuery({ search, limit, client, refresh: refresh ? 1 : undefined })}`);
 
 // Unique client names from tracking, sorted. The API caps limit at 100 (default 50).
-export const listTrackingClients = async (search?: string, limit?: number) =>
-  (await apiClient.get<{ client: string }[]>(`/api/v1/tracking/clients${toQuery({ search, limit })}`)).map((c) => c.client);
+export const listTrackingClients = async (search?: string, limit?: number, refresh?: boolean) =>
+  (await apiClient.get<{ client: string }[]>(`/api/v1/tracking/clients${toQuery({ search, limit, refresh: refresh ? 1 : undefined })}`)).map((c) => c.client);
 
 // One SPK with its products. noSpk can contain '/', so it must be encoded. 404 when unknown.
 export const getTrackingSpk = (noSpk: string) => apiClient.get<TrackingSpkDetail>(`/api/v1/tracking/spk/${encodeURIComponent(noSpk)}`);
 
 export async function getDokubah(id: number) {
   return toItem(await apiClient.get<DokubahApiDetail>(`/api/v1/dokubah/${id}`));
+}
+
+// Bahan of many SPKs in one request (max 100), in request order. [] for an SPK without dokubah.
+export async function listDokubahBahanBySpk(spks: string[]) {
+  const query = new URLSearchParams(spks.map((spk) => ["spk", spk]));
+  return apiClient.get<{ noSpk: string; bahan: BahanDokubah[] }[]>(`/api/v1/dokubah/bahan-by-spk?${query}`);
 }
 
 export async function createDokubah(input: CreateDokubahInput) {
@@ -75,6 +83,9 @@ export const listSpkInternal = (params?: SpkInternalListParams) =>
 export const createSpkInternal = (input: CreateSpkInternalInput) => apiClient.post<{ id: number; noSpk: string }>("/api/v1/spk-internal", input);
 
 // Rejected with 400 unless jumlah is an integer > 0 and <= totalBisaPakai; 0 left means LOCKED.
+// One SPK internal line by id (the row shape of the list). 404 when unknown.
+export const getSpkInternal = (id: number | string) => apiClient.get<SpkInternal>(`/api/v1/spk-internal/${id}`);
+
 export const allocateSpkInternal = (id: number, jumlah: number) =>
   apiClient.post<SpkInternal>(`/api/v1/spk-internal/${id}/allocate`, { jumlah });
 

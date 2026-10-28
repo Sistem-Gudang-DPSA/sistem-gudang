@@ -34,7 +34,7 @@ describe('DataBarang list', () => {
     expect(screen.getAllByText('PT Kayu').length).toBe(2);
     await screen.findByText('A01');
     expect(screen.getByText('BRG-1')).not.toBeNull();
-    expect(screen.getByText('Kode bawaan: PL-778')).not.toBeNull();
+    expect(screen.getByText('PL-778')).not.toBeNull();
     expect(screen.getByText('Barang 2')).not.toBeNull();
   });
 
@@ -90,7 +90,6 @@ describe('DataBarang assign location', () => {
     fireEvent.click(screen.getByText('Tambah Lokasi'));
     await screen.findByText(/TAMBAH LOKASI/);
   }
-  const code = () => screen.getByPlaceholderText('Kode akan disarankan otomatis') as HTMLInputElement;
 
   it('only offers Tambah Lokasi for items without location', async () => {
     const api = setup();
@@ -99,46 +98,29 @@ describe('DataBarang assign location', () => {
     expect(screen.getAllByText('Edit Lokasi').length).toBeGreaterThan(0);
   });
 
-  it('fetches suggested code on location pick, then PUTs assign-location', async () => {
-    const api = setup({
-      'GET /api/v1/items/2/suggest-code': { code: 'B02-001' },
-      'PUT /api/v1/items/2/assign-location': { id: 2 },
-    });
+  it('PUTs assign-location with the picked location only', async () => {
+    const api = setup({ 'PUT /api/v1/items/2/assign-location': { id: 2 } });
     await openAssign(api);
     fireEvent.change(screen.getByText('Pilih Lokasi', { selector: 'option' }).parentElement!, { target: { value: '2' } });
-    await waitFor(() => expect(code().value).toBe('B02-001'));
-    expect(api.calls('GET /api/v1/items/2/suggest-code')[0].query.get('locationId')).toBe('2');
-    expect(code().maxLength).toBe(191);
     fireEvent.click(screen.getByText('Simpan'));
     await waitFor(() => expect(api.calls('PUT /api/v1/items/2/assign-location').length).toBe(1));
-    expect(api.calls('PUT /api/v1/items/2/assign-location')[0].body).toEqual({ code: 'B02-001', locationId: 2 });
+    expect(api.calls('PUT /api/v1/items/2/assign-location')[0].body).toEqual({ locationId: 2 });
     await waitFor(() => expect(screen.queryByText(/TAMBAH LOKASI/)).toBeNull());
     await waitFor(() => expect(api.calls('GET /api/v1/items').length).toBe(2));
   });
 
-  it('validates missing location/code', async () => {
+  it('validates a missing location', async () => {
     const api = setup();
     await openAssign(api);
     fireEvent.click(screen.getByText('Simpan'));
-    expect(screen.getByText('Pilih lokasi dan pastikan kode terisi.')).not.toBeNull();
+    expect(screen.getByText('Pilih lokasi.')).not.toBeNull();
     expect(api.calls('PUT /api/v1/items/2/assign-location').length).toBe(0);
   });
 
-  it('shows suggestion error', async () => {
-    const api = setup({ 'GET /api/v1/items/2/suggest-code': fail(400, 'Rak penuh') });
-    await openAssign(api);
-    fireEvent.change(screen.getByText('Pilih Lokasi', { selector: 'option' }).parentElement!, { target: { value: '2' } });
-    expect(await screen.findByText('Rak penuh')).not.toBeNull();
-  });
-
   it('shows backend error without closing and disables Simpan while saving', async () => {
-    const api = setup({
-      'GET /api/v1/items/2/suggest-code': { code: 'B02-001' },
-      'PUT /api/v1/items/2/assign-location': fail(409, 'Kode dipakai'),
-    });
+    const api = setup({ 'PUT /api/v1/items/2/assign-location': fail(409, 'Kode dipakai') });
     await openAssign(api);
     fireEvent.change(screen.getByText('Pilih Lokasi', { selector: 'option' }).parentElement!, { target: { value: '2' } });
-    await waitFor(() => expect(code().value).toBe('B02-001'));
     fireEvent.click(screen.getByText('Simpan'));
     expect((screen.getByText('Menyimpan...') as HTMLButtonElement).disabled).toBe(true);
     expect(await screen.findByText('Kode dipakai')).not.toBeNull();
@@ -186,48 +168,6 @@ describe('DataBarang QR labels', () => {
     await ready(api);
     fireEvent.click(screen.getByTitle('Cetak label QR'));
     expect(await screen.findByText(/Pop-up diblokir/)).not.toBeNull();
-  });
-});
-
-describe('DataBarang generate codes', () => {
-  it('codes the located items without a code after confirming', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    const api = setup({ 'POST /api/v1/items/generate-codes': { generated: 3, failed: [] } });
-    await ready(api);
-    fireEvent.click(screen.getByText('Buat Kode'));
-    expect(await screen.findByText('3 kode dibuat')).not.toBeNull();
-    expect(api.calls('POST /api/v1/items/generate-codes')).toHaveLength(1);
-  });
-
-  it('does nothing when the user cancels', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
-    const api = setup();
-    await ready(api);
-    fireEvent.click(screen.getByText('Buat Kode'));
-    expect(api.calls('POST /api/v1/items/generate-codes')).toHaveLength(0);
-  });
-});
-
-describe('DataBarang revert codes', () => {
-  const open = async (user: ReturnType<typeof who>, extra: Record<string, unknown> = {}) => {
-    const api = installFakeApi({ 'GET /api/v1/items': rows, 'GET /api/v1/locations': locations, 'GET /api/v1/suppliers': suppliers, ...extra });
-    render(<AuthUserProvider user={user}><DataBarang /></AuthUserProvider>);
-    await screen.findByText('Barang 1');
-    return api;
-  };
-
-  it('is hidden from a non-superadmin who can assign locations', async () => {
-    await open(who(['item.assign-location']));
-    expect(screen.getByText('Buat Kode')).not.toBeNull();
-    expect(screen.queryByText('Batalkan Kode')).toBeNull();
-  });
-
-  it('lets a superadmin undo the last run', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    const api = await open(who([], true), { 'POST /api/v1/items/generate-codes/revert': { reverted: 4, skipped: 1 } });
-    fireEvent.click(screen.getByText('Batalkan Kode'));
-    expect(await screen.findByText('4 kode dibatalkan, 1 dilewati karena sudah diubah')).not.toBeNull();
-    expect(api.calls('POST /api/v1/items/generate-codes/revert')).toHaveLength(1);
   });
 });
 

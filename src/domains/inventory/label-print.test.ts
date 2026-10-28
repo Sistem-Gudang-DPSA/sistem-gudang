@@ -10,8 +10,13 @@ describe('buildLabelsHtml', () => {
     expect(html.match(/class="label"/g)?.length).toBe(1);
     expect(html).toContain('<svg');
     expect(html).toContain('BB 18 mm');
-    expect(html).toContain('A1-03');
+    expect(html).not.toContain('[');
     expect(html).not.toContain('Tanpa kode');
+  });
+
+  it('shows Kode bawaan in brackets and the location code when given', async () => {
+    const html = await buildLabelsHtml([{ code: 'LBR001', name: 'Triplex', externalCode: 'TH 852 J', locationCode: 'A01' }]);
+    expect(html).toContain('[TH 852 J]');
   });
 
   it('escapes item names and codes', async () => {
@@ -19,5 +24,11 @@ describe('buildLabelsHtml', () => {
     expect(html).not.toContain('<img');
     expect(html).toContain('&lt;img');
     expect(html).toContain('X&lt;1&gt;');
+  });
+
+  it('neutralises a <script> in the item name', async () => {
+    const html = await buildLabelsHtml([{ code: 'X1', name: '<script>alert(1)</script>' }]);
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('&lt;script&gt;');
   });
 });

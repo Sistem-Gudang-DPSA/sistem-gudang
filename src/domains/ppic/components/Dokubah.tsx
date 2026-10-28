@@ -1,5 +1,6 @@
 "use client";
 
+import { escapeHtml } from '@/shared/lib/escape-html';
 import React, { useState } from 'react';
 import { useCan } from '@/domains/auth/user-context';
 import Link from 'next/link';
@@ -7,7 +8,6 @@ import { Search, Funnel, Plus, Eye, CircleCheck, CircleX, Clock, FilePen, FileUp
 import {
   buat_dokubah_path,
   editMaterialPath,
-  escapeHtml,
   formatTanggal,
   type StatusDokubah,
   viewDokubahPath,
@@ -116,6 +116,7 @@ export default function DokubahPPIC() {
   // Buka jendela berisi tabel saja lalu panggil dialog print (pilih "Save as PDF")
   const handlePrintPdf = () => {
     const win = window.open('', '_blank');
+    if (win) win.opener = null;
     if (!win) {
       alert('Pop-up diblokir browser. Izinkan pop-up untuk mencetak PDF.');
       return;
@@ -125,9 +126,9 @@ export default function DokubahPPIC() {
         <td class="center">${(page - 1) * 20 + index + 1}</td>
         <td>${escapeHtml(item.noSpk)}</td>
         <td>${escapeHtml(item.client)}</td>
-        <td>${formatTanggal(item.tanggalMulai)}</td>
-        <td>${formatTanggal(item.tanggalSelesai)}</td>
-        <td>${item.status}</td>
+        <td>${escapeHtml(formatTanggal(item.tanggalMulai))}</td>
+        <td>${escapeHtml(formatTanggal(item.tanggalSelesai))}</td>
+        <td>${escapeHtml(item.status)}</td>
       </tr>`).join('');
     win.document.write(`<!doctype html>
       <html>

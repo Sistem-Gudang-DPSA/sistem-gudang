@@ -27,28 +27,39 @@ export function getAccessToken() {
   return accessToken;
 }
 
-let refreshPromise: Promise<boolean> | null = null;
+const CSRF_HEADER = { "X-Requested-With": "XMLHttpRequest" };
 
-async function refreshAccessToken(): Promise<boolean> {
+// One refresh in flight at a time: the BE rotates the refresh token, and a second
+// request with the same cookie would be treated as token reuse.
+let refreshPromise: Promise<unknown | null> | null = null;
+
+// Rotates the refresh cookie and stores the new access token. Resolves to the
+// response data (accessToken, user), or null when the session is gone.
+export function refreshSessionData<T extends { accessToken: string }>(): Promise<T | null> {
   if (!refreshPromise) {
     refreshPromise = (async () => {
       try {
         const res = await fetch(`${BASE_URL}/api/v1/auth/refresh`, {
           method: "POST",
           credentials: "include",
+          headers: CSRF_HEADER,
         });
-        const body: ApiEnvelope<{ accessToken: string }> = await res.json();
-        if (!body.success) return false;
+        const body: ApiEnvelope<T> = await res.json();
+        if (!body.success) return null;
         setAccessToken(body.data.accessToken);
-        return true;
+        return body.data;
       } catch {
-        return false;
+        return null;
       }
     })().finally(() => {
       refreshPromise = null;
     });
   }
-  return refreshPromise;
+  return refreshPromise as Promise<T | null>;
+}
+
+async function refreshAccessToken(): Promise<boolean> {
+  return (await refreshSessionData()) !== null;
 }
 
 async function request<T>(path: string, options: RequestInit = {}, retryOn401 = true): Promise<T> {
@@ -59,6 +70,7 @@ async function request<T>(path: string, options: RequestInit = {}, retryOn401 = 
       // FormData sets its own multipart Content-Type with the boundary.
       ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      ...CSRF_HEADER, // the backend requires it on /auth/refresh and /auth/logout
       ...options.headers,
     },
   });

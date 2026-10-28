@@ -74,8 +74,8 @@ export const NAV_DIVISIONS: NavDivision[] = [
         items: [
           { href: "/dashboard/gudang/transaksi/barang-masuk", label: "Barang Masuk", anyOf: ["inbound.view"] },
           { href: "/dashboard/gudang/transaksi/barang-keluar", label: "Barang Keluar", anyOf: ["outbound.view"] },
+           { href: "/dashboard/gudang/transaksi/ceklist-dokubah", label: "Checklist Dokubah", anyOf: ["checklist-dokubah.view"] },
           { href: "/dashboard/gudang/transaksi/stock-opname", label: "Stock Opname", anyOf: ["stock-opname.view"] },
-          // Same pages as PPIC; the backend only lets purchase-request.create submit, so the menu follows it.
           { href: "/dashboard/gudang/transaksi/permintaan-pembelian", label: "Permintaan Pembelian", anyOf: ["purchase-request.create"] },
         ],
       },
@@ -87,6 +87,8 @@ export const NAV_DIVISIONS: NavDivision[] = [
           { href: "/dashboard/gudang/laporan/rekap-permintaan", label: "Rekap Permintaan", anyOf: ["report.view"] },
           { href: "/dashboard/gudang/laporan/stock-opname", label: "Rekap Stok Opname", anyOf: ["report.view"] },
           { href: "/dashboard/gudang/laporan/dokubah", label: "Rekap Dokubah", anyOf: ["dokubah.view"] },
+          { href: "/dashboard/gudang/laporan/kartu-stok", label: "Kartu Stok", anyOf: ["item.view"] },
+          { href: "/dashboard/gudang/laporan/realisasi-spk", label: "Realisasi SPK", anyOf: ["dokubah.view"] },
         ],
       },
     ],

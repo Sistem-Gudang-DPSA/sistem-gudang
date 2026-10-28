@@ -6,10 +6,12 @@ import { listItems, listLocations, updateItem } from '@/domains/inventory/api';
 import type { ItemListRow, Location } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
 import type { Supplier } from '@/domains/purchasing/types';
+import { toCsv } from '@/shared/lib/csv';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { digitsOnly, INTEGER_INPUT } from '@/shared/lib/input';
 import { useCan } from '@/domains/auth/user-context';
+import { useClampPage, usePage } from '@/shared/lib/use-page';
 import Pagination from '@/shared/components/Pagination';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import ItemPhoto from '@/domains/inventory/components/ItemPhoto';
@@ -39,13 +41,14 @@ export default function DataBarangPurchasing() {
 
   const [searchTerm, setSearchTerm] = useState('');
 
-  const [page, setPage] = useState(1);
+  const [page, setPage] = usePage(`${searchTerm}|${JSON.stringify(sortParams)}`);
   const { data: loaded, loading, error: loadError, reload } = useApiData(
     () => listItems({ search: searchTerm || undefined, page, pageSize: 20, ...sortParams }),
     `${searchTerm}|${page}|${JSON.stringify(sortParams)}`,
     "Gagal memuat data barang.",
   );
   const dataBarang = loaded?.rows ?? [];
+  useClampPage(page, loaded?.total ?? 0, 20, setPage);
   const error = loadError;
 
   useEffect(() => {
@@ -84,17 +87,15 @@ export default function DataBarangPurchasing() {
 
   const handleExportCSV = () => {
     setExporting(true);
-    const headers = ['No,Kode Barang,Kode Bawaan,Nama Barang,Supplier,Jumlah Stok,Satuan,Kategori,Harga,Lokasi'];
-    const csvData = dataBarang.map((item, index) =>
-      `${index + 1},${item.code ?? '-'},"${item.externalCode ?? '-'}","${item.name}","${supplierName(item.supplierId)}",${item.stock},${item.unit},${item.category},${item.price},${locationCode(item.locationId)}`
-    );
-    const csvString = [...headers, ...csvData].join('\n');
+    const rows: unknown[][] = [['No', 'Kode Barang', 'Kode Bawaan', 'Nama Barang', 'Supplier', 'Jumlah Stok', 'Satuan', 'Kategori', 'Harga', 'Lokasi']];
+    dataBarang.forEach((item, index) => rows.push([index + 1, item.code ?? '-', item.externalCode ?? '-', item.name, supplierName(item.supplierId), item.stock, item.unit, item.category, item.price, locationCode(item.locationId)]));
+    const csvString = toCsv(rows);
 
     const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', 'Data_Barang_Purchasing.csv');
+    link.setAttribute('download', `Data_Barang_Purchasing_halaman-${page}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -135,7 +136,7 @@ export default function DataBarangPurchasing() {
               <input
                 type="text"
                 value={searchTerm}
-                onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                onChange={(e) => { setSearchTerm(e.target.value); }}
                 maxLength={100}
                 className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 sm:text-sm transition-all"
                 placeholder="Cari kode atau nama barang..."
@@ -178,9 +179,12 @@ export default function DataBarangPurchasing() {
               <tr>
                 <th scope="col" className="px-6 py-4">No</th>
                 <th scope="col" className="px-6 py-4">Foto</th>
+                <th scope="col" className="px-6 py-4">Kode Barang</th>
                 <SortableTh label="Informasi Barang" sortKey="name" sort={sort} onSort={toggle} />
+                <th scope="col" className="px-6 py-4">Kode Bawaan</th>
                 <SortableTh label="Supplier" sortKey="supplierName" sort={sort} onSort={toggle} />
-                <SortableTh label="Stok & Satuan" sortKey="stock" sort={sort} onSort={toggle} />
+                <SortableTh label="Stok" sortKey="stock" sort={sort} onSort={toggle} />
+                <th scope="col" className="px-6 py-4">Satuan</th>
                 <SortableTh label="Kategori" sortKey="category" sort={sort} onSort={toggle} />
                 <SortableTh label="Harga (Rp)" sortKey="price" sort={sort} onSort={toggle} align="right" />
                 <SortableTh label="Lokasi" sortKey="locationCode" sort={sort} onSort={toggle} />
@@ -190,10 +194,10 @@ export default function DataBarangPurchasing() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading && (
-                <tr><td colSpan={10} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
+                <tr><td colSpan={12} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
               )}
               {!loading && dataBarang.length === 0 && (
-                <tr><td colSpan={10} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
+                <tr><td colSpan={12} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
               )}
               {!loading && dataBarang.map((item, index) => (
                 <tr key={item.id} className="hover:bg-purple-50/30 transition-colors group">
@@ -204,14 +208,14 @@ export default function DataBarangPurchasing() {
                     <ItemPhoto item={item} />
                   </td>
 
+                  {/* Kode Barang */}
+                  <td className="px-6 py-4 font-mono text-xs text-gray-500">{item.code ?? '-'}</td>
+
                   {/* Informasi Barang */}
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col">
-                      <span className="font-bold text-gray-900">{item.name}</span>
-                      <span className="text-xs font-mono text-gray-500 mt-0.5">{item.code ?? '-'}</span>
-                      {item.externalCode && <span className="text-xs text-gray-400">Kode bawaan: {item.externalCode}</span>}
-                    </div>
-                  </td>
+                  <td className="px-6 py-4 font-bold text-gray-900">{item.name}</td>
+
+                  {/* Kode Bawaan */}
+                  <td className="px-6 py-4 text-gray-600">{item.externalCode || '-'}</td>
 
                   {/* Supplier */}
                   <td className="px-6 py-4">
@@ -223,15 +227,17 @@ export default function DataBarangPurchasing() {
                     </div>
                   </td>
 
-                  {/* Stok & Satuan */}
+                 {/* Stok */}
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
                        <span className={`font-bold ${item.stock < 20 ? 'text-red-600' : item.stock < 50 ? 'text-amber-600' : 'text-gray-800'}`}>
                          {item.stock}
                        </span>
-                       <span className="text-gray-500 text-xs bg-gray-100 px-2 py-0.5 rounded-md">{item.unit}</span>
-                    </div>
                   </td>
+
+                  {/* Satuan */}
+                  <td className="px-6 py-4 text-gray-600">
+                    {item.unit}
+                  </td> 
 
                   {/* Kategori */}
                   <td className="px-6 py-4">

@@ -117,6 +117,8 @@ export interface InboundListParams {
   startDate?: string;
   endDate?: string;
   source?: InboundSource;
+  sortBy?: string;
+  sortDir?: "asc" | "desc";
 }
 
 export interface CreateInboundInput {
@@ -337,3 +339,32 @@ export interface RekapPermintaanItems {
   jumlahPermintaan: number;
   sisaKuotaDokubah: number;
 }
+
+// Checklist Dokubah (/api/v1/checklist-dokubah)
+export type ChecklistDokubahRow = {
+  dokubahId: number;
+  kodeDokubah: string;
+  namaClient: string;
+  namaItem: string;
+  noSpk: string;
+  hasChecklist: boolean;
+};
+export type ChecklistRealisasi = { tanggal: string | null; pengambil: string; jumlah: number };
+export type ChecklistLine = {
+  material: string;
+  dokubah: string;
+  selisih: string | null;
+  realisasi: ChecklistRealisasi[];
+  keterangan: string | null;
+};
+export type ChecklistDokubahInput = {
+  kepalaGroup: string | null;
+  tglMulai: string | null;
+  tglSelesai: string | null;
+  kolomRealisasi: number;
+  lines: ChecklistLine[];
+};
+export type ChecklistDokubahDetail = {
+  dokubah: { id: number; kodeDokubah: string; namaClient: string; namaItem: string; noSpk: string };
+  checklist: (ChecklistDokubahInput & { updatedAt: string }) | null;
+};

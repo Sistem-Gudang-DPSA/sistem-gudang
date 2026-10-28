@@ -24,7 +24,7 @@ const sources = nonTest.map((f) => ({ f, src: readFileSync(f, "utf8") }));
 describe("dashboard pages", () => {
   it("every page re-exports an existing module", () => {
     const bad = reexportPages.filter((f) => {
-      const m = readFileSync(f, "utf8").match(/export\s*\{\s*default\s*\}\s*from\s*["']@\/([^"']+)["']/);
+      const m = readFileSync(f, "utf8").match(/(?:export\s*\{\s*default\s*\}|import\s+\w+)\s*from\s*["']@\/([^"']+)["']/);
       if (!m) return true;
       const base = join(SRC, m[1]);
       return !["", ".tsx", ".ts", "/index.tsx", "/index.ts"].some((e) => existsSync(base + e) && statSync(base + e).isFile());

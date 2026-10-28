@@ -1,5 +1,6 @@
 "use client";
 
+import { escapeHtml } from '@/shared/lib/escape-html';
 import React, { useRef, useState } from 'react';
 import { Search, ChevronDown, CalendarDays, FileUp, Download } from 'lucide-react';
 import { listMutations } from '@/domains/ppic/api';
@@ -35,9 +36,6 @@ const formatTanggalJam = (iso: string) =>
   iso.length === 10
     ? new Date(`${iso}T00:00:00`).toLocaleDateString('id-ID', { dateStyle: 'medium' })
     : new Date(iso).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
-const escapeHtml = (s: string) =>
-  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
 // Satu baris filter: label : isi
 function FilterRow({ id, label, children }: { id: string; label: string; children: React.ReactNode }) {
   return (
@@ -110,9 +108,17 @@ export default function RekapMutasiBarang() {
   const total = result?.total ?? 0;
   const { totalTransaksi, totalMasuk, totalKeluar } = result?.summary ?? { totalTransaksi: 0, totalMasuk: 0, totalKeluar: 0 };
 
-  const { data: locations } = useApiData(() => listLocations({ pageSize: 100 }), 'lokasi', 'Gagal memuat lokasi.');
+  // Filter lokasi butuh semua kode, jadi halaman lokasi dibaca sampai habis (pageSize maks 100).
+  const { data: locations } = useApiData(async () => {
+    const rows = [];
+    for (let page = 1; ; page++) {
+      const res = await listLocations({ page, pageSize: 100 });
+      rows.push(...res.rows);
+      if (res.rows.length === 0 || rows.length >= res.total) return rows;
+    }
+  }, 'lokasi-semua', 'Gagal memuat lokasi.', 60_000);
   // The location filter of /reports/mutations uses the location code, same as `code` in GET /locations.
-  const lokasiOptions = (locations?.rows ?? []).map((l) => l.code).sort();
+  const lokasiOptions = (locations ?? []).map((l) => l.code).sort();
 
   const checkedRows = filteredData.filter((item) => selectedIds.has(item.id));
   const allChecked = filteredData.length > 0 && checkedRows.length === filteredData.length;
@@ -158,6 +164,7 @@ export default function RekapMutasiBarang() {
   // Buka jendela berisi tabel saja lalu panggil dialog print (pilih "Save as PDF")
   const handlePrintPdf = () => {
     const win = window.open('', '_blank');
+    if (win) win.opener = null;
     if (!win) {
       alert('Pop-up diblokir browser. Izinkan pop-up untuk mencetak PDF.');
       return;
@@ -169,7 +176,7 @@ export default function RekapMutasiBarang() {
         <td>${escapeHtml(item.noReferensiSpk)}</td>
         <td>${escapeHtml(item.kodeBarang)}</td>
         <td>${escapeHtml(item.namaItem)}</td>
-        <td>${item.tipe}</td>
+        <td>${escapeHtml(item.tipe)}</td>
         <td class="right">${formatAngka(item.qty)}</td>
       </tr>`).join('');
     win.document.write(`<!doctype html>

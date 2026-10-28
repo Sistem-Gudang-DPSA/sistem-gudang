@@ -69,6 +69,7 @@ export interface DokubahListParams extends SortParams {
 export interface TrackingSpk {
   noSpk: string;
   client: string;
+  projectName?: string;
 }
 
 export interface TrackingSpkProduct {
