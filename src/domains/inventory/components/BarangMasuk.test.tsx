@@ -30,8 +30,12 @@ async function openBaru(api: ReturnType<typeof installFakeApi>) {
   fireEvent.click(screen.getByText('Barang Baru'));
   await screen.findByText('FORM BARANG MASUK');
 }
-function fillBaru() {
-  fireEvent.change(textbox('Isi Nama Barang'), { target: { value: 'Triplex 1' } });
+async function pickItem(name = 'Triplex 1 (BRG-1)') {
+  fireEvent.click(screen.getByRole('button', { name: 'Nama Barang' }));
+  fireEvent.click(await screen.findByRole('option', { name }));
+}
+async function fillBaru() {
+  await pickItem();
   const qty = screen.getAllByPlaceholderText('0') as HTMLInputElement[];
   fireEvent.change(qty[0], { target: { value: '15' } });
   fireEvent.change(qty[1], { target: { value: '20' } });
@@ -116,7 +120,7 @@ describe('BarangMasuk create inbound', () => {
   it('posts integers and closes on success', async () => {
     const { api } = setup({ 'POST /api/v1/inbound': { id: 9 } });
     await openBaru(api);
-    fillBaru();
+    await fillBaru();
     fireEvent.change(document.querySelector('input[type="date"]')!, { target: { value: '2026-04-01' } });
     fireEvent.change(document.querySelector('select option[value="PARTIAL_RETUR"]')!.parentElement!, { target: { value: 'PARTIAL_RETUR' } });
     fireEvent.click(screen.getByText('Simpan'));
@@ -125,12 +129,41 @@ describe('BarangMasuk create inbound', () => {
     await waitFor(() => expect(screen.queryByText('FORM BARANG MASUK')).toBeNull());
   });
 
+  it('posts the id of the chosen item when two items share a name', async () => {
+    const dup = paged([{ id: 1, code: 'BRG-1', name: 'Triplex' }, { id: 2, code: 'BRG-2', name: 'Triplex' }]);
+    const { api } = setup({ 'GET /api/v1/items': dup, 'POST /api/v1/inbound': { id: 9 } });
+    await openBaru(api);
+    await pickItem('Triplex (BRG-2)');
+    const qty = screen.getAllByPlaceholderText('0') as HTMLInputElement[];
+    fireEvent.change(qty[0], { target: { value: '1' } });
+    fireEvent.change(qty[1], { target: { value: '1' } });
+    fireEvent.click(screen.getByText('Simpan'));
+    await waitFor(() => expect(api.calls('POST /api/v1/inbound').length).toBe(1));
+    expect((api.calls('POST /api/v1/inbound')[0].body as { itemId: number }).itemId).toBe(2);
+  });
+
+  it('searches items on the server as the name is typed, and shows a load error', async () => {
+    const { api } = setup();
+    await openBaru(api);
+    fireEvent.click(screen.getByRole('button', { name: 'Nama Barang' }));
+    fireEvent.change(screen.getByLabelText('Cari Nama Barang'), { target: { value: 'Triplex 1' } });
+    await waitFor(() => expect(api.calls('GET /api/v1/items').some((c) => c.query.get('search') === 'Triplex 1')).toBe(true));
+    expect(api.calls('GET /api/v1/items').every((c) => c.query.get('pageSize') !== '100')).toBe(true);
+  });
+
+  it('surfaces an item load failure in the modal', async () => {
+    setup({ 'GET /api/v1/items': fail(500, 'Items down') });
+    await screen.findByText('Triplex 1');
+    fireEvent.click(screen.getByText('Barang Baru'));
+    expect(await screen.findByText('Items down')).toBeTruthy();
+  });
+
   it('shows backend error and keeps form open; disables save while saving', async () => {
     let release!: () => void;
     const gate = new Promise<void>((r) => (release = r));
     const { api } = setup({ 'POST /api/v1/inbound': () => fail(409, 'Konflik data') });
     await openBaru(api);
-    fillBaru();
+    await fillBaru();
     fireEvent.click(screen.getByText('Simpan'));
     expect((screen.getByText('Simpan') as HTMLButtonElement).disabled).toBe(true);
     expect(await screen.findByText('Konflik data')).not.toBeNull();
@@ -161,7 +194,7 @@ describe('BarangMasuk create return', () => {
     fireEvent.change(qty, { target: { value: '-3.e4' } });
     expect(qty.value).toBe('34');
 
-    fireEvent.change(textbox('Isi Nama Barang'), { target: { value: 'Triplex 1' } });
+    await pickItem();
     fireEvent.click(spk);
     fireEvent.click(await screen.findByRole('option', { name: 'SPK-1 - Budi' }));
     fireEvent.click(screen.getByText('Simpan'));
@@ -175,7 +208,7 @@ describe('BarangMasuk create return', () => {
   it('omits empty optional fields and shows backend error without closing', async () => {
     const { api } = setup({ 'POST /api/v1/inbound/returns': fail(400, 'Stok tidak valid') });
     await openKembali(api);
-    fireEvent.change(textbox('Isi Nama Barang'), { target: { value: 'Triplex 1' } });
+    await pickItem();
     fireEvent.change(screen.getByPlaceholderText('0'), { target: { value: '5' } });
     fireEvent.click(screen.getByText('Simpan'));
     expect(await screen.findByText('Stok tidak valid')).not.toBeNull();

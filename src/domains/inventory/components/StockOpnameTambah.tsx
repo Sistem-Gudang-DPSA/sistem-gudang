@@ -2,14 +2,15 @@
 
 import { useCan } from '@/domains/auth/user-context';
 import React, { useEffect, useState } from 'react';
-import { ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown, Camera } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { createStockOpname, listItems } from '@/domains/inventory/api';
-import type { ItemListRow } from '@/domains/inventory/types';
+import { createStockOpname, getItemByCode, listItems } from '@/domains/inventory/api';
+import type { Item, ItemListRow } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 import Pagination from '@/shared/components/Pagination';
 import { useSort, type Sort } from '@/shared/components/SortableTh';
+import QrCameraScanner from '@/domains/inventory/components/QrCameraScanner';
 
 // SortableTh has no rowSpan, and this header spans two rows, so the same sort button is written here.
 type SortThProps = { label: string; sortKey: string; sort: Sort; onSort: (by: string) => void; className: string; rowSpan?: number };
@@ -27,7 +28,8 @@ function SortTh({ label, sortKey, sort, onSort, className, rowSpan }: SortThProp
 }
 
 const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-type Row = { itemId: string; itemName: string; jumlah: string; keterangan: string };
+// stock is kept on the row so the confirm count is right for items scanned in from another page
+type Row = { itemId: string; itemName: string; stock: number; jumlah: string; keterangan: string };
 
 export default function TambahStockOpnameGudang() {
   const router = useRouter();
@@ -76,9 +78,11 @@ export default function TambahStockOpnameGudang() {
             const id = String(item.id);
             const saved = existing.get(id);
 
-            return saved ?? {
+            if (saved) return { ...saved, itemName: item.name, stock: item.stock };
+            return {
               itemId: id,
               itemName: item.name,
+              stock: item.stock,
               jumlah: "",
               keterangan: "",
             };
@@ -119,7 +123,49 @@ export default function TambahStockOpnameGudang() {
     setData((prev) => prev.map((row) => row.itemId === itemId ? {...row, ...patch} : row));
   };
 
-  const findItem = (itemId: string) => items.find((it) => String(it.id) === itemId);
+  const [cameraOn, setCameraOn] = useState(false);
+  const [scanError, setScanError] = useState("");
+  const [scanNotice, setScanNotice] = useState("");
+  const [lockedName, setLockedName] = useState("");
+  const [scanned, setScanned] = useState<{ item: Item; jumlah: string; keterangan: string } | null>(null);
+
+  const toggleCamera = () => {
+    setCameraOn((v) => !v);
+    setScanned(null);
+    setScanError("");
+    setScanNotice("");
+    setLockedName("");
+  };
+
+  const handleScan = async (code: string) => {
+    setScanError("");
+    setScanNotice("");
+    setScanned(null);
+    setLockedName("");
+    try {
+      const item = await getItemByCode(code);
+      // An item already in the list keeps its typed count, so a rescan corrects it instead of duplicating it.
+      const existing = data.find((row) => row.itemId === String(item.id));
+      setLockedName(item.name);
+      setScanned({ item, jumlah: existing?.jumlah ?? "", keterangan: existing?.keterangan ?? "" });
+    } catch (err) {
+      setScanError(
+        err instanceof ApiError && err.status === 404 ? `Kode "${code}" tidak dikenal.`
+        : err instanceof ApiError ? err.message : "Gagal membaca kode.",
+      );
+    }
+  };
+
+  const handleMasukkan = () => {
+    if (!scanned || scanned.jumlah === "") return;
+    const { item, jumlah, keterangan } = scanned;
+    const id = String(item.id);
+    setData((prev) => prev.some((row) => row.itemId === id)
+      ? prev.map((row) => row.itemId === id ? { ...row, jumlah, keterangan } : row)
+      : [...prev, { itemId: id, itemName: item.name, stock: item.stock, jumlah, keterangan }]);
+    setScanNotice(`${item.name} dimasukkan ke opname: ${Number(jumlah).toLocaleString('id-ID')} ${item.unit}.`);
+    setScanned(null);
+  };
 
   const handleSimpan = async () => {
     // Only rows with a physical count go to the API; an empty row must not zero that item's stock.
@@ -134,7 +180,7 @@ export default function TambahStockOpnameGudang() {
       return;
     }
     // Stock opname overwrites stock with the physical count, so confirm first.
-    const changed = filled.filter((row) => Number(row.jumlah) !== findItem(row.itemId)?.stock).length;
+    const changed = filled.filter((row) => Number(row.jumlah) !== row.stock).length;
     if (!window.confirm(`Stok ${filled.length} barang akan disetel ke jumlah fisik (${changed} berbeda dari stok sistem). Lanjutkan?`)) {
       return;
     }
@@ -192,6 +238,74 @@ export default function TambahStockOpnameGudang() {
           >
             {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
+        </div>
+
+        <div className="mb-6">
+          <button
+            type="button"
+            onClick={toggleCamera}
+            aria-pressed={cameraOn}
+            className={`flex items-center justify-center gap-2 px-4 py-2.5 border rounded-xl text-sm font-medium ${cameraOn ? 'bg-orange-50 border-orange-300 text-orange-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+          >
+            <Camera className="w-4 h-4" />
+            {cameraOn ? 'Matikan kamera' : 'Scan QR'}
+          </button>
+          {scanNotice && <p className="text-sm text-green-700 mt-3">{scanNotice}</p>}
+          {cameraOn && (
+            <div className="mt-4">
+              <QrCameraScanner
+                onScan={(code) => void handleScan(code)}
+                lockedLabel={lockedName}
+                rejected={scanError !== ''}
+                onFail={(message) => { setScanError(message); setCameraOn(false); }}
+              />
+              {scanError && <p role="alert" className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{scanError}</p>}
+              {scanned && (() => {
+                const { item, jumlah, keterangan } = scanned;
+                const selisih = jumlah === "" ? null : Number(jumlah) - item.stock;
+                return (
+                  <div className="mb-4 p-4 max-w-sm bg-white border border-gray-200 rounded-xl shadow-sm text-sm">
+                    <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
+                      <dt className="text-gray-500">Kode</dt>
+                      <dd className="font-mono text-gray-700">{item.code ?? '-'}</dd>
+                      <dt className="text-gray-500">Nama</dt>
+                      <dd className="font-bold text-gray-900">{item.name}</dd>
+                      {item.externalCode && <>
+                        <dt className="text-gray-500">Kode bawaan</dt>
+                        <dd className="font-mono text-gray-700">{item.externalCode}</dd>
+                      </>}
+                      <dt className="text-gray-500">Stok sistem</dt>
+                      <dd className="text-gray-700">{item.stock.toLocaleString('id-ID')} {item.unit}</dd>
+                    </dl>
+                    <div className="grid grid-cols-2 gap-3 mt-4">
+                      <label className="flex flex-col gap-1 text-gray-500">
+                        Jumlah fisik
+                        <input {...INTEGER_INPUT} maxLength={9} aria-label="Jumlah fisik" value={jumlah} placeholder="0" onChange={(e) => setScanned((s) => s && { ...s, jumlah: digitsOnly(e.target.value) })} className="border border-gray-200 rounded-lg px-3 py-2 text-center text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20" />
+                      </label>
+                      <div className="flex flex-col gap-1 text-gray-500">
+                        Selisih
+                        <span className={`py-2 text-center font-bold ${selisih === null ? '' : selisih < 0 ? 'text-red-600' : selisih === 0 ? 'text-green-600' : 'text-gray-900'}`}>
+                          {selisih === null ? '' : selisih.toLocaleString('id-ID')}
+                        </span>
+                      </div>
+                    </div>
+                    <label className="flex flex-col gap-1 text-gray-500 mt-3">
+                      Keterangan
+                      <input type="text" maxLength={255} aria-label="Keterangan" value={keterangan} placeholder="Tambahkan catatan..." onChange={(e) => setScanned((s) => s && { ...s, keterangan: e.target.value })} className="border border-gray-200 rounded-lg px-3 py-2 text-gray-900 italic focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20" />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleMasukkan}
+                      disabled={jumlah === ""}
+                      className="mt-4 w-full px-4 py-2.5 bg-[#ff8a00] text-white rounded-lg shadow-sm hover:bg-[#eb7d00] transition-colors font-semibold disabled:opacity-60"
+                    >
+                      Masukkan ke opname
+                    </button>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
         </div>
 
         <datalist id="stock-opname-items">

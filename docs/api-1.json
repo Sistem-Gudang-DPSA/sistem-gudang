@@ -646,7 +646,8 @@
                 "properties": {
                   "name": {
                     "type": "string",
-                    "minLength": 1
+                    "minLength": 1,
+                    "maxLength": 100
                   },
                   "domainId": {
                     "type": "integer",
@@ -1091,7 +1092,8 @@
                 "properties": {
                   "username": {
                     "type": "string",
-                    "minLength": 3
+                    "minLength": 3,
+                    "maxLength": 100
                   },
                   "email": {
                     "type": "string",
@@ -1603,7 +1605,8 @@
                 "properties": {
                   "username": {
                     "type": "string",
-                    "minLength": 3
+                    "minLength": 3,
+                    "maxLength": 100
                   },
                   "email": {
                     "type": "string",
@@ -7690,7 +7693,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 100
             },
             "required": false,
             "name": "search",
@@ -8030,10 +8034,21 @@
           "Purchase order"
         ],
         "summary": "Create a purchase order",
-        "description": "nomorPo is generated (PO-001, PO-002, ...). The approval request must be a purchase-request (400 when it is another type) in status approved (409 when it is not). A missing request or supplier is a 404. One request may have several POs. subtotal, dppLain, nilaiPpn and grandTotal are computed by the server and rounded to a rupiah: subtotal = sum of (jumlah * hargaSatuan - diskon), dppLain (DPP nilai lain) = subtotal * 11 / 12, nilaiPpn = dppLain * persenPpn / 100, grandTotal = subtotal + nilaiPpn + jasa. diskon is rupiah per line. Sending dppLain is a 400. A request that has a supplier mapping, or has no PO yet, is ordered through the mapping: every barang line carries lineIndex, the supplier must have that line mapped, jumlah must equal the mapped qty, and an already ordered line is a 409; anything else is a 400. Only a request that already had a PO before mapping existed may skip lineIndex.",
+        "description": "nomorPo is generated (PO-001, PO-002, ...). The approval request must be a purchase-request (400 when it is another type) in status approved (409 when it is not). A missing request or supplier is a 404. One request may have several POs. subtotal, dppLain, nilaiPpn and grandTotal are computed by the server and rounded to a rupiah: subtotal = sum of (jumlah * hargaSatuan - diskon), dppLain (DPP nilai lain) = subtotal * 11 / 12, nilaiPpn = dppLain * persenPpn / 100, grandTotal = subtotal + nilaiPpn + jasa. diskon is rupiah per line. Sending dppLain is a 400. A request that has a supplier mapping, or has no PO yet, is ordered through the mapping: every barang line carries lineIndex, the supplier must have that line mapped, jumlah must equal the mapped qty, and an already ordered line is a 409; anything else is a 400. Only a request that already had a PO before mapping existed may skip lineIndex. Optional Idempotency-Key header (8 to 100 characters): with it, the same key and payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true and does not repeat the write; the same key with a different payload is 409; a malformed key is 400. Without it the request behaves as before.",
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "6f1c2d3e-0b7a-4c55-9a3e-1d2f3a4b5c6d"
+            },
+            "required": false,
+            "name": "Idempotency-Key",
+            "in": "header"
           }
         ],
         "requestBody": {
@@ -8088,11 +8103,13 @@
                         "jumlah": {
                           "type": "integer",
                           "minimum": 0,
-                          "exclusiveMinimum": true
+                          "exclusiveMinimum": true,
+                          "maximum": 1000000
                         },
                         "hargaSatuan": {
                           "type": "integer",
-                          "minimum": 0
+                          "minimum": 0,
+                          "maximum": 2000000000
                         },
                         "diskon": {
                           "type": "integer",
@@ -8811,11 +8828,13 @@
                         "jumlah": {
                           "type": "integer",
                           "minimum": 0,
-                          "exclusiveMinimum": true
+                          "exclusiveMinimum": true,
+                          "maximum": 1000000
                         },
                         "hargaSatuan": {
                           "type": "integer",
-                          "minimum": 0
+                          "minimum": 0,
+                          "maximum": 2000000000
                         },
                         "diskon": {
                           "type": "integer",
@@ -10662,6 +10681,9 @@
                                 "type": "number"
                               },
                               "code": {
+                                "type": "string"
+                              },
+                              "externalCode": {
                                 "type": "string",
                                 "nullable": true
                               },
@@ -10723,6 +10745,7 @@
                             "required": [
                               "id",
                               "code",
+                              "externalCode",
                               "name",
                               "detail",
                               "category",
@@ -10925,7 +10948,7 @@
           "Item"
         ],
         "summary": "Create a item",
-        "description": "price defaults to 0. Setting a price other than 0 needs the item.set-price permission (Purchasing), otherwise 403. category and unit must be names from GET /api/v1/items/categories and /units, 400 otherwise.",
+        "description": "The code is generated: category prefix + next number (LEM001) and cannot be sent. price defaults to 0. Setting a price other than 0 needs the item.set-price permission (Purchasing), otherwise 403. category and unit must be names from GET /api/v1/items/categories and /units, 400 otherwise.",
         "security": [
           {
             "bearerAuth": []
@@ -10955,6 +10978,7 @@
                   "price": {
                     "type": "integer",
                     "minimum": 0,
+                    "maximum": 2000000000,
                     "default": 0
                   },
                   "supplierId": {
@@ -11003,8 +11027,8 @@
                         },
                         "code": {
                           "type": "string",
-                          "nullable": true,
-                          "description": "Internal code, built from the location"
+                          "description": "Internal code, category prefix + number (LEM001), generated on create, never changes",
+                          "example": "LEM001"
                         },
                         "externalCode": {
                           "type": "string",
@@ -11315,8 +11339,8 @@
                         },
                         "code": {
                           "type": "string",
-                          "nullable": true,
-                          "description": "Internal code, built from the location"
+                          "description": "Internal code, category prefix + number (LEM001), generated on create, never changes",
+                          "example": "LEM001"
                         },
                         "externalCode": {
                           "type": "string",
@@ -11550,7 +11574,7 @@
           "Item"
         ],
         "summary": "Update a item",
-        "description": "Changing price needs the item.set-price permission (Purchasing), otherwise 403. Changing supplierId, including null to clear it, needs item.set-supplier (Purchasing), otherwise 403; resending the unchanged supplierId is accepted. detail null clears the detail. Resending the unchanged price is accepted, and omitting price keeps the current one. category and unit must be names from GET /api/v1/items/categories and /units, 400 otherwise.",
+        "description": "Changing price needs the item.set-price permission (Purchasing), otherwise 403. Changing supplierId, including null to clear it, needs item.set-supplier (Purchasing), otherwise 403; resending the unchanged supplierId is accepted. detail null clears the detail. Resending the unchanged price is accepted, and omitting price keeps the current one. category and unit must be names from GET /api/v1/items/categories and /units, 400 otherwise. The code cannot be sent. When category changes and the item was never used on a transaction line (inbound, inbound return, outbound, stock opname, material request, SPK internal, dokubah material), the item gets a new code from the new category's prefix and the old and new code are written to the audit log. A used item keeps its code, so the client sees the category changed and the code did not.",
         "security": [
           {
             "bearerAuth": []
@@ -11590,7 +11614,8 @@
                   },
                   "price": {
                     "type": "integer",
-                    "minimum": 0
+                    "minimum": 0,
+                    "maximum": 2000000000
                   },
                   "supplierId": {
                     "type": "integer",
@@ -11634,8 +11659,8 @@
                         },
                         "code": {
                           "type": "string",
-                          "nullable": true,
-                          "description": "Internal code, built from the location"
+                          "description": "Internal code, category prefix + number (LEM001), generated on create, never changes",
+                          "example": "LEM001"
                         },
                         "externalCode": {
                           "type": "string",
@@ -12127,6 +12152,11 @@
                           "name": {
                             "type": "string"
                           },
+                          "prefix": {
+                            "type": "string",
+                            "description": "3 uppercase letters that start the codes of new items",
+                            "example": "LEM"
+                          },
                           "itemCount": {
                             "type": "number",
                             "description": "Items that use this name"
@@ -12135,6 +12165,7 @@
                         "required": [
                           "id",
                           "name",
+                          "prefix",
                           "itemCount"
                         ]
                       }
@@ -12292,7 +12323,7 @@
           "Item"
         ],
         "summary": "Add one of the item categories",
-        "description": "Needs item.create. A name that already exists, ignoring case, is a 409.",
+        "description": "Needs item.create. A name that already exists, ignoring case, is a 409. Categories also take an optional prefix (3 letters A-Z, 400 otherwise); left out it is the first 3 letters of the name, uppercased, and a category name under 3 letters then needs one. A prefix another category already has is a 409.",
         "security": [
           {
             "bearerAuth": []
@@ -12308,6 +12339,10 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 50
+                  },
+                  "prefix": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}$"
                   }
                 },
                 "required": [
@@ -12342,11 +12377,17 @@
                         },
                         "name": {
                           "type": "string"
+                        },
+                        "prefix": {
+                          "type": "string",
+                          "description": "3 uppercase letters that start the codes of new items",
+                          "example": "LEM"
                         }
                       },
                       "required": [
                         "id",
-                        "name"
+                        "name",
+                        "prefix"
                       ]
                     }
                   },
@@ -12538,7 +12579,7 @@
           "Item"
         ],
         "summary": "Rename one of the item categories",
-        "description": "Needs item.update. Items use the name through a foreign key with ON UPDATE CASCADE, so every item takes the new name. Old documents (purchase order lines, dokubah, penawaran) keep the name they were made with. Changing only the letter case of its own name is allowed. 404 when the id does not exist, 409 when another row has the name.",
+        "description": "Needs item.update. Items use the name through a foreign key with ON UPDATE CASCADE, so every item takes the new name. Old documents (purchase order lines, dokubah, penawaran) keep the name they were made with. Changing only the letter case of its own name is allowed. Categories may also send prefix to change it; existing item codes are not renamed. 404 when the id does not exist, 409 when another row has the name.",
         "security": [
           {
             "bearerAuth": []
@@ -12565,6 +12606,10 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 50
+                  },
+                  "prefix": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}$"
                   }
                 },
                 "required": [
@@ -12599,11 +12644,17 @@
                         },
                         "name": {
                           "type": "string"
+                        },
+                        "prefix": {
+                          "type": "string",
+                          "description": "3 uppercase letters that start the codes of new items",
+                          "example": "LEM"
                         }
                       },
                       "required": [
                         "id",
-                        "name"
+                        "name",
+                        "prefix"
                       ]
                     }
                   },
@@ -13217,7 +13268,7 @@
           "Item"
         ],
         "summary": "Add one of the units",
-        "description": "Needs item.create. A name that already exists, ignoring case, is a 409.",
+        "description": "Needs item.create. A name that already exists, ignoring case, is a 409. Categories also take an optional prefix (3 letters A-Z, 400 otherwise); left out it is the first 3 letters of the name, uppercased, and a category name under 3 letters then needs one. A prefix another category already has is a 409.",
         "security": [
           {
             "bearerAuth": []
@@ -13463,7 +13514,7 @@
           "Item"
         ],
         "summary": "Rename one of the units",
-        "description": "Needs item.update. Items use the name through a foreign key with ON UPDATE CASCADE, so every item takes the new name. Old documents (purchase order lines, dokubah, penawaran) keep the name they were made with. Changing only the letter case of its own name is allowed. 404 when the id does not exist, 409 when another row has the name.",
+        "description": "Needs item.update. Items use the name through a foreign key with ON UPDATE CASCADE, so every item takes the new name. Old documents (purchase order lines, dokubah, penawaran) keep the name they were made with. Changing only the letter case of its own name is allowed. Categories may also send prefix to change it; existing item codes are not renamed. 404 when the id does not exist, 409 when another row has the name.",
         "security": [
           {
             "bearerAuth": []
@@ -13944,7 +13995,7 @@
           "Item"
         ],
         "summary": "Import many items in one transaction",
-        "description": "Names, not ids: category, unit and locationCode are resolved case-insensitively, and a row falls back to defaults for category and unit. supplier is optional per row (no defaults.supplier): a name is matched case-insensitively to suppliers.name, a name that matches no supplier or more than one is a row error under items.<row>.supplier, and left out means supplierId null until Purchasing sets one with PUT /api/v1/items/{id}. It is the first mapping only. Nothing is auto-created. An unknown or ambiguous name, a missing value, or a missing permission fails the whole request. Needs item.create, plus item.set-price when any price is not 0, item.adjust-stock when any stock is above 0, item.assign-location when any row has locationCode, and item.set-supplier when any row has supplier (otherwise 403). Superadmin passes all of them. A row's code is the code the item came with and is stored as externalCode, never as the internal code. A row already in the database (same code as an item's externalCode or code, or same name when the row has no code and the stored item has neither) or repeated earlier in the file is skipped and listed in skipped, so the same file can be imported again. Initial stock is recorded as an audit entry with reason 'Initial import'. With dryRun true nothing is written and items[].id is null. Validation failure is 400 with errors keyed like items.4.category, where the row number starts at 1.",
+        "description": "Names, not ids: category, unit and locationCode are resolved case-insensitively, and a row falls back to defaults for category and unit. supplier is optional per row (no defaults.supplier): a name is matched case-insensitively to suppliers.name, a name that matches no supplier or more than one is a row error under items.<row>.supplier, and left out means supplierId null until Purchasing sets one with PUT /api/v1/items/{id}. It is the first mapping only. Nothing is auto-created. An unknown or ambiguous name, a missing value, or a missing permission fails the whole request. Needs item.create, plus item.set-price when any price is not 0, item.adjust-stock when any stock is above 0, item.assign-location when any row has locationCode, and item.set-supplier when any row has supplier (otherwise 403). Superadmin passes all of them. A row's code is the code the item came with and is stored as externalCode; the internal code is generated from the category prefix. A row already in the database (same code as an item's externalCode or code, or same name when the row has no code and the stored item has no externalCode) or repeated earlier in the file is skipped and listed in skipped, so the same file can be imported again. Initial stock is recorded as an audit entry with reason 'Initial import'. With dryRun true nothing is written and items[].id is null. Validation failure is 400 with errors keyed like items.4.category, where the row number starts at 1.",
         "security": [
           {
             "bearerAuth": []
@@ -14116,6 +14167,11 @@
                               },
                               "code": {
                                 "type": "string",
+                                "nullable": true,
+                                "description": "Generated internal code, null on dryRun"
+                              },
+                              "externalCode": {
+                                "type": "string",
                                 "nullable": true
                               },
                               "stock": {
@@ -14127,6 +14183,7 @@
                               "id",
                               "name",
                               "code",
+                              "externalCode",
                               "stock"
                             ]
                           }
@@ -14294,7 +14351,7 @@
           "Item"
         ],
         "summary": "Get an item by its exact code",
-        "description": "Needs item.view. Matches items.code exactly and case-sensitively per the database collation, with no LIKE, so scanning A1 never returns A10. Same body as GET /items/{id}. 404 when no item has that code, including items without a code.",
+        "description": "Needs item.view. Matches the internal items.code (LEM001) exactly, with no LIKE, so scanning LEM1 never returns LEM10. The label QR encodes only this code. Same body as GET /items/{id}. 404 when no item has that code.",
         "security": [
           {
             "bearerAuth": []
@@ -14304,7 +14361,7 @@
           {
             "schema": {
               "type": "string",
-              "example": "A01-TRI5"
+              "example": "LEM001"
             },
             "required": true,
             "name": "code",
@@ -14336,8 +14393,8 @@
                         },
                         "code": {
                           "type": "string",
-                          "nullable": true,
-                          "description": "Internal code, built from the location"
+                          "description": "Internal code, category prefix + number (LEM001), generated on create, never changes",
+                          "example": "LEM001"
                         },
                         "externalCode": {
                           "type": "string",
@@ -14567,6 +14624,311 @@
         }
       }
     },
+    "/api/v1/items/{id}/stock-card": {
+      "get": {
+        "tags": [
+          "Item"
+        ],
+        "summary": "Stock card: every stock movement of one item",
+        "description": "Needs item.view. entries are oldest first (date, then createdAt): inbound receipts (MASUK, whatever the QC status, qtyArrived is added), outbound lines (KELUAR) and stock opname differences (PENYESUAIAN, zero differences skipped). Inbound returns and SPK internal do not change stock and are not listed. openingBalance + sum(qtyIn) - sum(qtyOut) = item.stock. Optional startDate/endDate (YYYY-MM-DD, inclusive) narrow the entries; openingBalance is then the balance before startDate and endDate only trims the entries; manual stock adjustments and the initial import fall into openingBalance. 404 when the item does not exist.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2026-10-01"
+            },
+            "required": false,
+            "name": "startDate",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2026-10-31"
+            },
+            "required": false,
+            "name": "endDate",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stock card",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "item": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "number"
+                            },
+                            "code": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "unit": {
+                              "type": "string"
+                            },
+                            "stock": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "code",
+                            "name",
+                            "unit",
+                            "stock"
+                          ]
+                        },
+                        "openingBalance": {
+                          "type": "number"
+                        },
+                        "entries": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "example": "in-12"
+                              },
+                              "date": {
+                                "type": "string",
+                                "example": "2026-10-01"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              },
+                              "type": {
+                                "type": "string",
+                                "enum": [
+                                  "MASUK",
+                                  "KELUAR",
+                                  "PENYESUAIAN"
+                                ]
+                              },
+                              "project": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "usage": {
+                                "type": "string"
+                              },
+                              "qtyIn": {
+                                "type": "number"
+                              },
+                              "qtyOut": {
+                                "type": "number"
+                              },
+                              "note": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "date",
+                              "createdAt",
+                              "type",
+                              "project",
+                              "usage",
+                              "qtyIn",
+                              "qtyOut",
+                              "note"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "item",
+                        "openingBalance",
+                        "entries"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/items/unassigned": {
       "get": {
         "tags": [
@@ -14605,8 +14967,8 @@
                           },
                           "code": {
                             "type": "string",
-                            "nullable": true,
-                            "description": "Internal code, built from the location"
+                            "description": "Internal code, category prefix + number (LEM001), generated on create, never changes",
+                            "example": "LEM001"
                           },
                           "externalCode": {
                             "type": "string",
@@ -14837,13 +15199,13 @@
         }
       }
     },
-    "/api/v1/items/{id}/suggest-code": {
-      "get": {
+    "/api/v1/items/{id}/assign-location": {
+      "put": {
         "tags": [
           "Item"
         ],
-        "summary": "Suggest a default code for assigning a location",
-        "description": "A suggestion only, not persisted. Inventory may edit it before assigning.",
+        "summary": "Assign a location to an item",
+        "description": "Sets items.location_id only; the item code never changes. Needs item.assign-location.",
         "security": [
           {
             "bearerAuth": []
@@ -14858,20 +15220,30 @@
             "required": true,
             "name": "id",
             "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "example": "1"
-            },
-            "required": true,
-            "name": "locationId",
-            "in": "query"
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "locationId": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true
+                  }
+                },
+                "required": [
+                  "locationId"
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
-            "description": "Suggested code",
+            "description": "Item location assigned",
             "content": {
               "application/json": {
                 "schema": {
@@ -14889,12 +15261,91 @@
                     "data": {
                       "type": "object",
                       "properties": {
+                        "id": {
+                          "type": "number"
+                        },
                         "code": {
+                          "type": "string",
+                          "description": "Internal code, category prefix + number (LEM001), generated on create, never changes",
+                          "example": "LEM001"
+                        },
+                        "externalCode": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "The code the item was imported with, shown under the name only"
+                        },
+                        "name": {
                           "type": "string"
+                        },
+                        "detail": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "category": {
+                          "type": "string"
+                        },
+                        "unit": {
+                          "type": "string"
+                        },
+                        "price": {
+                          "type": "number"
+                        },
+                        "stock": {
+                          "type": "number",
+                          "description": "Up to two decimals"
+                        },
+                        "locationId": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "supplierId": {
+                          "type": "number",
+                          "nullable": true,
+                          "description": "null until Purchasing sets it"
+                        },
+                        "photo": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "thumb": {
+                              "type": "string",
+                              "example": "/uploads/items/<uuid>-thumb.webp"
+                            },
+                            "display": {
+                              "type": "string",
+                              "example": "/uploads/items/<uuid>-display.webp"
+                            }
+                          },
+                          "required": [
+                            "thumb",
+                            "display"
+                          ],
+                          "description": "Relative URLs under /uploads (WebP), null when no photo"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "nullable": true
                         }
                       },
                       "required": [
-                        "code"
+                        "id",
+                        "code",
+                        "externalCode",
+                        "name",
+                        "detail",
+                        "category",
+                        "unit",
+                        "price",
+                        "stock",
+                        "locationId",
+                        "supplierId",
+                        "photo",
+                        "createdAt",
+                        "updatedAt"
                       ]
                     }
                   },
@@ -15046,12 +15497,483 @@
         }
       }
     },
-    "/api/v1/items/{id}/assign-location": {
-      "put": {
+    "/api/v1/items/assign-location/bulk": {
+      "post": {
         "tags": [
           "Item"
         ],
-        "summary": "Assign a location and final code to an item",
+        "summary": "Assign one location to many items",
+        "description": "Sets location_id only, the item code never changes. Each item is saved on its own, so an item that fails (unknown id) is listed in failed and the others still go through. An unknown locationId is 404 for the whole request. Needs item.assign-location.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "itemIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "exclusiveMinimum": true
+                    },
+                    "minItems": 1,
+                    "maxItems": 200
+                  },
+                  "locationId": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true
+                  }
+                },
+                "required": [
+                  "itemIds",
+                  "locationId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Item locations assigned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "assigned": {
+                          "type": "integer"
+                        },
+                        "failed": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "integer"
+                              },
+                              "reason": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "reason"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "assigned",
+                        "failed"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/items/recode/bulk": {
+      "post": {
+        "tags": [
+          "Item"
+        ],
+        "summary": "Recode many items from their current category prefixes (superadmin only)",
+        "description": "Same rules as the single recode, in one transaction: all or nothing. itemIds are unique, 1 to 500. Any unknown id is 404 listing the missing ids and nothing changes. Numbers are sequential per prefix in item id order. One audit_logs entry per item. 403 for non-superadmin.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "itemIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "exclusiveMinimum": true
+                    },
+                    "minItems": 1,
+                    "maxItems": 500
+                  }
+                },
+                "required": [
+                  "itemIds"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Items recoded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "integer"
+                              },
+                              "oldCode": {
+                                "type": "string"
+                              },
+                              "newCode": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "oldCode",
+                              "newCode"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "items"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/items/{id}/recode": {
+      "post": {
+        "tags": [
+          "Item"
+        ],
+        "summary": "Give an item a new code from its current category prefix (superadmin only)",
+        "description": "No body. Works even when the item has transactions: they reference items.id, so history is unaffected, but printed labels must be reprinted. Writes an audit_logs entry with the old and new code. 403 for non-superadmin, 404 for an unknown id.",
         "security": [
           {
             "bearerAuth": []
@@ -15068,34 +15990,9 @@
             "in": "path"
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "code": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 191
-                  },
-                  "locationId": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "exclusiveMinimum": true
-                  }
-                },
-                "required": [
-                  "code",
-                  "locationId"
-                ]
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
-            "description": "Item location assigned",
+            "description": "Item recoded",
             "content": {
               "application/json": {
                 "schema": {
@@ -15118,8 +16015,8 @@
                         },
                         "code": {
                           "type": "string",
-                          "nullable": true,
-                          "description": "Internal code, built from the location"
+                          "description": "Internal code, category prefix + number (LEM001), generated on create, never changes",
+                          "example": "LEM001"
                         },
                         "externalCode": {
                           "type": "string",
@@ -15355,7 +16252,7 @@
           "Item"
         ],
         "summary": "Adjust an item's stock by a signed delta",
-        "description": "Records the change in audit_logs. Rejects deltas that would push stock below 0.",
+        "description": "Records the change in audit_logs. Rejects deltas that would push stock below 0. Optional Idempotency-Key header (8 to 100 characters): with it, the same key and payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true and does not repeat the write; the same key with a different payload is 409; a malformed key is 400. Without it the request behaves as before.",
         "security": [
           {
             "bearerAuth": []
@@ -15370,6 +16267,15 @@
             "required": true,
             "name": "id",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "example": "6f1c2d3e-0b7a-4c55-9a3e-1d2f3a4b5c6d"
+            },
+            "required": false,
+            "name": "Idempotency-Key",
+            "in": "header"
           }
         ],
         "requestBody": {
@@ -15379,7 +16285,9 @@
                 "type": "object",
                 "properties": {
                   "delta": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": -1000000,
+                    "maximum": 1000000
                   },
                   "reason": {
                     "type": "string",
@@ -15420,8 +16328,8 @@
                         },
                         "code": {
                           "type": "string",
-                          "nullable": true,
-                          "description": "Internal code, built from the location"
+                          "description": "Internal code, category prefix + number (LEM001), generated on create, never changes",
+                          "example": "LEM001"
                         },
                         "externalCode": {
                           "type": "string",
@@ -15717,8 +16625,8 @@
                         },
                         "code": {
                           "type": "string",
-                          "nullable": true,
-                          "description": "Internal code, built from the location"
+                          "description": "Internal code, category prefix + number (LEM001), generated on create, never changes",
+                          "example": "LEM001"
                         },
                         "externalCode": {
                           "type": "string",
@@ -16241,7 +17149,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 100
             },
             "required": false,
             "name": "search",
@@ -16276,6 +17185,33 @@
             },
             "required": false,
             "name": "source",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "date",
+                "itemName",
+                "referenceNo",
+                "supplierName"
+              ]
+            },
+            "required": false,
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            },
+            "required": false,
+            "name": "sortDir",
             "in": "query"
           }
         ],
@@ -16578,10 +17514,21 @@
           "Inbound"
         ],
         "summary": "Record goods received from a supplier or production",
-        "description": "Raises the item's stock by qtyArrived in the same transaction and records audit logs. statusQc is the result of the manual QC check, not derived from the quantities. When source is SUPPLIER (the default) and supplierId is left out, it is taken from the item's mapped supplier; 400 when the item has none. qtyPurchased is optional.",
+        "description": "Raises the item's stock by qtyArrived in the same transaction and records audit logs. statusQc is the result of the manual QC check, not derived from the quantities. When source is SUPPLIER (the default) and supplierId is left out, it is taken from the item's mapped supplier; 400 when the item has none. qtyPurchased is optional. Optional Idempotency-Key header (8 to 100 characters): with it, the same key and payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true and does not repeat the write; the same key with a different payload is 409; a malformed key is 400. Without it the request behaves as before.",
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "6f1c2d3e-0b7a-4c55-9a3e-1d2f3a4b5c6d"
+            },
+            "required": false,
+            "name": "Idempotency-Key",
+            "in": "header"
           }
         ],
         "requestBody": {
@@ -16615,7 +17562,8 @@
                   "qtyArrived": {
                     "type": "integer",
                     "minimum": 0,
-                    "exclusiveMinimum": true
+                    "exclusiveMinimum": true,
+                    "maximum": 100000
                   },
                   "qtyPurchased": {
                     "type": "integer",
@@ -18084,10 +19032,21 @@
           "Inbound"
         ],
         "summary": "Record goods returned by a client",
-        "description": "Stored with source KLIEN and statusQc null. Raises the item's stock by qty in the same transaction. spk is optional; when given it must be one of GET /api/v1/tracking/spk (400 otherwise) and clientName is taken from there. Without spk, clientName is null. A clientName in the body is ignored.",
+        "description": "Stored with source KLIEN and statusQc null. Raises the item's stock by qty in the same transaction. spk is optional; when given it must be one of GET /api/v1/tracking/spk (400 otherwise) and clientName is taken from there. Without spk, clientName is null. A clientName in the body is ignored. Optional Idempotency-Key header (8 to 100 characters): with it, the same key and payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true and does not repeat the write; the same key with a different payload is 409; a malformed key is 400. Without it the request behaves as before.",
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "6f1c2d3e-0b7a-4c55-9a3e-1d2f3a4b5c6d"
+            },
+            "required": false,
+            "name": "Idempotency-Key",
+            "in": "header"
           }
         ],
         "requestBody": {
@@ -18446,7 +19405,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 100
             },
             "required": false,
             "name": "search",
@@ -18493,6 +19453,32 @@
             },
             "required": false,
             "name": "recipientType",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "date",
+                "spk",
+                "clientName"
+              ]
+            },
+            "required": false,
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            },
+            "required": false,
+            "name": "sortDir",
             "in": "query"
           }
         ],
@@ -18860,7 +19846,8 @@
                         "qty": {
                           "type": "integer",
                           "minimum": 0,
-                          "exclusiveMinimum": true
+                          "exclusiveMinimum": true,
+                          "maximum": 1000000
                         },
                         "pic": {
                           "type": "string",
@@ -19542,7 +20529,8 @@
                         "qty": {
                           "type": "integer",
                           "minimum": 0,
-                          "exclusiveMinimum": true
+                          "exclusiveMinimum": true,
+                          "maximum": 1000000
                         },
                         "pic": {
                           "type": "string",
@@ -19876,7 +20864,7 @@
           "Dokubah"
         ],
         "summary": "List SPK numbers with their client",
-        "description": "Source of the SPK and its client for dokubah, SPK internal, outbound, material requests and client returns, and for the dropdowns of Barang Keluar. Dummy data plus a fixture built from the tracking database until the tracking system API is connected, the shape stays the same. search matches noSpk or client, case-insensitively. client keeps only the SPK of that client name (exact, case-insensitive, trimmed), and can be combined with search. limit defaults to 50 and is capped at 100, applied after client. Products are not listed here, use GET /api/v1/tracking/spk/{noSpk}.",
+        "description": "Source of the SPK and its client for dokubah, SPK internal, outbound, material requests and client returns, and for the dropdowns of Barang Keluar. Dummy data plus a fixture built from the tracking database until the tracking system API is connected, the shape stays the same. search matches noSpk or client, case-insensitively. client keeps only the SPK of that client name (exact, case-insensitive, trimmed), and can be combined with search. limit defaults to 50 and is capped at 100, applied after client. projectName is included when the tracking source sends it. Products are not listed here, use GET /api/v1/tracking/spk/{noSpk}.",
         "security": [
           {
             "bearerAuth": []
@@ -19936,6 +20924,9 @@
                             "type": "string"
                           },
                           "client": {
+                            "type": "string"
+                          },
+                          "projectName": {
                             "type": "string"
                           }
                         },
@@ -20771,7 +21762,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 100
             },
             "required": false,
             "name": "search",
@@ -20807,6 +21799,33 @@
             },
             "required": false,
             "name": "endDate",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "noSpk",
+                "client",
+                "totalAnggaran",
+                "status"
+              ]
+            },
+            "required": false,
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            },
+            "required": false,
+            "name": "sortDir",
             "in": "query"
           }
         ],
@@ -21195,11 +22214,13 @@
                         "hargaSatuan": {
                           "type": "integer",
                           "minimum": 0,
+                          "maximum": 2000000000,
                           "default": 0
                         },
                         "kuota": {
                           "type": "integer",
-                          "minimum": 0
+                          "minimum": 0,
+                          "maximum": 1000000
                         },
                         "keterangan": {
                           "type": "string",
@@ -21385,6 +22406,254 @@
                         "bahan",
                         "riwayat"
                       ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dokubah/bahan-by-spk": {
+      "get": {
+        "tags": [
+          "Dokubah"
+        ],
+        "summary": "Get the bahan of many SPK at once",
+        "description": "Needs dokubah.view. Repeat the spk param (?spk=A&spk=B), 1 to 100 values, 400 otherwise. Returns one entry per requested spk in request order. bahan has the same shape and realisasi as bahan in GET /api/v1/dokubah/{id}, and is [] when the SPK has no dokubah. noSpk is unique per dokubah, so there is never more than one dokubah to pick from.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1,
+              "maxItems": 100
+            },
+            "required": true,
+            "name": "spk",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bahan per SPK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "noSpk": {
+                            "type": "string"
+                          },
+                          "bahan": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "kodeBarang": {
+                                  "type": "string"
+                                },
+                                "namaBahan": {
+                                  "type": "string"
+                                },
+                                "satuan": {
+                                  "type": "string"
+                                },
+                                "hargaSatuan": {
+                                  "type": "number"
+                                },
+                                "kuota": {
+                                  "type": "number"
+                                },
+                                "realisasi": {
+                                  "type": "number",
+                                  "description": "Read-only. Quantity of outbound lines whose SPK equals the dokubah noSpk and whose item code equals kodeBarang, counted once the dokubah is APPROVED, otherwise 0"
+                                },
+                                "keterangan": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "kodeBarang",
+                                "namaBahan",
+                                "satuan",
+                                "hargaSatuan",
+                                "kuota",
+                                "realisasi",
+                                "keterangan"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "noSpk",
+                          "bahan"
+                        ]
+                      }
                     }
                   },
                   "required": [
@@ -21918,11 +23187,13 @@
                         "hargaSatuan": {
                           "type": "integer",
                           "minimum": 0,
+                          "maximum": 2000000000,
                           "default": 0
                         },
                         "kuota": {
                           "type": "integer",
-                          "minimum": 0
+                          "minimum": 0,
+                          "maximum": 1000000
                         },
                         "keterangan": {
                           "type": "string",
@@ -23310,7 +24581,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 100
             },
             "required": false,
             "name": "search",
@@ -24391,7 +25663,7 @@
                         "jumlahOrder": {
                           "type": "number",
                           "minimum": 0,
-                          "maximum": 999999999,
+                          "maximum": 1000000,
                           "default": 0
                         },
                         "hargaSatuan": {
@@ -25100,7 +26372,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 100
             },
             "required": false,
             "name": "search",
@@ -25669,7 +26942,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 100
             },
             "required": false,
             "name": "search",
@@ -26401,13 +27675,13 @@
         }
       }
     },
-    "/api/v1/spk-internal/{id}/allocate": {
-      "post": {
+    "/api/v1/spk-internal/{id}": {
+      "get": {
         "tags": [
           "SPK Internal"
         ],
-        "summary": "Allocate quantity on a line",
-        "description": "id is the line id from the list. Subtracts jumlah from totalBisaPakai. 400 when jumlah is not a positive integer or is more than totalBisaPakai. The line becomes LOCKED at 0. Item stock is not changed.",
+        "summary": "Get one SPK internal line",
+        "description": "id is the line id from the list. Same row shape as the list. 404 when unknown.",
         "security": [
           {
             "bearerAuth": []
@@ -26422,6 +27696,301 @@
             "required": true,
             "name": "id",
             "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The line",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "noSpk": {
+                          "type": "string",
+                          "example": "SPK-INT/2026/003",
+                          "description": "Generated"
+                        },
+                        "tanggalTerbit": {
+                          "type": "string",
+                          "example": "2026-10-01"
+                        },
+                        "tujuanProduksi": {
+                          "type": "string"
+                        },
+                        "spkKlienInduk": {
+                          "type": "string",
+                          "description": "A noSpk from GET /api/v1/tracking/spk"
+                        },
+                        "penanggungJawab": {
+                          "type": "string",
+                          "description": "A name from GET /api/v1/tracking/pic"
+                        },
+                        "targetSelesai": {
+                          "type": "string",
+                          "example": "2026-12-31"
+                        },
+                        "catatan": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "id": {
+                          "type": "number",
+                          "description": "Line id, the id /allocate takes"
+                        },
+                        "spkInternalId": {
+                          "type": "number"
+                        },
+                        "sku": {
+                          "type": "string",
+                          "description": "Item code, empty when the item has none"
+                        },
+                        "namaBarang": {
+                          "type": "string"
+                        },
+                        "periode": {
+                          "type": "string",
+                          "example": "Oktober 2026",
+                          "description": "Month of tanggalTerbit"
+                        },
+                        "totalQty": {
+                          "type": "number"
+                        },
+                        "alokasiSpkKlien": {
+                          "type": "number"
+                        },
+                        "alokasiStokBebas": {
+                          "type": "number"
+                        },
+                        "totalStock": {
+                          "type": "number",
+                          "description": "Same as totalQty"
+                        },
+                        "totalBisaPakai": {
+                          "type": "number",
+                          "description": "Left of alokasiStokBebas, reduced by /allocate"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "LOCKED",
+                            "BUFFER"
+                          ],
+                          "description": "LOCKED when totalBisaPakai is 0"
+                        }
+                      },
+                      "required": [
+                        "noSpk",
+                        "tanggalTerbit",
+                        "tujuanProduksi",
+                        "spkKlienInduk",
+                        "penanggungJawab",
+                        "targetSelesai",
+                        "catatan",
+                        "id",
+                        "spkInternalId",
+                        "sku",
+                        "namaBarang",
+                        "periode",
+                        "totalQty",
+                        "alokasiSpkKlien",
+                        "alokasiStokBebas",
+                        "totalStock",
+                        "totalBisaPakai",
+                        "status"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/spk-internal/{id}/allocate": {
+      "post": {
+        "tags": [
+          "SPK Internal"
+        ],
+        "summary": "Allocate quantity on a line",
+        "description": "id is the line id from the list. Subtracts jumlah from totalBisaPakai. 400 when jumlah is not a positive integer or is more than totalBisaPakai. The line becomes LOCKED at 0. Item stock is not changed. Optional Idempotency-Key header (8 to 100 characters): with it, the same key and payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true and does not repeat the write; the same key with a different payload is 409; a malformed key is 400. Without it the request behaves as before.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "example": "6f1c2d3e-0b7a-4c55-9a3e-1d2f3a4b5c6d"
+            },
+            "required": false,
+            "name": "Idempotency-Key",
+            "in": "header"
           }
         ],
         "requestBody": {
@@ -26745,7 +28314,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 100
             },
             "required": false,
             "name": "search",
@@ -26769,6 +28339,32 @@
             },
             "required": false,
             "name": "year",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "period",
+                "createdAt",
+                "createdBy"
+              ]
+            },
+            "required": false,
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            },
+            "required": false,
+            "name": "sortDir",
             "in": "query"
           }
         ],
@@ -27001,10 +28597,21 @@
           "Stock Opname"
         ],
         "summary": "Record a stock opname",
-        "description": "Sets each counted item's stock to physicalQty in one transaction and records audit logs. The price is not sent: systemPrice and physicalPrice on each line are both the item master price at that moment, and the master is never changed by an opname. An item may appear only once per opname.",
+        "description": "Sets each counted item's stock to physicalQty in one transaction and records audit logs. The price is not sent: systemPrice and physicalPrice on each line are both the item master price at that moment, and the master is never changed by an opname. An item may appear only once per opname. Optional Idempotency-Key header (8 to 100 characters): with it, the same key and payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true and does not repeat the write; the same key with a different payload is 409; a malformed key is 400. Without it the request behaves as before.",
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "6f1c2d3e-0b7a-4c55-9a3e-1d2f3a4b5c6d"
+            },
+            "required": false,
+            "name": "Idempotency-Key",
+            "in": "header"
           }
         ],
         "requestBody": {
@@ -27040,7 +28647,8 @@
                         },
                         "physicalQty": {
                           "type": "number",
-                          "minimum": 0
+                          "minimum": 0,
+                          "maximum": 1000000
                         },
                         "note": {
                           "type": "string",
@@ -27639,7 +29247,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 100
             },
             "required": false,
             "name": "search",
@@ -27674,6 +29283,35 @@
             },
             "required": false,
             "name": "endDate",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "requestDate",
+                "spk",
+                "clientName",
+                "productionItem",
+                "toolGroup",
+                "status"
+              ]
+            },
+            "required": false,
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            },
+            "required": false,
+            "name": "sortDir",
             "in": "query"
           }
         ],
@@ -27932,10 +29570,21 @@
           "Material Request"
         ],
         "summary": "File a material request",
-        "description": "spk must be one of GET /api/v1/tracking/spk (400 otherwise) and clientName is taken from there, a clientName in the body is ignored. Always created as PENDING, with at least one item line. Creating a request or changing its status never changes stock, only outbound does.",
+        "description": "spk must be one of GET /api/v1/tracking/spk (400 otherwise) and clientName is taken from there, a clientName in the body is ignored. Always created as PENDING, with at least one item line. Creating a request or changing its status never changes stock, only outbound does. Optional Idempotency-Key header (8 to 100 characters): with it, the same key and payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true and does not repeat the write; the same key with a different payload is 409; a malformed key is 400. Without it the request behaves as before.",
         "security": [
           {
             "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "6f1c2d3e-0b7a-4c55-9a3e-1d2f3a4b5c6d"
+            },
+            "required": false,
+            "name": "Idempotency-Key",
+            "in": "header"
           }
         ],
         "requestBody": {
@@ -28892,7 +30541,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 100
             },
             "required": false,
             "name": "q",
@@ -28927,6 +30577,33 @@
             },
             "required": false,
             "name": "source",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "date",
+                "itemName",
+                "referenceNo",
+                "supplierName"
+              ]
+            },
+            "required": false,
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            },
+            "required": false,
+            "name": "sortDir",
             "in": "query"
           }
         ],
@@ -29599,7 +31276,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 100
             },
             "required": false,
             "name": "q",
@@ -29646,6 +31324,32 @@
             },
             "required": false,
             "name": "recipientType",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "date",
+                "spk",
+                "clientName"
+              ]
+            },
+            "required": false,
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            },
+            "required": false,
+            "name": "sortDir",
             "in": "query"
           }
         ],
@@ -30285,7 +31989,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 100
             },
             "required": false,
             "name": "q",
@@ -30320,6 +32025,35 @@
             },
             "required": false,
             "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "requestDate",
+                "spk",
+                "clientName",
+                "productionItem",
+                "toolGroup",
+                "status"
+              ]
+            },
+            "required": false,
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            },
+            "required": false,
+            "name": "sortDir",
             "in": "query"
           }
         ],
@@ -30590,7 +32324,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 100
             },
             "required": false,
             "name": "q",
@@ -30795,7 +32530,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 100
             },
             "required": false,
             "name": "q",
@@ -31012,7 +32748,8 @@
           {
             "schema": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "maxLength": 100
             },
             "required": false,
             "name": "q",
@@ -31210,6 +32947,945 @@
         }
       }
     },
+    "/api/v1/checklist-dokubah": {
+      "get": {
+        "tags": [
+          "Checklist Dokubah"
+        ],
+        "summary": "List dokubah for the Gudang checklist",
+        "description": "Needs checklist-dokubah.view. Same paging, search, filters and sorting as GET /api/v1/dokubah. hasChecklist tells whether Gudang saved a checklist for that dokubah.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "maximum": 100,
+              "default": 10
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "required": false,
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DRAFT",
+                "PENDING",
+                "APPROVED",
+                "REJECTED"
+              ]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false,
+            "name": "startDate",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false,
+            "name": "endDate",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "noSpk",
+                "client",
+                "totalAnggaran",
+                "status"
+              ]
+            },
+            "required": false,
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            },
+            "required": false,
+            "name": "sortDir",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Checklist list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "rows": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kodeDokubah": {
+                                "type": "string",
+                                "description": "The dokubah noSpk"
+                              },
+                              "namaClient": {
+                                "type": "string"
+                              },
+                              "namaItem": {
+                                "type": "string",
+                                "description": "Project name from tracking, empty when unknown"
+                              },
+                              "noSpk": {
+                                "type": "string"
+                              },
+                              "dokubahId": {
+                                "type": "number"
+                              },
+                              "hasChecklist": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "kodeDokubah",
+                              "namaClient",
+                              "namaItem",
+                              "noSpk",
+                              "dokubahId",
+                              "hasChecklist"
+                            ]
+                          }
+                        },
+                        "total": {
+                          "type": "number"
+                        },
+                        "page": {
+                          "type": "number"
+                        },
+                        "pageSize": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "rows",
+                        "total",
+                        "page",
+                        "pageSize"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/checklist-dokubah/{dokubahId}": {
+      "get": {
+        "tags": [
+          "Checklist Dokubah"
+        ],
+        "summary": "Get the checklist of a dokubah",
+        "description": "Needs checklist-dokubah.view. checklist is null until the first save. 404 when the dokubah does not exist. Selisih is typed by the user and stored as typed (max 50, nullable).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "dokubahId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dokubah header and checklist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "dokubah": {
+                          "type": "object",
+                          "properties": {
+                            "kodeDokubah": {
+                              "type": "string",
+                              "description": "The dokubah noSpk"
+                            },
+                            "namaClient": {
+                              "type": "string"
+                            },
+                            "namaItem": {
+                              "type": "string",
+                              "description": "Project name from tracking, empty when unknown"
+                            },
+                            "noSpk": {
+                              "type": "string"
+                            },
+                            "id": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "kodeDokubah",
+                            "namaClient",
+                            "namaItem",
+                            "noSpk",
+                            "id"
+                          ]
+                        },
+                        "checklist": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "kepalaGroup": {
+                              "type": "string",
+                              "nullable": true,
+                              "maxLength": 191
+                            },
+                            "tglMulai": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date"
+                            },
+                            "tglSelesai": {
+                              "type": "string",
+                              "nullable": true,
+                              "format": "date"
+                            },
+                            "kolomRealisasi": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 50
+                            },
+                            "lines": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "material": {
+                                    "type": "string",
+                                    "maxLength": 191
+                                  },
+                                  "dokubah": {
+                                    "type": "string",
+                                    "maxLength": 100
+                                  },
+                                  "selisih": {
+                                    "type": "string",
+                                    "nullable": true,
+                                    "maxLength": 50
+                                  },
+                                  "realisasi": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "tanggal": {
+                                          "type": "string",
+                                          "nullable": true,
+                                          "format": "date"
+                                        },
+                                        "pengambil": {
+                                          "type": "string",
+                                          "maxLength": 191
+                                        },
+                                        "jumlah": {
+                                          "type": "number",
+                                          "minimum": 0
+                                        }
+                                      },
+                                      "required": [
+                                        "tanggal",
+                                        "pengambil",
+                                        "jumlah"
+                                      ]
+                                    }
+                                  },
+                                  "keterangan": {
+                                    "type": "string",
+                                    "nullable": true,
+                                    "maxLength": 500
+                                  }
+                                },
+                                "required": [
+                                  "material",
+                                  "dokubah",
+                                  "selisih",
+                                  "realisasi",
+                                  "keterangan"
+                                ]
+                              },
+                              "maxItems": 500
+                            },
+                            "updatedAt": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "kepalaGroup",
+                            "tglMulai",
+                            "tglSelesai",
+                            "kolomRealisasi",
+                            "lines",
+                            "updatedAt"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "dokubah",
+                        "checklist"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Checklist Dokubah"
+        ],
+        "summary": "Save the checklist of a dokubah",
+        "description": "Needs checklist-dokubah.edit. Creates or replaces the whole checklist, lines included, in one transaction and answers like GET. Every line must have exactly kolomRealisasi realisasi entries, jumlah >= 0, dates YYYY-MM-DD, tglSelesai on or after tglMulai. Fully empty lines are dropped. 404 when the dokubah does not exist.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "dokubahId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "kepalaGroup": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 191
+                  },
+                  "tglMulai": {
+                    "type": "string",
+                    "nullable": true,
+                    "format": "date"
+                  },
+                  "tglSelesai": {
+                    "type": "string",
+                    "nullable": true,
+                    "format": "date"
+                  },
+                  "kolomRealisasi": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 50
+                  },
+                  "lines": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "material": {
+                          "type": "string",
+                          "maxLength": 191
+                        },
+                        "dokubah": {
+                          "type": "string",
+                          "maxLength": 100
+                        },
+                        "selisih": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 50
+                        },
+                        "realisasi": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "tanggal": {
+                                "type": "string",
+                                "nullable": true,
+                                "format": "date"
+                              },
+                              "pengambil": {
+                                "type": "string",
+                                "maxLength": 191
+                              },
+                              "jumlah": {
+                                "type": "number",
+                                "minimum": 0
+                              }
+                            },
+                            "required": [
+                              "tanggal",
+                              "pengambil",
+                              "jumlah"
+                            ]
+                          }
+                        },
+                        "keterangan": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 500
+                        }
+                      },
+                      "required": [
+                        "material",
+                        "dokubah",
+                        "selisih",
+                        "realisasi",
+                        "keterangan"
+                      ]
+                    },
+                    "maxItems": 500
+                  }
+                },
+                "required": [
+                  "kepalaGroup",
+                  "tglMulai",
+                  "tglSelesai",
+                  "kolomRealisasi",
+                  "lines"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved, same body as GET",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -31262,645 +33938,6 @@
                   },
                   "required": [
                     "status",
-                    "message"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/items/assign-location/bulk": {
-      "post": {
-        "tags": [
-          "Item"
-        ],
-        "summary": "Assign one location to many items",
-        "description": "Each item gets a code suggested as in GET /api/v1/items/{id}/suggest-code and is saved on its own, so an item that fails (unknown id, supplier gone) is listed in failed and the others still go through. An unknown locationId is 404 for the whole request. Needs item.assign-location.",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "itemIds": {
-                    "type": "array",
-                    "items": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "exclusiveMinimum": true
-                    },
-                    "minItems": 1,
-                    "maxItems": 200
-                  },
-                  "locationId": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "exclusiveMinimum": true
-                  }
-                },
-                "required": [
-                  "itemIds",
-                  "locationId"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Item locations assigned",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        true
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "assigned": {
-                          "type": "integer"
-                        },
-                        "failed": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "id": {
-                                "type": "integer"
-                              },
-                              "reason": {
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "id",
-                              "reason"
-                            ]
-                          }
-                        }
-                      },
-                      "required": [
-                        "assigned",
-                        "failed"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message",
-                    "data"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation failed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or invalid access token",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Authenticated, but not authorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/items/generate-codes": {
-      "post": {
-        "tags": [
-          "Item"
-        ],
-        "summary": "Generate codes for items that have a location but no code",
-        "description": "For items placed on a location without a code (for example imported with only locationCode). Each code is suggested as in GET /api/v1/items/{id}/suggest-code; an item that fails is listed in failed and the others still go through. Needs item.assign-location.",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Item codes generated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        true
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "generated": {
-                          "type": "integer"
-                        },
-                        "failed": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "id": {
-                                "type": "integer"
-                              },
-                              "reason": {
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "id",
-                              "reason"
-                            ]
-                          }
-                        }
-                      },
-                      "required": [
-                        "generated",
-                        "failed"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message",
-                    "data"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation failed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or invalid access token",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Authenticated, but not authorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/items/generate-codes/revert": {
-      "post": {
-        "tags": [
-          "Item"
-        ],
-        "summary": "Undo the newest generate-codes run (superadmin only)",
-        "description": "Clears the codes the newest not yet reverted POST /api/v1/items/generate-codes run gave. An item whose code changed since keeps it and is counted in skipped. 403 for anyone but a superadmin, 404 when there is no run to revert.",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Generated item codes reverted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        true
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "reverted": {
-                          "type": "integer"
-                        },
-                        "skipped": {
-                          "type": "integer"
-                        }
-                      },
-                      "required": [
-                        "reverted",
-                        "skipped"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message",
-                    "data"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation failed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or invalid access token",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Authenticated, but not authorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
                     "message"
                   ]
                 }

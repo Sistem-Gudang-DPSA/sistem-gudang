@@ -5,13 +5,14 @@ import React, { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { formatAngka } from "@/domains/ppic/data/dokubah";
-import { createPurchaseOrder, listSuppliers } from "@/domains/purchasing/api";
-import { digitsOnly } from "@/shared/lib/input";
+import { createPurchaseOrder } from "@/domains/purchasing/api";
+import { useSupplierSearch } from "@/domains/purchasing/use-supplier-search";
+import SearchableSelect from "@/shared/components/SearchableSelect";
+import { decimalOnly, digitsOnly, parsePpn } from "@/shared/lib/input";
 import { PEMESAN } from "@/domains/purchasing/data/pembelian";
 import type { PurchaseOrder, Supplier } from "@/domains/purchasing/types";
 import { ApiError } from "@/shared/lib/api-client";
-import { listItems } from '@/domains/inventory/api';
-import { useApiData } from '@/shared/lib/use-api-data';
+import { useItemSearch } from '@/domains/inventory/use-item-search';
 import { createPortal } from "react-dom";
 
 type BarisBarang = {
@@ -41,6 +42,7 @@ const toNumber = (value: string) => {
     return Number.isFinite(n) ? n : 0;
 };
 
+
 const buatBarisBarang = (): BarisBarang => ({
     id: Date.now() + Math.random(),
     kodeBarang: "",
@@ -56,9 +58,9 @@ export default function BuatPOBaruPage() {
     const [dibuat, setDibuat] = useState<PurchaseOrder | null>(null);
 
     const [tanggalPo, setTanggalPo] = useState("");
-    const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-    const [supplierError, setSupplierError] = useState("");
-    const [supplierId, setSupplierId] = useState("");
+    const { suppliers: hasilSupplier, onSearch: cariSupplier, pending: supplierPending, error: supplierError } = useSupplierSearch();
+    // Supplier terpilih disimpan sendiri supaya tetap ada walau di luar hasil pencarian terakhir.
+    const [supplier, setSupplier] = useState<Supplier | null>(null);
     const [picSupplier, setPicSupplier] = useState("");
 
     const [barisBarang, setBarisBarang] = useState<BarisBarang[]>([
@@ -69,53 +71,11 @@ export default function BuatPOBaruPage() {
     const [persenPpn, setPersenPpn] = useState("12");
     const [jasa, setJasa] = useState("");
     const [formError, setFormError] = useState("");
-    const [searchTerm, setSearchTerm] = useState('');
-
-    const [pencarianBarang, setPencarianBarang] = useState("");
-    const [hasilPencarian, setHasilPencarian] = useState<typeof dataBarang>([]);
     const [barisAktif, setBarisAktif] = useState<number | null>(null);
 
-    const [page, setPage] = useState(1);
-    const { data: loaded, loading, error: loadError, reload } = useApiData(
-        () => listItems({ search: searchTerm || undefined, page, pageSize: 20 }),
-        `${searchTerm}|${page}`,
-        "Gagal memuat data barang.",
-    );
-    const dataBarang = loaded?.rows ?? [];
+    const { items: hasilPencarian, onSearch: cariBarang, error: itemError } = useItemSearch(supplier?.id);
     const [posisiDropdown, setPosisiDropdown] = useState({ top: 0, left: 0, width: 0, });
     const inputBarangRefs = useRef<Record<number, HTMLInputElement | null>>({});
-
-    const barangSupplier = dataBarang.filter(
-    (item) => String(item.supplierId) === String(supplierId)
-    );
-
-    useEffect(() => {
-        let aktif = true;
-
-        listSuppliers({ pageSize: 100 })
-            .then((result) => {
-                if (aktif) {
-                    setSuppliers(result.rows);
-                }
-            })
-            .catch((err) => {
-                if (aktif) {
-                    setSupplierError(
-                        err instanceof ApiError
-                            ? err.message
-                            : "Gagal memuat data supplier."
-                    );
-                }
-            });
-
-        return () => {
-            aktif = false;
-        };
-    }, []);
-
-    const supplier = suppliers.find(
-        (s) => String(s.id) === supplierId
-    );
 
     const barang = barisBarang.map((b) => {
         const jumlah = toNumber(b.jumlah);
@@ -131,6 +91,8 @@ export default function BuatPOBaruPage() {
         };
     });
 
+    const ppn = parsePpn(persenPpn);
+
     const totalSetelahDiskon = barang.reduce(
         (sum, b) => sum + b.total,
         0
@@ -140,7 +102,7 @@ export default function BuatPOBaruPage() {
     const dppLain = Math.round((totalSetelahDiskon * 11) / 12);
 
     const nilaiPpn = Math.round(
-        (dppLain * toNumber(persenPpn)) / 100
+        (dppLain * (Number.isFinite(ppn) ? ppn : 0)) / 100
     );
 
     const totalSetelahPpn = totalSetelahDiskon + nilaiPpn;
@@ -233,10 +195,15 @@ export default function BuatPOBaruPage() {
             return;
         }
 
+        if (!Number.isFinite(ppn)) {
+            setFormError("PPN harus berupa angka, misalnya 11 atau 11,5.");
+            return;
+        }
+
         if (
             barang.some((b) => b.diskon < 0 || b.total < 0) ||
-            toNumber(persenPpn) < 0 ||
-            toNumber(persenPpn) > 100 ||
+            ppn < 0 ||
+            ppn > 100 ||
             toNumber(jasa) < 0
         ) {
             setFormError(
@@ -265,7 +232,7 @@ export default function BuatPOBaruPage() {
                     hargaSatuan: b.hargaSatuan,
                     diskon: b.diskon,
                 })),
-                persenPpn: toNumber(persenPpn),
+                persenPpn: ppn,
                 jasa: toNumber(jasa),
             };
 
@@ -389,7 +356,7 @@ export default function BuatPOBaruPage() {
                                             scope="col"
                                             className={`${cellClass} w-40 text-xs font-bold text-gray-900 uppercase`}
                                         >
-                                            <label htmlFor="po-supplier">
+                                            <label>
                                                 Data Supplier
                                             </label>
                                         </th>
@@ -399,12 +366,10 @@ export default function BuatPOBaruPage() {
                                             className={`${cellClass} font-normal`}
                                         >
                                             <div className="relative">
-                                                <select
-                                                    value={supplierId}
-                                                    onChange={(e) => {
-                                                        const idSupplier = e.target.value;
-
-                                                        setSupplierId(idSupplier);
+                                                <SearchableSelect
+                                                    value={supplier ? String(supplier.id) : ""}
+                                                    onChange={(idSupplier) => {
+                                                        setSupplier((prev) => hasilSupplier.find((s) => String(s.id) === idSupplier) ?? (prev && String(prev.id) === idSupplier ? prev : null));
 
                                                         // Bersihkan barang yang sudah dipilih sebelumnya.
                                                         setBarisBarang((prev) =>
@@ -417,19 +382,17 @@ export default function BuatPOBaruPage() {
                                                         );
 
                                                         setBarisAktif(null);
-                                                        setHasilPencarian([]);
                                                     }}
+                                                    onSearch={cariSupplier}
+                                                    pending={supplierPending}
+                                                    options={[
+                                                        ...(supplier && !hasilSupplier.some((s) => s.id === supplier.id) ? [{ value: String(supplier.id), label: supplier.name }] : []),
+                                                        ...hasilSupplier.map((s) => ({ value: String(s.id), label: s.name })),
+                                                    ]}
+                                                    placeholder="Pilih Supplier"
+                                                    aria-label="Data Supplier"
                                                     className={fieldClass}
-                                                    required
-                                                >
-                                                    <option value="">Pilih Supplier</option>
-
-                                                    {suppliers.map((supplier) => (
-                                                        <option key={supplier.id} value={supplier.id}>
-                                                            {supplier.name}
-                                                        </option>
-                                                    ))}
-                                                </select>
+                                                />
                                             </div>
                                         </th>
                                     </tr>
@@ -641,7 +604,7 @@ export default function BuatPOBaruPage() {
                                                 type="text"
                                                 value={b.namaBarang}
                                                 onFocus={(e) => {
-                                                    if (!supplierId) {
+                                                    if (!supplier) {
                                                         setFormError("Pilih supplier terlebih dahulu.");
                                                         return;
                                                     }
@@ -657,7 +620,7 @@ export default function BuatPOBaruPage() {
                                                     });
 
                                                     setBarisAktif(b.id);
-                                                    setHasilPencarian(barangSupplier);
+                                                    cariBarang(b.namaBarang);
                                                 }}
                                                 onChange={(e) => {
                                                     const keyword = e.target.value;
@@ -676,16 +639,9 @@ export default function BuatPOBaruPage() {
                                                     });
 
                                                     setBarisAktif(b.id);
-
-                                                    setHasilPencarian(
-                                                        barangSupplier.filter((item) =>
-                                                            item.name
-                                                                .toLowerCase()
-                                                                .includes(keyword.toLowerCase())
-                                                        )
-                                                    );
+                                                    cariBarang(keyword);
                                                 }}
-                                                disabled={!supplierId}
+                                                disabled={!supplier}
                                                 className={cellInputClass}
                                                 placeholder="Ketik nama barang..."
                                                 autoComplete="off"
@@ -719,7 +675,6 @@ export default function BuatPOBaruPage() {
                                                                         updateBaris(b.id, "satuan", item.unit ?? "");
 
                                                                         setBarisAktif(null);
-                                                                        setHasilPencarian([]);
                                                                     }}
                                                                     onKeyDown={(e) => {
                                                                         if (e.key === "Enter") {
@@ -728,7 +683,6 @@ export default function BuatPOBaruPage() {
                                                                             updateBaris(b.id, "satuan", item.unit ?? "");
 
                                                                             setBarisAktif(null);
-                                                                            setHasilPencarian([]);
                                                                         }
                                                                     }}
                                                                     className="block w-full px-3 py-2 text-left hover:bg-orange-50 cursor-pointer"
@@ -904,7 +858,7 @@ export default function BuatPOBaruPage() {
                                 inputMode="decimal"
                                 value={persenPpn}
                                 onChange={(e) =>
-                                    setPersenPpn(digitsOnly(e.target.value))
+                                    setPersenPpn(decimalOnly(e.target.value.replace(",", ".")))
                                 }
                                 className={`${fieldClass} text-right`}
                             />
@@ -946,9 +900,9 @@ export default function BuatPOBaruPage() {
                 </div>
 
                 {/* Error */}
-                {formError && (
+                {(formError || itemError) && (
                     <div className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">
-                        {formError}
+                        {formError || itemError}
                     </div>
                 )}
 

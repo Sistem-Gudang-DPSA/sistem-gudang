@@ -1,5 +1,6 @@
 "use client";
 
+import { escapeHtml } from '@/shared/lib/escape-html';
 import React, { useState } from 'react';
 import { ChevronDown, Download, FileUp } from 'lucide-react';
 import { getStockOpnameSummary, listMutations } from '@/domains/ppic/api';
@@ -33,9 +34,6 @@ const formatTanggalJam = (iso: string) =>
   iso.length === 10
     ? new Date(`${iso}T00:00:00`).toLocaleDateString('id-ID', { dateStyle: 'medium' })
     : new Date(iso).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
-const escapeHtml = (s: string) =>
-  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
 // YYYY-MM -> "September 2026"
 const formatPeriode = (periode: string) => {
   const [y, m] = periode.split('-');
@@ -123,6 +121,7 @@ export default function RekapStokOpnameMutasiStok() {
   // Buka jendela berisi tabel saja lalu panggil dialog print (pilih "Save as PDF")
   const handlePrintPdf = () => {
     const win = window.open('', '_blank');
+    if (win) win.opener = null;
     if (!win) {
       alert('Pop-up diblokir browser. Izinkan pop-up untuk mencetak PDF.');
       return;
@@ -134,7 +133,7 @@ export default function RekapStokOpnameMutasiStok() {
         <td>${escapeHtml(item.noReferensiSpk)}</td>
         <td>${escapeHtml(item.kodeBarang)}</td>
         <td>${escapeHtml(item.namaItem)}</td>
-        <td>${item.tipe}</td>
+        <td>${escapeHtml(item.tipe)}</td>
         <td class="right">${formatAngka(item.qty)}</td>
       </tr>`).join('');
     win.document.write(`<!doctype html>

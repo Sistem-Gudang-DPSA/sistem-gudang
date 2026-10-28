@@ -1,4 +1,5 @@
 import type { LocationDataImportRow } from "./components/DataLokasi";
+import { invalidateApiData } from "@/shared/lib/use-api-data";
 import { ApiError, apiClient, downloadFile, toQuery } from "@/shared/lib/api-client";
 import type {
   ItemFilterParams,
@@ -11,6 +12,9 @@ import type {
   CreateLocationInput,
   CreateOutboundInput,
   CreateStockOpnameInput,
+  ChecklistDokubahDetail,
+  ChecklistDokubahInput,
+  ChecklistDokubahRow,
   InboundListParams,
   InboundReport,
   InboundReportParams,
@@ -34,6 +38,18 @@ import type {
   StockOpnameRow,
 
 } from "./types";
+import type { KartuStokData } from '@/domains/inventory/components/KartuStok';
+
+export const listChecklistDokubah = (params?: ListParams) =>
+  apiClient.get<PaginatedResult<ChecklistDokubahRow>>(`/api/v1/checklist-dokubah${toQuery(params)}`);
+export const getChecklistDokubah = (dokubahId: number) =>
+  apiClient.get<ChecklistDokubahDetail>(`/api/v1/checklist-dokubah/${dokubahId}`);
+export const saveChecklistDokubah = (dokubahId: number, input: ChecklistDokubahInput) =>
+  apiClient.put<ChecklistDokubahDetail>(`/api/v1/checklist-dokubah/${dokubahId}`, input);
+
+export function getStockCard(itemId: number) {
+  return apiClient.get<KartuStokData>(`/api/v1/items/${itemId}/stock-card`);
+}
 
 // `summary` covers every item matching the search, not just the requested page.
 export function listItems(params?: ListParams & SortParams & ItemFilterParams) {
@@ -42,7 +58,8 @@ export function listItems(params?: ListParams & SortParams & ItemFilterParams) {
 
 // Master lists of item categories and units; items reference them by name.
 // `itemCount` is how many items use the name; a name still in use cannot be deleted (409).
-export type ItemLookup = { id: number; name: string; itemCount?: number };
+// prefix: kategori saja, 3 huruf awal kode barang (LBR001); default dari BE bila tidak diisi
+export type ItemLookup = { id: number; name: string; itemCount?: number; prefix?: string };
 export const listItemCategories = () => apiClient.get<ItemLookup[]>("/api/v1/items/categories");
 export const listItemUnits = () => apiClient.get<ItemLookup[]>("/api/v1/items/units");
 // paged variants for the master page (server-side pagination, search and sort)
@@ -50,12 +67,12 @@ export const listItemCategoriesPage = (params: ListParams & SortParams) =>
   apiClient.get<PaginatedResult<ItemLookup>>(`/api/v1/items/categories${toQuery(params)}`);
 export const listItemUnitsPage = (params: ListParams & SortParams) =>
   apiClient.get<PaginatedResult<ItemLookup>>(`/api/v1/items/units${toQuery(params)}`);
-export const createItemCategory = (name: string) => apiClient.post<ItemLookup>("/api/v1/items/categories", { name });
-export const createItemUnit = (name: string) => apiClient.post<ItemLookup>("/api/v1/items/units", { name });
-export const renameItemCategory = (id: number, name: string) => apiClient.put<ItemLookup>(`/api/v1/items/categories/${id}`, { name });
-export const renameItemUnit = (id: number, name: string) => apiClient.put<ItemLookup>(`/api/v1/items/units/${id}`, { name });
-export const deleteItemCategory = (id: number) => apiClient.delete<void>(`/api/v1/items/categories/${id}`);
-export const deleteItemUnit = (id: number) => apiClient.delete<void>(`/api/v1/items/units/${id}`);
+export const createItemCategory = (name: string, prefix?: string) => apiClient.post<ItemLookup>("/api/v1/items/categories", { name, prefix }).finally(() => invalidateApiData("categories"));
+export const createItemUnit = (name: string) => apiClient.post<ItemLookup>("/api/v1/items/units", { name }).finally(() => invalidateApiData("units"));
+export const renameItemCategory = (id: number, name: string, prefix?: string) => apiClient.put<ItemLookup>(`/api/v1/items/categories/${id}`, { name, prefix }).finally(() => invalidateApiData("categories"));
+export const renameItemUnit = (id: number, name: string) => apiClient.put<ItemLookup>(`/api/v1/items/units/${id}`, { name }).finally(() => invalidateApiData("units"));
+export const deleteItemCategory = (id: number) => apiClient.delete<void>(`/api/v1/items/categories/${id}`).finally(() => invalidateApiData("categories"));
+export const deleteItemUnit = (id: number) => apiClient.delete<void>(`/api/v1/items/units/${id}`).finally(() => invalidateApiData("units"));
 
 export type BulkItemRow = {
   code?: string; name: string; detail?: string; supplier?: string; category?: string; unit?: string;
@@ -91,6 +108,8 @@ export async function importItems(body: { defaults: { category?: string; unit?: 
       return `${row ? `Baris ${row}${name ? ` "${name}"` : ""}${field ? ` (${field})` : ""}` : key}: ${msgs.join(", ")}`;
     });
     throw new Error(lines.slice(0, 10).join("; ") + (lines.length > 10 ? `; dan ${lines.length - 10} error lain` : ""));
+  } finally {
+    invalidateApiData("lokasi");
   }
 }
 
@@ -111,6 +130,16 @@ export function updateItem(id: number, input: UpdateItemInput) {
   return apiClient.put<Item>(`/api/v1/items/${id}`, input);
 }
 
+// Superadmin only. Gives the item a new code from its current category prefix, even when it has transactions.
+export function recodeItem(id: number) {
+  return apiClient.post<Item>(`/api/v1/items/${id}/recode`);
+}
+
+// Superadmin only, max 500 items. All or nothing: one failure changes no code.
+export function bulkRecodeItems(itemIds: number[]) {
+  return apiClient.post<{ items: { id: number; oldCode: string; newCode: string }[] }>("/api/v1/items/recode/bulk", { itemIds });
+}
+
 export function deleteItem(id: number) {
   return apiClient.delete<Item>(`/api/v1/items/${id}`);
 }
@@ -119,25 +148,11 @@ export function listUnassignedItems() {
   return apiClient.get<Item[]>("/api/v1/items/unassigned");
 }
 
-export function suggestItemCode(id: number, locationId: number) {
-  return apiClient.get<{ code: string }>(`/api/v1/items/${id}/suggest-code?locationId=${locationId}`);
-}
-
-export function assignItemLocation(id: number, input: { code: string; locationId: number }) {
+export function assignItemLocation(id: number, input: { locationId: number }) {
   return apiClient.put<Item>(`/api/v1/items/${id}/assign-location`, input);
 }
 
-// Codes every item that has a location but no code (e.g. imported with only a location).
-export function generateItemCodes() {
-  return apiClient.post<{ generated: number; failed: { id: number; reason: string }[] }>("/api/v1/items/generate-codes", {});
-}
-
-// Superadmin only: clears the codes the newest generateItemCodes run gave.
-export function revertGeneratedItemCodes() {
-  return apiClient.post<{ reverted: number; skipped: number }>("/api/v1/items/generate-codes/revert", {});
-}
-
-// One location for many items; the BE suggests each code and reports the items it could not assign.
+// One location for many items; the BE reports the items it could not assign. Codes stay as they are.
 export function bulkAssignItemLocation(input: { itemIds: number[]; locationId: number }) {
   return apiClient.post<{ assigned: number; failed: { id: number; reason: string }[] }>("/api/v1/items/assign-location/bulk", input);
 }
@@ -170,15 +185,15 @@ export function listLocations(params?: ListParams & SortParams) {
 }
 
 export function createLocation(input: CreateLocationInput) {
-  return apiClient.post<Location>("/api/v1/locations", input);
+  return apiClient.post<Location>("/api/v1/locations", input).finally(() => invalidateApiData("lokasi"));
 }
 
 export function updateLocation(id: number, input: Partial<CreateLocationInput>) {
-  return apiClient.put<Location>(`/api/v1/locations/${id}`, input);
+  return apiClient.put<Location>(`/api/v1/locations/${id}`, input).finally(() => invalidateApiData("lokasi"));
 }
 
 export function deleteLocation(id: number) {
-  return apiClient.delete<void>(`/api/v1/locations/${id}`);
+  return apiClient.delete<void>(`/api/v1/locations/${id}`).finally(() => invalidateApiData("lokasi"));
 }
 
 // Gudang division: inbound, outbound, stock opname and material requests.

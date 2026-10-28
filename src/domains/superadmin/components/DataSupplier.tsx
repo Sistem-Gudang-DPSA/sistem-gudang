@@ -8,6 +8,7 @@ import type { Pajak } from '@/domains/purchasing/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { useCan } from '@/domains/auth/user-context';
+import { useClampPage } from '@/shared/lib/use-page';
 import Pagination from '@/shared/components/Pagination';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import EditModeBar, { useBatchEdit } from '@/shared/components/EditModeBar';
@@ -45,6 +46,7 @@ export default function DataSupplierPurchasing() {
     "Gagal memuat data supplier.",
   );
   const dataSupplier = loaded?.rows ?? [];
+  useClampPage(page, loaded?.total ?? 0, 20, setPage);
   const error = actionError || loadError;
 
   const handleMulaiTambah = () => {
@@ -207,7 +209,7 @@ export default function DataSupplierPurchasing() {
             </tbody>
           </table>
         </div>
-        <Pagination page={page} pageSize={20} total={loaded?.total ?? 0} onPageChange={setPage} activeClass="bg-teal-500 text-white border-teal-500" />
+        <Pagination page={page} pageSize={20} total={loaded?.total ?? 0} onPageChange={setPage} activeClass="bg-indigo-500 text-white border-indigo-500" />
       </div>
 
       {/* Modal Tambah/Edit Data */}

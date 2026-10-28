@@ -1,12 +1,14 @@
 "use client";
 
 import { useCan } from '@/domains/auth/user-context';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Search, Plus, Filter, ScanLine } from 'lucide-react';
-import { createInbound, createInboundReturn, listInbound, listItems } from '@/domains/inventory/api';
-import type { StatusQc, ItemListRow } from '@/domains/inventory/types';
+import { createInbound, createInboundReturn, listInbound } from '@/domains/inventory/api';
+import type { StatusQc } from '@/domains/inventory/types';
+import { useItemSearch } from '@/domains/inventory/use-item-search';
 import { useSpkSearch } from '@/domains/ppic/use-spk-search';
 import { displayDate, todayIso, toDateRange } from '@/domains/inventory/date';
+import { toCsv } from '@/shared/lib/csv';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
@@ -14,13 +16,16 @@ import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import { countActiveFilters, emptyBarangFilters } from './BarangFilterPanel';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
+import { usePage } from '@/shared/lib/use-page';
 import DateFilter from '@/shared/components/DateFilter';
 import SearchableSelect from '@/shared/components/SearchableSelect';
 import BarangMasukScan from './BarangMasukScan';
 import { QC_STATUS } from '@/domains/inventory/status';
 
-const emptyBaru = { itemId: "", itemName: "", tanggal: todayIso(), jumlahKedatangan: "", jumlahRekap: "", statusQc: "PASS" as StatusQc };
-const emptyKembali = { itemId: "", itemName: "", tanggal: todayIso(), jumlah: "", spk: "" };
+type PickedItem = { id: number; name: string; code: string | null };
+
+const emptyBaru = { item: null as PickedItem | null, tanggal: todayIso(), jumlahKedatangan: "", jumlahRekap: "", statusQc: "PASS" as StatusQc };
+const emptyKembali = { item: null as PickedItem | null, tanggal: todayIso(), jumlah: "", spk: "" };
 
 export default function BarangMasukGudang() {
   const canCreate = useCan('inbound.create');
@@ -32,8 +37,6 @@ export default function BarangMasukGudang() {
   const [filterMonth, setFilterMonth] = useState("");
   const [filterYear, setFilterYear] = useState("");
 
-  const [items, setItems] = useState<ItemListRow[]>([]);
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalData, setModalData] = useState(emptyBaru);
   const [isModalKembaliOpen, setIsModalKembaliOpen] = useState(false);
@@ -44,12 +47,10 @@ export default function BarangMasukGudang() {
 
   const dateRange = toDateRange(filterDay, filterMonth, filterYear);
 
-  const filterKey = JSON.stringify([searchQuery, filterDay, filterMonth, filterYear]);
-  const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
-  const page = pageState.key === filterKey ? pageState.page : 1;
-  const setPage = (next: number) => setPageState({ key: filterKey, page: next });
+  const filterKey = JSON.stringify([searchQuery, filterDay, filterMonth, filterYear, sortParams]);
+  const [page, setPage] = usePage(filterKey);
   const { data: result, loading, error, reload } = useApiData(
-    () => listInbound({ page, pageSize: 20, search: searchQuery || undefined, ...dateRange }),
+    () => listInbound({ page, pageSize: 20, search: searchQuery || undefined, ...dateRange, ...sortParams }),
     `${filterKey}|${page}`,
     'Gagal memuat data barang masuk.',
   );
@@ -58,29 +59,40 @@ export default function BarangMasukGudang() {
 
   const spkKembali = useSpkSearch(modalKembaliData.spk);
 
-  useEffect(() => {
-    listItems({ pageSize: 100 }).then((res) => setItems(res.rows)).catch(() => { });
-  }, []);
+  // Barang dicari di server dan dipilih per id; yang terpilih disimpan di state modal (nama belum tentu unik).
+  const { items, onSearch: searchItems, pending: itemPending, error: itemError } = useItemSearch();
+  const itemBaru = modalData.item;
+  const itemKembali = modalKembaliData.item;
+  const label = (it: PickedItem) => (it.code ? `${it.name} (${it.code})` : it.name);
+  const pilihanBarang = (picked: PickedItem | null) => [
+    ...(picked && !items.some((it) => it.id === picked.id) ? [{ value: String(picked.id), label: label(picked) }] : []),
+    ...items.map((it) => ({ value: String(it.id), label: label(it) })),
+  ];
+  const pilihBarang = (id: string, prev: PickedItem | null): PickedItem | null => {
+    const it = items.find((x) => String(x.id) === id);
+    return it ? { id: it.id, name: it.name, code: it.code } : prev && String(prev.id) === id ? prev : null;
+  };
 
   // Exports the rows currently loaded in the table.
   const handleExportCsv = () => {
-    const header = 'No,Tanggal,Kode Barang,Nama Barang,Supplier,Jumlah Kedatangan,Jumlah Rekap';
-    const lines = rows.map((r, i) =>
-      [i + 1, displayDate(r.date), r.itemCode ?? '', `"${r.itemName}"`, `"${r.supplierName ?? r.clientName ?? ''}"`, r.qtyArrived, r.qtyPurchased ?? ''].join(','),
-    );
-    const url = URL.createObjectURL(new Blob([[header, ...lines].join('\n')], { type: 'text/csv;charset=utf-8;' }));
+    const csv = toCsv([
+      ['No', 'Tanggal', 'Kode Barang', 'Nama Barang', 'Supplier', 'Jumlah Kedatangan', 'Jumlah Rekap'],
+      ...rows.map((r, i) => [i + 1, displayDate(r.date), r.itemCode ?? '', r.itemName, r.supplierName ?? r.clientName ?? '', r.qtyArrived, r.qtyPurchased ?? '']),
+    ]);
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'Data_Barang_Masuk.csv';
+    link.download = `Data_Barang_Masuk_halaman-${page}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
 
-  const openModal = () => { setModalData({ ...emptyBaru, tanggal: todayIso() }); setModalError(""); setIsModalOpen(true); };
-  const openModalKembali = () => { setModalKembaliData({ ...emptyKembali, tanggal: todayIso() }); setModalError(""); setIsModalKembaliOpen(true); };
+  const openModal = () => { searchItems(''); setModalData({ ...emptyBaru, tanggal: todayIso() }); setModalError(""); setIsModalOpen(true); };
+  const openModalKembali = () => { searchItems(''); setModalKembaliData({ ...emptyKembali, tanggal: todayIso() }); setModalError(""); setIsModalKembaliOpen(true); };
 
   const handleSimpan = async () => {
-    const { itemId, tanggal, jumlahKedatangan, jumlahRekap, statusQc } = modalData;
+    const itemId = itemBaru?.id;
+    const { tanggal, jumlahKedatangan, jumlahRekap, statusQc } = modalData;
     if (!itemId || !tanggal || !jumlahKedatangan || jumlahRekap === "") {
       setModalError("Lengkapi semua isian.");
       return;
@@ -89,7 +101,7 @@ export default function BarangMasukGudang() {
     setModalError("");
     try {
       await createInbound({
-        itemId: Number(itemId),
+        itemId,
         date: tanggal,
         qtyArrived: Number(jumlahKedatangan),
         qtyPurchased: Number(jumlahRekap),
@@ -105,7 +117,8 @@ export default function BarangMasukGudang() {
   };
 
   const handleSimpanKembali = async () => {
-    const { itemId, tanggal, jumlah, spk } = modalKembaliData;
+    const itemId = itemKembali?.id;
+    const { tanggal, jumlah, spk } = modalKembaliData;
     if (!itemId || !tanggal || !jumlah) {
       setModalError("Barang, tanggal, dan jumlah wajib diisi.");
       return;
@@ -114,7 +127,7 @@ export default function BarangMasukGudang() {
     setModalError("");
     try {
       await createInboundReturn({
-        itemId: Number(itemId),
+        itemId,
         date: tanggal,
         qty: Number(jumlah),
         spk: spk || undefined,
@@ -208,8 +221,8 @@ export default function BarangMasukGudang() {
             <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
               <tr>
                 <th scope="col" className="px-6 py-4">No</th>
-                <SortableTh label="Tanggal" sortKey="tanggal" sort={sort} onSort={toggle} />
-                <SortableTh label="Informasi Barang" sortKey="name" sort={sort} onSort={toggle} />
+                <SortableTh label="Tanggal" sortKey="date" sort={sort} onSort={toggle} />
+                <SortableTh label="Informasi Barang" sortKey="itemName" sort={sort} onSort={toggle} />
                 <th scope="col" className="px-6 py-4 text-center">Jml Kedatangan</th>
                 <th scope="col" className="px-6 py-4 text-center">Jml Rekap</th>
               </tr>
@@ -261,10 +274,6 @@ export default function BarangMasukGudang() {
         <ExportExcellButton onClick={handleExportCsv} />
       </div>
 
-      <datalist id="barang-masuk-items">
-        {items.map((it) => <option key={it.id} value={it.name} />)}
-      </datalist>
-
       {isScanOpen && <BarangMasukScan onClose={() => setIsScanOpen(false)} onSaved={reload} />}
 
       {/* Modal Form Barang Masuk */}
@@ -293,24 +302,24 @@ export default function BarangMasukGudang() {
                     type="text"
                     disabled
                     placeholder="Isi Otomatis"
-                    value={items.find((it) => String(it.id) === modalData.itemId)?.code ?? ''}
+                    value={itemBaru?.code ?? ''}
                     className="w-full border border-gray-300 rounded-md py-3 px-4 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 placeholder-gray-400 bg-[#f8f9fa] text-sm"
                   />
                 </div>
                 <div className="flex-1 flex flex-col gap-2">
                   <label className="text-[15px] font-medium text-gray-900">Nama Barang</label>
                   <div className="relative">
-                    <input
-                      type="text"
-                      list="barang-masuk-items"
+                    <SearchableSelect
+                      value={itemBaru ? String(itemBaru.id) : ''}
+                      onChange={(id) => setModalData((prev) => ({ ...prev, item: pilihBarang(id, prev.item) }))}
+                      onSearch={searchItems}
+                      pending={itemPending}
+                      options={pilihanBarang(itemBaru)}
                       placeholder="Isi Nama Barang"
-                      value={modalData.itemName}
-                      onChange={(e) => setModalData({ ...modalData, itemName: e.target.value, itemId: String(items.find((it) => it.name === e.target.value)?.id ?? "") })}
-                      className="w-full border border-gray-300 rounded-md py-3 pl-4 pr-10 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 placeholder-gray-400 text-sm"
+                      emptyText="Barang tidak ditemukan"
+                      aria-label="Nama Barang"
+                      className="w-full border border-gray-300 rounded-md py-3 pl-4 pr-3 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 text-sm"
                     />
-                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                      <Search className="h-4 w-4 text-gray-800" strokeWidth={2.5} />
-                    </div>
                   </div>
                 </div>
               </div>
@@ -367,7 +376,7 @@ export default function BarangMasukGudang() {
             </div>
 
 
-            {modalError && <p className="text-sm text-red-500 mb-2 text-right">{modalError}</p>}
+            {(modalError || itemError) && <p className="text-sm text-red-500 mb-2 text-right">{modalError || itemError}</p>}
             <div className="flex justify-end mt-2">
               <button
                 onClick={handleSimpan}
@@ -407,24 +416,24 @@ export default function BarangMasukGudang() {
                     type="text"
                     disabled
                     placeholder="Isi Otomatis"
-                    value={items.find((it) => String(it.id) === modalKembaliData.itemId)?.code ?? ''}
+                    value={itemKembali?.code ?? ''}
                     className="w-full border border-gray-300 rounded-md py-3 px-4 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 placeholder-gray-400 bg-[#f8f9fa] text-sm"
                   />
                 </div>
                 <div className="flex-1 flex flex-col gap-2">
                   <label className="text-[15px] font-medium text-gray-900">Nama Barang</label>
                   <div className="relative">
-                    <input
-                      type="text"
-                      list="barang-masuk-items"
+                    <SearchableSelect
+                      value={itemKembali ? String(itemKembali.id) : ''}
+                      onChange={(id) => setModalKembaliData((prev) => ({ ...prev, item: pilihBarang(id, prev.item) }))}
+                      onSearch={searchItems}
+                      pending={itemPending}
+                      options={pilihanBarang(itemKembali)}
                       placeholder="Isi Nama Barang"
-                      value={modalKembaliData.itemName}
-                      onChange={(e) => setModalKembaliData({ ...modalKembaliData, itemName: e.target.value, itemId: String(items.find((it) => it.name === e.target.value)?.id ?? "") })}
-                      className="w-full border border-gray-300 rounded-md py-3 pl-4 pr-10 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 placeholder-gray-400 text-sm"
+                      emptyText="Barang tidak ditemukan"
+                      aria-label="Nama Barang"
+                      className="w-full border border-gray-300 rounded-md py-3 pl-4 pr-3 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 text-sm"
                     />
-                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                      <Search className="h-4 w-4 text-gray-800" strokeWidth={2.5} />
-                    </div>
                   </div>
                 </div>
               </div>
@@ -472,7 +481,7 @@ export default function BarangMasukGudang() {
               </div>
             </div>
 
-            {modalError && <p className="text-sm text-red-500 mb-2 text-right">{modalError}</p>}
+            {(modalError || itemError) && <p className="text-sm text-red-500 mb-2 text-right">{modalError || itemError}</p>}
             <div className="flex justify-end mt-2">
               <button
                 onClick={handleSimpanKembali}

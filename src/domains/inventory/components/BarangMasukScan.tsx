@@ -1,34 +1,33 @@
 "use client";
 
+import { useAuthUser } from '@/domains/auth/user-context';
 import React, { useEffect, useRef, useState } from 'react';
 import { Camera, Minus, PackageCheck, Plus, ScanLine, Trash2, Undo2 } from 'lucide-react';
-import { createInboundScanBatch, getItemByCode } from '@/domains/inventory/api';
-import { listSuppliers } from '@/domains/purchasing/api';
-import type { Supplier } from '@/domains/purchasing/types';
+import { createInboundScanBatch, getItemByCode, listItems } from '@/domains/inventory/api';
 import type { StatusQc } from '@/domains/inventory/types';
 import { todayIso } from '@/domains/inventory/date';
 import { ApiError } from '@/shared/lib/api-client';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 import { randomId } from '@/shared/lib/random-id';
+import QrCameraScanner from '@/domains/inventory/components/QrCameraScanner';
 
 type Kind = 'pass' | 'retur';
 type Step = 'hub' | Kind | 'review';
 type Line = { itemId: number; code: string; name: string; unit: string; stock: number; supplierId: number | null; qty: string; reason: string };
 type Draft = { key: string; date: string; pass: Line[]; retur: Line[] };
 
-const STORAGE_KEY = 'barang-masuk-scan-draft';
+const storageKey = (userId?: number) => `barang-masuk-scan-draft:${userId ?? 'anon'}`;
 const MAX_QTY = 100000; // BE limit per line
 const LARGE_QTY = 1000; // flagged on the review step
-const CAMERA_COOLDOWN_MS = 2000; // a camera reads the same QR on every frame; ignore repeats of one code for this long
 const KINDS: Kind[] = ['pass', 'retur'];
 const KIND_LABEL: Record<Kind, string> = { pass: 'Barang Lolos QC', retur: 'Barang Retur' };
 
 const newDraft = (): Draft => ({ key: randomId(), date: todayIso(), pass: [], retur: [] });
 
 // The draft survives a reload, so a scan session is not lost halfway. Storage may be blocked, so every access is guarded.
-function loadDraft(): Draft {
+function loadDraft(key: string): Draft {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(key);
     if (raw) {
       const d = JSON.parse(raw) as Draft;
       if (d && typeof d.key === 'string' && Array.isArray(d.pass)) return d;
@@ -36,10 +35,10 @@ function loadDraft(): Draft {
   } catch { /* fall through to a fresh draft */ }
   return newDraft();
 }
-function saveDraft(d: Draft | null) {
+function saveDraft(d: Draft | null, key: string) {
   try {
-    if (d) localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
-    else localStorage.removeItem(STORAGE_KEY);
+    if (d) localStorage.setItem(key, JSON.stringify(d));
+    else localStorage.removeItem(key);
   } catch { /* storage unavailable: the draft just stays in memory */ }
 }
 
@@ -52,25 +51,35 @@ const lineValid = (kind: Kind, l: Line) =>
 const units = (ls: Line[]) => ls.reduce((sum, l) => sum + (qtyValid(l) ? qtyOf(l) : 0), 0);
 
 export default function BarangMasukScan({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
-  const [draft, setDraft] = useState<Draft>(loadDraft);
+  const draftKey = storageKey(useAuthUser()?.id);
+  const [draft, setDraft] = useState<Draft>(() => loadDraft(draftKey));
   const [step, setStep] = useState<Step>('hub');
   const [scanValue, setScanValue] = useState('');
   const [scanError, setScanError] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  // Nama supplier per id, diambil dari barang milik supplier itu (satu permintaan per supplier), bukan dari daftar 100 supplier.
+  const [supplierNames, setSupplierNames] = useState<Record<number, string>>({});
   const inputRef = useRef<HTMLInputElement>(null);
   const draftRef = useRef(draft);
   const [cameraOn, setCameraOn] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const lastCameraRead = useRef({ code: '', at: 0 });
+  const [lockedName, setLockedName] = useState('');
   const stepRef = useRef<Step>('hub');
 
-  useEffect(() => { draftRef.current = draft; saveDraft(draft.pass.length + draft.retur.length > 0 ? draft : null); }, [draft]);
+  useEffect(() => { draftRef.current = draft; saveDraft(draft.pass.length + draft.retur.length > 0 ? draft : null, draftKey); }, [draft, draftKey]);
   useEffect(() => { stepRef.current = step; if (step === 'pass' || step === 'retur') inputRef.current?.focus();}, [step]);
-  useEffect(() => { listSuppliers ({ pageSize: 100}).then((res) => setSuppliers(res.rows)).catch(() => {});}, []);
+  const [supplierError, setSupplierError] = useState('');
+  const supplierIds = [...new Set([...draft.pass, ...draft.retur].flatMap((l) => (l.supplierId === null ? [] : [l.supplierId])))].filter((id) => !(id in supplierNames));
+  const missingKey = supplierIds.join(',');
+  useEffect(() => {
+    for (const id of missingKey ? missingKey.split(',').map(Number) : []) {
+      listItems({ supplierId: id, pageSize: 1 })
+        .then((res) => setSupplierNames((m) => ({ ...m, [id]: res.rows[0]?.supplierName ?? `#${id}` })))
+        .catch((err) => setSupplierError(err instanceof ApiError ? err.message : 'Gagal memuat nama supplier.'));
+    }
+  }, [missingKey]);
 
-  const supplierName = (id: number | null) => id === null ? '-' : suppliers.find((s) => s.id === id)?.name ?? `#${id}`;
+  const supplierName = (id: number | null) => id === null ? '-' : supplierNames[id] ?? `#${id}`;
   const goTo = (next: Step) => {setCameraOn(false); setScanError(''); setError(''); setStep(next);};
   const setList = (kind: Kind, fn: (ls: Line[]) => Line[]) => setDraft((d) => ({ ...d, [kind]: fn(d[kind]) }));
   const patchLine = (kind: Kind, itemId: number, patch: Partial<Line>) => setList(kind, (ls) => ls.map((l) => (l.itemId === itemId ? { ...l, ...patch } : l)));
@@ -79,10 +88,13 @@ export default function BarangMasukScan({ onClose, onSaved }: { onClose: () => v
     const kind = stepRef.current;
     if (kind !== 'pass' && kind !== 'retur') return;
     setScanError('');
+    setLockedName('');
     // Functional updates, so scans arriving faster than a render each still count.
-    if (draftRef.current[kind].some((l) => l.code === code)) { setList(kind, (ls) => bump(ls, (l) => l.code === code)); return; }
+    const dup = draftRef.current[kind].find((l) => l.code === code);
+    if (dup) { setList(kind, (ls) => bump(ls, (l) => l.code === code)); setLockedName(dup.name); return; }
     try {
       const item = await getItemByCode(code);
+      setLockedName(item.name);
       setList(kind, (ls) =>
         ls.some((l) => l.itemId === item.id)
           ? bump(ls, (l) => l.itemId === item.id)
@@ -98,47 +110,6 @@ export default function BarangMasukScan({ onClose, onSaved }: { onClose: () => v
       );
     }
   };
-
-  // Phone camera: qr-scanner is loaded only when the camera is opened. Needs HTTPS (or localhost) for getUserMedia.
-  useEffect(() => {
-    if (!cameraOn || !videoRef.current) return;
-    let stop = () => {};
-    let cancelled = false;
-    (async () => {
-      if (!window.isSecureContext) {
-        setScanError('Kamera hanya jalan di HTTPS atau localhost.');
-        setCameraOn(false);
-        return;
-      }
-      try {
-        const { default: QrScanner } = await import('qr-scanner');
-        if (cancelled || !videoRef.current) return;
-        const scanner = new QrScanner(
-          videoRef.current,
-          (result) => {
-            const code = result.data.trim();
-            const last = lastCameraRead.current;
-            const now = Date.now();
-            if (!code || (code === last.code && now - last.at < CAMERA_COOLDOWN_MS)) return;
-            lastCameraRead.current = { code, at: now };
-            void addCode(code);
-          },
-          { preferredCamera: 'environment', highlightScanRegion: true, returnDetailedScanResult: true },
-        );
-        stop = () => { scanner.stop(); scanner.destroy(); };
-        await scanner.start();
-        if (cancelled) stop();
-      } catch {
-        if (!cancelled) {
-          setScanError('Kamera tidak bisa dibuka. Periksa izin kamera di browser.');
-          setCameraOn(false);
-        }
-      }
-    })();
-    return () => { cancelled = true; stop(); };
-    // addCode only uses refs and functional state updates, so the scanner is not restarted on every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cameraOn]);
 
   // The USB scanner types the code and presses Enter.
   const onScanKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -156,7 +127,7 @@ export default function BarangMasukScan({ onClose, onSaved }: { onClose: () => v
 
   const cancelSession = () => {
     if (totalLines > 0 && !window.confirm('Batalkan sesi scan? Semua baris yang belum disimpan akan dihapus.')) return;
-    saveDraft(null);
+    saveDraft(null, draftKey);
     onClose();
   };
 
@@ -170,7 +141,7 @@ export default function BarangMasukScan({ onClose, onSaved }: { onClose: () => v
         },
         draft.key,
       );
-      saveDraft(null);
+      saveDraft(null, draftKey);
       onSaved();
       onClose();
     } catch (err) {
@@ -295,8 +266,15 @@ export default function BarangMasukScan({ onClose, onSaved }: { onClose: () => v
                   {cameraOn ? 'Matikan kamera' : 'Kamera'}
                 </button>
               </div>
-              {cameraOn && <video ref={videoRef} muted playsInline className="mb-4 w-full max-w-sm rounded-xl bg-black" />}
-              {scanError && <p className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg" role="alert">{scanError}</p>}
+              {cameraOn && (
+                <QrCameraScanner
+                  onScan={(code) => void addCode(code)}
+                  lockedLabel={lockedName}
+                  rejected={scanError !== ''}
+                  onFail={(message) => { setScanError(message); setCameraOn(false); }}
+                />
+              )}
+              {(scanError || supplierError) && <p className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg" role="alert">{scanError || supplierError}</p>}
 
               <div className="border border-gray-200 rounded-xl overflow-x-auto mb-6 mt-4">
                 <table className="w-full text-left text-sm">
@@ -449,7 +427,7 @@ export default function BarangMasukScan({ onClose, onSaved }: { onClose: () => v
               );
             })}
 
-            {error && <p className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg" role="alert">{error}</p>}
+            {(error || supplierError) && <p className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg" role="alert">{error || supplierError}</p>}
             <div className="flex justify-end gap-3">
               <button type="button" onClick={() => goTo('hub')} disabled={saving} className={btnGhost}>Kembali</button>
               <button type="button" onClick={submit} disabled={saving} className={btnPrimary}>

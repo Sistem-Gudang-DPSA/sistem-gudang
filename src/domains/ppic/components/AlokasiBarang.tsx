@@ -5,8 +5,10 @@ import { useCan } from '@/domains/auth/user-context';
 import NoPermission from './NoPermission';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, ChevronDown } from 'lucide-react';
-import { allocateSpkInternal, listDokubah, listSpkInternal } from '@/domains/ppic/api';
+import { ArrowLeft } from 'lucide-react';
+import { allocateSpkInternal, getSpkInternal } from '@/domains/ppic/api';
+import { useDokubahSearch } from '@/domains/ppic/use-dokubah-search';
+import SearchableSelect from '@/shared/components/SearchableSelect';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { spk_internal_path } from '@/domains/ppic/data/spk-internal';
@@ -30,15 +32,18 @@ export default function AlokasiBarangPPIC() {
   const canAllocate = useCan('spk-internal.allocate');
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  // ponytail: the API has no GET by id, so the row is picked from the first 100 SPK Internal
-  const { data: spkResult, loading, error } = useApiData(() => listSpkInternal({ pageSize: 100 }), 'list', 'Gagal memuat SPK Internal.');
-  const spk = spkResult?.rows.find((item) => String(item.id) === id);
-  // ponytail: the SPK picker lists the first 100 dokubah only
-  const { data: dokubahResult } = useApiData(() => listDokubah({ pageSize: 100 }), 'list', 'Gagal memuat daftar SPK Klien.');
+  const { data: spk, loading, error } = useApiData(
+    () => getSpkInternal(id).catch((err) => { if (err instanceof ApiError && err.status === 404) return null; throw err; }),
+    `spk|${id}`,
+    'Gagal memuat SPK Internal.',
+  );
+  const { rows: dokubahRows, onSearch: searchDokubah, pending: dokubahPending, error: dokubahError } = useDokubahSearch();
   const [spkKlien, setSpkKlien] = useState('');
+  const [spkKlienLabel, setSpkKlienLabel] = useState('');
   const [jumlah, setJumlah] = useState('');
   const [catatan, setCatatan] = useState('');
   const [formError, setFormError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const header = (
     <div className="flex items-center gap-3 mb-6">
@@ -67,6 +72,7 @@ export default function AlokasiBarangPPIC() {
 
   const handleKaitkan = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (saving) return;
     const jumlahMutasi = Number(jumlah);
     if (!spkKlien) {
       setFormError('Pilih SPK Klien terlebih dahulu.');
@@ -81,12 +87,15 @@ export default function AlokasiBarangPPIC() {
       return;
     }
     setFormError('');
+    setSaving(true);
     try {
       // the API only takes jumlah; SPK Klien and catatan are not stored yet
       await allocateSpkInternal(spk.id, jumlahMutasi);
       router.replace(spk_internal_path);
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : 'Gagal mengaitkan stock.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -100,20 +109,20 @@ export default function AlokasiBarangPPIC() {
             <input id="alokasi-spk-internal" type="text" readOnly value={spk.noSpk} className={readOnlyFieldClass} />
           </Field>
           <Field id="alokasi-spk-klien" label="Pilih SPK Klien">
-            <div className="relative">
-              <select
-                id="alokasi-spk-klien"
-                value={spkKlien}
-                onChange={(e) => setSpkKlien(e.target.value)}
-                className={`${fieldClass} appearance-none pr-9 cursor-pointer`}
-              >
-                <option value="" disabled>Pilih SPK Klien</option>
-                {(dokubahResult?.rows ?? []).map((item) => (
-                  <option key={item.id} value={item.noSpk}>{item.noSpk} - {item.client}</option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
-            </div>
+            <SearchableSelect
+              value={spkKlien}
+              onChange={(v) => { const d = dokubahRows.find((item) => item.noSpk === v); setSpkKlien(v); setSpkKlienLabel(d ? `${v} - ${d.client}` : v === spkKlien ? spkKlienLabel : v); }}
+              onSearch={searchDokubah}
+              pending={dokubahPending}
+              // SPK Klien terpilih tetap ada di pilihan walau di luar hasil pencarian terakhir
+              options={[
+                ...(spkKlien && !dokubahRows.some((item) => item.noSpk === spkKlien) ? [{ value: spkKlien, label: spkKlienLabel }] : []),
+                ...dokubahRows.map((item) => ({ value: item.noSpk, label: `${item.noSpk} - ${item.client}` })),
+              ]}
+              placeholder="Pilih SPK Klien"
+              aria-label="Pilih SPK Klien"
+              className={fieldClass}
+            />
           </Field>
 
           <Field id="alokasi-barang" label="SKU & Nama Barang">
@@ -146,8 +155,8 @@ export default function AlokasiBarangPPIC() {
           className={`${fieldClass} resize-y`}
         />
 
-        {formError && (
-          <p className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{formError}</p>
+        {(formError || dokubahError) && (
+          <p className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{formError || dokubahError}</p>
         )}
         {stockBebas === 0 && (
           <p className="mt-4 p-3 bg-amber-50 text-amber-700 text-sm rounded-lg">
@@ -157,7 +166,7 @@ export default function AlokasiBarangPPIC() {
 
         <div className="flex justify-end gap-4 mt-10">
           <Link href={spk_internal_path} replace className={orangeButtonClass}>Batal</Link>
-          <button type="submit" disabled={stockBebas === 0} className={orangeButtonClass}>Kaitkan</button>
+          <button type="submit" disabled={stockBebas === 0 || saving} className={orangeButtonClass}>Kaitkan</button>
         </div>
       </form>
     </div>

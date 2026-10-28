@@ -22,17 +22,20 @@ const jumlah = () => screen.getByLabelText('Jumlah Mutasi') as HTMLInputElement;
 
 async function load(bisa = 6, extra: Record<string, unknown> = {}) {
   const api = installFakeApi({
-    'GET /api/v1/spk-internal': paged([line(2, 1), line(3, bisa)]),
+    'GET /api/v1/spk-internal/3': line(3, bisa),
     'GET /api/v1/dokubah': dokubah,
     'POST /api/v1/spk-internal/3/allocate': line(3, 0),
     ...extra,
   });
   render(<AlokasiBarang />);
   await screen.findByDisplayValue('SPKI-3');
-  await screen.findByText('SPK-1 - PT Maju');
+  await waitFor(() => expect(api.calls('GET /api/v1/dokubah').length).toBeGreaterThan(0));
   return api;
 }
-const choose = () => fireEvent.change(screen.getByLabelText('Pilih SPK Klien'), { target: { value: 'SPK-1' } });
+const choose = async () => {
+  fireEvent.click(screen.getByLabelText('Pilih SPK Klien'));
+  fireEvent.click(await screen.findByText('SPK-1 - PT Maju'));
+};
 const submit = () => fireEvent.click(screen.getByText('Kaitkan'));
 
 beforeEach(() => replace.mockClear());
@@ -44,30 +47,40 @@ describe('AlokasiBarang', () => {
     expect(screen.getByText('Stock bebas : 6 pcs')).toBeTruthy();
   });
 
-  it('not found when the id is not in the list', async () => {
-    installFakeApi({ 'GET /api/v1/spk-internal': paged([line(2, 1)]), 'GET /api/v1/dokubah': dokubah });
+  it('not found when the id is unknown (404)', async () => {
+    installFakeApi({ 'GET /api/v1/spk-internal/3': fail(404, 'SPK internal line not found'), 'GET /api/v1/dokubah': dokubah });
     render(<AlokasiBarang />);
     expect(await screen.findByText('SPK Internal tidak ditemukan.')).toBeTruthy();
   });
 
   it('backend error on load', async () => {
-    installFakeApi({ 'GET /api/v1/spk-internal': fail(500, 'Server error'), 'GET /api/v1/dokubah': dokubah });
+    installFakeApi({ 'GET /api/v1/spk-internal/3': fail(500, 'Server error'), 'GET /api/v1/dokubah': dokubah });
     render(<AlokasiBarang />);
     expect(await screen.findByText('Server error')).toBeTruthy();
   });
 
   it('POSTs the integer jumlah to allocate and redirects', async () => {
     const api = await load();
-    choose();
+    await choose();
     fireEvent.change(jumlah(), { target: { value: '6' } });
     submit();
     await waitFor(() => expect(replace).toHaveBeenCalledWith('/dashboard/ppic/transaksi/spk-mutasi-internal'));
     expect(api.calls('POST /api/v1/spk-internal/3/allocate')[0].body).toEqual({ jumlah: 6 });
   });
 
+  it('allocates only once when Kaitkan is clicked twice', async () => {
+    const api = await load();
+    await choose();
+    fireEvent.change(jumlah(), { target: { value: '2' } });
+    submit();
+    submit();
+    await waitFor(() => expect(replace).toHaveBeenCalled());
+    expect(api.calls('POST /api/v1/spk-internal/3/allocate')).toHaveLength(1);
+  });
+
   it('cannot exceed stock bebas', async () => {
     const api = await load();
-    choose();
+    await choose();
     fireEvent.change(jumlah(), { target: { value: '7' } });
     submit();
     expect(await screen.findByText('Jumlah Mutasi tidak boleh melebihi stock bebas (6 pcs).')).toBeTruthy();
@@ -84,7 +97,7 @@ describe('AlokasiBarang', () => {
 
   it('requires jumlah > 0', async () => {
     const api = await load();
-    choose();
+    await choose();
     submit();
     expect(await screen.findByText(/wajib diisi dengan angka bulat lebih dari 0/)).toBeTruthy();
     fireEvent.change(jumlah(), { target: { value: '0' } });
@@ -95,7 +108,7 @@ describe('AlokasiBarang', () => {
 
   it('shows backend error and stays', async () => {
     await load(6, { 'POST /api/v1/spk-internal/3/allocate': fail(400, 'Jumlah melebihi total bisa pakai') });
-    choose();
+    await choose();
     fireEvent.change(jumlah(), { target: { value: '2' } });
     submit();
     expect(await screen.findByText('Jumlah melebihi total bisa pakai')).toBeTruthy();
@@ -126,7 +139,7 @@ describe('AlokasiBarang', () => {
 
 describe('permissions', () => {
   it('a view-only user keeps the screen but not the actions', async () => {
-    installFakeApi({ 'GET /api/v1/spk-internal': paged([line(3, 6)]), 'GET /api/v1/dokubah': dokubah });
+    installFakeApi({ 'GET /api/v1/spk-internal/3': line(3, 6), 'GET /api/v1/dokubah': dokubah });
     render(withUser(<AlokasiBarang />, ['spk-internal.view']));
     await screen.findByText(/Anda tidak punya izin|Kaitkan/);
     expect(screen.getByText(/Anda tidak punya izin/)).toBeTruthy();
@@ -137,7 +150,7 @@ describe('permissions', () => {
     ['holds the permission', ['spk-internal.allocate'], false],
     ['is a superadmin', [], true],
   ])('a user who %s sees the actions', async (_label, perms, isSuperadmin) => {
-    installFakeApi({ 'GET /api/v1/spk-internal': paged([line(3, 6)]), 'GET /api/v1/dokubah': dokubah });
+    installFakeApi({ 'GET /api/v1/spk-internal/3': line(3, 6), 'GET /api/v1/dokubah': dokubah });
     render(withUser(<AlokasiBarang />, perms, isSuperadmin));
     await screen.findByText(/Anda tidak punya izin|Kaitkan/);
     expect(screen.getByText('Kaitkan')).toBeTruthy();

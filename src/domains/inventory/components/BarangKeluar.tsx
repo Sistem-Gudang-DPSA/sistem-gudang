@@ -2,14 +2,15 @@
 
 import { useCan } from '@/domains/auth/user-context';
 import React, { useEffect, useRef, useState } from 'react';
-import { Camera, Search, Calendar, Plus, Minus, AlertCircle, Download, X, ChevronDown, ChevronRight, Pencil, Lock, Filter, ScanLine, Trash2 } from 'lucide-react';
-import { createOutbound, exportOutboundReport, getItemByCode, listOutbound, listItems, updateOutbound, deleteItem } from '@/domains/inventory/api';
-import { getDokubah, getTrackingSpk, listDokubah } from '@/domains/ppic/api';
+import { Camera, Search, Calendar, Plus, Minus, AlertCircle, Download, X, ChevronRight, Pencil, Lock, Filter, ScanLine, Trash2 } from 'lucide-react';
+import { createOutbound, exportOutboundReport, getItemByCode, listOutbound, updateOutbound, deleteItem } from '@/domains/inventory/api';
+import { getTrackingSpk } from '@/domains/ppic/api';
 import type { TrackingSpkDetail } from '@/domains/ppic/types';
-import type { BahanDokubah } from '@/domains/ppic/data/dokubah';
-import type { RecipientType, ItemListRow, OutboundRow } from '@/domains/inventory/types';
+import type { RecipientType, OutboundRow } from '@/domains/inventory/types';
 import { displayDate, todayIso, toDateRange } from '@/domains/inventory/date';
+import { useItemSearch } from '@/domains/inventory/use-item-search';
 import { ApiError } from '@/shared/lib/api-client';
+import QrCameraScanner from '@/domains/inventory/components/QrCameraScanner';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
@@ -23,13 +24,12 @@ import { beepFail, beepOk } from '@/domains/inventory/beep';
 
 // Satu baris barang hasil scan. SPK dan Nama Produk/Proyek diisi sekali di atas untuk seluruh transaksi.
 // Baris input manual dibuat kosong (itemId null) sampai materialnya dipilih dari dropdown.
-type BarisForm = { key: string; manual: boolean; itemId: number | null; code: string; name: string; unit: string; stock: number; qty: string };
+type BarisForm = { key: string; manual: boolean; itemId: number | null; code: string; name: string; unit: string; stock: number; qty: string; dokubah:string; };
 
-const barisManual = (): BarisForm => ({ key: randomId(), manual: true, itemId: null, code: '', name: '', unit: '', stock: 0, qty: '1' });
+const barisManual = (): BarisForm => ({ key: randomId(), manual: true, itemId: null, code: '', name: '', unit: '', stock: 0, qty: '1', dokubah: '' });
 
 const PAGE_SIZE = 20;
 // Pilihan tambahan di Nama Produk/Proyek untuk barang yang keluar bukan untuk produk SPK tertentu
-const CAMERA_COOLDOWN_MS = 2000; // a camera reads the same QR on every frame; ignore repeats of one code for this long
 
 // ID Stok: nomor untuk barang yang diproduksi beberapa satuan sekaligus (bukan per biji) demi efisiensi.
 // ponytail: ID Stok resmi akan dibuat oleh PPIC; sementara diisi manual dengan STOCK-{yyyy-mm-dd}.
@@ -50,8 +50,6 @@ const formKosong = () => ({
 const tambahSatu = (baris: BarisForm[], key: string) =>
   baris.map((b) => (b.key === key ? { ...b, qty: String(Number(b.qty) + 1) } : b));
 
-const samaNama = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
-
 // Barang keluar hanya bisa diedit selama 1 hari (24 jam) sejak transaksi dicatat
 const BATAS_EDIT_MS = 24 * 60 * 60 * 1000;
 const PESAN_TIDAK_BISA_EDIT = 'Data barang keluar ini sudah tidak bisa diedit karena sudah lewat 1 hari sejak dicatat.';
@@ -60,6 +58,17 @@ const batasEdit = (trx: OutboundRow) => new Date(trx.createdAt).getTime() + BATA
 // createdAt yang tidak valid menghasilkan NaN, sehingga dianggap tidak bisa diedit
 const bisaEdit = (trx: OutboundRow, now: number) => now < batasEdit(trx);
 
+// Menyegarkan waktu tiap menit di komponen kecil ini saja, supaya tombol Edit otomatis terkunci
+// begitu batas 1 hari lewat tanpa me-render ulang seluruh halaman.
+function WithNow({ children }: { children: (now: number) => React.ReactNode }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+  return <>{children(now)}</>;
+}
+
 const tampilWaktu = (ms: number) => {
   const d = new Date(ms);
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -67,7 +76,7 @@ const tampilWaktu = (ms: number) => {
 };
 
 type EditTarget = { trx: OutboundRow; lineIndex: number };
-type EditForm = { tanggal: string; spk: string; namaItem: string; itemId: string; qty: string };
+type EditForm = { tanggal: string; spk: string; namaItem: string; itemId: string; picked?: { name: string; code: string | null }; qty: string };
 
 const formCellClass = 'border-b border-r border-gray-300';
 const formHeadClass = `${formCellClass} px-2 py-2.5 font-medium whitespace-nowrap`;
@@ -90,7 +99,7 @@ export default function BarangKeluarGudang() {
   const [filterMonth, setFilterMonth] = useState("");
   const [filterYear, setFilterYear] = useState("");
 
-  const [items, setItems] = useState<ItemListRow[]>([]);
+  const { items, onSearch: searchItems, pending: itemPending, error: itemError } = useItemSearch();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modeKeluar, setModeKeluar] = useState<'spk' | 'stok'>('spk');
@@ -111,10 +120,9 @@ export default function BarangKeluarGudang() {
   const [flash, setFlash] = useState<{ itemId: number; n: number } | null>(null);
   // Satu key per draft: dipakai ulang saat retry atau klik ganda, ganti hanya kalau isi draft berubah
   const draftKey = useRef({ key: '', payload: '' });
-  // Kamera HP: qr-scanner hanya dimuat saat kamera dibuka, dan pembacaan ulang kode yang sama diabaikan sebentar
+  // Kamera HP: lihat QrCameraScanner, nama barang terakhir yang discan ditampilkan di kotak kamera
   const [cameraOn, setCameraOn] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const lastCameraRead = useRef({ code: '', at: 0 });
+  const [lockedName, setLockedName] = useState('');
   // Callback kamera tidak diperbarui tiap render, jadi cek nama pengambil lewat ref
   const pengambilRef = useRef('');
   const pengambilOk = form.namaPengambil.trim() !== '';
@@ -125,8 +133,6 @@ export default function BarangKeluarGudang() {
   const [editError, setEditError] = useState("");
   const [peringatan, setPeringatan] = useState("");
   const [actionError, setActionError] = useState<string>('');
-  // Diperbarui tiap menit supaya tombol Edit otomatis terkunci begitu batas 1 hari lewat
-  const [now, setNow] = useState(() => Date.now());
   // Transaksi yang sedang disorot kursor; semua barisnya ikut disorot
   const [hoverTrx, setHoverTrx] = useState<number | null>(null);
   // Transaksi yang rincian barangnya sedang dibuka di tabel, dan transaksi yang rinciannya tampil di pop-up
@@ -173,27 +179,6 @@ export default function BarangKeluarGudang() {
   const detailGagal = !!form.spk && detailAktif !== null && detailAktif.data === null;
   const detailMemuat = !!form.spk && detailAktif === null;
 
-  // Kuota material per SPK dari dokubah PPIC. Tidak ada key = belum dimuat, null = gagal dimuat.
-  const [dokubahBySpk, setDokubahBySpk] = useState<Record<string, BahanDokubah[] | 'loading' | null>>({});
-  const muatDokubah = (spk: string) => {
-    const sekarang = dokubahBySpk[spk];
-    if (!spk || (sekarang !== undefined && sekarang !== null)) return;
-    setDokubahBySpk((prev) => ({ ...prev, [spk]: 'loading' }));
-    listDokubah({ search: spk, pageSize: 100 })
-      .then(async (res) => {
-        const milikSpk = res.rows.filter((d) => d.noSpk === spk);
-        // Dokubah yang sudah disetujui yang dipakai; kalau belum ada, dokubah SPK itu yang pertama
-        const dipakai = milikSpk.find((d) => d.status === 'Approved') ?? milikSpk[0];
-        const bahan = dipakai ? (await getDokubah(dipakai.id)).bahan : [];
-        setDokubahBySpk((prev) => ({ ...prev, [spk]: bahan }));
-      })
-      .catch(() => setDokubahBySpk((prev) => ({ ...prev, [spk]: null })));
-  };
-
-  useEffect(() => {
-    listItems({ pageSize: 100 }).then((res) => setItems(res.rows)).catch(() => {});
-  }, []);
-
   useEffect(() => { barisRef.current = form.baris; }, [form.baris]);
   useEffect(() => { pengambilRef.current = form.namaPengambil.trim(); }, [form.namaPengambil]);
   useEffect(() => { if (scanOpen) scanRef.current?.focus(); }, [scanOpen]);
@@ -209,11 +194,6 @@ export default function BarangKeluarGudang() {
     const timer = setTimeout(() => setScanError(''), 4000);
     return () => clearTimeout(timer);
   }, [scanError]);
-
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 60_000);
-    return () => clearInterval(timer);
-  }, []);
 
   // Tabel menampilkan satu baris per transaksi, nomor urut dihitung dari halaman
   const trxRows = rows.map((trx, trxIndex) => ({ trx, trxNo: (page - 1) * PAGE_SIZE + trxIndex + 1 }));
@@ -247,7 +227,7 @@ export default function BarangKeluarGudang() {
   const tombolEdit = (trx: OutboundRow, lineIndex: number, onBuka?: () => void) => {
     if (!canUpdate) return null;
     const line = trx.lines[lineIndex];
-    return bisaEdit(trx, now) ? (
+    return <WithNow>{(now) => bisaEdit(trx, now) ? (
       <button
         type="button"
         onClick={() => { onBuka?.(); openEdit(trx, lineIndex); }}
@@ -269,7 +249,7 @@ export default function BarangKeluarGudang() {
         <Lock className="w-3.5 h-3.5" />
         <span>Edit</span>
       </button>
-    );
+    )}</WithNow>;
   };
 
   const editLine = editTarget ? editTarget.trx.lines[editTarget.lineIndex] : undefined;
@@ -351,9 +331,13 @@ export default function BarangKeluarGudang() {
   };
 
   // Material yang sudah ada di baris lain tidak ditawarkan lagi, jumlahnya cukup ditambah di baris itu
-  const pilihanMaterial = (b: BarisForm) => items
-    .filter((it) => it.id === b.itemId || !form.baris.some((x) => x.itemId === it.id))
-    .map((it) => ({ value: String(it.id), label: it.code ? `${it.name} (${it.code})` : it.name }));
+  // Item terpilih tetap ada di pilihan walau di luar hasil pencarian terakhir.
+  const pilihanMaterial = (b: BarisForm) => [
+    ...(b.itemId !== null && !items.some((it) => it.id === b.itemId) ? [{ value: String(b.itemId), label: b.code ? `${b.name} (${b.code})` : b.name }] : []),
+    ...items
+      .filter((it) => it.id === b.itemId || !form.baris.some((x) => x.itemId === it.id))
+      .map((it) => ({ value: String(it.id), label: it.code ? `${it.name} (${it.code})` : it.name })),
+  ];
 
   const bukaScan = () => {
     if (!pengambilRef.current) return;
@@ -364,18 +348,20 @@ export default function BarangKeluarGudang() {
   // Barang yang sudah ada di tabel cukup ditambah jumlahnya, barang baru diambil datanya dari database
   const tambahKode = async (code: string) => {
     setScanError("");
+    setLockedName("");
     if (!pengambilRef.current) { setScanError("Isi nama pengambil dulu."); beepFail(); return; }
     const ok = (itemId: number) => { setFlash((f) => ({ itemId, n: (f?.n ?? 0) + 1 })); beepOk(); };
     const ada = barisRef.current.find((b) => b.itemId !== null && b.code === code);
-    if (ada && ada.itemId !== null) { setBaris((bs) => tambahSatu(bs, ada.key)); ok(ada.itemId); return; }
+    if (ada && ada.itemId !== null) { setBaris((bs) => tambahSatu(bs, ada.key)); setLockedName(ada.name); ok(ada.itemId); return; }
     try {
       const item = await getItemByCode(code);
+      setLockedName(item.name);
       // Dua scan cepat untuk kode baru yang sama sama-sama sampai di sini sebelum barisnya ada
       setBaris((bs) => {
         const sama = bs.find((b) => b.itemId === item.id);
         return sama
           ? tambahSatu(bs, sama.key)
-          : [...bs, { key: randomId(), manual: false, itemId: item.id, code: item.code ?? code, name: item.name, unit: item.unit, stock: item.stock, qty: '1' }];
+          : [...bs, { key: randomId(), manual: false, itemId: item.id, code: item.code ?? code, name: item.name, unit: item.unit, stock: item.stock, qty: '1', dokubah: '' }];
       });
       ok(item.id);
     } catch (err) {
@@ -393,46 +379,6 @@ export default function BarangKeluarGudang() {
     if (code) void tambahKode(code);
   };
 
-  // Phone camera. Needs HTTPS (or localhost) for getUserMedia. Stopped by toggling off, closing the form, or unmount.
-  useEffect(() => {
-    if (!cameraOn || !videoRef.current) return;
-    let stop = () => {};
-    let cancelled = false;
-    (async () => {
-      if (!window.isSecureContext) {
-        setScanError('Kamera hanya jalan di HTTPS atau localhost.');
-        setCameraOn(false);
-        return;
-      }
-      try {
-        const { default: QrScanner } = await import('qr-scanner');
-        if (cancelled || !videoRef.current) return;
-        const scanner = new QrScanner(
-          videoRef.current,
-          (result) => {
-            const code = result.data.trim();
-            const last = lastCameraRead.current;
-            const now = Date.now();
-            if (!code || (code === last.code && now - last.at < CAMERA_COOLDOWN_MS)) return;
-            lastCameraRead.current = { code, at: now };
-            void tambahKode(code);
-          },
-          { preferredCamera: 'environment', highlightScanRegion: true, returnDetailedScanResult: true },
-        );
-        stop = () => { scanner.stop(); scanner.destroy(); };
-        await scanner.start();
-        if (cancelled) stop();
-      } catch {
-        if (!cancelled) {
-          setScanError('Kamera tidak bisa dibuka. Periksa izin kamera di browser.');
-          setCameraOn(false);
-        }
-      }
-    })();
-    return () => { cancelled = true; stop(); };
-    // tambahKode only uses refs and functional state updates, so the scanner is not restarted on every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cameraOn]);
 
   const pilihClient = (client: string) => {
     setForm((prev) => (prev.client === client ? prev : { ...prev, client, spk: "", namaItem: "" }));
@@ -440,31 +386,6 @@ export default function BarangKeluarGudang() {
 
   const pilihSpk =(spk: string) => {
     setForm((prev) => ({ ...prev, spk, namaItem: "" }));
-    muatDokubah(spk);
-  };
-
-  const dokubahSpk = dokubahBySpk[form.spk];
-  // Material dokubah dicocokkan lewat kode barang, kalau tidak ketemu lewat nama
-  const bahanDokubah = (b: BarisForm) => Array.isArray(dokubahSpk)
-    ? dokubahSpk.find((m) => m.kodeBarang === b.code) ?? dokubahSpk.find((m) => samaNama(m.namaBahan, b.name))
-    : undefined;
-
-  const selDokubah = (b: BarisForm) => {
-    if (b.itemId === null) return null;
-    // TODO: Match stock materials against Dokubah once the stock API is available.
-    if (modeKeluar === 'stok') return <span className="text-xs text-gray-400">Data dokubah belum tersedia</span>;
-    if (!form.spk) return <span className="text-xs text-gray-400">Pilih Item</span>;
-    if (dokubahSpk === 'loading' || dokubahSpk === undefined) return <span className="text-xs text-gray-400">Memuat...</span>;
-    if (dokubahSpk === null) return <span className="text-xs text-red-500">Gagal dimuat</span>;
-    const bahan = bahanDokubah(b);
-    if (!bahan) return <span className="text-xs text-gray-400">Tidak ada di dokubah</span>;
-    const sisa = bahan.kuota - bahan.realisasi;
-    return (
-      <div className="flex flex-col">
-        <span className="font-medium text-gray-900">{bahan.kuota} {bahan.satuan}</span>
-        <span className={`text-xs ${Number(b.qty) > sisa ? 'text-red-600 font-semibold' : 'text-gray-500'}`}>sisa {sisa}</span>
-      </div>
-    );
   };
 
   // Hanya produk milik SPK dan client yang sedang dipilih.
@@ -915,7 +836,16 @@ export default function BarangKeluarGudang() {
                 </button>
               </div>
             )}
-            {cameraOn && <video ref={videoRef} muted playsInline className="mt-4 w-full max-w-sm rounded-xl bg-black" />}
+            {cameraOn && (
+              <div className="mt-4">
+                <QrCameraScanner
+                  onScan={(code) => void tambahKode(code)}
+                  lockedLabel={lockedName}
+                  rejected={scanError !== ""}
+                  onFail={(message) => { setScanError(message); setCameraOn(false); }}
+                />
+              </div>
+            )}
             {scanError && <p role="alert" className="fixed bottom-6 right-6 z-70 max-w-sm p-3 bg-red-600 text-white text-sm rounded-lg shadow-lg">{scanError}</p>}
             {form.baris.length > 0 && (
               <p className="mt-3 text-sm text-gray-700">Terscan: <span className="font-bold">{form.baris.reduce((n, b) => n + (Number(b.qty) || 0), 0)}</span> item, {form.baris.length} jenis</p>
@@ -954,6 +884,7 @@ export default function BarangKeluarGudang() {
                             <SearchableSelect
                               value={b.itemId === null ? '' : String(b.itemId)}
                               onChange={(itemId) => pilihMaterial(b.key, itemId)}
+                              onSearch={searchItems} pending={itemPending}
                               options={pilihanMaterial(b)}
                               placeholder="Pilih material"
                               emptyText="Material tidak ditemukan"
@@ -966,7 +897,16 @@ export default function BarangKeluarGudang() {
                         )}
                         <td className={`${formCellClass} px-2 text-center text-gray-700`}>{b.unit}</td>
                         <td className={`${formCellClass} px-2 text-center font-mono text-xs text-gray-600`}>{b.code}</td>
-                        <td className={`${formCellClass} px-2 text-center`}>{selDokubah(b)}</td>
+                        <td className={`${formCellClass} px-2 text-center`}>
+                          <input
+                            type="text"
+                            value={b.dokubah}
+                            onChange={(e) => patchBaris(b.key, { dokubah: e.target.value })}
+                            placeholder="Isi Dokubah"
+                            aria-label={`Dokubah ${nama}`}
+                            className="w-full min-w-28 border border-gray-300 rounded-md px-2 py-1.5 text-sm"
+                          />
+                        </td>
                         <td className={`${formCellClass} px-2 py-1.5`}>
                           <div className="flex items-center justify-center">
                             <button type="button" aria-label={`Kurangi ${nama}`} disabled={Number(b.qty) <= 1} onClick={() => patchBaris(b.key, { qty: String(Math.max(Number(b.qty) - 1, 1)) })} className="p-1 text-gray-500 hover:text-gray-900 disabled:opacity-30"><Minus className="w-4 h-4" /></button>
@@ -997,8 +937,8 @@ export default function BarangKeluarGudang() {
               </table>
             </div>
 
-            {modalError && (
-              <p role="alert" className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{modalError}</p>
+            {(modalError || itemError) && (
+              <p role="alert" className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{modalError || itemError}</p>
             )}
 
             <div className="flex flex-wrap items-center justify-between gap-4 mt-3">
@@ -1076,22 +1016,20 @@ export default function BarangKeluarGudang() {
               </div>
               <div>
                 <label htmlFor="edit-bk-barang" className={labelClass}>Nama Barang</label>
-                <div className="relative">
-                  <select
-                    id="edit-bk-barang"
-                    value={editForm.itemId}
-                    onChange={(e) => updateEdit({ itemId: e.target.value })}
-                    className={`${fieldClass} appearance-none cursor-pointer`}
-                  >
-                    <option value="" disabled>Pilih barang</option>
-                    {/* Barang lama tetap muncul walau tidak termasuk 100 barang yang dimuat */}
-                    {editLine && !items.some((it) => it.id === editLine.itemId) && (
-                      <option value={editLine.itemId}>{editLine.itemName}</option>
-                    )}
-                    {items.map((it) => <option key={it.id} value={it.id}>{it.name}</option>)}
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
-                </div>
+                <SearchableSelect
+                  value={editForm.itemId}
+                  onChange={(itemId) => { const it = items.find((x) => String(x.id) === itemId); updateEdit(it ? { itemId, picked: { name: it.name, code: it.code } } : itemId === editForm.itemId ? {} : { itemId, picked: undefined }); }}
+                  onSearch={searchItems} pending={itemPending}
+                  options={[
+                    // Barang terpilih (lama atau baru) tetap muncul walau di luar hasil pencarian terakhir
+                    ...(!items.some((it) => String(it.id) === editForm.itemId)
+                      ? [{ value: editForm.itemId, label: editForm.picked?.name ?? editLine?.itemName ?? '' }] : []),
+                    ...items.map((it) => ({ value: String(it.id), label: it.name })),
+                  ]}
+                  placeholder="Pilih barang"
+                  aria-label="Nama Barang"
+                  className={`${fieldClass} cursor-pointer`}
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -1100,7 +1038,7 @@ export default function BarangKeluarGudang() {
                     id="edit-bk-kode"
                     type="text"
                     readOnly
-                    value={items.find((it) => String(it.id) === editForm.itemId)?.code ?? editLine?.itemCode ?? '-'}
+                    value={(editForm.picked ? editForm.picked.code : editLine?.itemCode) ?? '-'}
                     className={`${fieldClass} bg-gray-50 cursor-default font-mono text-xs`}
                   />
                 </div>
@@ -1127,8 +1065,8 @@ export default function BarangKeluarGudang() {
               </div>
             )}
 
-            {editError && (
-              <p role="alert" className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{editError}</p>
+            {(editError || itemError) && (
+              <p role="alert" className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{editError || itemError}</p>
             )}
 
             <div className="flex justify-end gap-3 mt-6">
@@ -1211,11 +1149,13 @@ export default function BarangKeluarGudang() {
               </table>
             </div>
 
-            <p className={`mt-4 text-sm ${bisaEdit(detailTrx, now) ? 'text-gray-600' : 'text-red-600'}`}>
-              {bisaEdit(detailTrx, now)
-                ? `Bisa diedit sampai ${tampilWaktu(batasEdit(detailTrx))}`
-                : 'Sudah lewat 1 hari, tidak bisa diedit'}
-            </p>
+            <WithNow>{(now) => (
+              <p className={`mt-4 text-sm ${bisaEdit(detailTrx, now) ? 'text-gray-600' : 'text-red-600'}`}>
+                {bisaEdit(detailTrx, now)
+                  ? `Bisa diedit sampai ${tampilWaktu(batasEdit(detailTrx))}`
+                  : 'Sudah lewat 1 hari, tidak bisa diedit'}
+              </p>
+            )}</WithNow>
           </div>
         </div>
       )}
