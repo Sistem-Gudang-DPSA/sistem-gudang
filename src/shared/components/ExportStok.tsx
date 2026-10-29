@@ -63,7 +63,7 @@ export async function exportKartuExcel(data: KartuStokData) {
     [],
     ['No.', 'Tanggal', 'Nama Proyek', 'Penggunaan', 'Masuk', 'Keluar', 'Saldo', 'Keterangan'],
     ['', '', '', 'Saldo awal', '', '', data.openingBalance, ''],
-    ...rows.map((r, i) => [i + 1, displayDate(r.date), r.project ?? '-', r.usage, r.qtyIn || '', r.qtyOut || '', r.saldo, r.note ?? '']),
+    ...rows.map((r, i) => [i + 1, displayDate(r.date), r.project ? `${r.project}${r.spk ? ` (SPK ${r.spk})` : ''}` : '-', r.usage, r.qtyIn || '', r.qtyOut || '', r.saldo, r.note ?? '']),
     ['', '', '', 'Saldo akhir', '', '', saldoAkhir, ''],
   ]);
   const book = XLSX.utils.book_new();
@@ -72,15 +72,36 @@ export async function exportKartuExcel(data: KartuStokData) {
 }
 
 export function printKartuPdf(data: KartuStokData) {
-  const { rows, saldoAkhir } = buildKartu(data);
+  const { rows, saldoAkhir, totalIn, totalOut } = buildKartu(data);
   const body = rows.map((r, i) => `<tr>
-    <td class="c">${i + 1}</td><td>${escapeHtml(displayDate(r.date))}</td>
-    <td>${escapeHtml(r.project ?? '-')}<div class="sub">${escapeHtml(r.usage)}</div></td>
-    <td class="r">${r.qtyIn || ''}</td><td class="r">${r.qtyOut || ''}</td><td class="r">${r.saldo}</td><td>${escapeHtml(r.note ?? '')}</td></tr>`).join('');
+    <td class="c">${i + 1}</td>
+    <td>${escapeHtml(displayDate(r.date))}</td>
+    <td>${escapeHtml(r.project ?? '-')}${r.spk && r.project !== 'Stok' ? `<div class="sub">SPK ${escapeHtml(r.spk)}</div>` : ''}</td>
+    <td>${escapeHtml(r.usage || '-')}</td>
+    <td class="r">${r.qtyIn || ''}</td>
+    <td class="r">${r.qtyOut || ''}</td>
+    <td class="r">${r.saldo}</td>
+    <td>${escapeHtml(r.note ?? '')}</td></tr>`).join('');
+
   printHtml(`Kartu Stok ${data.item.name}`, `<h1>Kartu Stok</h1>
     <div class="meta">Kode: <b>${escapeHtml(data.item.code ?? '-')}</b><br>Nama: <b>${escapeHtml(data.item.name)}</b><br>Satuan: ${escapeHtml(data.item.unit)}</div>
-    <table><thead><tr><th class="c">No.</th><th>Tanggal</th><th>Informasi Mutasi</th><th class="r">Masuk</th><th class="r">Keluar</th><th class="r">Saldo</th><th>Keterangan</th></tr></thead>
-    <tbody><tr><td></td><td></td><td><b>Saldo awal</b></td><td></td><td></td><td class="r">${data.openingBalance}</td><td></td></tr>
-    ${body}
-    <tr><td></td><td></td><td><b>Saldo akhir</b></td><td></td><td></td><td class="r"><b>${saldoAkhir}</b></td><td></td></tr></tbody></table>`);
+    <table>
+      <thead>
+        <tr>
+          <th rowspan="2" class="c">No.</th>
+          <th rowspan="2">Tanggal</th>
+          <th colspan="2" class="c">Informasi Mutasi</th>
+          <th rowspan="2" class="r">Masuk</th>
+          <th rowspan="2" class="r">Keluar</th>
+          <th rowspan="2" class="r">Saldo</th>
+          <th rowspan="2">Keterangan</th>
+        </tr>
+        <tr><th>Nama Proyek</th><th>Penggunaan</th></tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="4"><b>Saldo awal</b></td><td></td><td></td><td class="r">${data.openingBalance}</td><td></td></tr>
+        ${body}
+        <tr><td colspan="4"><b>Total / Saldo akhir</b></td><td class="r"><b>${totalIn}</b></td><td class="r"><b>${totalOut}</b></td><td class="r"><b>${saldoAkhir}</b></td><td></td></tr>
+      </tbody>
+    </table>`);
 }

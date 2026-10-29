@@ -5,7 +5,8 @@ export type KartuEntry = {
   date: string;        // YYYY-MM-DD
   createdAt: string;   // untuk urutan di tanggal yang sama
   type: MutasiTipe;
-  project: string | null; // nama proyek / item (barang keluar)
+  project: string | null;
+  spk: string | null;
   usage: string;          // penggunaan, contoh: "Pengambilan oleh Budi", "Penerimaan dari PT Makmur"
   qtyIn: number;
   qtyOut: number;
