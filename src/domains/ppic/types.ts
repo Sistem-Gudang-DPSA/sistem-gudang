@@ -220,6 +220,8 @@ export interface ApprovalListParams {
   endDate?: string;
   // Only purchase requests: whether at least one purchase order was made from the request.
   hasPurchaseOrder?: boolean;
+  sortBy?: string;
+  sortDir?: "asc" | "desc";
 }
 
 export type PenawaranApiStatus = "DRAFT" | "PUBLISH";
