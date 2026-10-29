@@ -3,7 +3,7 @@
 import { escapeHtml } from '@/shared/lib/escape-html';
 import { useCan } from '@/domains/auth/user-context';
 import React, { useState } from 'react';
-import { Search, Plus, Eye, Download } from 'lucide-react';
+import { Search, Plus, Eye, Download, Filter } from 'lucide-react';
 import Link from 'next/link';
 import { getStockOpname, listStockOpname } from '@/domains/inventory/api';
 import type { StockOpnameDetail } from '@/domains/inventory/types';
@@ -22,18 +22,19 @@ const periodeLabel = (month: number, year: number) => `Stok Opname ${BULAN[month
 export default function StockOpnameMasterGudang() {
   const canCreate = useCan('stock-opname.create');
   const { sort, toggle, params: sortParams } = useSort();
-  const [showFilter] = useState(false);
+  const [showFilter, setShowFilter] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterDay, setFilterDay] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
   const [filterYear, setFilterYear] = useState("");
+  const activeDateFilters = [filterMonth, filterYear].filter(Boolean).length;
 
   const [detail, setDetail] = useState<StockOpnameDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
   const [, setActionError] = useState('');
 
-  const filterKey = JSON.stringify([searchQuery, filterDay, filterMonth, filterYear, sortParams]);
+  const filterKey = JSON.stringify([searchQuery, filterMonth, filterYear, sortParams]);
   const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
   const page = pageState.key === filterKey ? pageState.page : 1;
   const viewKey = `${filterKey}|${page}`;
@@ -311,15 +312,15 @@ export default function StockOpnameMasterGudang() {
               </button>
             </Link>}
 
-            {/* <button
+            <button
               type="button"
               onClick={() => setShowFilter((v) => !v)}
               aria-expanded={showFilter}
-              className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors text-sm font-medium ${showFilter || countActiveFilters(filters) > 0 ? 'bg-orange-50 border-orange-300 text-orange-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+              className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors text-sm font-medium ${showFilter || activeDateFilters > 0 ? 'bg-orange-50 border-orange-300 text-orange-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
             >
               <Filter className="w-4 h-4" />
-              <span>Filter{countActiveFilters(filters) > 0 ? ` (${countActiveFilters(filters)})` : ''}</span>
-            </button> */}
+              <span>Filter{activeDateFilters > 0 ? ` (${activeDateFilters})` : ''}</span>
+            </button>
           </div>
         </div>
 
@@ -332,6 +333,7 @@ export default function StockOpnameMasterGudang() {
             onMonthChange={setFilterMonth}
             onYearChange={setFilterYear}
             onReset={() => { setFilterDay(''); setFilterMonth(''); setFilterYear(''); }}
+            showDay={false}
           />
         )}
 
