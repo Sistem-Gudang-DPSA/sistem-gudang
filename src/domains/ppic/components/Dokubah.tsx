@@ -4,7 +4,7 @@ import { escapeHtml } from '@/shared/lib/escape-html';
 import React, { useState } from 'react';
 import { useCan } from '@/domains/auth/user-context';
 import Link from 'next/link';
-import { Search, Funnel, Plus, Eye, CircleCheck, CircleX, Clock, FilePen, FileUp, Download, Edit2 } from 'lucide-react';
+import { Search, Funnel, Plus, Eye, CircleCheck, CircleX, Clock, FilePen, Edit2 } from 'lucide-react';
 import {
   buat_dokubah_path,
   editMaterialPath,

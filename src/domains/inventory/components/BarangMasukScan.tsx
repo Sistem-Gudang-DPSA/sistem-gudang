@@ -4,7 +4,6 @@ import { useAuthUser } from '@/domains/auth/user-context';
 import React, { useEffect, useRef, useState } from 'react';
 import { Camera, Minus, PackageCheck, Plus, ScanLine, Trash2, Undo2 } from 'lucide-react';
 import { createInboundScanBatch, getItemByCode, listItems } from '@/domains/inventory/api';
-import type { StatusQc } from '@/domains/inventory/types';
 import { todayIso } from '@/domains/inventory/date';
 import { ApiError } from '@/shared/lib/api-client';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';

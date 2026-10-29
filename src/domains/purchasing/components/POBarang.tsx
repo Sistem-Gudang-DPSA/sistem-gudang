@@ -21,11 +21,11 @@ export default function POBarang() {
   const filterKey = searchQuery.trim();
   const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
   const page = pageState.key === filterKey ? pageState.page : 1;
-  const { sort, toggle, params: useParams } = useSort();
+  const { sort, toggle } = useSort();
   const setPage = (next: number) => setPageState({ key: filterKey, page: next });
   const [Exporting, setExporting] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
-  const [filters, setFilters] = useState(emptyBarangFilters);
+  const [filters] = useState(emptyBarangFilters);
   const [filterDay, setFilterDay] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
   const [filterYear, setFilterYear] = useState("");

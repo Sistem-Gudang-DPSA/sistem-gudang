@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Search, Plus, Filter } from 'lucide-react';
+import { Search, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { createSupplier, deleteSupplier, listSuppliers, updateSupplier } from '@/domains/purchasing/api';
 import type { Pajak, Supplier } from '@/domains/purchasing/types';
@@ -25,7 +25,7 @@ export default function DataSupplierPurchasing() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState("");
-  const { sort, toggle, reset: resetSort, params: sortParams } = useSort();
+  const { sort, toggle, params: sortParams } = useSort();
 
   const [actionError, setActionError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");

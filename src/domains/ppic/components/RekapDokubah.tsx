@@ -4,7 +4,7 @@ import { escapeHtml } from '@/shared/lib/escape-html';
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Search, ChevronDown, Download, FileUp } from 'lucide-react';
+import { Search, ChevronDown } from 'lucide-react';
 import { getStatusBadge, STATUS_OPTIONS } from '@/domains/ppic/components/Dokubah';
 import { detailRekapDokubahPath, formatRupiah, type StatusDokubah } from '@/domains/ppic/data/dokubah';
 import { listDokubahRows, STATUS_TO_UI, statusToApi } from '@/domains/ppic/api';

@@ -21,11 +21,10 @@ function setup(extra: Record<string, unknown> = {}, rows: unknown = paged([inbou
   return { api, view };
 }
 const lastList = (api: ReturnType<typeof installFakeApi>) => api.calls('GET /api/v1/inbound').at(-1)!.query;
-const textbox = (ph: string) => screen.getByPlaceholderText(ph) as HTMLInputElement;
 // DateFilter selects have no label; pick each one by its placeholder option (Hari / Bulan / Tahun).
 const dateSelect = (placeholder: string) => screen.getByRole('option', { name: placeholder }).closest('select') as HTMLSelectElement;
 
-async function openBaru(api: ReturnType<typeof installFakeApi>) {
+async function openBaru() {
   await screen.findByText('Triplex 1');
   fireEvent.click(screen.getByText('Barang Baru'));
   await screen.findByText('FORM BARANG MASUK');
@@ -100,15 +99,15 @@ describe('BarangMasuk scan', () => {
 describe('BarangMasuk create inbound', () => {
   it('validates required fields', async () => {
     const { api } = setup();
-    await openBaru(api);
+    await openBaru();
     fireEvent.click(screen.getByText('Simpan'));
     expect(screen.getByText('Lengkapi semua isian.')).not.toBeNull();
     expect(api.calls('POST /api/v1/inbound').length).toBe(0);
   });
 
   it('keeps digits only in qty fields, maxLength 9', async () => {
-    const { api } = setup();
-    await openBaru(api);
+    setup();
+    await openBaru();
     const qty = screen.getAllByPlaceholderText('0') as HTMLInputElement[];
     for (const el of qty) {
       fireEvent.change(el, { target: { value: '1e-2.5' } });
@@ -119,7 +118,7 @@ describe('BarangMasuk create inbound', () => {
 
   it('posts integers and closes on success', async () => {
     const { api } = setup({ 'POST /api/v1/inbound': { id: 9 } });
-    await openBaru(api);
+    await openBaru();
     await fillBaru();
     fireEvent.change(document.querySelector('input[type="date"]')!, { target: { value: '2026-04-01' } });
     fireEvent.change(document.querySelector('select option[value="PARTIAL_RETUR"]')!.parentElement!, { target: { value: 'PARTIAL_RETUR' } });
@@ -132,7 +131,7 @@ describe('BarangMasuk create inbound', () => {
   it('posts the id of the chosen item when two items share a name', async () => {
     const dup = paged([{ id: 1, code: 'BRG-1', name: 'Triplex' }, { id: 2, code: 'BRG-2', name: 'Triplex' }]);
     const { api } = setup({ 'GET /api/v1/items': dup, 'POST /api/v1/inbound': { id: 9 } });
-    await openBaru(api);
+    await openBaru();
     await pickItem('Triplex (BRG-2)');
     const qty = screen.getAllByPlaceholderText('0') as HTMLInputElement[];
     fireEvent.change(qty[0], { target: { value: '1' } });
@@ -144,7 +143,7 @@ describe('BarangMasuk create inbound', () => {
 
   it('searches items on the server as the name is typed, and shows a load error', async () => {
     const { api } = setup();
-    await openBaru(api);
+    await openBaru();
     fireEvent.click(screen.getByRole('button', { name: 'Nama Barang' }));
     fireEvent.change(screen.getByLabelText('Cari Nama Barang'), { target: { value: 'Triplex 1' } });
     await waitFor(() => expect(api.calls('GET /api/v1/items').some((c) => c.query.get('search') === 'Triplex 1')).toBe(true));
@@ -161,8 +160,8 @@ describe('BarangMasuk create inbound', () => {
   it('shows backend error and keeps form open; disables save while saving', async () => {
     let release!: () => void;
     const gate = new Promise<void>((r) => (release = r));
-    const { api } = setup({ 'POST /api/v1/inbound': () => fail(409, 'Konflik data') });
-    await openBaru(api);
+    setup({ 'POST /api/v1/inbound': () => fail(409, 'Konflik data') });
+    await openBaru();
     await fillBaru();
     fireEvent.click(screen.getByText('Simpan'));
     expect((screen.getByText('Simpan') as HTMLButtonElement).disabled).toBe(true);

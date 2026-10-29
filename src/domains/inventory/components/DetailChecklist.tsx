@@ -8,8 +8,6 @@ import type { ChecklistDokubahDetail } from "@/domains/inventory/types";
 import { ApiError } from "@/shared/lib/api-client";
 import { useApiData } from "@/shared/lib/use-api-data";
 
-type KolomRealisasi = { id: string };
-
 type DataRealisasi = {
   tanggal: string;
   pengambil: string;
@@ -189,7 +187,8 @@ function ChecklistForm({ detail }: { detail: ChecklistDokubahDetail }) {
       ...prev,
       kolom: prev.kolom.filter((k) => k.id !== kolomId),
       baris: prev.baris.map((b) => {
-        const { [kolomId]: _dibuang, ...sisa } = b.realisasi;
+        const sisa = { ...b.realisasi };
+        delete sisa[kolomId];
         return { ...b, realisasi: sisa };
       }),
     }));
@@ -304,7 +303,7 @@ function ChecklistForm({ detail }: { detail: ChecklistDokubahDetail }) {
                       </td>
                       
                       {/* Sel Realisasi yang berulang (Tampil di setiap baris) */}
-                      {form.kolom.map((k, ki) => (
+                      {form.kolom.map((k) => (
                         <td key={k.id} className={`${cellClass} p-2 align-top min-w-40 bg-gray-50/20 relative group`}>
                            {/* Tombol hapus kolom khusus di baris pertama saja agar tidak menumpuk */}
                            {i === 0 && form.kolom.length > 1 && (

@@ -25,8 +25,8 @@ export default function DataBarangPurchasing() {
   const canEditPrice = canUpdateItem && canSetPrice;
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
-  const [units, setUnits] = useState<string[]>([]);
+  const [categories] = useState<string[]>([]);
+  const [units] = useState<string[]>([]);
   const [Exporting, setExporting] = useState(false);
   const [filters, setFilters] = useState(emptyBarangFilters);
   const [showFilter, setShowFilter] = useState(false);

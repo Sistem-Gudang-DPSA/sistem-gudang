@@ -20,7 +20,7 @@ export default function EstimasiPenawaranHarga() {
     const [searchQuery, setSearchQuery] = useState('');
     const [Exporting, setExporting] = useState(false);
     const [showFilter, setShowFilter] = useState(false);
-    const [filters, setFilters] = useState(emptyBarangFilters);
+    const [filters] = useState(emptyBarangFilters);
     const [filterDay, setFilterDay] = useState("");
     const [filterMonth, setFilterMonth] = useState("");
     const [filterYear, setFilterYear] = useState("");
