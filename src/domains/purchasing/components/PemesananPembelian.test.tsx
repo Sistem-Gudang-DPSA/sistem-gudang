@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, cleanup, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, cleanup, screen, fireEvent } from '@testing-library/react';
 import { installFakeApi, paged, fail } from '@/test/fake-api';
 import PemesananPembelian from './PemesananPembelian';
 import { AuthUserProvider } from '@/domains/auth/user-context';

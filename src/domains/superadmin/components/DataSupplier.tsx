@@ -12,8 +12,6 @@ import { useClampPage } from '@/shared/lib/use-page';
 import Pagination from '@/shared/components/Pagination';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import EditModeBar, { useBatchEdit } from '@/shared/components/EditModeBar';
-import { ImportExcelButton } from '@/shared/components/ImportExcelButton';
-import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';
 
 // kolom teks yang bisa diubah langsung di tabel pada mode edit (batas panjang mengikuti kolom BE)
 type TextKey = 'code' | 'name' | 'bank' | 'npwp' | 'phone' | 'address';
@@ -32,7 +30,6 @@ export default function DataSupplierPurchasing() {
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState("");
 
-  const [exporting, setExporting] = useState(false);
 
   const [actionError, setActionError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");

@@ -2,7 +2,7 @@
 
 import { escapeHtml } from '@/shared/lib/escape-html';
 import React, { useRef, useState } from 'react';
-import { Search, ChevronDown, CalendarDays, FileUp, Download } from 'lucide-react';
+import { Search, ChevronDown, CalendarDays } from 'lucide-react';
 import { listMutations } from '@/domains/ppic/api';
 import { listLocations } from '@/domains/inventory/api';
 import Pagination from '@/shared/components/Pagination';

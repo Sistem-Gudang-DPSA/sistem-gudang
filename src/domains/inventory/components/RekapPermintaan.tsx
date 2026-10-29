@@ -2,7 +2,7 @@
 
 import { escapeHtml } from '@/shared/lib/escape-html';
 import React, { useState } from 'react';
-import { Search, FileUp, Download, Eye, Loader2, AlertCircle } from 'lucide-react';
+import { Search, Eye, Loader2, AlertCircle } from 'lucide-react';
 import { exportRequestsReport, getMaterialRequest, getRequestsReport } from '@/domains/inventory/api';
 import { displayDate, todayIso } from '@/domains/inventory/date';
 import type { MaterialRequestDetail, MaterialRequestStatus } from '@/domains/inventory/types';

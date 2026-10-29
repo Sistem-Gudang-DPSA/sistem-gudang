@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import React, { useEffect, useState } from 'react';
 import { useCan } from '@/domains/auth/user-context';
-import { Search, Plus, Download, Edit2, Trash2, Filter, MoreHorizontal, Images } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Filter, MoreHorizontal, Images } from 'lucide-react';
 import { listItems, createItem, deleteItem, listLocations, updateItem, listItemCategories, listItemUnits } from '@/domains/inventory/api';
 import type { ItemListRow, Location } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';

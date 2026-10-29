@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Filter, Plus, Search } from 'lucide-react';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
+import { usePage } from '@/shared/lib/use-page';
 import { formatTanggal } from '@/domains/ppic/data/dokubah';
 import { fetchPermintaanList } from '@/domains/ppic/data/pembelian';
 import { lihatPermintaanPath } from '@/domains/purchasing/data/pembelian';
@@ -19,19 +20,17 @@ export default function POBarang() {
   const canCreate = useCan('purchase-order.create');
   const [searchQuery, setSearchQuery] = useState('');
   const filterKey = searchQuery.trim();
-  const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
-  const page = pageState.key === filterKey ? pageState.page : 1;
-  const { sort, toggle, params: useParams } = useSort();
-  const setPage = (next: number) => setPageState({ key: filterKey, page: next });
+  const { sort, toggle, params: sortParams } = useSort();
+  const [page, setPage] = usePage(`${filterKey}|${JSON.stringify(sortParams)}`);
   const [Exporting, setExporting] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
-  const [filters, setFilters] = useState(emptyBarangFilters);
+  const [filters] = useState(emptyBarangFilters);
   const [filterDay, setFilterDay] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
   const [filterYear, setFilterYear] = useState("");
   const { data: result, loading, error } = useApiData(
-    () => fetchPermintaanList({ page, search: filterKey }),
-    `${filterKey}|${page}`,
+    () => fetchPermintaanList({ page, search: filterKey, ...sortParams }),
+    `${filterKey}|${JSON.stringify(sortParams)}|${page}`,
     'Gagal memuat rekap pembelian.',
   );
   const filteredData = result?.rows ?? [];

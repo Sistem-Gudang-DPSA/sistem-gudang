@@ -2,7 +2,7 @@
 
 import { escapeHtml } from '@/shared/lib/escape-html';
 import React, { useState } from 'react';
-import { ChevronDown, Download, FileUp } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { getStockOpnameSummary, listMutations } from '@/domains/ppic/api';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
