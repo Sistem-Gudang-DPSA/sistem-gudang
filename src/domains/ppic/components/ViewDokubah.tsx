@@ -5,7 +5,7 @@ import React from 'react';
 import { useCan } from '@/domains/auth/user-context';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Edit2, Printer } from 'lucide-react';
+import { ArrowLeft, Edit2 } from 'lucide-react';
 import {
   dokubah_path,
   editMaterialPath,

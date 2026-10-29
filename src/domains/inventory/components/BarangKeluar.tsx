@@ -3,7 +3,7 @@
 import { useCan } from '@/domains/auth/user-context';
 import React, { useEffect, useRef, useState } from 'react';
 import { Camera, Search, Calendar, Plus, Minus, AlertCircle, Download, X, ChevronRight, Pencil, Lock, Filter, ScanLine, Trash2 } from 'lucide-react';
-import { createOutbound, exportOutboundReport, getItemByCode, listOutbound, updateOutbound, deleteItem } from '@/domains/inventory/api';
+import { createOutbound, exportOutboundReport, getItemByCode, listOutbound, updateOutbound } from '@/domains/inventory/api';
 import { getTrackingSpk } from '@/domains/ppic/api';
 import type { TrackingSpkDetail } from '@/domains/ppic/types';
 import type { RecipientType, OutboundRow } from '@/domains/inventory/types';
@@ -132,7 +132,6 @@ export default function BarangKeluarGudang() {
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
   const [peringatan, setPeringatan] = useState("");
-  const [actionError, setActionError] = useState<string>('');
   // Transaksi yang sedang disorot kursor; semua barisnya ikut disorot
   const [hoverTrx, setHoverTrx] = useState<number | null>(null);
   // Transaksi yang rincian barangnya sedang dibuka di tabel, dan transaksi yang rinciannya tampil di pop-up

@@ -5,7 +5,7 @@ import { useCan } from '@/domains/auth/user-context';
 import NoPermission from './NoPermission';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus } from 'lucide-react';
 import {
   dokubah_path,
   formatAngka,
@@ -71,7 +71,7 @@ function EditMaterialForm({ dokubah, message }: { dokubah?: DokubahItem; message
   const router = useRouter();
   const canUpdate = useCan('dokubah.update');
   const [draft, setDraft] = useState<BahanDraftRow[]>(() => dokubah?.bahan.map(toDraftRow) ?? []);
-  const [showError, setShowError] = useState(false);
+  const [, setShowError] = useState(false);
   const [saveError, setSaveError] = useState('');
 
   const searchParams = useSearchParams();
@@ -111,7 +111,6 @@ function EditMaterialForm({ dokubah, message }: { dokubah?: DokubahItem; message
   // Filter baris kosong agar tidak ikut memicu validasi error
   const activeRows = draft.filter((b) => !b.isNew || !isRowKosong(b));
   const hasInvalid = activeRows.some((b) => !isAngkaValid(b.kuota) || !isAngkaValid(b.hargaSatuan) || !b.kodeBarang.trim() || !b.namaBahan.trim());
-  const invalidClass = (value: string) => (showError && !isAngkaValid(value) ? 'bg-red-50' : 'bg-white');
 
   const handleSimpan = async (e: React.FormEvent) => {
     e.preventDefault();

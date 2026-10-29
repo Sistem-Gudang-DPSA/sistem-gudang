@@ -3,18 +3,16 @@
 import { escapeHtml } from '@/shared/lib/escape-html';
 import { useCan } from '@/domains/auth/user-context';
 import React, { useState } from 'react';
-import { Search, Plus, Eye, Filter, Download } from 'lucide-react';
+import { Search, Plus, Eye, Download } from 'lucide-react';
 import Link from 'next/link';
 import { getStockOpname, listStockOpname } from '@/domains/inventory/api';
 import type { StockOpnameDetail } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
-import BarangFilterPanel, { countActiveFilters, emptyBarangFilters } from './BarangFilterPanel';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import DateFilter from '@/shared/components/DateFilter';
-import { toDateRange } from '@/domains/inventory/date';
-import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';
+import { ExportExcellButton } from '@/shared/components/Tombol';
 
 const cell = (value: unknown) => escapeHtml(value ?? '-');
 
@@ -24,8 +22,7 @@ const periodeLabel = (month: number, year: number) => `Stok Opname ${BULAN[month
 export default function StockOpnameMasterGudang() {
   const canCreate = useCan('stock-opname.create');
   const { sort, toggle, params: sortParams } = useSort();
-  const [filters, setFilters] = useState(emptyBarangFilters);
-  const [showFilter, setShowFilter] = useState(false);
+  const [showFilter] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterDay, setFilterDay] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
@@ -34,9 +31,7 @@ export default function StockOpnameMasterGudang() {
   const [detail, setDetail] = useState<StockOpnameDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
-  const [actionError, setActionError] = useState('');
-
-  const dateRange = toDateRange(filterDay, filterMonth, filterYear);
+  const [, setActionError] = useState('');
 
   const filterKey = JSON.stringify([searchQuery, filterDay, filterMonth, filterYear, sortParams]);
   const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
