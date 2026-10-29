@@ -214,6 +214,7 @@ export interface CreateOutboundInput {
   // Defaults to BAHAN_BAKU on the API; WIP and Barang Jadi are not handled by the FE yet.
   warehouseType?: WarehouseType;
   recipientType: RecipientType;
+  dokubahCode?: string; 
   notes?: string;
   lines: { itemId: number; qty: number; pic: string }[];
 }
@@ -368,3 +369,4 @@ export type ChecklistDokubahDetail = {
   dokubah: { id: number; kodeDokubah: string; namaClient: string; namaItem: string; noSpk: string };
   checklist: (ChecklistDokubahInput & { updatedAt: string }) | null;
 };
+
