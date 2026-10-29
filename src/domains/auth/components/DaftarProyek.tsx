@@ -17,19 +17,22 @@ type Proyek = {
   spkMasuk: string;
 };
 
-const ITEMS_PER_PAGE = 5; // Jumlah item per halaman
+const PAGE_SIZE_OPTIONS = [20, 50, 100];
+const DEFAULT_PAGE_SIZE = 20;
 
 export default function DaftarProyekPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const debouncedSearch = useDebouncedValue(searchTerm);
-  const [currentPage, setCurrentPage] = usePage(debouncedSearch);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  // Search or page size change resets to page 1.
+  const [currentPage, setCurrentPage] = usePage(`${debouncedSearch}|${pageSize}`);
 
   const [refreshing, setRefreshing] = useState(false);
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
 
   // Tracking list has no SPK date, so spkMasuk shows "-"
   const { data: spkList, loading, error, reload } = useApiData(
-    () => listTrackingSpk(debouncedSearch || undefined, 100),
+    () => listTrackingSpk(debouncedSearch || undefined),
     `daftar-proyek|${debouncedSearch}`,
   );
 
@@ -39,7 +42,7 @@ export default function DaftarProyekPage() {
     setRefreshing(true);
     setNotice(null);
     try {
-      await listTrackingSpk(debouncedSearch || undefined, 100, undefined, true);
+      await listTrackingSpk(debouncedSearch || undefined, undefined, undefined, true);
       reload();
       setNotice({ ok: true, text: "Data tracking berhasil diperbarui." });
     } catch (err) {
@@ -64,10 +67,9 @@ export default function DaftarProyekPage() {
   );
 
   // Logika Pagination Data
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const paginatedData = filteredData.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * pageSize;
+  const paginatedData = filteredData.slice(startIndex, startIndex + pageSize);
 
-  // Reset ke halaman 1 saat mengetik pencarian
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
   };
@@ -184,10 +186,24 @@ export default function DaftarProyekPage() {
 
         {/* Komponen Pagination */}
         {filteredData.length > 0 && (
-          <div className="mt-6 flex justify-end border-t border-gray-100 pt-4">
+          <div className="mt-6 flex flex-col gap-3 border-t border-gray-100 pt-4">
+            <label className="flex items-center justify-end gap-2 text-xs text-gray-500">
+              Baris per halaman
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="px-2 py-1 bg-white border border-gray-200 rounded-md text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+              >
+                {PAGE_SIZE_OPTIONS.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+            </label>
             <Pagination
               page={currentPage}
-              pageSize={ITEMS_PER_PAGE}
+              pageSize={pageSize}
               total={filteredData.length}
               onPageChange={setCurrentPage}
             />

@@ -32,17 +32,21 @@ type Props = {
   onYearChange: (v: string) => void;
   onReset: () => void
   className?: string;
+  // Set false when the API only filters by month and year (e.g. stock opname).
+  showDay?: boolean;
 };
 
-export default function DateFilter({ day, month, year, onDayChange, onMonthChange, onYearChange, onReset, className }: Props) {
+export default function DateFilter({ day, month, year, onDayChange, onMonthChange, onYearChange, onReset, className, showDay = true }: Props) {
   return (
     <div className={className ?? 'flex flex-wrap items-center gap-2 px-5 py-3 border-b border-gray-100 bg-white'}>
-      <Field>
-        <select value={day} onChange={(e) => onDayChange(e.target.value)} className={`${selectClass} w-24`}>
-          <option value="">Hari</option>
-          {DAYS.map((d) => <option key={d} value={d}>{d}</option>)}
-        </select>
-      </Field>
+      {showDay && (
+        <Field>
+          <select value={day} onChange={(e) => onDayChange(e.target.value)} className={`${selectClass} w-24`}>
+            <option value="">Hari</option>
+            {DAYS.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
+        </Field>
+      )}
 
       <Field>
         <select value={month} onChange={(e) => onMonthChange(e.target.value)} className={`${selectClass} w-36`}>
@@ -58,7 +62,7 @@ export default function DateFilter({ day, month, year, onDayChange, onMonthChang
         </select>
       </Field>
 
-      {(day || month || year) && (
+      {((showDay && day) || month || year) && (
         <button type="button" onClick={onReset} className="text-xs text-orange-600 font-bold hover:underline ml-1">
           Reset
         </button>

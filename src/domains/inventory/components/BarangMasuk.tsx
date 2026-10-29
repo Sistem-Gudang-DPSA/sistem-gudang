@@ -30,7 +30,7 @@ const emptyKembali = { item: null as PickedItem | null, tanggal: todayIso(), jum
 export default function BarangMasukGudang() {
   const canCreate = useCan('inbound.create');
   const { sort, toggle, params: sortParams } = useSort();
-  const [filters, setFilters] = useState(emptyBarangFilters);
+  const [filters] = useState(emptyBarangFilters);
   const [showFilter, setShowFilter] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterDay, setFilterDay] = useState("");

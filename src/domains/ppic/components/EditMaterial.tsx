@@ -5,7 +5,7 @@ import { useCan } from '@/domains/auth/user-context';
 import NoPermission from './NoPermission';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus } from 'lucide-react';
 import {
   dokubah_path,
   formatAngka,
@@ -111,7 +111,8 @@ function EditMaterialForm({ dokubah, message }: { dokubah?: DokubahItem; message
   // Filter baris kosong agar tidak ikut memicu validasi error
   const activeRows = draft.filter((b) => !b.isNew || !isRowKosong(b));
   const hasInvalid = activeRows.some((b) => !isAngkaValid(b.kuota) || !isAngkaValid(b.hargaSatuan) || !b.kodeBarang.trim() || !b.namaBahan.trim());
-  const invalidClass = (value: string) => (showError && !isAngkaValid(value) ? 'bg-red-50' : 'bg-white');
+  // Input numerik merah setelah Simpan ditekan; 'bg-transparent' menggantikan 'bg-white' karena sel input memang transparan
+  const invalidClass = (value: string) => (showError && !isAngkaValid(value) ? 'bg-red-50' : 'bg-transparent');
 
   const handleSimpan = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -221,7 +222,8 @@ function EditMaterialForm({ dokubah, message }: { dokubah?: DokubahItem; message
                           onChange={(e) => handleRowChange(row.id, 'kuota', digitsOnly(e.target.value))}
                           placeholder="0"
                           aria-label={`Kuota alokasi baris ${nomor}`}
-                          className={`${cellInputClass} min-w-24`}
+                          aria-invalid={showError && !kosong && !isAngkaValid(row.kuota)}
+                          className={`${cellInputClass} min-w-24 ${kosong ? 'bg-transparent' : invalidClass(row.kuota)}`}
                         />
                         <input
                           type="text"

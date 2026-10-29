@@ -2,11 +2,9 @@
 
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
 
 export default function BuatSPHBaru() {
 
-    const [formError, setFormError] = useState("");
 
     const header = (
         <div className="flex items-center gap-3 mb-6">

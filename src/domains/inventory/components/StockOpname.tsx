@@ -3,18 +3,16 @@
 import { escapeHtml } from '@/shared/lib/escape-html';
 import { useCan } from '@/domains/auth/user-context';
 import React, { useState } from 'react';
-import { Search, Plus, Eye, Filter, Download } from 'lucide-react';
+import { Search, Plus, Eye, Download, Filter } from 'lucide-react';
 import Link from 'next/link';
 import { getStockOpname, listStockOpname } from '@/domains/inventory/api';
 import type { StockOpnameDetail } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
-import BarangFilterPanel, { countActiveFilters, emptyBarangFilters } from './BarangFilterPanel';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import DateFilter from '@/shared/components/DateFilter';
-import { toDateRange } from '@/domains/inventory/date';
-import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';
+import { ExportExcellButton } from '@/shared/components/Tombol';
 
 const cell = (value: unknown) => escapeHtml(value ?? '-');
 
@@ -24,21 +22,19 @@ const periodeLabel = (month: number, year: number) => `Stok Opname ${BULAN[month
 export default function StockOpnameMasterGudang() {
   const canCreate = useCan('stock-opname.create');
   const { sort, toggle, params: sortParams } = useSort();
-  const [filters, setFilters] = useState(emptyBarangFilters);
   const [showFilter, setShowFilter] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterDay, setFilterDay] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
   const [filterYear, setFilterYear] = useState("");
+  const activeDateFilters = [filterMonth, filterYear].filter(Boolean).length;
 
   const [detail, setDetail] = useState<StockOpnameDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
-  const [actionError, setActionError] = useState('');
+  const [, setActionError] = useState('');
 
-  const dateRange = toDateRange(filterDay, filterMonth, filterYear);
-
-  const filterKey = JSON.stringify([searchQuery, filterDay, filterMonth, filterYear, sortParams]);
+  const filterKey = JSON.stringify([searchQuery, filterMonth, filterYear, sortParams]);
   const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
   const page = pageState.key === filterKey ? pageState.page : 1;
   const viewKey = `${filterKey}|${page}`;
@@ -316,15 +312,15 @@ export default function StockOpnameMasterGudang() {
               </button>
             </Link>}
 
-            {/* <button
+            <button
               type="button"
               onClick={() => setShowFilter((v) => !v)}
               aria-expanded={showFilter}
-              className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors text-sm font-medium ${showFilter || countActiveFilters(filters) > 0 ? 'bg-orange-50 border-orange-300 text-orange-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+              className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors text-sm font-medium ${showFilter || activeDateFilters > 0 ? 'bg-orange-50 border-orange-300 text-orange-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
             >
               <Filter className="w-4 h-4" />
-              <span>Filter{countActiveFilters(filters) > 0 ? ` (${countActiveFilters(filters)})` : ''}</span>
-            </button> */}
+              <span>Filter{activeDateFilters > 0 ? ` (${activeDateFilters})` : ''}</span>
+            </button>
           </div>
         </div>
 
@@ -337,6 +333,7 @@ export default function StockOpnameMasterGudang() {
             onMonthChange={setFilterMonth}
             onYearChange={setFilterYear}
             onReset={() => { setFilterDay(''); setFilterMonth(''); setFilterYear(''); }}
+            showDay={false}
           />
         )}
 

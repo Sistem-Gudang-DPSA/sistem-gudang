@@ -38,13 +38,13 @@ export async function listDokubah(params?: DokubahListParams): Promise<Paginated
 export const listDokubahRows = (params?: DokubahListParams) =>
   apiClient.get<PaginatedResult<DokubahApiRow> & { summary?: DokubahSummary }>(`/api/v1/dokubah${toQuery(params)}`);
 
-// SPK numbers and client names from the tracking system. The API caps limit at 100 (default 50); search matches noSpk or client.
+// SPK numbers and client names from the tracking system. Omit limit to get every row; pass it only for a short list (e.g. a typeahead). search matches noSpk or client.
 // With client, only that client's SPKs come back (exact name, case-insensitive).
 // refresh: true makes the API reload its tracking cache first (~2 s); otherwise the cached list is served.
 export const listTrackingSpk = (search?: string, limit?: number, client?: string, refresh?: boolean) =>
   apiClient.get<TrackingSpk[]>(`/api/v1/tracking/spk${toQuery({ search, limit, client, refresh: refresh ? 1 : undefined })}`);
 
-// Unique client names from tracking, sorted. The API caps limit at 100 (default 50).
+// Unique client names from tracking, sorted. Omit limit to get every client; pass it only for a short list.
 export const listTrackingClients = async (search?: string, limit?: number, refresh?: boolean) =>
   (await apiClient.get<{ client: string }[]>(`/api/v1/tracking/clients${toQuery({ search, limit, refresh: refresh ? 1 : undefined })}`)).map((c) => c.client);
 

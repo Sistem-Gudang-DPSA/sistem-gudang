@@ -50,7 +50,6 @@ export default function LaporanBarangMasuk() {
     const [selectedDetail, setSelectedDetail] = useState<InboundRow | null>(null);
 
     const { sort, toggle, params: sortParams } = useSort();
-    const [showFilter, setShowFilter] = useState(false);
 
     const [actionError, setActionError] = useState('');
     const [exporting, setExporting] = useState(false);

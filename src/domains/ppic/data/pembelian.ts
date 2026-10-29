@@ -56,8 +56,8 @@ const toPermintaan = (req: ApprovalRequest): PermintaanPembelian => {
   };
 };
 
-export const fetchPermintaanList = async ({ page = 1, search = '' }: { page?: number; search?: string } = {}) => {
-  const res = await listApprovals({ page, pageSize: 20, type: 'purchase-request', search: search.trim() || undefined });
+export const fetchPermintaanList = async ({ page = 1, search = '', sortBy, sortDir }: { page?: number; search?: string; sortBy?: string; sortDir?: 'asc' | 'desc' } = {}) => {
+  const res = await listApprovals({ page, pageSize: 20, type: 'purchase-request', search: search.trim() || undefined, sortBy, sortDir });
   return { rows: res.rows.map(toPermintaan), total: res.total };
 };
 
