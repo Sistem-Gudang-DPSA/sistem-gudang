@@ -98,7 +98,12 @@ export default function KartuStokDetail() {
                                         <tr key={r.id} className="hover:bg-[#FF8A00]/5 transition-colors">
                                             <td className="px-6 py-4 text-gray-500">{i + 1}</td>
                                             <td className="px-6 py-4 text-gray-600">{displayDate(r.date)}</td>
-                                            <td className="px-6 py-4 font-medium text-gray-900">{r.project ?? '-'}</td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex flex-col">
+                                                    <span className="font-medium text-gray-900">{r.project ?? '-'}</span>
+                                                    {r.spk && <span className="text-xs text-gray-500">SPK {r.spk}</span>}
+                                                </div>
+                                            </td>
                                             <td className="px-6 py-4 text-gray-600">{r.usage || '-'}</td>
                                             <td className="px-6 py-4 text-right font-semibold text-green-600">{r.qtyIn ? fmt(r.qtyIn) : ''}</td>
                                             <td className="px-6 py-4 text-right font-semibold text-red-600">{r.qtyOut ? fmt(r.qtyOut) : ''}</td>
