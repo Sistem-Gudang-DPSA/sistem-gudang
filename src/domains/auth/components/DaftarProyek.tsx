@@ -162,10 +162,8 @@ export default function DaftarProyekPage() {
                       <td className="py-3.5 px-4 font-medium text-gray-800">
                         {item.namaProyek}
                       </td>
-                      <td className="py-3.5 px-4 font-semibold text-blue-600 hover:underline cursor-pointer">
-                        <Link href={`/dashboard/proyek/${encodeURIComponent(item.noSpk)}`}>
-                          {item.noSpk}
-                        </Link>
+                      <td className="py-3.5 px-4 font-semibold text-gray-900">
+                        {item.noSpk}
                       </td>
                       <td className="py-3.5 px-4 text-gray-600 font-medium">
                         {item.spkMasuk}
