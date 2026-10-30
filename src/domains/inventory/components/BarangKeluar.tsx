@@ -21,7 +21,6 @@ import SearchableSelect from '@/shared/components/SearchableSelect';
 import { useClientSearch, useSpkSearch } from '@/domains/ppic/use-spk-search';
 import { beepFail, beepOk } from '@/domains/inventory/beep';
 
-
 // Satu baris barang hasil scan. SPK dan Nama Produk/Proyek diisi sekali di atas untuk seluruh transaksi.
 // Baris input manual dibuat kosong (itemId null) sampai materialnya dipilih dari dropdown.
 type BarisForm = { key: string; manual: boolean; itemId: number | null; code: string; name: string; unit: string; stock: number; qty: string; dokubah:string; };
@@ -78,6 +77,192 @@ const tampilWaktu = (ms: number) => {
 type EditTarget = { trx: OutboundRow; lineIndex: number };
 type EditForm = { tanggal: string; spk: string; namaItem: string; itemId: string; picked?: { name: string; code: string | null }; qty: string };
 
+type DataCetak = {
+  tanggal: string;
+  jam?: string;
+  client: string;
+  spk: string;
+  namaItem: string;
+  jumlahProduksi?: string | number;
+  unitProduksi?: string;
+  baris: {
+    name: string;
+    code: string | null | undefined;
+    unit?: string;
+    dokubah?: string | number;
+    keterangan?: string;
+    qty: number;
+    pic: string | null | undefined;
+  }[];
+};
+
+// Identitas formulir mengikuti referensi kantor. Logo disimpan di folder public.
+const FORMAT_DOKUMEN = {
+  logo: '/logo-perusahaan.jpg',
+  judul: 'SK PERMINTAAN BARANG',
+  kode: 'PPIC',
+  nomor: '010',
+  revisi: '00',
+  terbit: '08/25',
+  divisi: 'DPSA',
+};
+
+function buatDokumenBarangKeluar(data: DataCetak, logoUrl: string): string {
+  const escapeHtml = (value: string | number | null | undefined) => String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+  const pengambil = [...new Set(data.baris.map((b) => b.pic?.trim()).filter(Boolean))].join(', ');
+  const tanggalJam = data.jam ? `${displayDate(data.tanggal)} / ${data.jam}` : displayDate(data.tanggal);
+  // Sembilan baris per lembar mengikuti formulir; identitas dan tanda tangan diulang di lembar berikutnya.
+  const barisPerHalaman = 9;
+  const jumlahHalaman = Math.max(1, Math.ceil(data.baris.length / barisPerHalaman));
+  const halaman = Array.from({ length: jumlahHalaman }, (_, pageIndex) => {
+    const awal = pageIndex * barisPerHalaman;
+    const barisHalaman = data.baris.slice(awal, awal + barisPerHalaman);
+    const isiTabel = Array.from({ length: barisPerHalaman }, (_, rowIndex) => {
+      const b = barisHalaman[rowIndex];
+      if (!b) return '<tr class="baris-kosong"><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+      return `<tr>
+        <td class="tengah">${awal + rowIndex + 1}</td>
+        <td>${escapeHtml(b.name)}</td>
+        <td class="tengah">${escapeHtml(b.unit)}</td>
+        <td class="tengah">${escapeHtml(b.dokubah)}</td>
+        <td class="tengah">${escapeHtml(b.qty)}</td>
+        <td>${escapeHtml(b.keterangan)}</td>
+      </tr>`;
+    }).join('');
+
+    return `<section class="lembar">
+      <header class="kop">
+        <img class="logo" src="${escapeHtml(logoUrl)}" alt="Logo perusahaan" />
+        <h1>${escapeHtml(FORMAT_DOKUMEN.judul)}</h1>
+        <div class="identitas-dokumen">
+          <table class="kode-dokumen">
+            <colgroup><col style="width:42%" /><col style="width:58%" /></colgroup>
+            <tbody>
+              <tr><td rowspan="2" class="tengah">${escapeHtml(FORMAT_DOKUMEN.kode)}<br />${escapeHtml(FORMAT_DOKUMEN.nomor)}</td><td>Rev:${escapeHtml(FORMAT_DOKUMEN.revisi)}</td></tr>
+              <tr><td>Terbit:${escapeHtml(FORMAT_DOKUMEN.terbit)}</td></tr>
+            </tbody>
+          </table>
+          <p class="divisi">${escapeHtml(FORMAT_DOKUMEN.divisi)}</p>
+        </div>
+      </header>
+
+      <table class="informasi">
+        <colgroup><col style="width:18%" /><col style="width:2%" /><col style="width:32%" /><col style="width:15%" /><col style="width:2%" /><col style="width:12%" /><col style="width:8%" /><col style="width:11%" /></colgroup>
+        <tbody>
+          <tr><td class="label">ITEM PRODUKSI</td><td>:</td><td colspan="6">${escapeHtml(data.namaItem)}</td></tr>
+          <tr><td class="label">PROYEK</td><td>:</td><td colspan="6">${escapeHtml(data.client)}</td></tr>
+          <tr><td class="label">TGL / JAM</td><td>:</td><td>${escapeHtml(tanggalJam)}</td><td class="label">JML PROD</td><td>:</td><td>${escapeHtml(data.jumlahProduksi)}</td><td class="label">UNIT</td><td>${escapeHtml(data.unitProduksi)}</td></tr>
+          <tr><td class="label">GRUP / TUKANG</td><td>:</td><td>${escapeHtml(pengambil)}</td><td class="label">NO. SPK</td><td>:</td><td colspan="3">${escapeHtml(data.spk)}</td></tr>
+        </tbody>
+      </table>
+
+      <table class="material">
+        <colgroup><col style="width:8%" /><col style="width:32%" /><col style="width:10%" /><col style="width:12%" /><col style="width:12%" /><col style="width:26%" /></colgroup>
+        <thead>
+          <tr><th rowspan="2" scope="col">No</th><th rowspan="2" scope="col">Nama Material</th><th rowspan="2" scope="col">sat/vol</th><th colspan="2" scope="colgroup">Jumlah</th><th rowspan="2" scope="col">Keterangan</th></tr>
+          <tr><th scope="col">Dokubah</th><th scope="col">Pengambilan</th></tr>
+        </thead>
+        <tbody>${isiTabel}</tbody>
+      </table>
+
+      <footer class="pengesahan">
+        <p class="catatan">Ket : Rangkap 3 (untuk Produksi, Gudang &amp; Keuangan)</p>
+        <table class="tanda-tangan"><tbody><tr>
+          ${['TUKANG', 'KA. PROD', 'PPIC', 'GUDANG'].map((label) => `<td>${label}<div class="ruang-tanda-tangan"></div>(____________________)</td>`).join('')}
+        </tr></tbody></table>
+        ${jumlahHalaman > 1 ? `<p class="nomor-halaman">Halaman ${pageIndex + 1} dari ${jumlahHalaman}</p>` : ''}
+      </footer>
+    </section>`;
+  }).join('');
+
+  return `<!doctype html>
+    <html lang="id">
+      <head>
+        <meta charset="utf-8" />
+        <title>${escapeHtml(FORMAT_DOKUMEN.judul)} - ${escapeHtml(data.spk)}</title>
+        <style>
+          @page { size: A4 landscape; margin: 10mm; }
+          * { box-sizing: border-box; }
+          html, body { margin: 0; padding: 0; }
+          body { font: 11pt/1.2 Arial, sans-serif; color: #000; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .lembar { width: 100%; break-after: page; page-break-after: always; }
+          .lembar:last-child { break-after: auto; page-break-after: auto; }
+          .kop { height: 28mm; position: relative; }
+          .logo { position: absolute; top: 0; left: 0; width: 27mm; height: 27mm; object-fit: contain; }
+          h1 { margin: 0; padding-top: 8mm; text-align: center; font-size: 14pt; line-height: 1.2; font-weight: 700; text-decoration: underline; text-underline-offset: 1mm; }
+          .identitas-dokumen { position: absolute; top: 2mm; right: 0; width: 49mm; }
+          table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+          .kode-dokumen { font-size: 10pt; }
+          .kode-dokumen tr { height: 8mm; }
+          .kode-dokumen td { border: 1px solid #000; padding: 1mm 2mm; white-space: nowrap; }
+          .divisi { margin: 1.5mm 0 0; text-align: center; font-size: 10pt; font-weight: 700; }
+          .informasi { margin: 0; font-size: 11pt; }
+          .informasi td { height: 7mm; padding: 1mm 1.5mm; border-bottom: 1px solid #000; vertical-align: middle; overflow-wrap: anywhere; }
+          .informasi .label { font-weight: 700; white-space: nowrap; }
+          .material { margin-top: 1.5mm; font-size: 10.5pt; }
+          .material th, .material td { border: 1px solid #000; padding: 1mm 1.5mm; vertical-align: middle; overflow-wrap: anywhere; }
+          .material thead tr { height: 6mm; }
+          .material th { text-align: center; font-weight: 700; }
+          .material tbody tr { height: 8.5mm; break-inside: avoid; page-break-inside: avoid; }
+          .material thead { display: table-header-group; }
+          .tengah { text-align: center; }
+          .pengesahan { break-inside: avoid; page-break-inside: avoid; }
+          .catatan { margin: 3mm 0 2mm; }
+          .tanda-tangan { font-size: 10.5pt; }
+          .tanda-tangan td { width: 25%; border: 0; padding: 0; text-align: center; vertical-align: top; }
+          .ruang-tanda-tangan { height: 16mm; }
+          .nomor-halaman { margin: 2mm 0 0; font-size: 8pt; text-align: right; }
+        </style>
+      </head>
+      <body>${halaman}</body>
+    </html>`;
+}
+
+// Dokumen cetak terpisah agar menu, tombol, dan transaksi lain tidak ikut tercetak.
+function cetakBarangKeluar(data: DataCetak): Promise<void> {
+  const logoUrl = new URL(FORMAT_DOKUMEN.logo, window.location.origin).href;
+  const iframe = document.createElement('iframe');
+  iframe.title = 'Cetak barang keluar';
+  iframe.setAttribute('aria-hidden', 'true');
+  iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+
+  return new Promise((resolve, reject) => {
+    iframe.onload = async () => {
+      const printWindow = iframe.contentWindow;
+      const printDocument = iframe.contentDocument;
+      if (!printWindow || !printDocument) {
+        iframe.remove();
+        reject(new Error('Dokumen cetak tidak dapat dibuka.'));
+        return;
+      }
+      printWindow.addEventListener('afterprint', () => iframe.remove(), { once: true });
+      try {
+        // Tunggu gambar selesai dibaca agar logo tidak hilang saat dialog cetak dibuka.
+        await Promise.all(Array.from(printDocument.images, (img) => img.decode().catch(() => {
+          throw new Error('Logo gagal dimuat. Letakkan logo di public/logo-perusahaan.jpg.');
+        })));
+        printWindow.focus();
+        printWindow.print();
+        resolve();
+      } catch (err) {
+        iframe.remove();
+        reject(err);
+      }
+    };
+    iframe.onerror = () => {
+      iframe.remove();
+      reject(new Error('Dokumen cetak gagal dimuat.'));
+    };
+    iframe.srcdoc = buatDokumenBarangKeluar(data, logoUrl);
+    document.body.appendChild(iframe);
+  });
+}
+
 const formCellClass = 'border-b border-r border-gray-300';
 const formHeadClass = `${formCellClass} px-2 py-2.5 font-medium whitespace-nowrap`;
 const labelClass = 'block text-sm text-gray-800 mb-1.5';
@@ -105,6 +290,7 @@ export default function BarangKeluarGudang() {
   const [modeKeluar, setModeKeluar] = useState<'spk' | 'stok'>('spk');
   const [form, setForm] = useState(formKosong);
   const [saving, setSaving] = useState(false);
+  const submittingRef = useRef(false);
   const [modalError, setModalError] = useState("");
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState("");
@@ -255,9 +441,12 @@ export default function BarangKeluarGudang() {
 
   const updateEdit = (patch: Partial<EditForm>) => setEditForm((prev) => (prev ? { ...prev, ...patch } : prev));
 
-  const handleSimpanEdit = async (e: React.SubmitEvent<HTMLFormElement>) => {
+  const handleSimpanEdit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (submittingRef.current) return;
     if (!editTarget || !editForm) return;
+    const submitter = (e.nativeEvent as SubmitEvent).submitter;
+    const cetakSetelahSimpan = submitter instanceof HTMLButtonElement && submitter.value === 'cetak';
     const { trx, lineIndex } = editTarget;
     // Dicek ulang saat simpan, karena batas waktu bisa lewat selagi pop-up masih terbuka
     if (!bisaEdit(trx, Date.now())) {
@@ -271,8 +460,10 @@ export default function BarangKeluarGudang() {
       return;
     }
 
+    submittingRef.current = true;
     setEditSaving(true);
     setEditError("");
+    setActionError("");
     try {
       // API menyimpan per transaksi, jadi baris lain di transaksi yang sama ikut dikirim apa adanya
       await updateOutbound(trx.id, {
@@ -289,9 +480,29 @@ export default function BarangKeluarGudang() {
       });
       closeEdit();
       reload();
+      if (cetakSetelahSimpan) {
+        try {
+          await cetakBarangKeluar({
+            tanggal,
+            client: clientOf(spk) || (spk === trx.spk ? trx.clientName : '') || '-',
+            spk,
+            namaItem: namaItem.trim(),
+            baris: trx.lines.map((line, i) => ({
+              name: i === lineIndex ? (editForm.picked?.name ?? line.itemName) : line.itemName,
+              code: i === lineIndex && editForm.picked ? editForm.picked.code : line.itemCode,
+              unit: items.find((item) => item.id === (i === lineIndex ? Number(itemId) : line.itemId))?.unit ?? '',
+              qty: i === lineIndex ? Number(qty) : line.qty,
+              pic: line.pic,
+            })),
+          });
+        } catch (err) {
+          setActionError(`Perubahan sudah tersimpan, tetapi dialog cetak gagal dibuka. ${err instanceof Error ? err.message : ''}`);
+        }
+      }
     } catch (err) {
       setEditError(err instanceof ApiError ? err.message : "Gagal menyimpan perubahan barang keluar.");
     } finally {
+      submittingRef.current = false;
       setEditSaving(false);
     }
   };
@@ -394,8 +605,11 @@ export default function BarangKeluarGudang() {
     ...produkTracking.map((p) => ({ value: p.name, label: `${p.name} (${p.qty} ${p.unit})` })),
   ];
 
-  const handleSimpan = async (e: React.SubmitEvent<HTMLFormElement>) => {
+  const handleSimpan = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (submittingRef.current) return;
+    const submitter = (e.nativeEvent as SubmitEvent).submitter;
+    const cetakSetelahSimpan = submitter instanceof HTMLButtonElement && submitter.value === 'cetak';
     // Stock IDs and their items will come from a dedicated API, not tracking SPKs.
     if (modeKeluar === 'stok') {
       setModalError("Data stok belum tersedia. Barang keluar stok belum dapat disimpan.");
@@ -421,29 +635,47 @@ export default function BarangKeluarGudang() {
       return;
     }
 
+    submittingRef.current = true;
     setSaving(true);
     setModalError("");
+    setActionError("");
     try {
       const input = {
         date: tanggal,
         spk,
         itemName: namaItem.trim(),
         recipientType,
-        // API belum punya kolom nama pengambil, jadi dicatat di notes
         notes: `Pengambil: ${namaPengambil.trim()}`,
-        // Form tidak punya kolom PIC lagi, sedangkan API mewajibkan pic per baris, jadi diisi nama pengambil
         lines: terisi.map((b) => ({ itemId: b.itemId, qty: Number(b.qty), pic: namaPengambil.trim() })),
       };
+      
       const payload = JSON.stringify(input);
       if (!draftKey.current.key || draftKey.current.payload !== payload) draftKey.current = { key: randomId(), payload };
+      
       await createOutbound(input, draftKey.current.key);
       draftKey.current = { key: '', payload: '' };
+
       setCameraOn(false);
       setIsModalOpen(false);
       reload();
+      if (cetakSetelahSimpan) {
+        try {
+          await cetakBarangKeluar({
+            tanggal,
+            client,
+            spk,
+            namaItem: namaItem.trim(),
+            // Dokubah dicetak dari draft; payload API saat ini belum menyimpan kolom Dokubah.
+            baris: terisi.map((b) => ({ name: b.name, code: b.code, unit: b.unit, dokubah: b.dokubah, qty: Number(b.qty), pic: namaPengambil.trim() })),
+          });
+        } catch (err) {
+          setActionError(`Data sudah tersimpan, tetapi dialog cetak gagal dibuka. ${err instanceof Error ? err.message : ''}`);
+        }
+      }
     } catch (err) {
       setModalError(err instanceof ApiError ? err.message : "Gagal menyimpan barang keluar.");
     } finally {
+      submittingRef.current = false;
       setSaving(false);
     }
   };
@@ -454,6 +686,15 @@ export default function BarangKeluarGudang() {
       <div className="flex items-center gap-3 mb-4">
         <h1 className="text-[18px] font-extrabold text-black tracking-wide uppercase">Data Barang Keluar</h1>
       </div>
+
+      {actionError && (
+        <div role="alert" className="mb-4 flex items-center justify-between gap-3 p-3 bg-red-50 text-red-600 text-sm rounded-lg">
+          <span>{actionError}</span>
+          <button type="button" onClick={() => setActionError('')} aria-label="Tutup pesan cetak">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
         {/* Toolbar */}
@@ -680,6 +921,7 @@ export default function BarangKeluarGudang() {
             <button
               type="button"
               onClick={() => { setCameraOn(false); setIsModalOpen(false); }}
+              disabled={saving}
               aria-label="Tutup form"
               className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
             >
@@ -942,7 +1184,20 @@ export default function BarangKeluarGudang() {
 
             <div className="flex flex-wrap items-center justify-between gap-4 mt-3">
               {modeKeluar === 'stok' && <p role="status" className="text-sm text-gray-500">Data stok belum tersedia.</p>}
-              <button type="submit" disabled={saving || modeKeluar === 'stok'} className={orangeButtonClass}>Simpan</button>
+              <div className="ml-auto flex flex-wrap items-center gap-3">
+                <button
+                  type="submit"
+                  name="aksi"
+                  value="simpan"
+                  disabled={saving || modeKeluar === 'stok'}
+                  className="px-5 py-2.5 text-[#FF8A00] bg-white border-2 border-[#FF8A00] hover:bg-orange-50 font-semibold rounded-xl transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {saving ? 'Menyimpan...' : 'Simpan'}
+                </button>
+                <button type="submit" name="aksi" value="cetak" disabled={saving || modeKeluar === 'stok'} className={orangeButtonClass}>
+                  Simpan + Cetak
+                </button>
+              </div>
             </div>
           </form>
         </div>
@@ -959,6 +1214,7 @@ export default function BarangKeluarGudang() {
             <button
               type="button"
               onClick={closeEdit}
+              disabled={editSaving}
               aria-label="Tutup form edit"
               className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
             >
@@ -1068,16 +1324,35 @@ export default function BarangKeluarGudang() {
               <p role="alert" className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{editError || itemError}</p>
             )}
 
-            <div className="flex justify-end gap-3 mt-6">
+
+            <div className="flex justify-end items-center gap-3 mt-6 pt-5 border-t border-gray-100">
               <button
                 type="button"
                 onClick={closeEdit}
-                className="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 font-semibold text-sm hover:bg-gray-50 transition-colors"
+                className="px-5 py-2.5 text-gray-600 bg-gray-100 hover:bg-gray-200 font-semibold rounded-xl transition-colors text-sm"
+                disabled={editSaving}
               >
                 Batal
               </button>
-              <button type="submit" disabled={editSaving} className={orangeButtonClass}>
-                {editSaving ? 'Menyimpan...' : 'Simpan Perubahan'}
+              
+              <button
+                type="submit"
+                name="aksi"
+                value="simpan"
+                className="px-5 py-2.5 text-[#FF8A00] bg-white border-2 border-[#FF8A00] hover:bg-orange-50 font-semibold rounded-xl transition-colors text-sm disabled:opacity-50 flex items-center justify-center min-w-[100px]"
+                disabled={editSaving}
+              >
+                {editSaving ? 'Menyimpan...' : 'Simpan'}
+              </button>
+
+              <button
+                type="submit"
+                name="aksi"
+                value="cetak"
+                className="px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm disabled:opacity-50 flex items-center justify-center min-w-[140px]"
+                disabled={editSaving}
+              >
+                Simpan + Cetak
               </button>
             </div>
           </form>
