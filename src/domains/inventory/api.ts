@@ -38,7 +38,7 @@ import type {
   StockOpnameRow,
 
 } from "./types";
-import type { KartuStokData } from '@/domains/inventory/components/KartuStok';
+import type { KartuStokData, KartuEntry } from '@/domains/inventory/components/KartuStok';
 
 export const listChecklistDokubah = (params?: ListParams) =>
   apiClient.get<PaginatedResult<ChecklistDokubahRow>>(`/api/v1/checklist-dokubah${toQuery(params)}`);
@@ -47,8 +47,67 @@ export const getChecklistDokubah = (dokubahId: number) =>
 export const saveChecklistDokubah = (dokubahId: number, input: ChecklistDokubahInput) =>
   apiClient.put<ChecklistDokubahDetail>(`/api/v1/checklist-dokubah/${dokubahId}`, input);
 
-export function getStockCard(itemId: number) {
-  return apiClient.get<KartuStokData>(`/api/v1/items/${itemId}/stock-card`);
+async function fetchAll<T>(fetchPage: (page: number) => Promise<PaginatedResult<T>>) {
+  const all: T[] = [];
+  for (let page = 1; ; page++) {
+    const res = await fetchPage(page);
+    all.push(...res.rows);
+    if (res.rows.length === 0 || all.length >= res.total) return all;
+  }
+}
+
+export async function getStockCard(itemId: number): Promise<KartuStokData> {
+  const item = await getItem(itemId);
+  const [inbound, outbound] = await Promise.all([
+    fetchAll((page) => listInbound({ page, pageSize: 100 })),
+    fetchAll((page) => listOutbound({ page, pageSize: 100 })),
+  ]);
+
+  const entries: KartuEntry[] = [
+    ...inbound
+      .filter((r) => (item.code ? r.itemCode === item.code : r.itemName === item.name))
+      .map((r): KartuEntry => ({
+        id: `in-${r.id}`,
+        date: r.date.slice(0, 10),
+        createdAt: r.date,
+        type: 'MASUK',
+        client: r.clientName ?? null,
+        spk: null,
+        project: null,
+        usage: r.supplierName ? `Penerimaan dari ${r.supplierName}` : r.clientName ? 'Barang kembali' : 'Penerimaan barang',
+        qtyIn: r.qtyArrived,
+        qtyOut: 0,
+        note: null,
+      })),
+
+    ...outbound.flatMap((trx) =>
+      trx.lines
+        .map((line, i) => ({ line, i }))
+        .filter(({ line }) => line.itemId === itemId)
+        .map(({ line, i }): KartuEntry => ({
+          id: `out-${trx.id}-${i}`,
+          date: trx.date.slice(0, 10),
+          createdAt: trx.createdAt,
+          type: 'KELUAR',
+          client: trx.clientName || null,
+          spk: trx.spk || null,
+          project: trx.itemName,
+          usage: `Pengambilan oleh ${line.pic}`,
+          qtyIn: 0,
+          qtyOut: line.qty,
+          note: trx.noTransaksi ? `${trx.noTransaksi}` : null,
+        })),
+    ),
+  ];
+
+  const totalIn = entries.reduce((s, e) => s + e.qtyIn, 0);
+  const totalOut = entries.reduce((s, e) => s + e.qtyOut, 0);
+
+  return {
+    item: { id: item.id, code: item.code ?? null, name: item.name, unit: item.unit, stock: item.stock },
+    openingBalance: item.stock - totalIn + totalOut,
+    entries,
+  };
 }
 
 // `summary` covers every item matching the search, not just the requested page.
