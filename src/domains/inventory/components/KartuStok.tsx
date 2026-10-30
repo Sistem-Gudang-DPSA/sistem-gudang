@@ -2,12 +2,13 @@ export type MutasiTipe = 'MASUK' | 'KELUAR' | 'PENYESUAIAN';
 
 export type KartuEntry = {
   id: string;
-  date: string;        // YYYY-MM-DD
-  createdAt: string;   // untuk urutan di tanggal yang sama
+  date: string;
+  createdAt: string;
   type: MutasiTipe;
+  client: string | null;   
+  spk: string | null;      
   project: string | null;
-  spk: string | null;
-  usage: string;          // penggunaan, contoh: "Pengambilan oleh Budi", "Penerimaan dari PT Makmur"
+  usage: string;
   qtyIn: number;
   qtyOut: number;
   note: string | null;

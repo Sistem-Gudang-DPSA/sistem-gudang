@@ -63,7 +63,7 @@ export async function exportKartuExcel(data: KartuStokData) {
     [],
     ['No.', 'Tanggal', 'Nama Proyek', 'Penggunaan', 'Masuk', 'Keluar', 'Saldo', 'Keterangan'],
     ['', '', '', 'Saldo awal', '', '', data.openingBalance, ''],
-    ...rows.map((r, i) => [i + 1, displayDate(r.date), r.project ? `${r.project}${r.spk ? ` (SPK ${r.spk})` : ''}` : '-', r.usage, r.qtyIn || '', r.qtyOut || '', r.saldo, r.note ?? '']),
+    ...rows.map((r, i) => [i + 1, displayDate(r.date), r.project ? `${r.project}${r.client || r.spk ? ` (${[r.client, r.spk && `SPK ${r.spk}`].filter(Boolean).join(' · ')})` : ''}` : '-', r.usage, r.qtyIn || '', r.qtyOut || '', r.saldo, r.note ?? '']),
     ['', '', '', 'Saldo akhir', '', '', saldoAkhir, ''],
   ]);
   const book = XLSX.utils.book_new();
@@ -76,7 +76,7 @@ export function printKartuPdf(data: KartuStokData) {
   const body = rows.map((r, i) => `<tr>
     <td class="c">${i + 1}</td>
     <td>${escapeHtml(displayDate(r.date))}</td>
-    <td>${escapeHtml(r.project ?? '-')}${r.spk && r.project !== 'Stok' ? `<div class="sub">SPK ${escapeHtml(r.spk)}</div>` : ''}</td>
+    <td>${escapeHtml(r.project ?? '-')}${(r.client || r.spk) ? `<div class="sub">${escapeHtml([r.client, r.spk && `${r.spk}`].filter(Boolean).join(' · '))}</div>` : ''}</td>
     <td>${escapeHtml(r.usage || '-')}</td>
     <td class="r">${r.qtyIn || ''}</td>
     <td class="r">${r.qtyOut || ''}</td>

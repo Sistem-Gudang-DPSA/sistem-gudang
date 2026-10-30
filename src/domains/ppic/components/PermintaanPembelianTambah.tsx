@@ -6,8 +6,8 @@ import { useCan } from '@/domains/auth/user-context';
 import NoPermission from './NoPermission';
 import { ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { createPurchaseRequest, resubmitApproval } from '@/domains/ppic/api';
-import { useSpkSearch } from '@/domains/ppic/use-spk-search';
+import { createPurchaseRequest, resubmitApproval, getTrackingSpk } from '@/domains/ppic/api';
+import { useClientSearch, useSpkSearch } from '@/domains/ppic/use-spk-search';
 import { permintaan_pembelian_path, type PermintaanPembelian } from '@/domains/ppic/data/pembelian';
 import { todayIso } from '@/domains/inventory/date';
 import { ApiError } from '@/shared/lib/api-client';
@@ -15,10 +15,94 @@ import SearchableSelect from '@/shared/components/SearchableSelect';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 import { useItemSearch } from '@/domains/inventory/use-item-search';
 
-const emptyRow = { namaBarang: "", qty: "", satuan: "", proyek: "", noSpk: "" };
+const emptyRow = { namaBarang: "", qty: "", satuan: "", proyek: "", client: "", noSpk: "" };
+type Row = typeof emptyRow;
 
-// Dengan `permintaan`, form dipakai untuk memperbaiki permintaan yang diminta revisi lalu mengirim ulang.
-// `basePath` adalah daftar tujuan setelah simpan (Gudang memakai form yang sama).
+const kolomWajib = (r: Row) => [r.namaBarang, r.qty, r.satuan, r.proyek, r.noSpk];
+const barisTerisi = (r: Row) => kolomWajib(r).some(Boolean);
+
+const selClass = 'w-full h-full px-2 bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 not-italic';
+
+function SelClientSpk({ client, noSpk, proyek, clientOptions, onClientSearch, onChange, error }: {
+  client: string;
+  noSpk: string;
+  proyek: string;
+  clientOptions: { value: string; label: string }[];
+  onClientSearch: (q: string) => void;
+  onChange: (patch: { client?: string; noSpk?: string; proyek?: string }) => void;
+  error?: string;
+}) {
+  const spk = useSpkSearch(noSpk, client);
+  const clientTampil = client || spk.options.find((t) => t.noSpk === noSpk)?.client || '';
+
+  const [detail, setDetail] = useState<{ noSpk: string; names: string[] } | null>(null);
+  useEffect(() => {
+    if (!noSpk) return;
+    let batal = false;
+    getTrackingSpk(noSpk)
+      .then((d) => !batal && setDetail({ noSpk, names: [...new Set(d.products.map((p) => p.name))] }))
+      .catch(() => !batal && setDetail({ noSpk, names: [] }));
+    return () => { batal = true; };
+  }, [noSpk]);
+  const namaProyek = noSpk && detail?.noSpk === noSpk ? detail.names : [];
+
+  useEffect(() => {
+    if (!proyek && namaProyek.length === 1) onChange({ proyek: namaProyek[0] });
+  }, [namaProyek.join('|'), proyek]);
+
+  const opsiClient =
+    clientTampil && !clientOptions.some((o) => o.value === clientTampil)
+      ? [{ value: clientTampil, label: clientTampil }, ...clientOptions]
+      : clientOptions;
+  const opsiSpk = [
+    ...spk.options.map((t) => ({ value: t.noSpk, label: t.noSpk })),
+    ...(noSpk && !spk.options.some((t) => t.noSpk === noSpk) ? [{ value: noSpk, label: noSpk }] : []),
+  ];
+
+  return (
+    <>
+      <td className="p-0 align-middle border-r border-gray-100/50">
+        <div className="flex min-h-12 items-center">
+          <SearchableSelect
+            aria-label="Client"
+            value={clientTampil}
+            onChange={(c) => { if (c !== clientTampil) onChange({ client: c, noSpk: '', ...(noSpk ? { proyek: '' } : {}) }); }}
+            onSearch={onClientSearch}
+            options={opsiClient}
+            placeholder="Pilih client"
+            className="w-full px-2 py-1.5 bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 not-italic"
+          />
+        </div>
+      </td>
+      <td className="p-0 align-middle">
+        <div title={error} className="flex min-h-12 flex-col justify-center py-1">
+          <SearchableSelect
+            aria-label="No SPK"
+            value={noSpk}
+            onChange={(v) =>
+              onChange({
+                noSpk: v,
+                client: spk.options.find((t) => t.noSpk === v)?.client ?? client,
+                ...(noSpk && v !== noSpk ? { proyek: '' } : {}),
+              })
+            }
+            onSearch={spk.onSearch}
+            options={opsiSpk}
+            placeholder="Pilih SPK"
+            emptyText={clientTampil ? 'Tidak ada SPK untuk client ini' : 'Tidak ada SPK'}
+            className={`w-full px-2 py-1 bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 not-italic ${error ? 'ring-1 ring-inset ring-red-500 text-red-600' : ''}`}
+          />
+          {namaProyek.length > 0 && (
+            <p title={namaProyek.join(', ')} className="px-2 max-w-52 truncate text-xs leading-tight text-gray-500 not-italic">
+              {namaProyek.join(', ')}
+            </p>
+          )}
+        </div>
+      </td>
+    </>
+  );
+}
+
 export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = permintaan_pembelian_path }: { permintaan?: PermintaanPembelian; basePath?: string }) {
   const router = useRouter();
   const canCreate = useCan("purchase-request.create");
@@ -38,25 +122,26 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
     jabatan: permintaan?.jabatan ?? "",
     tanggalPengajuan: permintaan?.tanggal ?? todayIso(),
   });
-  const [tableData, setTableData] = useState(() => {
-    const rows = (permintaan?.barang ?? []).map((b) => ({ ...b, qty: String(b.qty) }));
-    return [...rows, ...Array.from({ length: Math.max(8 - rows.length, 0) }, () => emptyRow)];
+
+  const [tableData, setTableData] = useState<Row[]>(() => {
+    const rows = (permintaan?.barang ?? []).map((b) => ({ ...emptyRow, ...b, qty: String(b.qty) }));
+    return [...rows, ...Array.from({ length: Math.max(8 - rows.length, 0) }, () => ({ ...emptyRow }))];
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   // Server errors per row, keyed by the row index in tableData.
   const [rowErrors, setRowErrors] = useState<Record<number, string>>({});
   // Dropdown No SPK di tiap baris memakai daftar pencarian yang sama; SPK lama di baris tetap ada di pilihan
-  const spkBaris = useSpkSearch('');
-  const pilihanSpk = (noSpk: string) => [
-    ...spkBaris.options.map((t) => ({ value: t.noSpk, label: t.noSpk })),
-    ...(noSpk && !spkBaris.options.some((t) => t.noSpk === noSpk) ? [{ value: noSpk, label: noSpk }] : []),
-  ];
+  const clientBaris = useClientSearch();
+  const clientPilihan = clientBaris.options.map((c) => ({ value: c, label: c }));
   const { items: dataBarang, onSearch: searchItems, error: itemError } = useItemSearch();
 
-  const handleChange = (index: number, field: keyof typeof emptyRow, value: string) => {
+  const handleChange = (index: number, field: keyof Row, value: string) => {
     setTableData((prev) => prev.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
   };
+
+  const patchRow = (index: number, patch: Partial<Row>) =>
+    setTableData((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
 
   const handleSubmit = async () => {
     const { bagian, namaPemohon, jabatan, tanggalPengajuan } = header;
@@ -64,8 +149,8 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
       setError("Lengkapi bagian, nama, jabatan, dan tanggal pengajuan.");
       return;
     }
-    const filled = tableData.filter((row) => Object.values(row).some(Boolean));
-    if (filled.length === 0 || filled.some((row) => Object.values(row).some((v) => !v) || Number(row.qty) < 1)) {
+    const filled = tableData.filter(barisTerisi); // UBAH
+    if (filled.length === 0 || filled.some((row) => kolomWajib(row).some((v) => !v) || Number(row.qty) < 1)) { // UBAH
       setError("Lengkapi semua kolom di setiap baris barang yang dipakai (QTY minimal 1).");
       return;
     }
@@ -78,7 +163,8 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
         namaPemohon,
         jabatan,
         tanggalPengajuan,
-        items: filled.map((row) => ({ ...row, qty: Math.trunc(Number(row.qty)) })),
+        // UBAH: client tidak ikut dikirim, API menentukannya dari No SPK
+        items: filled.map(({ client: _client, ...row }) => ({ ...row, qty: Math.trunc(Number(row.qty)) })),
         ...(permintaan?.catatan ? { notes: permintaan.catatan } : {}),
       };
       if (permintaan) await resubmitApproval(permintaan.id, payload);
@@ -87,7 +173,7 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
     } catch (err) {
       if (err instanceof ApiError && err.errors) {
         // The API indexes errors by the submitted (filled) rows; map them back to table rows.
-        const filledIndexes = tableData.flatMap((row, i) => (Object.values(row).some(Boolean) ? [i] : []));
+        const filledIndexes = tableData.flatMap((row, i) => (barisTerisi(row) ? [i] : [])); // UBAH
         const mapped: Record<number, string> = {};
         for (const [key, msgs] of Object.entries(err.errors)) {
           const m = /^items\.(\d+)\.noSpk$/.exec(key);
@@ -124,7 +210,7 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
       document.removeEventListener('mousedown', tutupDropdown);
     };
   }, []);
-  
+
   if (!canCreate) return <NoPermission action="mengajukan permintaan pembelian" />;
 
   return (
@@ -139,10 +225,10 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
         </h1>
       </div>
 
-      <div className="max-w-[70rem] w-full">
+      <div className="max-w-280 w-full">
         {/* Main Card */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200/80 px-8 py-10 w-full mb-6 relative">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-400 to-amber-300 rounded-t-xl"></div>
+          <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-orange-400 to-amber-300 rounded-t-xl"></div>
 
           <div className="text-center mb-10 w-full">
             <h2 className="text-[18px] font-bold text-gray-900 tracking-wide">Permintaan Pembelian</h2>
@@ -151,22 +237,22 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
           {/* Form Inputs Header shrinked left align */}
           <div className="flex flex-col gap-5 mb-10 w-full max-w-lg">
             <div className="flex items-center">
-              <span className="w-[180px] text-[15px] font-semibold text-gray-700">Bagian/Sub bagian</span>
+              <span className="w-45 text-[15px] font-semibold text-gray-700">Bagian/Sub bagian</span>
               <span className="w-8 text-center text-gray-700 font-semibold">:</span>
               <input type="text" placeholder="Contoh: Divisi Produksi / Maintenance" value={header.bagian} maxLength={100} onChange={(e) => setHeader({ ...header, bagian: e.target.value })} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200" />
             </div>
             <div className="flex items-center">
-              <span className="w-[180px] text-[15px] font-semibold text-gray-700">Nama</span>
+              <span className="w-45 text-[15px] font-semibold text-gray-700">Nama</span>
               <span className="w-8 text-center text-gray-700 font-semibold">:</span>
               <input type="text" placeholder="Masukkan nama pemohon" value={header.namaPemohon} maxLength={191} onChange={(e) => setHeader({ ...header, namaPemohon: e.target.value })} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200" />
             </div>
             <div className="flex items-center">
-              <span className="w-[180px] text-[15px] font-semibold text-gray-700">Jabatan</span>
+              <span className="w-45 text-[15px] font-semibold text-gray-700">Jabatan</span>
               <span className="w-8 text-center text-gray-700 font-semibold">:</span>
               <input type="text" placeholder="Masukkan jabatan pemohon" value={header.jabatan} maxLength={100} onChange={(e) => setHeader({ ...header, jabatan: e.target.value })} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200" />
             </div>
             <div className="flex items-center">
-              <span className="w-[180px] text-[15px] font-semibold text-gray-700">Tanggal Pengajuan</span>
+              <span className="w-45 text-[15px] font-semibold text-gray-700">Tanggal Pengajuan</span>
               <span className="w-8 text-center text-gray-700 font-semibold">:</span>
               <input type="date" placeholder="DD/MM/YYYY" value={header.tanggalPengajuan} onChange={(e) => setHeader({ ...header, tanggalPengajuan: e.target.value })} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200" />
             </div>
@@ -192,14 +278,14 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
                     <th className="border-b border-gray-200 px-6 py-4 text-center">Nama Barang</th>
                     <th className="border-b border-gray-200 px-6 py-4 text-center w-28">QTY</th>
                     <th className="border-b border-gray-200 px-6 py-4 text-center w-32">Satuan</th>
-                    <th className="border-b border-gray-200 px-6 py-4 text-center w-40">Proyek</th>
-                    <th className="border-b border-gray-200 px-6 py-4 text-center w-40">No SPK</th>
+                    <th className="border-b border-gray-200 px-6 py-4 text-center w-48">Client</th>
+                    <th className="border-b border-gray-200 px-6 py-4 text-center w-52">No SPK</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 italic">
                   {tableData.map((row, i) => (
                     <tr key={i} className="bg-white hover:bg-orange-50/10 transition-colors duration-150">
-                      <td className="p-0 text-center text-gray-700 h-[48px] border-r border-gray-100/50">
+                      <td className="p-0 text-center text-gray-700 h-12 border-r border-gray-100/50">
                         {i + 1}
                       </td>
 
@@ -311,22 +397,15 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
                       <td className="p-0 border-r border-gray-100/50">
                         <input type="text" value={row.satuan} maxLength={50} placeholder="lembar/kg/botol" onChange={(e) => handleChange(i, 'satuan', e.target.value)} className="w-full h-full px-4 text-center bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 placeholder-gray-300 not-italic" />
                       </td>
-                      <td className="p-0 border-r border-gray-100/50">
-                        <input type="text" value={row.proyek} maxLength={191} placeholder="Isi nama proyek" onChange={(e) => handleChange(i, 'proyek', e.target.value)} className="w-full h-full px-4 text-center bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 placeholder-gray-300 not-italic" />
-                      </td>
-                      <td className="p-0">
-                        <div title={rowErrors[i]} className="h-full">
-                          <SearchableSelect
-                            aria-label="No SPK"
-                            value={row.noSpk}
-                            onChange={(v) => handleChange(i, 'noSpk', v)}
-                            onSearch={spkBaris.onSearch}
-                            options={pilihanSpk(row.noSpk)}
-                            placeholder="Pilih SPK"
-                            className={`w-full h-full px-2 bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 not-italic ${rowErrors[i] ? 'ring-1 ring-inset ring-red-500 text-red-600' : ''}`}
-                          />
-                        </div>
-                      </td>
+                      <SelClientSpk
+                        client={row.client}
+                        noSpk={row.noSpk}
+                        proyek={row.proyek}
+                        clientOptions={clientPilihan}
+                        onClientSearch={clientBaris.onSearch}
+                        error={rowErrors[i]}
+                        onChange={(patch) => patchRow(i, patch)}
+                      />
                     </tr>
                   ))}
                 </tbody>
