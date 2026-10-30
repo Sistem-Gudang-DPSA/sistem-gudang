@@ -24,6 +24,7 @@ import {
   createOutbound,
   exportOutboundReport,
   getItemByCode,
+  importOutbound,
   listOutbound,
   updateOutbound,
 } from "@/domains/inventory/api";
@@ -387,9 +388,6 @@ export default function BarangKeluarGudang() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [selectedImportFile, setSelectedImportFile] = useState<File | null>(
-    null,
-  );
   const [modeKeluar, setModeKeluar] = useState<"spk" | "stok">("spk");
   const [form, setForm] = useState(formKosong);
   const [saving, setSaving] = useState(false);
@@ -731,12 +729,21 @@ export default function BarangKeluarGudang() {
     }
   };
 
-  const handlePilihFileImpor = (file: File) => {
-    // TITIK INTEGRASI API IMPORT:
-    // Teman backend dapat mengganti handler ini menjadi async, mengirim File
-    // menggunakan FormData, lalu memanggil reload() setelah server berhasil.
-    // Saat ini frontend hanya menyimpan pilihan file, bukan isi ke database.
-    setSelectedImportFile(file);
+  // The modal shows err.message. For bad rows, the first lines name the rows.
+  const handlePilihFileImpor = async (file: File) => {
+    try {
+      await importOutbound(file);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 400 && Array.isArray(err.errors)) {
+        const baris = err.errors.slice(0, 5).map((e) => `Baris ${e.row}: ${e.message}`);
+        const sisa = err.errors.length - baris.length;
+        throw new Error(
+          [err.message, ...baris, ...(sisa > 0 ? [`dan ${sisa} baris lainnya`] : [])].join("\n"),
+        );
+      }
+      throw err;
+    }
+    reload();
   };
 
   const handleDownload = async () => {
@@ -1112,24 +1119,6 @@ export default function BarangKeluarGudang() {
         </div>
       )}
 
-      {selectedImportFile && (
-        <div
-          role="status"
-          className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-orange-200 bg-orange-50 p-3 text-sm text-gray-700"
-        >
-          <span className="break-all">
-            File dipilih untuk impor: <strong>{selectedImportFile.name}</strong>
-          </span>
-          <button
-            type="button"
-            onClick={() => setSelectedImportFile(null)}
-            aria-label="Batalkan pilihan file impor"
-            className="shrink-0 p-1 text-gray-500 hover:text-red-600"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      )}
       {downloadError && (
         <p role="alert" className="mb-4 text-sm text-red-600">
           {downloadError}

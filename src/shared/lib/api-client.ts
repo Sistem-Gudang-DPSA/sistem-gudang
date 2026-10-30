@@ -2,10 +2,11 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001"
 
 export class ApiError extends Error {
   status: number;
-  errors?: Record<string, string[]>;
+  // a list of { row, message } for a spreadsheet import that has bad rows
+  errors?: Record<string, string[]> | RowError[];
   retryAfter?: number;
 
-  constructor(message: string, status: number, errors?: Record<string, string[]>, retryAfter?: number) {
+  constructor(message: string, status: number, errors?: Record<string, string[]> | RowError[], retryAfter?: number) {
     super(message);
     this.status = status;
     this.errors = errors;
@@ -13,9 +14,11 @@ export class ApiError extends Error {
   }
 }
 
+type RowError = { row: number; message: string };
+
 type ApiEnvelope<T> =
   | { success: true; message: string; data: T }
-  | { success: false; message: string; errors?: Record<string, string[]> };
+  | { success: false; message: string; errors?: Record<string, string[]> | RowError[] };
 
 let accessToken: string | null = null;
 

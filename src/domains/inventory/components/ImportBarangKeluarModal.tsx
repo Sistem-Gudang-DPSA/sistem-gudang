@@ -175,7 +175,7 @@ export default function ImportBarangKeluarModal({
         {error && (
           <p
             role="alert"
-            className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-600"
+            className="mt-4 whitespace-pre-line rounded-lg bg-red-50 p-3 text-sm text-red-600"
           >
             {error}
           </p>
