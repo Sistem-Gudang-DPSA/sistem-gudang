@@ -101,14 +101,23 @@ export default function KartuStokDetail() {
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-col">
                                                     <span className="font-medium text-gray-900">{r.project ?? '-'}</span>
-                                                    {r.spk && <span className="text-xs text-gray-500">SPK {r.spk}</span>}
+                                                    {(r.spk) && (
+                                                        <span className="text-xs text-gray-500">{[r.spk && `${r.spk}`]}</span>
+                                                    )}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-gray-600">{r.usage || '-'}</td>
+                                            <td className="px-6 py-4 text-gray-600">{r.client || '-'}</td>
                                             <td className="px-6 py-4 text-right font-semibold text-green-600">{r.qtyIn ? fmt(r.qtyIn) : ''}</td>
                                             <td className="px-6 py-4 text-right font-semibold text-red-600">{r.qtyOut ? fmt(r.qtyOut) : ''}</td>
                                             <td className="px-6 py-4 text-right font-bold text-gray-900">{fmt(r.saldo)}</td>
-                                            <td className="px-6 py-4 text-gray-600">{r.note ?? '-'}</td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex flex-col">
+                                                    <span className="font-medium text-gray-900">{r.note ?? '-'}</span>
+                                                    {(r.usage) && (
+                                                        <span className="text-xs text-gray-500">{[r.usage && `${r.usage}`]}</span>
+                                                    )}
+                                                </div>
+                                            </td>
                                         </tr>
                                     ))}
 
