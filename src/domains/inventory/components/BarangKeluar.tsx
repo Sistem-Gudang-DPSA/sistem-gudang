@@ -1,31 +1,72 @@
 "use client";
 
-import { useCan } from '@/domains/auth/user-context';
-import React, { useEffect, useRef, useState } from 'react';
-import { Camera, Search, Calendar, Plus, Minus, AlertCircle, Download, X, ChevronRight, Pencil, Lock, Filter, ScanLine, Trash2 } from 'lucide-react';
-import { createOutbound, exportOutboundReport, getItemByCode, listOutbound, updateOutbound } from '@/domains/inventory/api';
-import { getTrackingSpk } from '@/domains/ppic/api';
-import type { TrackingSpkDetail } from '@/domains/ppic/types';
-import type { RecipientType, OutboundRow } from '@/domains/inventory/types';
-import { displayDate, todayIso, toDateRange } from '@/domains/inventory/date';
-import { useItemSearch } from '@/domains/inventory/use-item-search';
-import { ApiError } from '@/shared/lib/api-client';
-import QrCameraScanner from '@/domains/inventory/components/QrCameraScanner';
-import { useApiData } from '@/shared/lib/use-api-data';
-import Pagination from '@/shared/components/Pagination';
-import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
-import { randomId } from '@/shared/lib/random-id';
-import SortableTh, { useSort } from '@/shared/components/SortableTh';
-import DateFilter from '@/shared/components/DateFilter';
-import SearchableSelect from '@/shared/components/SearchableSelect';
-import { useClientSearch, useSpkSearch } from '@/domains/ppic/use-spk-search';
-import { beepFail, beepOk } from '@/domains/inventory/beep';
+import { useCan } from "@/domains/auth/user-context";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  Camera,
+  Search,
+  Calendar,
+  Plus,
+  Minus,
+  AlertCircle,
+  Download,
+  X,
+  ChevronRight,
+  Pencil,
+  Lock,
+  Filter,
+  ScanLine,
+  Trash2,
+} from "lucide-react";
+import {
+  createOutbound,
+  exportOutboundReport,
+  getItemByCode,
+  listOutbound,
+  updateOutbound,
+} from "@/domains/inventory/api";
+import { getTrackingSpk } from "@/domains/ppic/api";
+import type { TrackingSpkDetail } from "@/domains/ppic/types";
+import type { RecipientType, OutboundRow } from "@/domains/inventory/types";
+import { displayDate, todayIso, toDateRange } from "@/domains/inventory/date";
+import { useItemSearch } from "@/domains/inventory/use-item-search";
+import { ApiError } from "@/shared/lib/api-client";
+import QrCameraScanner from "@/domains/inventory/components/QrCameraScanner";
+import { useApiData } from "@/shared/lib/use-api-data";
+import Pagination from "@/shared/components/Pagination";
+import { INTEGER_INPUT, digitsOnly } from "@/shared/lib/input";
+import { randomId } from "@/shared/lib/random-id";
+import SortableTh, { useSort } from "@/shared/components/SortableTh";
+import DateFilter from "@/shared/components/DateFilter";
+import SearchableSelect from "@/shared/components/SearchableSelect";
+import { useClientSearch, useSpkSearch } from "@/domains/ppic/use-spk-search";
+import { beepFail, beepOk } from "@/domains/inventory/beep";
 
 // Satu baris barang hasil scan. SPK dan Nama Produk/Proyek diisi sekali di atas untuk seluruh transaksi.
 // Baris input manual dibuat kosong (itemId null) sampai materialnya dipilih dari dropdown.
-type BarisForm = { key: string; manual: boolean; itemId: number | null; code: string; name: string; unit: string; stock: number; qty: string; dokubah:string; };
+type BarisForm = {
+  key: string;
+  manual: boolean;
+  itemId: number | null;
+  code: string;
+  name: string;
+  unit: string;
+  stock: number;
+  qty: string;
+  dokubah: string;
+};
 
-const barisManual = (): BarisForm => ({ key: randomId(), manual: true, itemId: null, code: '', name: '', unit: '', stock: 0, qty: '1', dokubah: '' });
+const barisManual = (): BarisForm => ({
+  key: randomId(),
+  manual: true,
+  itemId: null,
+  code: "",
+  name: "",
+  unit: "",
+  stock: 0,
+  qty: "1",
+  dokubah: "",
+});
 
 const PAGE_SIZE = 20;
 // Pilihan tambahan di Nama Produk/Proyek untuk barang yang keluar bukan untuk produk SPK tertentu
@@ -47,13 +88,17 @@ const formKosong = () => ({
 });
 
 const tambahSatu = (baris: BarisForm[], key: string) =>
-  baris.map((b) => (b.key === key ? { ...b, qty: String(Number(b.qty) + 1) } : b));
+  baris.map((b) =>
+    b.key === key ? { ...b, qty: String(Number(b.qty) + 1) } : b,
+  );
 
 // Barang keluar hanya bisa diedit selama 1 hari (24 jam) sejak transaksi dicatat
 const BATAS_EDIT_MS = 24 * 60 * 60 * 1000;
-const PESAN_TIDAK_BISA_EDIT = 'Data barang keluar ini sudah tidak bisa diedit karena sudah lewat 1 hari sejak dicatat.';
+const PESAN_TIDAK_BISA_EDIT =
+  "Data barang keluar ini sudah tidak bisa diedit karena sudah lewat 1 hari sejak dicatat.";
 
-const batasEdit = (trx: OutboundRow) => new Date(trx.createdAt).getTime() + BATAS_EDIT_MS;
+const batasEdit = (trx: OutboundRow) =>
+  new Date(trx.createdAt).getTime() + BATAS_EDIT_MS;
 // createdAt yang tidak valid menghasilkan NaN, sehingga dianggap tidak bisa diedit
 const bisaEdit = (trx: OutboundRow, now: number) => now < batasEdit(trx);
 
@@ -70,12 +115,19 @@ function WithNow({ children }: { children: (now: number) => React.ReactNode }) {
 
 const tampilWaktu = (ms: number) => {
   const d = new Date(ms);
-  const pad = (n: number) => String(n).padStart(2, '0');
+  const pad = (n: number) => String(n).padStart(2, "0");
   return `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
 type EditTarget = { trx: OutboundRow; lineIndex: number };
-type EditForm = { tanggal: string; spk: string; namaItem: string; itemId: string; picked?: { name: string; code: string | null }; qty: string };
+type EditForm = {
+  tanggal: string;
+  spk: string;
+  namaItem: string;
+  itemId: string;
+  picked?: { name: string; code: string | null };
+  qty: string;
+};
 
 type DataCetak = {
   tanggal: string;
@@ -98,33 +150,42 @@ type DataCetak = {
 
 // Identitas formulir mengikuti referensi kantor. Logo disimpan di folder public.
 const FORMAT_DOKUMEN = {
-  logo: '/logo-perusahaan.jpg',
-  judul: 'SK PERMINTAAN BARANG',
-  kode: 'PPIC',
-  nomor: '010',
-  revisi: '00',
-  terbit: '08/25',
-  divisi: 'DPSA',
+  logo: "/logo-perusahaan.jpg",
+  judul: "SK PERMINTAAN BARANG",
+  kode: "PPIC",
+  nomor: "010",
+  revisi: "00",
+  terbit: "08/25",
+  divisi: "DPSA",
 };
 
 function buatDokumenBarangKeluar(data: DataCetak, logoUrl: string): string {
-  const escapeHtml = (value: string | number | null | undefined) => String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-  const pengambil = [...new Set(data.baris.map((b) => b.pic?.trim()).filter(Boolean))].join(', ');
-  const tanggalJam = data.jam ? `${displayDate(data.tanggal)} / ${data.jam}` : displayDate(data.tanggal);
+  const escapeHtml = (value: string | number | null | undefined) =>
+    String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  const pengambil = [
+    ...new Set(data.baris.map((b) => b.pic?.trim()).filter(Boolean)),
+  ].join(", ");
+  const tanggalJam = data.jam
+    ? `${displayDate(data.tanggal)} / ${data.jam}`
+    : displayDate(data.tanggal);
   // Sembilan baris per lembar mengikuti formulir; identitas dan tanda tangan diulang di lembar berikutnya.
   const barisPerHalaman = 9;
-  const jumlahHalaman = Math.max(1, Math.ceil(data.baris.length / barisPerHalaman));
+  const jumlahHalaman = Math.max(
+    1,
+    Math.ceil(data.baris.length / barisPerHalaman),
+  );
   const halaman = Array.from({ length: jumlahHalaman }, (_, pageIndex) => {
     const awal = pageIndex * barisPerHalaman;
     const barisHalaman = data.baris.slice(awal, awal + barisPerHalaman);
     const isiTabel = Array.from({ length: barisPerHalaman }, (_, rowIndex) => {
       const b = barisHalaman[rowIndex];
-      if (!b) return '<tr class="baris-kosong"><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+      if (!b)
+        return '<tr class="baris-kosong"><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
       return `<tr>
         <td class="tengah">${awal + rowIndex + 1}</td>
         <td>${escapeHtml(b.name)}</td>
@@ -133,7 +194,7 @@ function buatDokumenBarangKeluar(data: DataCetak, logoUrl: string): string {
         <td class="tengah">${escapeHtml(b.qty)}</td>
         <td>${escapeHtml(b.keterangan)}</td>
       </tr>`;
-    }).join('');
+    }).join("");
 
     return `<section class="lembar">
       <header class="kop">
@@ -173,12 +234,12 @@ function buatDokumenBarangKeluar(data: DataCetak, logoUrl: string): string {
       <footer class="pengesahan">
         <p class="catatan">Ket : Rangkap 3 (untuk Produksi, Gudang &amp; Keuangan)</p>
         <table class="tanda-tangan"><tbody><tr>
-          ${['TUKANG', 'KA. PROD', 'PPIC', 'GUDANG'].map((label) => `<td>${label}<div class="ruang-tanda-tangan"></div>(____________________)</td>`).join('')}
+          ${["TUKANG", "KA. PROD", "PPIC", "GUDANG"].map((label) => `<td>${label}<div class="ruang-tanda-tangan"></div>(____________________)</td>`).join("")}
         </tr></tbody></table>
-        ${jumlahHalaman > 1 ? `<p class="nomor-halaman">Halaman ${pageIndex + 1} dari ${jumlahHalaman}</p>` : ''}
+        ${jumlahHalaman > 1 ? `<p class="nomor-halaman">Halaman ${pageIndex + 1} dari ${jumlahHalaman}</p>` : ""}
       </footer>
     </section>`;
-  }).join('');
+  }).join("");
 
   return `<!doctype html>
     <html lang="id">
@@ -226,10 +287,11 @@ function buatDokumenBarangKeluar(data: DataCetak, logoUrl: string): string {
 // Dokumen cetak terpisah agar menu, tombol, dan transaksi lain tidak ikut tercetak.
 function cetakBarangKeluar(data: DataCetak): Promise<void> {
   const logoUrl = new URL(FORMAT_DOKUMEN.logo, window.location.origin).href;
-  const iframe = document.createElement('iframe');
-  iframe.title = 'Cetak barang keluar';
-  iframe.setAttribute('aria-hidden', 'true');
-  iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+  const iframe = document.createElement("iframe");
+  iframe.title = "Cetak barang keluar";
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.style.cssText =
+    "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
 
   return new Promise((resolve, reject) => {
     iframe.onload = async () => {
@@ -237,15 +299,23 @@ function cetakBarangKeluar(data: DataCetak): Promise<void> {
       const printDocument = iframe.contentDocument;
       if (!printWindow || !printDocument) {
         iframe.remove();
-        reject(new Error('Dokumen cetak tidak dapat dibuka.'));
+        reject(new Error("Dokumen cetak tidak dapat dibuka."));
         return;
       }
-      printWindow.addEventListener('afterprint', () => iframe.remove(), { once: true });
+      printWindow.addEventListener("afterprint", () => iframe.remove(), {
+        once: true,
+      });
       try {
         // Tunggu gambar selesai dibaca agar logo tidak hilang saat dialog cetak dibuka.
-        await Promise.all(Array.from(printDocument.images, (img) => img.decode().catch(() => {
-          throw new Error('Logo gagal dimuat. Letakkan logo di public/logo-perusahaan.jpg.');
-        })));
+        await Promise.all(
+          Array.from(printDocument.images, (img) =>
+            img.decode().catch(() => {
+              throw new Error(
+                "Logo gagal dimuat. Letakkan logo di public/logo-perusahaan.jpg.",
+              );
+            }),
+          ),
+        );
         printWindow.focus();
         printWindow.print();
         resolve();
@@ -256,27 +326,34 @@ function cetakBarangKeluar(data: DataCetak): Promise<void> {
     };
     iframe.onerror = () => {
       iframe.remove();
-      reject(new Error('Dokumen cetak gagal dimuat.'));
+      reject(new Error("Dokumen cetak gagal dimuat."));
     };
     iframe.srcdoc = buatDokumenBarangKeluar(data, logoUrl);
     document.body.appendChild(iframe);
   });
 }
 
-const formCellClass = 'border-b border-r border-gray-300';
+const formCellClass = "border-b border-r border-gray-300";
 const formHeadClass = `${formCellClass} px-2 py-2.5 font-medium whitespace-nowrap`;
-const labelClass = 'block text-sm text-gray-800 mb-1.5';
-const rowClass = 'grid grid-cols-1 sm:grid-cols-[140px_1fr] sm:items-center gap-x-4 gap-y-1.5';
-const rowLabelClass = "text-sm text-gray-800 sm:flex sm:justify-between sm:after:content-[':']";
-const selectClass = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors';
-const fieldClass = 'w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors';
-const orangeButtonClass = 'flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed';
+const labelClass = "block text-sm text-gray-800 mb-1.5";
+const rowClass =
+  "grid grid-cols-1 sm:grid-cols-[140px_1fr] sm:items-center gap-x-4 gap-y-1.5";
+const rowLabelClass =
+  "text-sm text-gray-800 sm:flex sm:justify-between sm:after:content-[':']";
+const selectClass =
+  "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors";
+const fieldClass =
+  "w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors";
+const orangeButtonClass =
+  "flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed";
 
 export default function BarangKeluarGudang() {
-  const canCreate = useCan('outbound.create');
-  const canUpdate = useCan('outbound.update');
-  const canExport = useCan('report.view');
+  const canCreate = useCan("outbound.create");
+  const canUpdate = useCan("outbound.update");
+  const canExport = useCan("report.view");
   const [searchQuery, setSearchQuery] = useState("");
+  // Pesan error di luar modal (mis. dialog cetak gagal dibuka setelah data tersimpan)
+  const [actionError, setActionError] = useState("");
 
   const { sort, toggle, params: sortParams } = useSort();
   const [showFilter, setShowFilter] = useState(false);
@@ -284,10 +361,15 @@ export default function BarangKeluarGudang() {
   const [filterMonth, setFilterMonth] = useState("");
   const [filterYear, setFilterYear] = useState("");
 
-  const { items, onSearch: searchItems, pending: itemPending, error: itemError } = useItemSearch();
+  const {
+    items,
+    onSearch: searchItems,
+    pending: itemPending,
+    error: itemError,
+  } = useItemSearch();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modeKeluar, setModeKeluar] = useState<'spk' | 'stok'>('spk');
+  const [modeKeluar, setModeKeluar] = useState<"spk" | "stok">("spk");
   const [form, setForm] = useState(formKosong);
   const [saving, setSaving] = useState(false);
   const submittingRef = useRef(false);
@@ -303,15 +385,17 @@ export default function BarangKeluarGudang() {
   // Scan bisa datang lebih cepat dari render, jadi pengecekan kode yang sudah ada memakai ref
   const barisRef = useRef<BarisForm[]>([]);
   // Baris yang baru discan berkedip hijau sebentar; n berubah tiap scan supaya scan ulang kode yang sama tetap memicu efek
-  const [flash, setFlash] = useState<{ itemId: number; n: number } | null>(null);
+  const [flash, setFlash] = useState<{ itemId: number; n: number } | null>(
+    null,
+  );
   // Satu key per draft: dipakai ulang saat retry atau klik ganda, ganti hanya kalau isi draft berubah
-  const draftKey = useRef({ key: '', payload: '' });
+  const draftKey = useRef({ key: "", payload: "" });
   // Kamera HP: lihat QrCameraScanner, nama barang terakhir yang discan ditampilkan di kotak kamera
   const [cameraOn, setCameraOn] = useState(false);
-  const [lockedName, setLockedName] = useState('');
+  const [lockedName, setLockedName] = useState("");
   // Callback kamera tidak diperbarui tiap render, jadi cek nama pengambil lewat ref
-  const pengambilRef = useRef('');
-  const pengambilOk = form.namaPengambil.trim() !== '';
+  const pengambilRef = useRef("");
+  const pengambilOk = form.namaPengambil.trim() !== "";
 
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   const [editForm, setEditForm] = useState<EditForm | null>(null);
@@ -326,17 +410,38 @@ export default function BarangKeluarGudang() {
   const editTanggalRef = useRef<HTMLInputElement>(null);
 
   const dateRange = toDateRange(filterDay, filterMonth, filterYear);
-  const activeDateFilters = [filterDay, filterMonth, filterYear].filter(Boolean).length;
+  const activeDateFilters = [filterDay, filterMonth, filterYear].filter(
+    Boolean,
+  ).length;
 
-  const filterKey = JSON.stringify([searchQuery, filterDay, filterMonth, filterYear, sortParams]);
+  const filterKey = JSON.stringify([
+    searchQuery,
+    filterDay,
+    filterMonth,
+    filterYear,
+    sortParams,
+  ]);
 
   const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
   const page = pageState.key === filterKey ? pageState.page : 1;
-  const setPage = (next: number) => setPageState({ key: filterKey, page: next });
-  const { data: result, loading, error, reload } = useApiData(
-    () => listOutbound({ page, pageSize: PAGE_SIZE, search: searchQuery || undefined, ...dateRange, ...sortParams }),
+  const setPage = (next: number) =>
+    setPageState({ key: filterKey, page: next });
+  const {
+    data: result,
+    loading,
+    error,
+    reload,
+  } = useApiData(
+    () =>
+      listOutbound({
+        page,
+        pageSize: PAGE_SIZE,
+        search: searchQuery || undefined,
+        ...dateRange,
+        ...sortParams,
+      }),
     `${filterKey}|${page}`,
-    'Gagal memuat data barang keluar.',
+    "Gagal memuat data barang keluar.",
   );
   const rows = result?.rows ?? [];
   const total = result?.total ?? 0;
@@ -345,12 +450,19 @@ export default function BarangKeluarGudang() {
   const clientForm = useClientSearch();
   const clientPilihan = clientForm.options.map((c) => ({ value: c, label: c }));
   const spkForm = useSpkSearch(form.spk, form.client);
-  const spkPilihan = spkForm.options.map((t) => ({ value: t.noSpk, label: t.noSpk }));
-  const spkEdit = useSpkSearch(editForm?.spk ?? '');
-  const clientOf = (spk: string) => spkEdit.options.find((t) => t.noSpk === spk)?.client ?? '';
+  const spkPilihan = spkForm.options.map((t) => ({
+    value: t.noSpk,
+    label: t.noSpk,
+  }));
+  const spkEdit = useSpkSearch(editForm?.spk ?? "");
+  const clientOf = (spk: string) =>
+    spkEdit.options.find((t) => t.noSpk === spk)?.client ?? "";
 
   // Detail SPK (client dan produk) dari tracking, dimuat tiap SPK di form dipilih
-  const [detailSpk, setDetailSpk] = useState<{ noSpk: string; data: TrackingSpkDetail | null } | null>(null);
+  const [detailSpk, setDetailSpk] = useState<{
+    noSpk: string;
+    data: TrackingSpkDetail | null;
+  } | null>(null);
   useEffect(() => {
     if (!form.spk) return;
     const spk = form.spk;
@@ -358,30 +470,45 @@ export default function BarangKeluarGudang() {
     getTrackingSpk(spk)
       .then((data) => !batal && setDetailSpk({ noSpk: spk, data }))
       .catch(() => !batal && setDetailSpk({ noSpk: spk, data: null }));
-    return () => { batal = true; };
+    return () => {
+      batal = true;
+    };
   }, [form.spk]);
-  const detailAktif = form.spk && detailSpk?.noSpk === form.spk ? detailSpk : null;
-  const detailGagal = !!form.spk && detailAktif !== null && detailAktif.data === null;
+  const detailAktif =
+    form.spk && detailSpk?.noSpk === form.spk ? detailSpk : null;
+  const detailGagal =
+    !!form.spk && detailAktif !== null && detailAktif.data === null;
   const detailMemuat = !!form.spk && detailAktif === null;
 
-  useEffect(() => { barisRef.current = form.baris; }, [form.baris]);
-  useEffect(() => { pengambilRef.current = form.namaPengambil.trim(); }, [form.namaPengambil]);
-  useEffect(() => { if (scanOpen) scanRef.current?.focus(); }, [scanOpen]);
+  useEffect(() => {
+    barisRef.current = form.baris;
+  }, [form.baris]);
+  useEffect(() => {
+    pengambilRef.current = form.namaPengambil.trim();
+  }, [form.namaPengambil]);
+  useEffect(() => {
+    if (scanOpen) scanRef.current?.focus();
+  }, [scanOpen]);
   useEffect(() => {
     if (!flash) return;
-    document.getElementById(`bk-baris-${flash.itemId}`)?.scrollIntoView?.({ block: 'nearest' });
+    document
+      .getElementById(`bk-baris-${flash.itemId}`)
+      ?.scrollIntoView?.({ block: "nearest" });
     const timer = setTimeout(() => setFlash(null), 700);
     return () => clearTimeout(timer);
   }, [flash]);
   // Toast gagal scan hilang sendiri
   useEffect(() => {
     if (!scanError) return;
-    const timer = setTimeout(() => setScanError(''), 4000);
+    const timer = setTimeout(() => setScanError(""), 4000);
     return () => clearTimeout(timer);
   }, [scanError]);
 
   // Tabel menampilkan satu baris per transaksi, nomor urut dihitung dari halaman
-  const trxRows = rows.map((trx, trxIndex) => ({ trx, trxNo: (page - 1) * PAGE_SIZE + trxIndex + 1 }));
+  const trxRows = rows.map((trx, trxIndex) => ({
+    trx,
+    trxNo: (page - 1) * PAGE_SIZE + trxIndex + 1,
+  }));
 
   const openEdit = (trx: OutboundRow, lineIndex: number) => {
     const line = trx.lines[lineIndex];
@@ -401,52 +528,70 @@ export default function BarangKeluarGudang() {
     setEditForm(null);
   };
 
-  const toggleExpand = (id: number) => setExpanded((prev) => {
-    const next = new Set(prev);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    return next;
-  });
+  const toggleExpand = (id: number) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   // Tombol Edit satu baris barang; terkunci setelah 1 hari. onBuka dipanggil dulu, misalnya untuk menutup pop-up rincian
-  const tombolEdit = (trx: OutboundRow, lineIndex: number, onBuka?: () => void) => {
+  const tombolEdit = (
+    trx: OutboundRow,
+    lineIndex: number,
+    onBuka?: () => void,
+  ) => {
     if (!canUpdate) return null;
     const line = trx.lines[lineIndex];
-    return <WithNow>{(now) => bisaEdit(trx, now) ? (
-      <button
-        type="button"
-        onClick={() => { onBuka?.(); openEdit(trx, lineIndex); }}
-        title={`Bisa diedit sampai ${tampilWaktu(batasEdit(trx))}`}
-        aria-label={`Edit barang keluar ${trx.id} ${line.itemName}`}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#FF8A00] text-[#FF8A00] text-xs font-semibold hover:bg-orange-50 transition-colors"
-      >
-        <Pencil className="w-3.5 h-3.5" />
-        <span>Edit</span>
-      </button>
-    ) : (
-      <button
-        type="button"
-        disabled
-        title="Sudah lewat 1 hari, tidak bisa diedit"
-        aria-label={`Edit barang keluar ${trx.id} ${line.itemName} (terkunci)`}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-gray-50 text-gray-400 text-xs font-semibold cursor-not-allowed opacity-70"
-      >
-        <Lock className="w-3.5 h-3.5" />
-        <span>Edit</span>
-      </button>
-    )}</WithNow>;
+    return (
+      <WithNow>
+        {(now) =>
+          bisaEdit(trx, now) ? (
+            <button
+              type="button"
+              onClick={() => {
+                onBuka?.();
+                openEdit(trx, lineIndex);
+              }}
+              title={`Bisa diedit sampai ${tampilWaktu(batasEdit(trx))}`}
+              aria-label={`Edit barang keluar ${trx.id} ${line.itemName}`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#FF8A00] text-[#FF8A00] text-xs font-semibold hover:bg-orange-50 transition-colors"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              <span>Edit</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled
+              title="Sudah lewat 1 hari, tidak bisa diedit"
+              aria-label={`Edit barang keluar ${trx.id} ${line.itemName} (terkunci)`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-gray-50 text-gray-400 text-xs font-semibold cursor-not-allowed opacity-70"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>Edit</span>
+            </button>
+          )
+        }
+      </WithNow>
+    );
   };
 
-  const editLine = editTarget ? editTarget.trx.lines[editTarget.lineIndex] : undefined;
+  const editLine = editTarget
+    ? editTarget.trx.lines[editTarget.lineIndex]
+    : undefined;
 
-  const updateEdit = (patch: Partial<EditForm>) => setEditForm((prev) => (prev ? { ...prev, ...patch } : prev));
+  const updateEdit = (patch: Partial<EditForm>) =>
+    setEditForm((prev) => (prev ? { ...prev, ...patch } : prev));
 
   const handleSimpanEdit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (submittingRef.current) return;
     if (!editTarget || !editForm) return;
     const submitter = (e.nativeEvent as SubmitEvent).submitter;
-    const cetakSetelahSimpan = submitter instanceof HTMLButtonElement && submitter.value === 'cetak';
+    const cetakSetelahSimpan =
+      submitter instanceof HTMLButtonElement && submitter.value === "cetak";
     const { trx, lineIndex } = editTarget;
     // Dicek ulang saat simpan, karena batas waktu bisa lewat selagi pop-up masih terbuka
     if (!bisaEdit(trx, Date.now())) {
@@ -455,8 +600,17 @@ export default function BarangKeluarGudang() {
       return;
     }
     const { tanggal, spk, namaItem, itemId, qty } = editForm;
-    if (!tanggal || !spk || !namaItem.trim() || !itemId || !qty || Number(qty) <= 0) {
-      setEditError("Isi tanggal, SPK, nama item/projek, nama barang, dan jumlah.");
+    if (
+      !tanggal ||
+      !spk ||
+      !namaItem.trim() ||
+      !itemId ||
+      !qty ||
+      Number(qty) <= 0
+    ) {
+      setEditError(
+        "Isi tanggal, SPK, nama item/projek, nama barang, dan jumlah.",
+      );
       return;
     }
 
@@ -484,23 +638,41 @@ export default function BarangKeluarGudang() {
         try {
           await cetakBarangKeluar({
             tanggal,
-            client: clientOf(spk) || (spk === trx.spk ? trx.clientName : '') || '-',
+            client:
+              clientOf(spk) || (spk === trx.spk ? trx.clientName : "") || "-",
             spk,
             namaItem: namaItem.trim(),
             baris: trx.lines.map((line, i) => ({
-              name: i === lineIndex ? (editForm.picked?.name ?? line.itemName) : line.itemName,
-              code: i === lineIndex && editForm.picked ? editForm.picked.code : line.itemCode,
-              unit: items.find((item) => item.id === (i === lineIndex ? Number(itemId) : line.itemId))?.unit ?? '',
+              name:
+                i === lineIndex
+                  ? (editForm.picked?.name ?? line.itemName)
+                  : line.itemName,
+              code:
+                i === lineIndex && editForm.picked
+                  ? editForm.picked.code
+                  : line.itemCode,
+              unit:
+                items.find(
+                  (item) =>
+                    item.id ===
+                    (i === lineIndex ? Number(itemId) : line.itemId),
+                )?.unit ?? "",
               qty: i === lineIndex ? Number(qty) : line.qty,
               pic: line.pic,
             })),
           });
         } catch (err) {
-          setActionError(`Perubahan sudah tersimpan, tetapi dialog cetak gagal dibuka. ${err instanceof Error ? err.message : ''}`);
+          setActionError(
+            `Perubahan sudah tersimpan, tetapi dialog cetak gagal dibuka. ${err instanceof Error ? err.message : ""}`,
+          );
         }
       }
     } catch (err) {
-      setEditError(err instanceof ApiError ? err.message : "Gagal menyimpan perubahan barang keluar.");
+      setEditError(
+        err instanceof ApiError
+          ? err.message
+          : "Gagal menyimpan perubahan barang keluar.",
+      );
     } finally {
       submittingRef.current = false;
       setEditSaving(false);
@@ -513,15 +685,23 @@ export default function BarangKeluarGudang() {
     try {
       await exportOutboundReport({ q: searchQuery || undefined, ...dateRange });
     } catch (err) {
-      setDownloadError(err instanceof ApiError ? err.message : "Gagal mengunduh data barang keluar.");
+      setDownloadError(
+        err instanceof ApiError
+          ? err.message
+          : "Gagal mengunduh data barang keluar.",
+      );
     } finally {
       setDownloading(false);
     }
   };
 
-  const openModal = (mode: 'spk' | 'stok') => {
+  const openModal = (mode: "spk" | "stok") => {
     setModeKeluar(mode);
-    setForm(mode === 'stok' ? { ...formKosong(), stockId: stockIdManual() } : formKosong());
+    setForm(
+      mode === "stok"
+        ? { ...formKosong(), stockId: stockIdManual() }
+        : formKosong(),
+    );
     setModalError("");
     setScanOpen(false);
     setScanValue("");
@@ -529,7 +709,8 @@ export default function BarangKeluarGudang() {
     setIsModalOpen(true);
   };
 
-  const setBaris = (fn: (baris: BarisForm[]) => BarisForm[]) => setForm((prev) => ({ ...prev, baris: fn(prev.baris) }));
+  const setBaris = (fn: (baris: BarisForm[]) => BarisForm[]) =>
+    setForm((prev) => ({ ...prev, baris: fn(prev.baris) }));
   const patchBaris = (key: string, patch: Partial<BarisForm>) =>
     setBaris((bs) => bs.map((b) => (b.key === key ? { ...b, ...patch } : b)));
 
@@ -537,16 +718,36 @@ export default function BarangKeluarGudang() {
 
   const pilihMaterial = (key: string, itemId: string) => {
     const item = items.find((it) => String(it.id) === itemId);
-    if (item) patchBaris(key, { itemId: item.id, code: item.code ?? '', name: item.name, unit: item.unit, stock: item.stock });
+    if (item)
+      patchBaris(key, {
+        itemId: item.id,
+        code: item.code ?? "",
+        name: item.name,
+        unit: item.unit,
+        stock: item.stock,
+      });
   };
 
   // Material yang sudah ada di baris lain tidak ditawarkan lagi, jumlahnya cukup ditambah di baris itu
   // Item terpilih tetap ada di pilihan walau di luar hasil pencarian terakhir.
   const pilihanMaterial = (b: BarisForm) => [
-    ...(b.itemId !== null && !items.some((it) => it.id === b.itemId) ? [{ value: String(b.itemId), label: b.code ? `${b.name} (${b.code})` : b.name }] : []),
+    ...(b.itemId !== null && !items.some((it) => it.id === b.itemId)
+      ? [
+          {
+            value: String(b.itemId),
+            label: b.code ? `${b.name} (${b.code})` : b.name,
+          },
+        ]
+      : []),
     ...items
-      .filter((it) => it.id === b.itemId || !form.baris.some((x) => x.itemId === it.id))
-      .map((it) => ({ value: String(it.id), label: it.code ? `${it.name} (${it.code})` : it.name })),
+      .filter(
+        (it) =>
+          it.id === b.itemId || !form.baris.some((x) => x.itemId === it.id),
+      )
+      .map((it) => ({
+        value: String(it.id),
+        label: it.code ? `${it.name} (${it.code})` : it.name,
+      })),
   ];
 
   const bukaScan = () => {
@@ -559,10 +760,24 @@ export default function BarangKeluarGudang() {
   const tambahKode = async (code: string) => {
     setScanError("");
     setLockedName("");
-    if (!pengambilRef.current) { setScanError("Isi nama pengambil dulu."); beepFail(); return; }
-    const ok = (itemId: number) => { setFlash((f) => ({ itemId, n: (f?.n ?? 0) + 1 })); beepOk(); };
-    const ada = barisRef.current.find((b) => b.itemId !== null && b.code === code);
-    if (ada && ada.itemId !== null) { setBaris((bs) => tambahSatu(bs, ada.key)); setLockedName(ada.name); ok(ada.itemId); return; }
+    if (!pengambilRef.current) {
+      setScanError("Isi nama pengambil dulu.");
+      beepFail();
+      return;
+    }
+    const ok = (itemId: number) => {
+      setFlash((f) => ({ itemId, n: (f?.n ?? 0) + 1 }));
+      beepOk();
+    };
+    const ada = barisRef.current.find(
+      (b) => b.itemId !== null && b.code === code,
+    );
+    if (ada && ada.itemId !== null) {
+      setBaris((bs) => tambahSatu(bs, ada.key));
+      setLockedName(ada.name);
+      ok(ada.itemId);
+      return;
+    }
     try {
       const item = await getItemByCode(code);
       setLockedName(item.name);
@@ -571,61 +786,113 @@ export default function BarangKeluarGudang() {
         const sama = bs.find((b) => b.itemId === item.id);
         return sama
           ? tambahSatu(bs, sama.key)
-          : [...bs, { key: randomId(), manual: false, itemId: item.id, code: item.code ?? code, name: item.name, unit: item.unit, stock: item.stock, qty: '1', dokubah: '' }];
+          : [
+              ...bs,
+              {
+                key: randomId(),
+                manual: false,
+                itemId: item.id,
+                code: item.code ?? code,
+                name: item.name,
+                unit: item.unit,
+                stock: item.stock,
+                qty: "1",
+                dokubah: "",
+              },
+            ];
       });
       ok(item.id);
     } catch (err) {
       beepFail();
-      setScanError(err instanceof ApiError && err.status === 404 ? `Kode "${code}" tidak dikenal.` : err instanceof ApiError ? err.message : 'Gagal membaca kode.');
+      setScanError(
+        err instanceof ApiError && err.status === 404
+          ? `Kode "${code}" tidak dikenal.`
+          : err instanceof ApiError
+            ? err.message
+            : "Gagal membaca kode.",
+      );
     }
   };
 
   // Scanner USB mengetik kode lalu menekan Enter; Enter juga tidak boleh mengirim form
   const onScanKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key !== 'Enter') return;
+    if (e.key !== "Enter") return;
     e.preventDefault();
     const code = scanValue.trim();
     setScanValue("");
     if (code) void tambahKode(code);
   };
 
-
   const pilihClient = (client: string) => {
-    setForm((prev) => (prev.client === client ? prev : { ...prev, client, spk: "", namaItem: "" }));
+    setForm((prev) =>
+      prev.client === client
+        ? prev
+        : { ...prev, client, spk: "", namaItem: "" },
+    );
   };
 
-  const pilihSpk =(spk: string) => {
+  const pilihSpk = (spk: string) => {
     setForm((prev) => ({ ...prev, spk, namaItem: "" }));
   };
 
   // Hanya produk milik SPK dan client yang sedang dipilih.
-  const produkTracking = (detailAktif?.data?.client === form.client ? detailAktif.data.products : [])
-    .filter((p, i, arr) => arr.findIndex((x) => x.name === p.name) === i);
+  const produkTracking = (
+    detailAktif?.data?.client === form.client ? detailAktif.data.products : []
+  ).filter((p, i, arr) => arr.findIndex((x) => x.name === p.name) === i);
   const pilihanProduk = [
-    ...produkTracking.map((p) => ({ value: p.name, label: `${p.name} (${p.qty} ${p.unit})` })),
+    ...produkTracking.map((p) => ({
+      value: p.name,
+      label: `${p.name} (${p.qty} ${p.unit})`,
+    })),
   ];
 
   const handleSimpan = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (submittingRef.current) return;
     const submitter = (e.nativeEvent as SubmitEvent).submitter;
-    const cetakSetelahSimpan = submitter instanceof HTMLButtonElement && submitter.value === 'cetak';
+    const cetakSetelahSimpan =
+      submitter instanceof HTMLButtonElement && submitter.value === "cetak";
     // Stock IDs and their items will come from a dedicated API, not tracking SPKs.
-    if (modeKeluar === 'stok') {
-      setModalError("Data stok belum tersedia. Barang keluar stok belum dapat disimpan.");
+    if (modeKeluar === "stok") {
+      setModalError(
+        "Data stok belum tersedia. Barang keluar stok belum dapat disimpan.",
+      );
       return;
     }
-    const { namaPengambil, tanggal, client, spk, namaItem, recipientType, baris } = form;
-    if (!tanggal || !client || !spk || !namaPengambil.trim() || !namaItem.trim()) {
-      setModalError("Lengkapi tanggal, client, SPK, nama pengambil, dan nama produk/proyek.");
+    const {
+      namaPengambil,
+      tanggal,
+      client,
+      spk,
+      namaItem,
+      recipientType,
+      baris,
+    } = form;
+    if (
+      !tanggal ||
+      !client ||
+      !spk ||
+      !namaPengambil.trim() ||
+      !namaItem.trim()
+    ) {
+      setModalError(
+        "Lengkapi tanggal, client, SPK, nama pengambil, dan nama produk/proyek.",
+      );
       return;
     }
-    if (!spkPilihan.some((p) => p.value === spk) || !produkTracking.some((p) => p.name === namaItem)) {
-      setModalError("Pilih SPK milik client dan item yang tersedia pada SPK tersebut.");
+    if (
+      !spkPilihan.some((p) => p.value === spk) ||
+      !produkTracking.some((p) => p.name === namaItem)
+    ) {
+      setModalError(
+        "Pilih SPK milik client dan item yang tersedia pada SPK tersebut.",
+      );
       return;
     }
     // Baris input manual yang belum dipilih materialnya diabaikan
-    const terisi = baris.flatMap((b) => (b.itemId === null ? [] : [{ ...b, itemId: b.itemId }]));
+    const terisi = baris.flatMap((b) =>
+      b.itemId === null ? [] : [{ ...b, itemId: b.itemId }],
+    );
     if (terisi.length === 0) {
       setModalError("Scan atau pilih minimal satu barang yang keluar.");
       return;
@@ -646,14 +913,19 @@ export default function BarangKeluarGudang() {
         itemName: namaItem.trim(),
         recipientType,
         notes: `Pengambil: ${namaPengambil.trim()}`,
-        lines: terisi.map((b) => ({ itemId: b.itemId, qty: Number(b.qty), pic: namaPengambil.trim() })),
+        lines: terisi.map((b) => ({
+          itemId: b.itemId,
+          qty: Number(b.qty),
+          pic: namaPengambil.trim(),
+        })),
       };
-      
+
       const payload = JSON.stringify(input);
-      if (!draftKey.current.key || draftKey.current.payload !== payload) draftKey.current = { key: randomId(), payload };
-      
+      if (!draftKey.current.key || draftKey.current.payload !== payload)
+        draftKey.current = { key: randomId(), payload };
+
       await createOutbound(input, draftKey.current.key);
-      draftKey.current = { key: '', payload: '' };
+      draftKey.current = { key: "", payload: "" };
 
       setCameraOn(false);
       setIsModalOpen(false);
@@ -666,14 +938,27 @@ export default function BarangKeluarGudang() {
             spk,
             namaItem: namaItem.trim(),
             // Dokubah dicetak dari draft; payload API saat ini belum menyimpan kolom Dokubah.
-            baris: terisi.map((b) => ({ name: b.name, code: b.code, unit: b.unit, dokubah: b.dokubah, qty: Number(b.qty), pic: namaPengambil.trim() })),
+            baris: terisi.map((b) => ({
+              name: b.name,
+              code: b.code,
+              unit: b.unit,
+              dokubah: b.dokubah,
+              qty: Number(b.qty),
+              pic: namaPengambil.trim(),
+            })),
           });
         } catch (err) {
-          setActionError(`Data sudah tersimpan, tetapi dialog cetak gagal dibuka. ${err instanceof Error ? err.message : ''}`);
+          setActionError(
+            `Data sudah tersimpan, tetapi dialog cetak gagal dibuka. ${err instanceof Error ? err.message : ""}`,
+          );
         }
       }
     } catch (err) {
-      setModalError(err instanceof ApiError ? err.message : "Gagal menyimpan barang keluar.");
+      setModalError(
+        err instanceof ApiError
+          ? err.message
+          : "Gagal menyimpan barang keluar.",
+      );
     } finally {
       submittingRef.current = false;
       setSaving(false);
@@ -684,13 +969,22 @@ export default function BarangKeluarGudang() {
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
-        <h1 className="text-[18px] font-extrabold text-black tracking-wide uppercase">Data Barang Keluar</h1>
+        <h1 className="text-[18px] font-extrabold text-black tracking-wide uppercase">
+          Data Barang Keluar
+        </h1>
       </div>
 
       {actionError && (
-        <div role="alert" className="mb-4 flex items-center justify-between gap-3 p-3 bg-red-50 text-red-600 text-sm rounded-lg">
+        <div
+          role="alert"
+          className="mb-4 flex items-center justify-between gap-3 p-3 bg-red-50 text-red-600 text-sm rounded-lg"
+        >
           <span>{actionError}</span>
-          <button type="button" onClick={() => setActionError('')} aria-label="Tutup pesan cetak">
+          <button
+            type="button"
+            onClick={() => setActionError("")}
+            aria-label="Tutup pesan cetak"
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -716,35 +1010,45 @@ export default function BarangKeluarGudang() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto lg:justify-end">
-              {canCreate && (
-                <>
-                  <button type="button" onClick={() => openModal('spk')} className={orangeButtonClass}>
-                    <Plus className="w-4 h-4" />
-                    <span>Barang Keluar SPK</span>
-                  </button>
+            {canCreate && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => openModal("spk")}
+                  className={orangeButtonClass}
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Barang Keluar SPK</span>
+                </button>
 
-                  <button type="button" onClick={() => openModal('stok')} className={orangeButtonClass}>
-                    <Plus className="w-4 h-4" />
-                    <span>Barang Keluar Stok</span>
-                  </button>
-                </>
-              )}
+                <button
+                  type="button"
+                  onClick={() => openModal("stok")}
+                  className={orangeButtonClass}
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Barang Keluar Stok</span>
+                </button>
+              </>
+            )}
 
-              <button
-                type="button"
-                onClick={() => setShowFilter((v) => !v)}
-                aria-expanded={showFilter}
-                className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl transition-colors text-sm font-semibold ${
-                  showFilter || activeDateFilters > 0
-                    ? 'bg-orange-50 border-orange-300 text-orange-700'
-                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                <Filter className="w-4 h-4" />
-                <span>Filter{activeDateFilters > 0 ? ` (${activeDateFilters})` : ''}</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowFilter((v) => !v)}
+              aria-expanded={showFilter}
+              className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl transition-colors text-sm font-semibold ${
+                showFilter || activeDateFilters > 0
+                  ? "bg-orange-50 border-orange-300 text-orange-700"
+                  : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              <Filter className="w-4 h-4" />
+              <span>
+                Filter{activeDateFilters > 0 ? ` (${activeDateFilters})` : ""}
+              </span>
+            </button>
           </div>
+        </div>
 
         {showFilter && (
           <DateFilter
@@ -754,39 +1058,84 @@ export default function BarangKeluarGudang() {
             onDayChange={setFilterDay}
             onMonthChange={setFilterMonth}
             onYearChange={setFilterYear}
-            onReset={() => { setFilterDay(''); setFilterMonth(''); setFilterYear(''); }}
+            onReset={() => {
+              setFilterDay("");
+              setFilterMonth("");
+              setFilterYear("");
+            }}
           />
         )}
 
         <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm whitespace-nowrap">
-              <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
+          <table className="w-full text-left text-sm whitespace-nowrap">
+            <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
+              <tr>
+                <th scope="col" className="px-6 py-4">
+                  No
+                </th>
+                <SortableTh
+                  label="Transaksi"
+                  sortKey="tanggal"
+                  sort={sort}
+                  onSort={toggle}
+                />
+                <SortableTh
+                  label="Client / SPK"
+                  sortKey="clientName"
+                  sort={sort}
+                  onSort={toggle}
+                />
+                <SortableTh
+                  label="Nama Item/Projek"
+                  sortKey="itemName"
+                  sort={sort}
+                  onSort={toggle}
+                />
+                <th scope="col" className="px-6 py-4">
+                  Pengambil
+                </th>
+                <th scope="col" className="px-6 py-4">
+                  Barang
+                </th>
+                <th scope="col" className="px-6 py-4 text-right">
+                  Jumlah
+                </th>
+                <th scope="col" className="px-6 py-4 text-center">
+                  Action
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {loading && (
                 <tr>
-                  <th scope="col" className="px-6 py-4">No</th>
-                  <SortableTh label="Transaksi" sortKey="tanggal" sort={sort} onSort={toggle} />
-                  <SortableTh label="Client / SPK" sortKey="clientName" sort={sort} onSort={toggle} />
-                  <SortableTh label="Nama Item/Projek" sortKey="itemName" sort={sort} onSort={toggle} />
-                  <th scope="col" className="px-6 py-4">Pengambil</th>
-                  <th scope="col" className="px-6 py-4">Barang</th>
-                  <th scope="col" className="px-6 py-4 text-right">Jumlah</th>
-                  <th scope="col" className="px-6 py-4 text-center">Action</th>
+                  <td
+                    colSpan={8}
+                    className="px-6 py-10 text-center text-gray-400"
+                  >
+                    Memuat data...
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {loading && (
-                  <tr><td colSpan={8} className="px-6 py-10 text-center text-gray-400">Memuat data...</td></tr>
-                )}
-                {!loading && error && (
-                  <tr><td colSpan={8} className="px-6 py-10 text-center text-red-500">{error}</td></tr>
-                )}
-                {!loading && !error && trxRows.map(({ trx, trxNo }) => {
+              )}
+              {!loading && error && (
+                <tr>
+                  <td
+                    colSpan={8}
+                    className="px-6 py-10 text-center text-red-500"
+                  >
+                    {error}
+                  </td>
+                </tr>
+              )}
+              {!loading &&
+                !error &&
+                trxRows.map(({ trx, trxNo }) => {
                   // Satu transaksi punya satu warna zebra, satu sorotan hover, dan satu garis aksen di semua barisnya, termasuk baris rincian
                   const aktif = hoverTrx === trx.id;
-                  const zebra = trxNo % 2 === 0 ? 'bg-gray-50/60' : 'bg-white';
-                  const garisKiri = `border-l-[3px] ${aktif ? 'border-[#FF8A00]' : 'border-transparent'}`;
-                  const barisClass = `transition-colors group ${aktif ? 'bg-[#FF8A00]/5' : zebra}`;
+                  const zebra = trxNo % 2 === 0 ? "bg-gray-50/60" : "bg-white";
+                  const garisKiri = `border-l-[3px] ${aktif ? "border-[#FF8A00]" : "border-transparent"}`;
+                  const barisClass = `transition-colors group ${aktif ? "bg-[#FF8A00]/5" : zebra}`;
                   const hoverProps = {
-                    'data-hover': aktif ? 'true' : undefined,
+                    "data-hover": aktif ? "true" : undefined,
                     onMouseEnter: () => setHoverTrx(trx.id),
                     onMouseLeave: () => setHoverTrx(null),
                   };
@@ -795,7 +1144,10 @@ export default function BarangKeluarGudang() {
                   const pertama = trx.lines[0];
                   const jumlah = trx.lines.reduce((sum, l) => sum + l.qty, 0);
                   // Nama yang bisa diklik membuka pop-up rincian transaksi
-                  const tombolRincian = (teks: React.ReactNode, className: string) => (
+                  const tombolRincian = (
+                    teks: React.ReactNode,
+                    className: string,
+                  ) => (
                     <button
                       type="button"
                       onClick={() => setDetailTrx(trx)}
@@ -807,7 +1159,10 @@ export default function BarangKeluarGudang() {
                   );
                   return (
                     <React.Fragment key={trx.id}>
-                      <tr {...hoverProps} className={`${barisClass} border-t border-gray-100`}>
+                      <tr
+                        {...hoverProps}
+                        className={`${barisClass} border-t border-gray-100`}
+                      >
                         <td className={`px-6 py-4 text-gray-500 ${garisKiri}`}>
                           <div className="flex items-center gap-2">
                             {banyak ? (
@@ -815,10 +1170,12 @@ export default function BarangKeluarGudang() {
                                 type="button"
                                 onClick={() => toggleExpand(trx.id)}
                                 aria-expanded={terbuka}
-                                aria-label={`${terbuka ? 'Tutup' : 'Buka'} rincian barang ${trx.id}`}
+                                aria-label={`${terbuka ? "Tutup" : "Buka"} rincian barang ${trx.id}`}
                                 className="p-0.5 rounded text-gray-500 hover:text-gray-900 hover:bg-gray-200/60"
                               >
-                                <ChevronRight className={`w-4 h-4 transition-transform ${terbuka ? 'rotate-90' : ''}`} />
+                                <ChevronRight
+                                  className={`w-4 h-4 transition-transform ${terbuka ? "rotate-90" : ""}`}
+                                />
                               </button>
                             ) : (
                               <span className="w-5" />
@@ -829,31 +1186,53 @@ export default function BarangKeluarGudang() {
 
                         <td className="px-6 py-4">
                           <div className="flex flex-col items-start">
-                            {tombolRincian(trx.noTransaksi ?? trx.id, 'font-semibold text-gray-900')}
-                            <span className="text-xs text-gray-500">{displayDate(trx.date)}</span>
+                            {tombolRincian(
+                              trx.noTransaksi ?? trx.id,
+                              "font-semibold text-gray-900",
+                            )}
+                            <span className="text-xs text-gray-500">
+                              {displayDate(trx.date)}
+                            </span>
                           </div>
                         </td>
 
                         <td className="px-6 py-4">
                           <div className="flex flex-col">
-                            <span className="font-medium text-gray-900">{trx.clientName}</span>
-                            <span className="text-xs text-gray-500">{trx.spk}</span>
+                            <span className="font-medium text-gray-900">
+                              {trx.clientName}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {trx.spk}
+                            </span>
                           </div>
                         </td>
 
-                        <td className="px-6 py-4 text-gray-600">{tombolRincian(trx.itemName, 'text-gray-600')}</td>
+                        <td className="px-6 py-4 text-gray-600">
+                          {tombolRincian(trx.itemName, "text-gray-600")}
+                        </td>
 
-                        <td className="px-6 py-4 text-gray-700">{pertama?.pic ?? '-'}</td>
+                        <td className="px-6 py-4 text-gray-700">
+                          {pertama?.pic ?? "-"}
+                        </td>
 
                         <td className="px-6 py-4">
                           <div className="flex flex-col items-start">
-                            {tombolRincian(pertama?.itemName ?? '-', 'font-medium text-gray-900')}
-                            <span className="text-xs font-mono text-gray-500 mt-0.5">{pertama?.itemCode ?? '-'}</span>
-                            {banyak && <span className="text-xs text-gray-400 mt-0.5">{`+${trx.lines.length - 1} barang lainnya`}</span>}
+                            {tombolRincian(
+                              pertama?.itemName ?? "-",
+                              "font-medium text-gray-900",
+                            )}
+                            <span className="text-xs font-mono text-gray-500 mt-0.5">
+                              {pertama?.itemCode ?? "-"}
+                            </span>
+                            {banyak && (
+                              <span className="text-xs text-gray-400 mt-0.5">{`+${trx.lines.length - 1} barang lainnya`}</span>
+                            )}
                           </div>
                         </td>
 
-                        <td className="px-6 py-4 text-right font-bold text-gray-800">{jumlah}</td>
+                        <td className="px-6 py-4 text-right font-bold text-gray-800">
+                          {jumlah}
+                        </td>
 
                         <td className="px-6 py-4">
                           {/* Menggunakan kontainer flex agar tombol berjejer rapi ke samping */}
@@ -864,51 +1243,82 @@ export default function BarangKeluarGudang() {
                         </td>
                       </tr>
 
-                      {terbuka && banyak && trx.lines.map((line, lineIndex) => (
-                        <tr key={lineIndex} {...hoverProps} className={barisClass}>
-                          <td className={`px-6 py-3 ${garisKiri}`} />
-                          <td className="px-6 py-3" />
-                          <td className="px-6 py-3" />
-                          <td className="px-6 py-3" />
-                          <td className="px-6 py-3" />
-                          <td className="py-3 pl-12 pr-6">
-                            <div className="flex flex-col">
-                              <span className="font-medium text-gray-900">{line.itemName}</span>
-                              <span className="text-xs font-mono text-gray-500 mt-0.5">{line.itemCode ?? '-'}</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-3 text-right font-bold text-gray-800">{line.qty}</td>
-                          <td className="px-6 py-3">
-                            <div className="flex items-center justify-center gap-2">{tombolEdit(trx, lineIndex)}</div>
-                          </td>
-                        </tr>
-                      ))}
+                      {terbuka &&
+                        banyak &&
+                        trx.lines.map((line, lineIndex) => (
+                          <tr
+                            key={lineIndex}
+                            {...hoverProps}
+                            className={barisClass}
+                          >
+                            <td className={`px-6 py-3 ${garisKiri}`} />
+                            <td className="px-6 py-3" />
+                            <td className="px-6 py-3" />
+                            <td className="px-6 py-3" />
+                            <td className="px-6 py-3" />
+                            <td className="py-3 pl-12 pr-6">
+                              <div className="flex flex-col">
+                                <span className="font-medium text-gray-900">
+                                  {line.itemName}
+                                </span>
+                                <span className="text-xs font-mono text-gray-500 mt-0.5">
+                                  {line.itemCode ?? "-"}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-3 text-right font-bold text-gray-800">
+                              {line.qty}
+                            </td>
+                            <td className="px-6 py-3">
+                              <div className="flex items-center justify-center gap-2">
+                                {tombolEdit(trx, lineIndex)}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
                     </React.Fragment>
                   );
                 })}
-                {!loading && !error && rows.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="px-6 py-10 text-center text-gray-400 italic">
-                      Data tidak ditemukan untuk filter tersebut.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
+              {!loading && !error && rows.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={8}
+                    className="px-6 py-10 text-center text-gray-400 italic"
+                  >
+                    Data tidak ditemukan untuk filter tersebut.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
 
-        {canExport && (
-          <div className="flex flex-col items-end gap-2 mt-6">
-            {downloadError && <p role="alert" className="text-sm text-red-600">{downloadError}</p>}
-            <button type="button" onClick={handleDownload} disabled={downloading || total === 0} className={orangeButtonClass}>
-              <Download className="w-4 h-4" />
-              <span>Download</span>
-            </button>
-          </div>
-        )}
+        <Pagination
+          page={page}
+          pageSize={PAGE_SIZE}
+          total={total}
+          onPageChange={setPage}
+        />
+      </div>
+
+      {canExport && (
+        <div className="flex flex-col items-end gap-2 mt-6">
+          {downloadError && (
+            <p role="alert" className="text-sm text-red-600">
+              {downloadError}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={handleDownload}
+            disabled={downloading || total === 0}
+            className={orangeButtonClass}
+          >
+            <Download className="w-4 h-4" />
+            <span>Download</span>
+          </button>
+        </div>
+      )}
 
       {/* Modal Form Barang Keluar */}
       {isModalOpen && (
@@ -920,7 +1330,10 @@ export default function BarangKeluarGudang() {
           >
             <button
               type="button"
-              onClick={() => { setCameraOn(false); setIsModalOpen(false); }}
+              onClick={() => {
+                setCameraOn(false);
+                setIsModalOpen(false);
+              }}
               disabled={saving}
               aria-label="Tutup form"
               className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
@@ -929,36 +1342,49 @@ export default function BarangKeluarGudang() {
             </button>
 
             <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 mb-6 pr-10">
-              <h2 className="text-[18px] font-extrabold text-black tracking-wide uppercase">Form Barang Keluar {modeKeluar === 'stok' ? 'Stok' : 'SPK'}</h2>
+              <h2 className="text-[18px] font-extrabold text-black tracking-wide uppercase">
+                Form Barang Keluar {modeKeluar === "stok" ? "Stok" : "SPK"}
+              </h2>
 
               <p className="px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm text-gray-800">
-                <span className="font-medium">No. Transaksi :</span>{' '}
+                <span className="font-medium">No. Transaksi :</span>{" "}
                 {/* <span className="text-gray-500">otomatis</span> */}
               </p>
             </div>
             {/* Nama Pengambil / Tanggal, Client / Nama Item, lalu SPK. */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-4 mb-8">
               <div className={rowClass}>
-                <label htmlFor="form-bk-pengambil" className={rowLabelClass}>Nama Pengambil</label>
+                <label htmlFor="form-bk-pengambil" className={rowLabelClass}>
+                  Nama Pengambil
+                </label>
                 <input
                   id="form-bk-pengambil"
                   type="text"
                   value={form.namaPengambil}
                   maxLength={191}
-                  onChange={(e) => setForm((prev) => ({ ...prev, namaPengambil: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      namaPengambil: e.target.value,
+                    }))
+                  }
                   placeholder="Isi nama pengambil"
                   className={fieldClass}
                 />
               </div>
               <div className={rowClass}>
-                <label htmlFor="form-bk-tanggal" className={rowLabelClass}>Tanggal</label>
+                <label htmlFor="form-bk-tanggal" className={rowLabelClass}>
+                  Tanggal
+                </label>
                 <div className="relative">
                   <input
                     ref={formTanggalRef}
                     id="form-bk-tanggal"
                     type="date"
                     value={form.tanggal}
-                    onChange={(e) => setForm((prev) => ({ ...prev, tanggal: e.target.value }))}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, tanggal: e.target.value }))
+                    }
                     className={`${fieldClass} [&::-webkit-calendar-picker-indicator]:hidden`}
                   />
                   <button
@@ -971,68 +1397,109 @@ export default function BarangKeluarGudang() {
                   </button>
                 </div>
               </div>
-              {modeKeluar === 'stok' ? (
+              {modeKeluar === "stok" ? (
                 <div className={rowClass}>
-                  <label htmlFor="form-bk-stock-id" className={rowLabelClass}>ID Stok</label>
+                  <label htmlFor="form-bk-stock-id" className={rowLabelClass}>
+                    ID Stok
+                  </label>
                   <input
                     id="form-bk-stock-id"
                     type="text"
                     value={form.stockId}
                     maxLength={191}
-                    onChange={(e) => setForm((prev) => ({ ...prev, stockId: e.target.value, namaItem: '' }))}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        stockId: e.target.value,
+                        namaItem: "",
+                      }))
+                    }
                     placeholder="Isi ID Stok"
                     className={fieldClass}
                   />
                 </div>
               ) : (
-              <div className={rowClass}>
-                <span className={rowLabelClass}>Client</span>
-                <SearchableSelect
-                  value={form.client}
-                  onChange={pilihClient}
-                  onSearch={clientForm.onSearch}
-                  options={clientPilihan}
-                  placeholder="Pilih client"
-                  aria-label="Client"
-                  className={selectClass}
-                />
-              </div>
+                <div className={rowClass}>
+                  <span className={rowLabelClass}>Client</span>
+                  <SearchableSelect
+                    value={form.client}
+                    onChange={pilihClient}
+                    onSearch={clientForm.onSearch}
+                    options={clientPilihan}
+                    placeholder="Pilih client"
+                    aria-label="Client"
+                    className={selectClass}
+                  />
+                </div>
               )}
               <div className={rowClass}>
                 <span className={rowLabelClass}>Nama Item</span>
                 <div className="min-w-0">
                   <SearchableSelect
                     value={form.namaItem}
-                    onChange={(namaItem) => setForm((prev) => ({ ...prev, namaItem }))}
-                    options={modeKeluar === 'stok' ? [] : pilihanProduk}
-                    disabled={modeKeluar === 'stok' && !form.stockId.trim()}
-                    placeholder={modeKeluar === 'stok' && !form.stockId ? "Pilih Item" : "Pilih Item"}
-                    emptyText={modeKeluar === 'stok' ? "Tidak ada item pada stok ini" : !form.spk ? "Pilih SPK dulu" : detailMemuat ? "Memuat item..." : "Tidak ada item pada SPK ini"}
+                    onChange={(namaItem) =>
+                      setForm((prev) => ({ ...prev, namaItem }))
+                    }
+                    options={modeKeluar === "stok" ? [] : pilihanProduk}
+                    disabled={modeKeluar === "stok" && !form.stockId.trim()}
+                    placeholder={
+                      modeKeluar === "stok" && !form.stockId
+                        ? "Pilih Item"
+                        : "Pilih Item"
+                    }
+                    emptyText={
+                      modeKeluar === "stok"
+                        ? "Tidak ada item pada stok ini"
+                        : !form.spk
+                          ? "Pilih SPK dulu"
+                          : detailMemuat
+                            ? "Memuat item..."
+                            : "Tidak ada item pada SPK ini"
+                    }
                     aria-label="Nama Item"
                     className={selectClass}
                   />
-                  {modeKeluar === 'spk' && detailMemuat && <p className="mt-1 text-xs text-gray-400">Memuat produk...</p>}
-                  {modeKeluar === 'spk' && detailGagal && <p className="mt-1 text-xs text-red-600">Gagal memuat produk dari tracking. Pilih SPK lagi.</p>}
+                  {modeKeluar === "spk" && detailMemuat && (
+                    <p className="mt-1 text-xs text-gray-400">
+                      Memuat produk...
+                    </p>
+                  )}
+                  {modeKeluar === "spk" && detailGagal && (
+                    <p className="mt-1 text-xs text-red-600">
+                      Gagal memuat produk dari tracking. Pilih SPK lagi.
+                    </p>
+                  )}
                 </div>
               </div>
-              {modeKeluar === 'spk' && <div className={rowClass}>
-                <span className={rowLabelClass}>SPK</span>
-                <SearchableSelect
-                  value={form.spk}
-                  onChange={pilihSpk}
-                  onSearch={spkForm.onSearch}
-                  options={spkPilihan}
-                  placeholder={form.client ? "Pilih SPK" : "Pilih SPK"}
-                  emptyText={form.client ? "Tidak ada SPK untuk client ini" : "Pilih SPK"}
-                  aria-label="SPK"
-                  className={selectClass}
-                />
-              </div>}
+              {modeKeluar === "spk" && (
+                <div className={rowClass}>
+                  <span className={rowLabelClass}>SPK</span>
+                  <SearchableSelect
+                    value={form.spk}
+                    onChange={pilihSpk}
+                    onSearch={spkForm.onSearch}
+                    options={spkPilihan}
+                    placeholder={form.client ? "Pilih SPK" : "Pilih SPK"}
+                    emptyText={
+                      form.client
+                        ? "Tidak ada SPK untuk client ini"
+                        : "Pilih SPK"
+                    }
+                    aria-label="SPK"
+                    className={selectClass}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Daftar barang yang keluar, diisi dengan scan QR barang atau input manual */}
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={bukaScan} disabled={!pengambilOk} className={orangeButtonClass}>
+              <button
+                type="button"
+                onClick={bukaScan}
+                disabled={!pengambilOk}
+                className={orangeButtonClass}
+              >
                 <ScanLine className="w-4 h-4" strokeWidth={2.5} />
                 <span>Scan Barang</span>
               </button>
@@ -1045,7 +1512,11 @@ export default function BarangKeluarGudang() {
                 <span>Input Manual</span>
               </button>
             </div>
-            {!pengambilOk && <p className="mt-2 text-xs text-gray-500">Isi Nama Pengambil dulu</p>}
+            {!pengambilOk && (
+              <p className="mt-2 text-xs text-gray-500">
+                Isi Nama Pengambil dulu
+              </p>
+            )}
 
             {scanOpen && (
               <div className="flex gap-2 mt-4">
@@ -1067,13 +1538,16 @@ export default function BarangKeluarGudang() {
                 {/* Saat kamera sudah menyala tombol tetap bisa dipakai untuk mematikannya, walau nama pengambil kosong */}
                 <button
                   type="button"
-                  onClick={() => { setScanError(''); setCameraOn((v) => !v); }}
+                  onClick={() => {
+                    setScanError("");
+                    setCameraOn((v) => !v);
+                  }}
                   disabled={!pengambilOk && !cameraOn}
                   aria-pressed={cameraOn}
-                  className={`flex items-center justify-center gap-2 px-4 border-2 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed ${cameraOn ? 'bg-orange-50 border-orange-300 text-orange-700' : 'border-orange-200 text-gray-700 hover:bg-gray-50'}`}
+                  className={`flex items-center justify-center gap-2 px-4 border-2 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed ${cameraOn ? "bg-orange-50 border-orange-300 text-orange-700" : "border-orange-200 text-gray-700 hover:bg-gray-50"}`}
                 >
                   <Camera className="w-4 h-4" />
-                  {cameraOn ? 'Matikan kamera' : 'Kamera'}
+                  {cameraOn ? "Matikan kamera" : "Kamera"}
                 </button>
               </div>
             )}
@@ -1083,49 +1557,94 @@ export default function BarangKeluarGudang() {
                   onScan={(code) => void tambahKode(code)}
                   lockedLabel={lockedName}
                   rejected={scanError !== ""}
-                  onFail={(message) => { setScanError(message); setCameraOn(false); }}
+                  onFail={(message) => {
+                    setScanError(message);
+                    setCameraOn(false);
+                  }}
                 />
               </div>
             )}
-            {scanError && <p role="alert" className="fixed bottom-6 right-6 z-70 max-w-sm p-3 bg-red-600 text-white text-sm rounded-lg shadow-lg">{scanError}</p>}
+            {scanError && (
+              <p
+                role="alert"
+                className="fixed bottom-6 right-6 z-[70] max-w-sm p-3 bg-red-600 text-white text-sm rounded-lg shadow-lg"
+              >
+                {scanError}
+              </p>
+            )}
             {form.baris.length > 0 && (
-              <p className="mt-3 text-sm text-gray-700">Terscan: <span className="font-bold">{form.baris.reduce((n, b) => n + (Number(b.qty) || 0), 0)}</span> item, {form.baris.length} jenis</p>
+              <p className="mt-3 text-sm text-gray-700">
+                Terscan:{" "}
+                <span className="font-bold">
+                  {form.baris.reduce((n, b) => n + (Number(b.qty) || 0), 0)}
+                </span>{" "}
+                item, {form.baris.length} jenis
+              </p>
             )}
 
             <div className="mt-4 overflow-x-auto border-t border-l border-gray-300 rounded-sm">
               <table className="w-full text-sm border-collapse">
                 <thead className="bg-gray-100 text-gray-900 font-medium text-base">
                   <tr>
-                    <th scope="col" className={`${formHeadClass} w-10`}>No</th>
-                    <th scope="col" className={`${formHeadClass} min-w-48 text-left`}>Nama Material</th>
-                    <th scope="col" className={`${formHeadClass} min-w-24`}>Satuan/Vol</th>
-                    <th scope="col" className={`${formHeadClass} min-w-24`}>Kode</th>
-                    <th scope="col" className={`${formHeadClass} min-w-28`}>Dokubah</th>
-                    <th scope="col" className={`${formHeadClass} min-w-36`}>Pengambilan</th>
-                    <th scope="col" className={`${formHeadClass} w-10`}><span className="sr-only">Hapus</span></th>
+                    <th scope="col" className={`${formHeadClass} w-10`}>
+                      No
+                    </th>
+                    <th
+                      scope="col"
+                      className={`${formHeadClass} min-w-48 text-left`}
+                    >
+                      Nama Material
+                    </th>
+                    <th scope="col" className={`${formHeadClass} min-w-24`}>
+                      Satuan/Vol
+                    </th>
+                    <th scope="col" className={`${formHeadClass} min-w-24`}>
+                      Kode
+                    </th>
+                    <th scope="col" className={`${formHeadClass} min-w-28`}>
+                      Dokubah
+                    </th>
+                    <th scope="col" className={`${formHeadClass} min-w-36`}>
+                      Pengambilan
+                    </th>
+                    <th scope="col" className={`${formHeadClass} w-10`}>
+                      <span className="sr-only">Hapus</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {form.baris.length === 0 && (
                     <tr>
-                      <td colSpan={7} className={`${formCellClass} px-4 py-8 text-center text-gray-400`}>
-                        Belum ada barang. Tekan Scan Barang lalu scan QR barang, atau Input Manual untuk memilih material.
+                      <td
+                        colSpan={7}
+                        className={`${formCellClass} px-4 py-8 text-center text-gray-400`}
+                      >
+                        Belum ada barang. Tekan Scan Barang lalu scan QR barang,
+                        atau Input Manual untuk memilih material.
                       </td>
                     </tr>
                   )}
                   {form.baris.map((b, i) => {
                     // Baris manual yang belum dipilih materialnya belum punya nama untuk label tombolnya
                     const nama = b.name || `baris ${i + 1}`;
-                    const lebihStok = b.itemId !== null && Number(b.qty) > b.stock;
+                    const lebihStok =
+                      b.itemId !== null && Number(b.qty) > b.stock;
                     return (
                       <tr key={b.key}>
-                        <td className={`${formCellClass} text-center text-gray-700`}>{i + 1}</td>
+                        <td
+                          className={`${formCellClass} text-center text-gray-700`}
+                        >
+                          {i + 1}
+                        </td>
                         {b.manual ? (
                           <td className={`${formCellClass} px-1 py-1`}>
                             <SearchableSelect
-                              value={b.itemId === null ? '' : String(b.itemId)}
-                              onChange={(itemId) => pilihMaterial(b.key, itemId)}
-                              onSearch={searchItems} pending={itemPending}
+                              value={b.itemId === null ? "" : String(b.itemId)}
+                              onChange={(itemId) =>
+                                pilihMaterial(b.key, itemId)
+                              }
+                              onSearch={searchItems}
+                              pending={itemPending}
                               options={pilihanMaterial(b)}
                               placeholder="Pilih material"
                               emptyText="Material tidak ditemukan"
@@ -1134,15 +1653,29 @@ export default function BarangKeluarGudang() {
                             />
                           </td>
                         ) : (
-                          <td className={`${formCellClass} px-2 py-2 font-medium text-gray-900`}>{b.name}</td>
+                          <td
+                            className={`${formCellClass} px-2 py-2 font-medium text-gray-900`}
+                          >
+                            {b.name}
+                          </td>
                         )}
-                        <td className={`${formCellClass} px-2 text-center text-gray-700`}>{b.unit}</td>
-                        <td className={`${formCellClass} px-2 text-center font-mono text-xs text-gray-600`}>{b.code}</td>
+                        <td
+                          className={`${formCellClass} px-2 text-center text-gray-700`}
+                        >
+                          {b.unit}
+                        </td>
+                        <td
+                          className={`${formCellClass} px-2 text-center font-mono text-xs text-gray-600`}
+                        >
+                          {b.code}
+                        </td>
                         <td className={`${formCellClass} px-2 text-center`}>
                           <input
                             type="text"
                             value={b.dokubah}
-                            onChange={(e) => patchBaris(b.key, { dokubah: e.target.value })}
+                            onChange={(e) =>
+                              patchBaris(b.key, { dokubah: e.target.value })
+                            }
                             placeholder="Isi Dokubah"
                             aria-label={`Dokubah ${nama}`}
                             className="w-full min-w-28 border border-gray-300 rounded-md px-2 py-1.5 text-sm"
@@ -1150,24 +1683,66 @@ export default function BarangKeluarGudang() {
                         </td>
                         <td className={`${formCellClass} px-2 py-1.5`}>
                           <div className="flex items-center justify-center">
-                            <button type="button" aria-label={`Kurangi ${nama}`} disabled={Number(b.qty) <= 1} onClick={() => patchBaris(b.key, { qty: String(Math.max(Number(b.qty) - 1, 1)) })} className="p-1 text-gray-500 hover:text-gray-900 disabled:opacity-30"><Minus className="w-4 h-4" /></button>
+                            <button
+                              type="button"
+                              aria-label={`Kurangi ${nama}`}
+                              disabled={Number(b.qty) <= 1}
+                              onClick={() =>
+                                patchBaris(b.key, {
+                                  qty: String(Math.max(Number(b.qty) - 1, 1)),
+                                })
+                              }
+                              className="p-1 text-gray-500 hover:text-gray-900 disabled:opacity-30"
+                            >
+                              <Minus className="w-4 h-4" />
+                            </button>
                             <input
                               {...INTEGER_INPUT}
                               maxLength={9}
                               value={b.qty}
                               aria-label={`Pengambilan ${nama}`}
-                              title={b.itemId === null ? undefined : `Stok ${b.stock} ${b.unit}`}
-                              onChange={(e) => patchBaris(b.key, { qty: digitsOnly(e.target.value) })}
-                              className={`w-16 border rounded-md py-1.5 px-2 text-center text-sm ${lebihStok ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+                              title={
+                                b.itemId === null
+                                  ? undefined
+                                  : `Stok ${b.stock} ${b.unit}`
+                              }
+                              onChange={(e) =>
+                                patchBaris(b.key, {
+                                  qty: digitsOnly(e.target.value),
+                                })
+                              }
+                              className={`w-16 border rounded-md py-1.5 px-2 text-center text-sm ${lebihStok ? "border-red-400 bg-red-50" : "border-gray-300"}`}
                             />
-                            <button type="button" aria-label={`Tambah ${nama}`} onClick={() => setBaris((bs) => tambahSatu(bs, b.key))} className="p-1 text-gray-500 hover:text-gray-900"><Plus className="w-4 h-4" /></button>
+                            <button
+                              type="button"
+                              aria-label={`Tambah ${nama}`}
+                              onClick={() =>
+                                setBaris((bs) => tambahSatu(bs, b.key))
+                              }
+                              className="p-1 text-gray-500 hover:text-gray-900"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
                           </div>
                           {b.itemId !== null && (
-                            <p className={`mt-0.5 text-center text-xs ${lebihStok ? 'text-red-600' : 'text-gray-400'}`}>stok {b.stock}</p>
+                            <p
+                              className={`mt-0.5 text-center text-xs ${lebihStok ? "text-red-600" : "text-gray-400"}`}
+                            >
+                              stok {b.stock}
+                            </p>
                           )}
                         </td>
                         <td className={`${formCellClass} px-2 text-center`}>
-                          <button type="button" aria-label={`Hapus ${nama}`} onClick={() => setBaris((bs) => bs.filter((x) => x.key !== b.key))} className="text-gray-400 hover:text-red-600">
+                          <button
+                            type="button"
+                            aria-label={`Hapus ${nama}`}
+                            onClick={() =>
+                              setBaris((bs) =>
+                                bs.filter((x) => x.key !== b.key),
+                              )
+                            }
+                            className="text-gray-400 hover:text-red-600"
+                          >
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </td>
@@ -1179,22 +1754,37 @@ export default function BarangKeluarGudang() {
             </div>
 
             {(modalError || itemError) && (
-              <p role="alert" className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{modalError || itemError}</p>
+              <p
+                role="alert"
+                className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg"
+              >
+                {modalError || itemError}
+              </p>
             )}
 
             <div className="flex flex-wrap items-center justify-between gap-4 mt-3">
-              {modeKeluar === 'stok' && <p role="status" className="text-sm text-gray-500">Data stok belum tersedia.</p>}
+              {modeKeluar === "stok" && (
+                <p role="status" className="text-sm text-gray-500">
+                  Data stok belum tersedia.
+                </p>
+              )}
               <div className="ml-auto flex flex-wrap items-center gap-3">
                 <button
                   type="submit"
                   name="aksi"
                   value="simpan"
-                  disabled={saving || modeKeluar === 'stok'}
+                  disabled={saving || modeKeluar === "stok"}
                   className="px-5 py-2.5 text-[#FF8A00] bg-white border-2 border-[#FF8A00] hover:bg-orange-50 font-semibold rounded-xl transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {saving ? 'Menyimpan...' : 'Simpan'}
+                  {saving ? "Menyimpan..." : "Simpan"}
                 </button>
-                <button type="submit" name="aksi" value="cetak" disabled={saving || modeKeluar === 'stok'} className={orangeButtonClass}>
+                <button
+                  type="submit"
+                  name="aksi"
+                  value="cetak"
+                  disabled={saving || modeKeluar === "stok"}
+                  className={orangeButtonClass}
+                >
                   Simpan + Cetak
                 </button>
               </div>
@@ -1221,15 +1811,25 @@ export default function BarangKeluarGudang() {
               <X className="h-4 w-4" strokeWidth={2.5} />
             </button>
 
-            <h2 className="text-[18px] font-extrabold text-black tracking-wide uppercase mb-2">Edit Barang Keluar</h2>
+            <h2 className="text-[18px] font-extrabold text-black tracking-wide uppercase mb-2">
+              Edit Barang Keluar
+            </h2>
             <p className="text-sm text-gray-500 mb-6">
-              No. Transaksi <span className="font-semibold text-gray-800">{editTarget.trx.id}</span> · bisa diedit sampai{' '}
-              <span className="font-semibold text-gray-800">{tampilWaktu(batasEdit(editTarget.trx))}</span>
+              No. Transaksi{" "}
+              <span className="font-semibold text-gray-800">
+                {editTarget.trx.id}
+              </span>{" "}
+              · bisa diedit sampai{" "}
+              <span className="font-semibold text-gray-800">
+                {tampilWaktu(batasEdit(editTarget.trx))}
+              </span>
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="edit-bk-tanggal" className={labelClass}>Tanggal</label>
+                <label htmlFor="edit-bk-tanggal" className={labelClass}>
+                  Tanggal
+                </label>
                 <div className="relative">
                   <input
                     ref={editTanggalRef}
@@ -1250,8 +1850,16 @@ export default function BarangKeluarGudang() {
                 </div>
               </div>
               <div>
-                <label htmlFor="edit-bk-client" className={labelClass}>Nama Client</label>
-                <input id="edit-bk-client" type="text" readOnly value={clientOf(editForm.spk)} className={fieldClass} />
+                <label htmlFor="edit-bk-client" className={labelClass}>
+                  Nama Client
+                </label>
+                <input
+                  id="edit-bk-client"
+                  type="text"
+                  readOnly
+                  value={clientOf(editForm.spk)}
+                  className={fieldClass}
+                />
               </div>
               <div>
                 <span className={labelClass}>SPK</span>
@@ -1259,27 +1867,61 @@ export default function BarangKeluarGudang() {
                   value={editForm.spk}
                   onChange={(spk) => updateEdit({ spk })}
                   onSearch={spkEdit.onSearch}
-                  options={spkEdit.options.map((t) => ({ value: t.noSpk, label: t.noSpk }))}
+                  options={spkEdit.options.map((t) => ({
+                    value: t.noSpk,
+                    label: t.noSpk,
+                  }))}
                   placeholder="Pilih SPK"
                   aria-label="SPK"
                   className={fieldClass}
                 />
               </div>
               <div>
-                <label htmlFor="edit-bk-item" className={labelClass}>Nama Item/Projek</label>
-                <input id="edit-bk-item" type="text" value={editForm.namaItem} maxLength={191} onChange={(e) => updateEdit({ namaItem: e.target.value })} className={fieldClass} />
+                <label htmlFor="edit-bk-item" className={labelClass}>
+                  Nama Item/Projek
+                </label>
+                <input
+                  id="edit-bk-item"
+                  type="text"
+                  value={editForm.namaItem}
+                  maxLength={191}
+                  onChange={(e) => updateEdit({ namaItem: e.target.value })}
+                  className={fieldClass}
+                />
               </div>
               <div>
-                <label htmlFor="edit-bk-barang" className={labelClass}>Nama Barang</label>
+                <label htmlFor="edit-bk-barang" className={labelClass}>
+                  Nama Barang
+                </label>
                 <SearchableSelect
                   value={editForm.itemId}
-                  onChange={(itemId) => { const it = items.find((x) => String(x.id) === itemId); updateEdit(it ? { itemId, picked: { name: it.name, code: it.code } } : itemId === editForm.itemId ? {} : { itemId, picked: undefined }); }}
-                  onSearch={searchItems} pending={itemPending}
+                  onChange={(itemId) => {
+                    const it = items.find((x) => String(x.id) === itemId);
+                    updateEdit(
+                      it
+                        ? { itemId, picked: { name: it.name, code: it.code } }
+                        : itemId === editForm.itemId
+                          ? {}
+                          : { itemId, picked: undefined },
+                    );
+                  }}
+                  onSearch={searchItems}
+                  pending={itemPending}
                   options={[
                     // Barang terpilih (lama atau baru) tetap muncul walau di luar hasil pencarian terakhir
                     ...(!items.some((it) => String(it.id) === editForm.itemId)
-                      ? [{ value: editForm.itemId, label: editForm.picked?.name ?? editLine?.itemName ?? '' }] : []),
-                    ...items.map((it) => ({ value: String(it.id), label: it.name })),
+                      ? [
+                          {
+                            value: editForm.itemId,
+                            label:
+                              editForm.picked?.name ?? editLine?.itemName ?? "",
+                          },
+                        ]
+                      : []),
+                    ...items.map((it) => ({
+                      value: String(it.id),
+                      label: it.name,
+                    })),
                   ]}
                   placeholder="Pilih barang"
                   aria-label="Nama Barang"
@@ -1288,23 +1930,33 @@ export default function BarangKeluarGudang() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="edit-bk-kode" className={labelClass}>Kode Barang</label>
+                  <label htmlFor="edit-bk-kode" className={labelClass}>
+                    Kode Barang
+                  </label>
                   <input
                     id="edit-bk-kode"
                     type="text"
                     readOnly
-                    value={(editForm.picked ? editForm.picked.code : editLine?.itemCode) ?? '-'}
+                    value={
+                      (editForm.picked
+                        ? editForm.picked.code
+                        : editLine?.itemCode) ?? "-"
+                    }
                     className={`${fieldClass} bg-gray-50 cursor-default font-mono text-xs`}
                   />
                 </div>
                 <div>
-                  <label htmlFor="edit-bk-jumlah" className={labelClass}>Jumlah</label>
+                  <label htmlFor="edit-bk-jumlah" className={labelClass}>
+                    Jumlah
+                  </label>
                   <input
                     {...INTEGER_INPUT}
                     id="edit-bk-jumlah"
                     maxLength={9}
                     value={editForm.qty}
-                    onChange={(e) => updateEdit({ qty: digitsOnly(e.target.value) })}
+                    onChange={(e) =>
+                      updateEdit({ qty: digitsOnly(e.target.value) })
+                    }
                     className={`${fieldClass} text-right`}
                   />
                 </div>
@@ -1313,17 +1965,25 @@ export default function BarangKeluarGudang() {
 
             {editTarget.trx.lines.length > 1 && (
               <div className="flex items-start gap-2 mt-5 px-4 py-2 bg-yellow-100 rounded-xl text-gray-800">
-                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" strokeWidth={2.2} />
+                <AlertCircle
+                  className="w-4 h-4 mt-0.5 shrink-0"
+                  strokeWidth={2.2}
+                />
                 <span className="text-sm">
-                  Tanggal, SPK, nama client, dan nama item/projek berlaku untuk semua barang di transaksi {editTarget.trx.id}.
+                  Tanggal, SPK, nama client, dan nama item/projek berlaku untuk
+                  semua barang di transaksi {editTarget.trx.id}.
                 </span>
               </div>
             )}
 
             {(editError || itemError) && (
-              <p role="alert" className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{editError || itemError}</p>
+              <p
+                role="alert"
+                className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg"
+              >
+                {editError || itemError}
+              </p>
             )}
-
 
             <div className="flex justify-end items-center gap-3 mt-6 pt-5 border-t border-gray-100">
               <button
@@ -1334,7 +1994,7 @@ export default function BarangKeluarGudang() {
               >
                 Batal
               </button>
-              
+
               <button
                 type="submit"
                 name="aksi"
@@ -1342,7 +2002,7 @@ export default function BarangKeluarGudang() {
                 className="px-5 py-2.5 text-[#FF8A00] bg-white border-2 border-[#FF8A00] hover:bg-orange-50 font-semibold rounded-xl transition-colors text-sm disabled:opacity-50 flex items-center justify-center min-w-[100px]"
                 disabled={editSaving}
               >
-                {editSaving ? 'Menyimpan...' : 'Simpan'}
+                {editSaving ? "Menyimpan..." : "Simpan"}
               </button>
 
               <button
@@ -1377,18 +2037,28 @@ export default function BarangKeluarGudang() {
               <X className="h-4 w-4" strokeWidth={2.5} />
             </button>
 
-            <h2 id="rincian-bk-judul" className="text-[18px] font-extrabold text-black tracking-wide uppercase mb-6">Rincian Barang Keluar</h2>
+            <h2
+              id="rincian-bk-judul"
+              className="text-[18px] font-extrabold text-black tracking-wide uppercase mb-6"
+            >
+              Rincian Barang Keluar
+            </h2>
 
             <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 mb-6 text-sm">
-              {([
-                ['No. Transaksi', detailTrx.noTransaksi ?? detailTrx.id],
-                ['Tanggal', displayDate(detailTrx.date)],
-                ['Client', detailTrx.clientName],
-                ['SPK', detailTrx.spk],
-                ['Nama Item/Projek', detailTrx.itemName],
-                ['Pengambil', detailTrx.lines[0]?.pic ?? '-'],
-                ['Dicatat', tampilWaktu(new Date(detailTrx.createdAt).getTime())],
-              ] as const).map(([k, v]) => (
+              {(
+                [
+                  ["No. Transaksi", detailTrx.noTransaksi ?? detailTrx.id],
+                  ["Tanggal", displayDate(detailTrx.date)],
+                  ["Client", detailTrx.clientName],
+                  ["SPK", detailTrx.spk],
+                  ["Nama Item/Projek", detailTrx.itemName],
+                  ["Pengambil", detailTrx.lines[0]?.pic ?? "-"],
+                  [
+                    "Dicatat",
+                    tampilWaktu(new Date(detailTrx.createdAt).getTime()),
+                  ],
+                ] as const
+              ).map(([k, v]) => (
                 <div key={k} className="flex flex-col">
                   <dt className="text-gray-500">{k}</dt>
                   <dd className="font-semibold text-gray-900">{v}</dd>
@@ -1400,22 +2070,40 @@ export default function BarangKeluarGudang() {
               <table className="w-full text-left text-sm">
                 <thead className="bg-gray-50 text-gray-600 font-semibold">
                   <tr>
-                    <th scope="col" className="px-4 py-2.5">No</th>
-                    <th scope="col" className="px-4 py-2.5">Nama Barang</th>
-                    <th scope="col" className="px-4 py-2.5">Kode</th>
-                    <th scope="col" className="px-4 py-2.5 text-right">Jumlah</th>
-                    <th scope="col" className="px-4 py-2.5 text-center">Action</th>
+                    <th scope="col" className="px-4 py-2.5">
+                      No
+                    </th>
+                    <th scope="col" className="px-4 py-2.5">
+                      Nama Barang
+                    </th>
+                    <th scope="col" className="px-4 py-2.5">
+                      Kode
+                    </th>
+                    <th scope="col" className="px-4 py-2.5 text-right">
+                      Jumlah
+                    </th>
+                    <th scope="col" className="px-4 py-2.5 text-center">
+                      Action
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {detailTrx.lines.map((line, i) => (
                     <tr key={i}>
                       <td className="px-4 py-2.5 text-gray-500">{i + 1}</td>
-                      <td className="px-4 py-2.5 font-medium text-gray-900">{line.itemName}</td>
-                      <td className="px-4 py-2.5 font-mono text-xs text-gray-500">{line.itemCode ?? '-'}</td>
-                      <td className="px-4 py-2.5 text-right font-bold text-gray-800">{line.qty}</td>
+                      <td className="px-4 py-2.5 font-medium text-gray-900">
+                        {line.itemName}
+                      </td>
+                      <td className="px-4 py-2.5 font-mono text-xs text-gray-500">
+                        {line.itemCode ?? "-"}
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-bold text-gray-800">
+                        {line.qty}
+                      </td>
                       <td className="px-4 py-2.5">
-                        <div className="flex justify-center">{tombolEdit(detailTrx, i, () => setDetailTrx(null))}</div>
+                        <div className="flex justify-center">
+                          {tombolEdit(detailTrx, i, () => setDetailTrx(null))}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1423,20 +2111,24 @@ export default function BarangKeluarGudang() {
               </table>
             </div>
 
-            <WithNow>{(now) => (
-              <p className={`mt-4 text-sm ${bisaEdit(detailTrx, now) ? 'text-gray-600' : 'text-red-600'}`}>
-                {bisaEdit(detailTrx, now)
-                  ? `Bisa diedit sampai ${tampilWaktu(batasEdit(detailTrx))}`
-                  : 'Sudah lewat 1 hari, tidak bisa diedit'}
-              </p>
-            )}</WithNow>
+            <WithNow>
+              {(now) => (
+                <p
+                  className={`mt-4 text-sm ${bisaEdit(detailTrx, now) ? "text-gray-600" : "text-red-600"}`}
+                >
+                  {bisaEdit(detailTrx, now)
+                    ? `Bisa diedit sampai ${tampilWaktu(batasEdit(detailTrx))}`
+                    : "Sudah lewat 1 hari, tidak bisa diedit"}
+                </p>
+              )}
+            </WithNow>
           </div>
         </div>
       )}
 
       {/* Peringatan data sudah tidak bisa diedit */}
       {peringatan && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
           <div
             role="alertdialog"
             aria-modal="true"
@@ -1446,9 +2138,18 @@ export default function BarangKeluarGudang() {
             <div className="mx-auto mb-4 w-12 h-12 flex items-center justify-center rounded-full bg-red-50 text-red-500">
               <Lock className="w-6 h-6" />
             </div>
-            <h2 id="peringatan-edit-judul" className="text-base font-extrabold text-black mb-2">Tidak Bisa Diedit</h2>
+            <h2
+              id="peringatan-edit-judul"
+              className="text-base font-extrabold text-black mb-2"
+            >
+              Tidak Bisa Diedit
+            </h2>
             <p className="text-sm text-gray-600 mb-6">{peringatan}</p>
-            <button type="button" onClick={() => setPeringatan("")} className={`${orangeButtonClass} w-full`}>
+            <button
+              type="button"
+              onClick={() => setPeringatan("")}
+              className={`${orangeButtonClass} w-full`}
+            >
               Mengerti
             </button>
           </div>
@@ -1457,5 +2158,3 @@ export default function BarangKeluarGudang() {
     </div>
   );
 }
-
-
