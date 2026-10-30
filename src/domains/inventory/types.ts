@@ -368,3 +368,4 @@ export type ChecklistDokubahDetail = {
   dokubah: { id: number; kodeDokubah: string; namaClient: string; namaItem: string; noSpk: string };
   checklist: (ChecklistDokubahInput & { updatedAt: string }) | null;
 };
+
