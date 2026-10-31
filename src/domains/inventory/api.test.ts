@@ -62,6 +62,7 @@ const rows: Row[] = [
   ['saveChecklistDokubah', [3, { kepalaGroup: null }], 'PUT /api/v1/checklist-dokubah/3', {}, { kepalaGroup: null }],
   ['getMaterialRequest', [5], 'GET /api/v1/material-requests/5', {}, undefined],
   ['exportRequestsReport', [{ q: 'z', ids: [1, 2] }], 'GET /api/v1/reports/requests/export', { q: 'z', ids: '1,2' }, undefined],
+  ['importOutbound', [new File(['x'], 'a.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })], 'POST /api/v1/outbound/import', {}, undefined],
 ];
 
 describe('inventory api (items, locations and the Gudang division)', () => {
