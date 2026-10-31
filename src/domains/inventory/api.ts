@@ -300,6 +300,13 @@ export function createOutbound(input: CreateOutboundInput, idempotencyKey: strin
   return apiClient.post<OutboundRow>("/api/v1/outbound", input, { "Idempotency-Key": idempotencyKey });
 }
 
+// Multipart field `file`: one .xlsx in the rekap layout. A 400 with bad rows carries errors as [{ row, message }].
+export function importOutbound(file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  return apiClient.upload<{ created: number }>("/api/v1/outbound/import", form);
+}
+
 export function updateOutbound(id: number, input: CreateOutboundInput) {
   return apiClient.put<OutboundRow>(`/api/v1/outbound/${id}`, input);
 }
