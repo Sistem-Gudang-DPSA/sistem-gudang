@@ -9,7 +9,6 @@ import type { ItemListRow, Location, UpdateItemInput } from '@/domains/inventory
 import { listSuppliers } from '@/domains/purchasing/api';
 import type { Supplier } from '@/domains/purchasing/types';
 import { ApiError } from '@/shared/lib/api-client';
-import { useClampPage } from '@/shared/lib/use-page';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { useDebouncedValue } from '@/shared/lib/use-debounced-value';
@@ -24,6 +23,10 @@ import EditModeBar, { useBatchEdit } from '@/shared/components/EditModeBar';
 import { kodeKategoriNotice, type CodeChange } from '@/domains/inventory/item-code-notice';
 import { printItemLabels } from '@/domains/inventory/label-print';
 import * as XLSX from 'xlsx';
+import { useClampPage, usePage } from '@/shared/lib/use-page';
+
+const PAGE_SIZE_OPTIONS = [20, 50, 100];
+const DEFAULT_PAGE_SIZE = 20;
 
 type CodeLabel = { code: string | null; name: string; externalCode?: string | null; locationCode: string };
 // Supplier, kategori, satuan dan lokasi dipetakan di langkah kedua (ImportBarangMapping), bukan di Excel.
@@ -92,14 +95,16 @@ export default function DataBarangGudang() {
 
   const filterKey = JSON.stringify([debouncedSearch, filters, sortParams]);
   const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
-  const page = pageState.key === filterKey ? pageState.page : 1;
-  const setPage = (next: number) => setPageState({ key: filterKey, page: next });
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [page, setPage] = usePage(`${filterKey}|${pageSize}`);
   const { data: loaded, loading, error, reload } = useApiData(
-    () => listItems({ page, pageSize: 20, search: debouncedSearch || undefined, ...toItemFilterParams(filters), ...sortParams }),
-    `${filterKey}|${page}`,
-    "Gagal memuat data barang.",
+    () => listItems({ page, pageSize, search: debouncedSearch || undefined, ...toItemFilterParams(filters), ...sortParams }),
+    `${filterKey}|${pageSize}|${page}`,
+    'Gagal memuat data barang.',
   );
   const dataBarang = loaded?.rows ?? [];
+  const total = loaded?.total ?? 0;
+  useClampPage(page, total, pageSize, setPage);
 
   // Pilihan disimpan per id agar tetap ada saat pindah halaman, cari, atau urutkan.
   const [selected, setSelected] = useState(new Map<number, ItemListRow>());
@@ -122,8 +127,8 @@ export default function DataBarangGudang() {
       }
       return next;
     });
-  const total = loaded?.total ?? 0;
-  useClampPage(page, total, 20, setPage);
+
+  useClampPage(page, total, pageSize, setPage);
   useEffect(() => {
     loaded?.rows.forEach((r) => seen.current.set(r.id, r));
   }, [loaded]);
@@ -411,7 +416,7 @@ export default function DataBarangGudang() {
                 <th scope="col" className="px-6 py-4">No</th>
                 <th scope="col" className="px-6 py-4">Foto</th>
                 <th scope="col" className="px-6 py-4">Kode Barang</th>
-                <SortableTh label="Informasi Barang" sortKey="name" sort={sort} onSort={toggle} />
+                <SortableTh label="Nama Barang" sortKey="name" sort={sort} onSort={toggle} />
                 <SortableTh label="Supplier" sortKey="supplierName" sort={sort} onSort={toggle} />
                 <SortableTh label="Stok" sortKey="stock" sort={sort} onSort={toggle} />
                 <th scope="col" className="px-6 py-4">Satuan</th>
@@ -443,7 +448,7 @@ export default function DataBarangGudang() {
                         <input type="checkbox" aria-label={`Pilih ${item.name}`} checked={selected.has(item.id)} onChange={() => toggleRow(item)} className="w-4 h-4 rounded border-gray-300 text-[#FF8A00] focus:ring-[#FF8A00]" />
                       </td>
                     )}
-                    <td className="px-6 py-4 text-gray-500">{(page - 1) * 20 + index + 1}</td>
+                    <td className="px-6 py-4 text-gray-500">{(page - 1) * pageSize + index + 1}</td>
 
                     {/* Foto */}
                     <td className="px-6 py-4">
@@ -568,7 +573,21 @@ export default function DataBarangGudang() {
           </table>
         </div>
 
-        <Pagination page={page} pageSize={20} total={total} onPageChange={setPage} activeClass="bg-indigo-500 text-white border-indigo-500" />
+        {total > 0 && (
+          <div className="flex flex-col gap-3 border-t border-gray-100 px-5 py-4">
+            <label className="flex items-center justify-end gap-2 text-xs text-gray-500">
+              Baris per halaman
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="px-2 py-1 bg-white border border-gray-200 rounded-md text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+              >
+                {PAGE_SIZE_OPTIONS.map((size) => <option key={size} value={size}>{size}</option>)}
+              </select>
+            </label>
+            <Pagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} activeClass="bg-indigo-500 text-white border-indigo-500" />
+          </div>
+        )}
       </div>
 
       {bulkOpen && (
