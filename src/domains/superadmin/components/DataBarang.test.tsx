@@ -1,6 +1,6 @@
 import { afterEach, describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { installFakeApi, paged } from '@/test/fake-api';
+import { fail, installFakeApi, paged } from '@/test/fake-api';
 import { AuthUserProvider } from '@/domains/auth/user-context';
 import type { AuthUser } from '@/domains/auth/types';
 import DataBarangGudang from './DataBarang';
@@ -118,5 +118,36 @@ describe('DataBarang superadmin: Ganti Kode Massal', () => {
     setup({}, {}, { user });
     await screen.findByText('Barang 1');
     expect(screen.queryByRole('button', { name: /Ganti Kode Massal/ })).toBeNull();
+  });
+});
+
+describe('DataBarang superadmin: Hapus', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('tidak ada hapus massal; barang yang sudah dipakai transaksi ditolak dengan pesan jelas', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    setup({}, { 'DELETE /api/v1/items/1': fail(409, 'Still in use by other data') });
+    await screen.findByText('Barang 1');
+    expect(screen.queryByRole('button', { name: /Hapus Massal/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Hapus' }));
+    expect(window.confirm).toHaveBeenCalledWith('Hapus barang "Barang 1" (LEM013)? Tindakan ini tidak bisa dibatalkan.');
+    expect(await screen.findByText('Barang "Barang 1" tidak bisa dihapus karena sudah dipakai transaksi.')).not.toBeNull();
+  });
+});
+
+describe('DataBarang superadmin: pilih semua barang', () => {
+  it('memilih semua barang dari semua halaman lalu aksi massal memakai semuanya', async () => {
+    const item2 = { ...item, id: 2, code: 'LEM014', name: 'Barang 2' };
+    // halaman tabel (pageSize 20) hanya berisi Barang 1; total 2
+    setup({}, {
+      'GET /api/v1/items': (r: { query: URLSearchParams }) =>
+        r.query.get('pageSize') === '100' ? paged([item, item2]) : paged([item], { total: 2 }),
+    });
+    await screen.findByText('Barang 1');
+    fireEvent.click(screen.getByLabelText('Pilih semua barang di halaman ini'));
+    fireEvent.click(screen.getByRole('button', { name: 'Pilih semua 2 barang' }));
+    expect(await screen.findByRole('button', { name: 'Ganti Kode Massal (2)' })).not.toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Batalkan pilihan' }));
+    expect(screen.getByRole('button', { name: 'Ganti Kode Massal (0)' })).not.toBeNull();
   });
 });

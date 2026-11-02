@@ -3,8 +3,8 @@
 import dynamic from 'next/dynamic';
 import { useAuthUser, useCan } from '@/domains/auth/user-context';
 import React, { useEffect, useRef, useState } from 'react';
-import { Search, Filter, Edit2, Images, QrCode, RefreshCw } from 'lucide-react';
-import { adjustItemStock, assignItemLocation, bulkRecodeItems, listItemCategories, listItemUnits, listItems, listLocations, recodeItem, updateItem } from '@/domains/inventory/api';
+import { Search, Filter, Edit2, Images, QrCode, RefreshCw, Trash2 } from 'lucide-react';
+import { adjustItemStock, assignItemLocation, bulkRecodeItems, deleteItem, listItemCategories, listItemUnits, listItems, listLocations, recodeItem, updateItem } from '@/domains/inventory/api';
 import type { ItemListRow, Location, UpdateItemInput } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
 import type { Supplier } from '@/domains/purchasing/types';
@@ -13,8 +13,9 @@ import { useClampPage } from '@/shared/lib/use-page';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { useDebouncedValue } from '@/shared/lib/use-debounced-value';
+import { fetchAll } from '@/shared/lib/fetch-all';
 import { ExportExcellButton } from '@/shared/components/Tombol';
-import { ImportExcelButton } from '@/shared/components/ImportExcelButton';
+import { ImportExcelButton, addReferenceColumns } from '@/shared/components/ImportExcelButton';
 import ImportBarangMapping from './ImportBarangMapping';
 import ItemPhoto from '@/domains/inventory/components/ItemPhoto';
 const BulkPhotoModal = dynamic(() => import('@/domains/inventory/components/BulkPhotoModal'), { ssr: false });
@@ -23,19 +24,24 @@ import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import EditModeBar, { useBatchEdit } from '@/shared/components/EditModeBar';
 import { kodeKategoriNotice, type CodeChange } from '@/domains/inventory/item-code-notice';
 import { printItemLabels } from '@/domains/inventory/label-print';
-import * as XLSX from 'xlsx';
 
 type CodeLabel = { code: string | null; name: string; externalCode?: string | null; locationCode: string };
-// Supplier, kategori, satuan dan lokasi dipetakan di langkah kedua (ImportBarangMapping), bukan di Excel.
+// Kolom Excel = kolom data barang; template import dan export memakai format yang sama agar hasil export bisa di-import ulang.
+// Kategori, satuan, lokasi dan supplier dari Excel mengisi awal langkah mapping (ImportBarangMapping); yang tidak cocok dikosongkan di sana.
 export type MasterDataImportRow = {
+  code: string;
   name: string;
   detail: string;
+  category: string;
+  unit: string;
+  locationCode: string;
+  supplier: string;
   price: number;
   stock: number;
 };
 
-export const mstrDataTemplateHeaders = ['Nama Barang', 'Keterangan Barang', 'Harga', 'Stok'];
-export const mstrDataTemplateExample = ['Light Green', 'TACO TH', 150000, 31.5];
+export const mstrDataTemplateHeaders = ['Kode Bawaan', 'Nama Barang', 'Keterangan Barang', 'Kategori', 'Satuan', 'Lokasi', 'Supplier', 'Harga', 'Stok'];
+export const mstrDataTemplateExample = ['TH 039 AA', 'Light Green', 'TACO TH', '', '', '', '', 150000, 31.5];
 
 const text = (v: unknown) => String(v ?? '').trim();
 // Kosong dianggap 0; angka tidak valid atau negatif ditolak. Stok maks 2 desimal (kolom BE decimal(14,2)), harga bilangan bulat.
@@ -50,8 +56,13 @@ export function MasterData(r: Record<string, unknown>, rowNumber: number): Maste
   const name = text(r['Nama Barang']);
   if (!name) throw new Error(`Baris ${rowNumber}: Nama Barang wajib diisi`);
   return {
+    code: text(r['Kode Bawaan']),
     name,
     detail: text(r['Keterangan Barang']),
+    category: text(r['Kategori']),
+    unit: text(r['Satuan']),
+    locationCode: text(r['Lokasi']),
+    supplier: text(r['Supplier']),
     price: amount(r['Harga'], 'Harga', rowNumber, 0),
     stock: amount(r['Stok'], 'Stok', rowNumber, 2),
   };
@@ -61,6 +72,8 @@ export default function DataBarangGudang() {
   const canCreate = useCan('item.create');
   const canAssign = useCan('item.assign-location');
   const canAdjust = useCan('item.adjust-stock');
+  const canDelete = useCan('item.delete');
+  const showAksi = canAdjust || canDelete;
   // BE allows recode for a superadmin only; no user in context means the route guard already let us in, as in useCan
   const isSuperadmin = useAuthUser()?.isSuperadmin ?? true;
   const canUpdate = useCan('item.update');
@@ -123,6 +136,22 @@ export default function DataBarangGudang() {
       return next;
     });
   const total = loaded?.total ?? 0;
+  // Semua barang sesuai pencarian/filter aktif (semua halaman); dipakai export dan pilih semua
+  const fetchAllFiltered = () =>
+    fetchAll((p) => listItems({ page: p, pageSize: 100, search: debouncedSearch || undefined, ...toItemFilterParams(filters), ...sortParams }));
+  const [selectingAll, setSelectingAll] = useState(false);
+  const selectAllFiltered = async () => {
+    setSelectingAll(true);
+    setActionError('');
+    try {
+      const rows = await fetchAllFiltered();
+      setSelected((prev) => new Map([...prev, ...rows.map((r) => [r.id, r] as const)]));
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : 'Gagal memilih semua barang.');
+    } finally {
+      setSelectingAll(false);
+    }
+  };
   useClampPage(page, total, 20, setPage);
   useEffect(() => {
     loaded?.rows.forEach((r) => seen.current.set(r.id, r));
@@ -182,6 +211,24 @@ export default function DataBarangGudang() {
       });
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : 'Gagal mengganti kode barang.');
+    }
+  };
+
+  // Untuk barang dobel/salah input, satu per satu (sengaja tanpa hapus massal). BE menolak (409) barang yang sudah
+  // dipakai transaksi atau punya riwayat harga supplier, supaya kartu stok tidak putus.
+  const handleHapus = async (item: ItemListRow) => {
+    if (!window.confirm(`Hapus barang "${item.name}"${item.code ? ` (${item.code})` : ''}? Tindakan ini tidak bisa dibatalkan.`)) return;
+    setActionError('');
+    setImportNote('');
+    try {
+      await deleteItem(item.id);
+      setSelected((prev) => { const next = new Map(prev); next.delete(item.id); return next; });
+      setImportNote(`Barang "${item.name}" dihapus.`);
+      reload();
+    } catch (err) {
+      setActionError(err instanceof ApiError && err.status === 409
+        ? `Barang "${item.name}" tidak bisa dihapus karena sudah dipakai transaksi.`
+        : err instanceof Error ? err.message : 'Gagal menghapus barang.');
     }
   };
 
@@ -254,22 +301,32 @@ export default function DataBarangGudang() {
     }
   };
 
-  const handleExportExcel = () => {
-    const excelData = dataBarang.map((item, index) => ({
-      'No': index + 1,
-      'Kode Barang': item.code ?? '-',
-      'Nama Barang': item.name ?? '-',
-      'Supplier': supplierName(item.supplierId),
-      'Jumlah Stok': item.stock,
-      'Satuan': item.unit,
-      'Kategori': item.category,
-      'Lokasi': locationCode(item.locationId),
-    }));
+  const referenceLists = () => ({
+    'Daftar Kategori': categories,
+    'Daftar Satuan': units,
+    'Daftar Lokasi': locations.map((l) => l.code),
+    ...(canSetSupplier ? { 'Daftar Supplier': suppliers.map((x) => x.name) } : {}),
+  });
 
-    const worksheet = XLSX.utils.json_to_sheet(excelData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Data Barang');
-    XLSX.writeFile(workbook, 'Data_Barang_Gudang.xlsx');
+  // Semua barang sesuai pencarian/filter aktif, bukan hanya halaman yang tampil
+  const handleExportExcel = async () => {
+    setActionError('');
+    try {
+      const [XLSX, rows] = await Promise.all([
+        import('xlsx'),
+        fetchAllFiltered(),
+      ]);
+      // Kode Barang (internal) dibuat sistem; ikut di-export sebagai info, diabaikan saat import
+      const headers = [...mstrDataTemplateHeaders, 'Kode Barang'];
+      const data = rows.map((i) => [i.externalCode ?? '', i.name, i.detail ?? '', i.category, i.unit, i.locationCode ?? '', i.supplierName ?? '', i.price, i.stock, i.code ?? '']);
+      const sheet = XLSX.utils.aoa_to_sheet([headers, ...data]);
+      addReferenceColumns(XLSX, sheet, headers.length, referenceLists());
+      const book = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(book, sheet, 'Data Barang');
+      XLSX.writeFile(book, 'Data_Barang_Gudang.xlsx');
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : 'Gagal export data barang.');
+    }
   };
 
   return (
@@ -299,21 +356,26 @@ export default function DataBarangGudang() {
           </div>
           <div className="flex items-center gap-2">
             {canCreate && (
-              <ImportExcelButton
-                templateHeaders={mstrDataTemplateHeaders}
-                templateExample={mstrDataTemplateExample}
-                templateFilename="Template_Import_Barang.xlsx"
-                parseRow={MasterData}
-                previewColumns={[
-                  { header: 'Nama Barang', value: (r) => r.name },
-                  { header: 'Keterangan Barang', value: (r) => r.detail },
-                  { header: 'Harga', value: (r) => r.price },
-                  { header: 'Stok', value: (r) => r.stock },
-                ]}
-                saveLabel="Lanjut ke Mapping"
-                onSave={async (rows) => setPendingImport(rows)}
-              />
-            )}
+                <ImportExcelButton
+                    templateHeaders={mstrDataTemplateHeaders}
+                    templateExample={mstrDataTemplateExample}
+                    templateFilename="Template_Import_Barang.xlsx"
+                    templateReference={referenceLists()}
+                    parseRow={MasterData}
+                    previewColumns={[
+                        { header: 'Nama Barang', value: (r) => r.name },
+                        { header: 'Kode Bawaan', value: (r) => r.code },
+                        { header: 'Keterangan Barang', value: (r) => r.detail },
+                        { header: 'Kategori', value: (r) => r.category },
+                        { header: 'Satuan', value: (r) => r.unit },
+                        { header: 'Lokasi', value: (r) => r.locationCode },
+                        { header: 'Harga', value: (r) => r.price },
+                        { header: 'Stok', value: (r) => r.stock },
+                    ]}
+                    saveLabel="Lanjut ke Mapping"
+                    onSave={async (rows) => setPendingImport(rows)}
+                    />
+                )}
             {canUploadPhoto && (
               <button
                 type="button"
@@ -399,6 +461,17 @@ export default function DataBarangGudang() {
         )}
 
         {/* Table Container */}
+        {pageAllSelected && total > dataBarang.length && (
+          <div className="px-5 py-2 bg-orange-50 border-b border-orange-100 text-sm text-gray-700 flex flex-wrap items-center gap-3">
+            <span>{selected.size} barang dipilih.</span>
+            {selected.size < total && (
+              <button type="button" onClick={selectAllFiltered} disabled={selectingAll} className="font-semibold text-[#FF8A00] hover:underline disabled:opacity-50">
+                {selectingAll ? 'Memuat...' : `Pilih semua ${total} barang${debouncedSearch || countActiveFilters(filters) ? ' sesuai pencarian/filter' : ''}`}
+              </button>
+            )}
+            <button type="button" onClick={() => setSelected(new Map())} className="font-semibold text-gray-500 hover:underline">Batalkan pilihan</button>
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
@@ -419,7 +492,7 @@ export default function DataBarangGudang() {
                 <SortableTh label="Harga" sortKey="price" sort={sort} onSort={toggle} />
                 <SortableTh label="Lokasi" sortKey="locationCode" sort={sort} onSort={toggle} />
                 <SortableTh label="Keterangan" sortKey="detail" sort={sort} onSort={toggle} />
-                {canAdjust && <th scope="col" className="px-6 py-4 text-center">Aksi</th>}
+                {showAksi && <th scope="col" className="px-6 py-4 text-center">Aksi</th>}
               </tr>
             </thead>
             <tbody>
@@ -537,17 +610,17 @@ export default function DataBarangGudang() {
                     </td>
 
                     {/* Aksi */}
-                    {canAdjust && (
+                    {showAksi && (
                       <td className="px-6 py-4 text-center">
                         <div className="flex items-center justify-center gap-2">
-                          <button
+                          {canAdjust && <button
                             onClick={() => openStockModal(item)}
                             className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-100 transition-all duration-200 opacity-90 group-hover:opacity-100"
                             title="Sesuaikan stok"
                           >
                             <Edit2 className="w-3.5 h-3.5" strokeWidth={2.5} />
                             Stok
-                          </button>
+                          </button>}
                           {isSuperadmin && (
                             <button
                               onClick={() => handleGantiKode(item)}
@@ -556,6 +629,16 @@ export default function DataBarangGudang() {
                             >
                               <RefreshCw className="w-3.5 h-3.5" strokeWidth={2.5} />
                               Ganti kode
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              onClick={() => handleHapus(item)}
+                              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 text-xs font-bold rounded-lg hover:bg-red-100 transition-all duration-200 opacity-90 group-hover:opacity-100"
+                              title="Hapus barang (dobel/salah input)"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" strokeWidth={2.5} />
+                              Hapus
                             </button>
                           )}
                         </div>
