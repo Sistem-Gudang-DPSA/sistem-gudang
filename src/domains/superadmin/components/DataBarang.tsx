@@ -23,19 +23,19 @@ import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import EditModeBar, { useBatchEdit } from '@/shared/components/EditModeBar';
 import { kodeKategoriNotice, type CodeChange } from '@/domains/inventory/item-code-notice';
 import { printItemLabels } from '@/domains/inventory/label-print';
+import * as XLSX from 'xlsx';
 
 type CodeLabel = { code: string | null; name: string; externalCode?: string | null; locationCode: string };
 // Supplier, kategori, satuan dan lokasi dipetakan di langkah kedua (ImportBarangMapping), bukan di Excel.
 export type MasterDataImportRow = {
-  code: string;
   name: string;
   detail: string;
   price: number;
   stock: number;
 };
 
-export const mstrDataTemplateHeaders = ['Nama Barang', 'Kode Barang', 'Keterangan Barang', 'Harga', 'Stok'];
-export const mstrDataTemplateExample = ['Light Green', 'TH 039 AA', 'TACO TH', 150000, 31.5];
+export const mstrDataTemplateHeaders = ['Nama Barang', 'Keterangan Barang', 'Harga', 'Stok'];
+export const mstrDataTemplateExample = ['Light Green', 'TACO TH', 150000, 31.5];
 
 const text = (v: unknown) => String(v ?? '').trim();
 // Kosong dianggap 0; angka tidak valid atau negatif ditolak. Stok maks 2 desimal (kolom BE decimal(14,2)), harga bilangan bulat.
@@ -50,7 +50,6 @@ export function MasterData(r: Record<string, unknown>, rowNumber: number): Maste
   const name = text(r['Nama Barang']);
   if (!name) throw new Error(`Baris ${rowNumber}: Nama Barang wajib diisi`);
   return {
-    code: text(r['Kode Barang']),
     name,
     detail: text(r['Keterangan Barang']),
     price: amount(r['Harga'], 'Harga', rowNumber, 0),
@@ -130,10 +129,10 @@ export default function DataBarangGudang() {
   }, [loaded]);
 
   useEffect(() => {
-    listLocations().then((res) => setLocations(res.rows)).catch(() => {});
-    listSuppliers().then((res) => setSuppliers(res.rows)).catch(() => {});
-    listItemCategories().then((res) => setCategories(res.map((c) => c.name))).catch(() => {});
-    listItemUnits().then((res) => setUnits(res.map((u) => u.name))).catch(() => {});
+    listLocations().then((res) => setLocations(res.rows)).catch(() => { });
+    listSuppliers().then((res) => setSuppliers(res.rows)).catch(() => { });
+    listItemCategories().then((res) => setCategories(res.map((c) => c.name))).catch(() => { });
+    listItemUnits().then((res) => setUnits(res.map((u) => u.name))).catch(() => { });
   }, []);
 
   const supplierName = (id: number | null) => suppliers.find((s) => s.id === id)?.name ?? '-';
@@ -245,7 +244,7 @@ export default function DataBarangGudang() {
 
   const getCategoryColor = (kategori: string) => {
     if (!kategori) return 'bg-gray-100 text-gray-700 border-gray-200/50';
-    switch(kategori.toLowerCase()) {
+    switch (kategori.toLowerCase()) {
       case 'lembaran': return 'bg-blue-100 text-blue-700 border-blue-200/50';
       case 'kayu solid': return 'bg-amber-100 text-amber-700 border-amber-200/50';
       case 'logam': return 'bg-slate-100 text-slate-700 border-slate-200/50';
@@ -256,20 +255,21 @@ export default function DataBarangGudang() {
   };
 
   const handleExportExcel = () => {
-    const headers = ['No,Kode Barang,Kode Bawaan,Nama Barang,Supplier,Jumlah Stok,Satuan,Kategori,Lokasi'];
-    const csvData = dataBarang.map((item, index) =>
-      `${index + 1},${item.code ?? '-'},"${item.externalCode ?? '-'}","${item.name}","${supplierName(item.supplierId)}",${item.stock},${item.unit},${item.category},${locationCode(item.locationId)}`
-    );
-    const csvString = [...headers, ...csvData].join('\n');
+    const excelData = dataBarang.map((item, index) => ({
+      'No': index + 1,
+      'Kode Barang': item.code ?? '-',
+      'Nama Barang': item.name ?? '-',
+      'Supplier': supplierName(item.supplierId),
+      'Jumlah Stok': item.stock,
+      'Satuan': item.unit,
+      'Kategori': item.category,
+      'Lokasi': locationCode(item.locationId),
+    }));
 
-    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', 'Data_Barang_Gudang.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Data Barang');
+    XLSX.writeFile(workbook, 'Data_Barang_Gudang.xlsx');
   };
 
   return (
@@ -299,22 +299,21 @@ export default function DataBarangGudang() {
           </div>
           <div className="flex items-center gap-2">
             {canCreate && (
-                <ImportExcelButton
-                    templateHeaders={mstrDataTemplateHeaders}
-                    templateExample={mstrDataTemplateExample}
-                    templateFilename="Template_Import_Barang.xlsx"
-                    parseRow={MasterData}
-                    previewColumns={[
-                        { header: 'Nama Barang', value: (r) => r.name },
-                        { header: 'Kode Barang', value: (r) => r.code },
-                        { header: 'Keterangan Barang', value: (r) => r.detail },
-                        { header: 'Harga', value: (r) => r.price },
-                        { header: 'Stok', value: (r) => r.stock },
-                    ]}
-                    saveLabel="Lanjut ke Mapping"
-                    onSave={async (rows) => setPendingImport(rows)}
-                    />
-                )}
+              <ImportExcelButton
+                templateHeaders={mstrDataTemplateHeaders}
+                templateExample={mstrDataTemplateExample}
+                templateFilename="Template_Import_Barang.xlsx"
+                parseRow={MasterData}
+                previewColumns={[
+                  { header: 'Nama Barang', value: (r) => r.name },
+                  { header: 'Keterangan Barang', value: (r) => r.detail },
+                  { header: 'Harga', value: (r) => r.price },
+                  { header: 'Stok', value: (r) => r.stock },
+                ]}
+                saveLabel="Lanjut ke Mapping"
+                onSave={async (rows) => setPendingImport(rows)}
+              />
+            )}
             {canUploadPhoto && (
               <button
                 type="button"
@@ -413,7 +412,6 @@ export default function DataBarangGudang() {
                 <th scope="col" className="px-6 py-4">Foto</th>
                 <th scope="col" className="px-6 py-4">Kode Barang</th>
                 <SortableTh label="Informasi Barang" sortKey="name" sort={sort} onSort={toggle} />
-                <th scope="col" className="px-6 py-4">Kode Bawaan</th>
                 <SortableTh label="Supplier" sortKey="supplierName" sort={sort} onSort={toggle} />
                 <SortableTh label="Stok" sortKey="stock" sort={sort} onSort={toggle} />
                 <th scope="col" className="px-6 py-4">Satuan</th>
@@ -439,141 +437,138 @@ export default function DataBarangGudang() {
                 const locationId = item.locationId === null ? '' : String(item.locationId);
                 const editableLokasi = edit.editing && canAssign;
                 return (
-                <tr key={item.id} className={`${edit.isDirty(item.id) ? 'bg-amber-50' : index % 2 ? 'bg-gray-50' : 'bg-white'} hover:bg-[#FF8A00]/5 transition-colors group`}>
-                  {canUploadPhoto && (
-                    <td className="px-4 py-4">
-                      <input type="checkbox" aria-label={`Pilih ${item.name}`} checked={selected.has(item.id)} onChange={() => toggleRow(item)} className="w-4 h-4 rounded border-gray-300 text-[#FF8A00] focus:ring-[#FF8A00]" />
+                  <tr key={item.id} className={`${edit.isDirty(item.id) ? 'bg-amber-50' : index % 2 ? 'bg-gray-50' : 'bg-white'} hover:bg-[#FF8A00]/5 transition-colors group`}>
+                    {canUploadPhoto && (
+                      <td className="px-4 py-4">
+                        <input type="checkbox" aria-label={`Pilih ${item.name}`} checked={selected.has(item.id)} onChange={() => toggleRow(item)} className="w-4 h-4 rounded border-gray-300 text-[#FF8A00] focus:ring-[#FF8A00]" />
+                      </td>
+                    )}
+                    <td className="px-6 py-4 text-gray-500">{(page - 1) * 20 + index + 1}</td>
+
+                    {/* Foto */}
+                    <td className="px-6 py-4">
+                      <ItemPhoto item={item} canUpload={canUploadPhoto} onUploaded={reload} />
                     </td>
-                  )}
-                  <td className="px-6 py-4 text-gray-500">{(page - 1) * 20 + index + 1}</td>
 
-                  {/* Foto */}
-                  <td className="px-6 py-4">
-                    <ItemPhoto item={item} canUpload={canUploadPhoto} onUploaded={reload} />
-                  </td>
+                    {/* Kode Barang */}
+                    <td className="px-6 py-4 font-mono text-xs text-gray-500">{item.code ?? '-'}</td>
 
-                  {/* Kode Barang */}
-                  <td className="px-6 py-4 font-mono text-xs text-gray-500">{item.code ?? '-'}</td>
-
-                  {/* Informasi Barang */}
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col">
-                      {edit.editing && canUpdate ? (
-                        <input aria-label={`Nama ${item.name}`} className={cell} maxLength={191} value={v('name', item.name)} onChange={setF('name', item.name)} />
-                      ) : (
-                        <span className="font-bold text-gray-900">{item.name}</span>
-                      )}
-                      {edit.errors[item.id] && <span className="text-xs text-red-600 mt-0.5 whitespace-normal">{edit.errors[item.id]}</span>} 
-                    </div>
-                  </td>
-
-                  {/* Kode Bawaan */}
-                  <td className="px-6 py-4 text-gray-600">{item.externalCode || '-'}</td>
-
-                  {/* Supplier */}
-                  <td className="px-6 py-4">
-                    {edit.editing && canSetSupplier ? (
-                      <select aria-label={`Supplier ${item.name}`} className={cell} value={v('supplierId', supplierId)} onChange={setF('supplierId', supplierId)}>
-                        <option value="">Belum ada supplier</option>
-                        {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                      </select>
-                    ) : (
-                      <div className="flex items-center gap-2 text-gray-600">
-                        <div className="w-6 h-6 rounded-md bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500">
-                          {supplierName(item.supplierId).charAt(0)}
-                        </div>
-                        <span>{supplierName(item.supplierId)}</span>
+                    {/* Informasi Barang */}
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col">
+                        {edit.editing && canUpdate ? (
+                          <input aria-label={`Nama ${item.name}`} className={cell} maxLength={191} value={v('name', item.name)} onChange={setF('name', item.name)} />
+                        ) : (
+                          <span className="font-bold text-gray-900">{item.name}</span>
+                        )}
+                        {edit.errors[item.id] && <span className="text-xs text-red-600 mt-0.5 whitespace-normal">{edit.errors[item.id]}</span>}
                       </div>
-                    )}
-                  </td>
+                    </td>
 
-                  {/* Stok */}
-                  <td className="px-6 py-4">
-                       <span className={`font-bold ${item.stock < 20 ? 'text-red-600' : item.stock < 50 ? 'text-amber-600' : 'text-gray-800'}`}>
-                         {item.stock}
-                       </span>
-                  </td>
+                    {/* Supplier */}
+                    <td className="px-6 py-4">
+                      {edit.editing && canSetSupplier ? (
+                        <select aria-label={`Supplier ${item.name}`} className={cell} value={v('supplierId', supplierId)} onChange={setF('supplierId', supplierId)}>
+                          <option value="">Belum ada supplier</option>
+                          {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                      ) : (
+                        <div className="flex items-center gap-2 text-gray-600">
+                          <div className="w-6 h-6 rounded-md bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500">
+                            {supplierName(item.supplierId).charAt(0)}
+                          </div>
+                          <span>{supplierName(item.supplierId)}</span>
+                        </div>
+                      )}
+                    </td>
 
-                  {/* Satuan */}
-                  <td className="px-6 py-4 text-gray-600">
-                    {item.unit}
-                  </td>
-
-                  {/* Kategori */}
-                  <td className="px-6 py-4">
-                    {edit.editing && canUpdate ? (
-                      <select aria-label={`Kategori ${item.name}`} className={cell} value={v('category', item.category)} onChange={setF('category', item.category)}>
-                        {[...new Set([item.category, ...categories])].map((c) => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                    ) : (
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getCategoryColor(item.category)}`}>
-                        {item.category || '-'}
+                    {/* Stok */}
+                    <td className="px-6 py-4">
+                      <span className={`font-bold ${item.stock < 20 ? 'text-red-600' : item.stock < 50 ? 'text-amber-600' : 'text-gray-800'}`}>
+                        {item.stock}
                       </span>
-                    )}
-                  </td>
+                    </td>
 
-                  {/* Harga */}
-                  <td className="px-6 py-4 text-gray-700">
-                    {edit.editing && canSetPrice ? (
-                      <input aria-label={`Harga ${item.name}`} inputMode="numeric" className={`${cell} min-w-24`} maxLength={9} value={v('price', String(item.price))} onChange={(e) => edit.set(item.id, 'price', e.target.value.replace(/\D/g, ''), String(item.price))} />
-                    ) : item.price.toLocaleString('id-ID')}
-                  </td>
+                    {/* Satuan */}
+                    <td className="px-6 py-4 text-gray-600">
+                      {item.unit}
+                    </td>
 
-                  {/* Lokasi: dipilih langsung di barisnya */}
-                  <td className="px-6 py-4">
-                    {editableLokasi ? (
-                      <select aria-label={`Lokasi ${item.name}`} className={cell} value={v('locationId', locationId)} onChange={setF('locationId', locationId)}>
-                        {item.locationId === null && <option value="">Belum ada lokasi</option>}
-                        {locations.map((loc) => <option key={loc.id} value={loc.id} title={loc.description ?? undefined}>{loc.description ? `${loc.code} · ${loc.description}` : loc.code}</option>)}
-                      </select>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-gray-600 font-medium">
-                        <div className="w-1.5 h-1.5 rounded-full bg-[#FF8A00]"></div>
-                        {locationCode(item.locationId)}
-                      </span>
-                    )}
-                  </td>
+                    {/* Kategori */}
+                    <td className="px-6 py-4">
+                      {edit.editing && canUpdate ? (
+                        <select aria-label={`Kategori ${item.name}`} className={cell} value={v('category', item.category)} onChange={setF('category', item.category)}>
+                          {[...new Set([item.category, ...categories])].map((c) => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      ) : (
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getCategoryColor(item.category)}`}>
+                          {item.category || '-'}
+                        </span>
+                      )}
+                    </td>
 
-                  {/* Keterangan */}
-                  <td className="px-6 py-4 text-gray-600">
-                    {edit.editing && canUpdate ? (
-                      <input aria-label={`Keterangan ${item.name}`} className={cell} maxLength={255} value={v('detail', item.detail ?? '')} onChange={setF('detail', item.detail ?? '')} />
-                    ) : (item.detail || '-')}
-                  </td>
+                    {/* Harga */}
+                    <td className="px-6 py-4 text-gray-700">
+                      {edit.editing && canSetPrice ? (
+                        <input aria-label={`Harga ${item.name}`} inputMode="numeric" className={`${cell} min-w-24`} maxLength={9} value={v('price', String(item.price))} onChange={(e) => edit.set(item.id, 'price', e.target.value.replace(/\D/g, ''), String(item.price))} />
+                      ) : item.price.toLocaleString('id-ID')}
+                    </td>
 
-                  {/* Aksi */}
-                  {canAdjust && (
-                    <td className="px-6 py-4 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={() => openStockModal(item)}
-                          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-100 transition-all duration-200 opacity-90 group-hover:opacity-100"
-                          title="Sesuaikan stok"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" strokeWidth={2.5} />
-                          Stok
-                        </button>
-                        {isSuperadmin && (
+                    {/* Lokasi: dipilih langsung di barisnya */}
+                    <td className="px-6 py-4">
+                      {editableLokasi ? (
+                        <select aria-label={`Lokasi ${item.name}`} className={cell} value={v('locationId', locationId)} onChange={setF('locationId', locationId)}>
+                          {item.locationId === null && <option value="">Belum ada lokasi</option>}
+                          {locations.map((loc) => <option key={loc.id} value={loc.id} title={loc.description ?? undefined}>{loc.description ? `${loc.code} · ${loc.description}` : loc.code}</option>)}
+                        </select>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-gray-600 font-medium">
+                          <div className="w-1.5 h-1.5 rounded-full bg-[#FF8A00]"></div>
+                          {locationCode(item.locationId)}
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Keterangan */}
+                    <td className="px-6 py-4 text-gray-600">
+                      {edit.editing && canUpdate ? (
+                        <input aria-label={`Keterangan ${item.name}`} className={cell} maxLength={255} value={v('detail', item.detail ?? '')} onChange={setF('detail', item.detail ?? '')} />
+                      ) : (item.detail || '-')}
+                    </td>
+
+                    {/* Aksi */}
+                    {canAdjust && (
+                      <td className="px-6 py-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => openStockModal(item)}
+                            className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-100 transition-all duration-200 opacity-90 group-hover:opacity-100"
+                            title="Sesuaikan stok"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" strokeWidth={2.5} />
+                            Stok
+                          </button>
+                          {isSuperadmin && (
                             <button
                               onClick={() => handleGantiKode(item)}
                               className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 text-xs font-bold rounded-lg hover:bg-amber-100 transition-all duration-200 opacity-90 group-hover:opacity-100"
                               title="Ganti kode dari prefix kategori"
                             >
-                            <RefreshCw className="w-3.5 h-3.5" strokeWidth={2.5} />
-                            Ganti kode
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  )}
-                </tr>
+                              <RefreshCw className="w-3.5 h-3.5" strokeWidth={2.5} />
+                              Ganti kode
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    )}
+                  </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
 
-        <Pagination page={page} pageSize={20} total={total} onPageChange={setPage} activeClass="bg-indigo-500 text-white border-indigo-500"/>
+        <Pagination page={page} pageSize={20} total={total} onPageChange={setPage} activeClass="bg-indigo-500 text-white border-indigo-500" />
       </div>
 
       {bulkOpen && (
