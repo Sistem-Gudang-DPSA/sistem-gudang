@@ -427,7 +427,9 @@ describe('BarangKeluar create', () => {
     scan('BRG-1');
     await screen.findByText('Triplex', { selector: 'td' });
     fireEvent.click(screen.getByText('Simpan'));
-    expect((screen.getByText('Simpan') as HTMLButtonElement).disabled).toBe(true);
+    // while saving the button reads Menyimpan... and both save buttons are disabled
+    expect((screen.getByText('Menyimpan...') as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByText('Simpan + Cetak') as HTMLButtonElement).disabled).toBe(true);
     expect(await screen.findByText('Stok tidak cukup')).not.toBeNull();
     expect((screen.getByText('Simpan') as HTMLButtonElement).disabled).toBe(false);
   });
@@ -445,13 +447,13 @@ describe('BarangKeluar edit', () => {
     await choose(label('SPK'), 'SPK-9');
     expect(label('Nama Client').value).toBe('PT Maju');
     fireEvent.change(label('Jumlah'), { target: { value: '12' } });
-    fireEvent.click(screen.getByText('Simpan Perubahan'));
+    fireEvent.click(screen.getByText('Simpan'));
     await waitFor(() => expect(api.calls('PUT /api/v1/outbound/1').length).toBe(1));
     expect(api.calls('PUT /api/v1/outbound/1')[0].body).toEqual({
       date: '2026-03-05', spk: 'SPK-9', itemName: 'Proyek 1', recipientType: 'KLIEN',
       lines: [{ itemId: 1, qty: 4, pic: 'Andi' }, { itemId: 2, qty: 12, pic: 'Andi' }],
     });
-    await waitFor(() => expect(screen.queryByText('Simpan Perubahan')).toBeNull());
+    await waitFor(() => expect(screen.queryByText('Simpan')).toBeNull());
   });
 
   it('shows the 1-day warning and sends no PUT when the limit passes while the pop-up is open', async () => {
@@ -460,12 +462,12 @@ describe('BarangKeluar edit', () => {
     await waitFor(() => expect(api.calls('GET /api/v1/items').length).toBeGreaterThan(0));
     fireEvent.click(screen.getByRole('button', { name: 'Buka rincian barang 1' }));
     fireEvent.click(screen.getByLabelText('Edit barang keluar 1 Paku'));
-    expect(screen.getByText('Simpan Perubahan')).toBeTruthy();
+    expect(screen.getByText('Simpan')).toBeTruthy();
     // Only Date is faked so waitFor keeps working; move the clock 25h past createdAt
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(Date.now() + 25 * 60 * 60 * 1000);
-    fireEvent.click(screen.getByText('Simpan Perubahan'));
-    await waitFor(() => expect(screen.queryByText('Simpan Perubahan')).toBeNull());
+    fireEvent.click(screen.getByText('Simpan'));
+    await waitFor(() => expect(screen.queryByText('Simpan')).toBeNull());
     expect(await screen.findByText(/sudah tidak bisa diedit/)).toBeTruthy();
     expect(api.calls('PUT /api/v1/outbound/1')).toHaveLength(0);
   });
@@ -488,7 +490,7 @@ describe('BarangKeluar edit', () => {
     expect((tombol as HTMLButtonElement).disabled).toBe(true);
     // A native disabled button swallows clicks, so the warning pop-up is not reachable from here.
     fireEvent.click(tombol);
-    expect(screen.queryByText('Simpan Perubahan')).toBeNull();
+    expect(screen.queryByText('Simpan')).toBeNull();
     expect(api.calls('PUT /api/v1/outbound/1').length).toBe(0);
   });
 });
@@ -557,13 +559,13 @@ describe('permissions', () => {
   it('hides mutation and download buttons from a view-only user but keeps the list', async () => {
     await open(who([]));
     expect(screen.queryByText('Barang Keluar')).toBeNull();
-    expect(screen.queryByText('Download')).toBeNull();
+    expect(screen.queryByText('Export')).toBeNull();
   });
 
   it('shows them to a user with the permissions', async () => {
     await open(who(['outbound.create', 'outbound.update', 'report.view']));
     expect(screen.getByText('Barang Keluar SPK')).not.toBeNull();
-    expect(screen.getByText('Download')).not.toBeNull();
+    expect(screen.getByText('Export')).not.toBeNull();
   });
 
   it('shows Edit only to a user with outbound.update', async () => {

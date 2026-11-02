@@ -2160,6 +2160,34 @@
             "description": "Inclusive, by created date",
             "name": "endDate",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "date",
+                "status"
+              ],
+              "description": "date sorts by created date. Without sortBy the newest request comes first"
+            },
+            "required": false,
+            "description": "date sorts by created date. Without sortBy the newest request comes first",
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "description": "Default asc"
+            },
+            "required": false,
+            "description": "Default asc",
+            "name": "sortDir",
+            "in": "query"
           }
         ],
         "responses": {
@@ -7660,7 +7688,7 @@
           "Purchase order"
         ],
         "summary": "List purchase orders",
-        "description": "Newest tanggalPo first. search matches nomorPo and supplier name. status filters ISSUED or CANCELLED. startDate and endDate are inclusive.",
+        "description": "Newest tanggalPo first. search matches nomorPo and supplier name. status filters ISSUED or CANCELLED. startDate and endDate are inclusive. sortBy is date (tanggalPo) or status, with sortDir asc (default) or desc; without sortBy the newest-first order is kept.",
         "security": [
           {
             "bearerAuth": []
@@ -7748,6 +7776,31 @@
             },
             "required": false,
             "name": "endDate",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "date",
+                "status"
+              ]
+            },
+            "required": false,
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            },
+            "required": false,
+            "name": "sortDir",
             "in": "query"
           }
         ],
@@ -20858,13 +20911,196 @@
         }
       }
     },
+    "/api/v1/outbound/import": {
+      "post": {
+        "tags": [
+          "Outbound"
+        ],
+        "summary": "Import outbound transactions from the export sheet",
+        "description": "Multipart field file: one .xlsx, 10 MB at most, in the layout of GET /reports/outbound/export (header row found by its SPK column; title rows above it are skipped). Columns read by header text: Informasi Barang (\"CODE - Name\" as exported, or a plain name that is unique), Asal Gudang (BAHAN_BAKU, WIP or BARANG_JADI), Tujuan / Penerima (PRODUKSI or KLIEN, optionally followed by \" - client\", which is ignored), SPK (must exist in tracking), Tanggal, Jumlah (positive integer, at most 999999999), Pengambil and Nama Produk/Proyek (required). Lokasi and No are ignored. Rows that share Tanggal, SPK, Pengambil, Asal Gudang, Tujuan and Nama Produk/Proyek become one transaction. All or nothing: stock is checked per item over the whole file in row order, and any problem returns 400 with a row list and writes nothing. Needs outbound.create (same as POST /outbound, no separate permission). Success is 201 with the number of transactions created.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "required": [
+                  "file"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Imported",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "created": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "created"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "File not .xlsx, over 10 MB, unreadable, or the sheet has problems. A bad row gives errors as a list of { row, message } (Excel row number) and nothing is saved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "row": {
+                            "type": "number"
+                          },
+                          "message": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "row",
+                          "message"
+                        ]
+                      },
+                      "description": "Set when one or more rows are invalid"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/tracking/spk": {
       "get": {
         "tags": [
           "Dokubah"
         ],
         "summary": "List SPK numbers with their client",
-        "description": "Source of the SPK and its client for dokubah, SPK internal, outbound, material requests and client returns, and for the dropdowns of Barang Keluar. Dummy data plus a fixture built from the tracking database until the tracking system API is connected, the shape stays the same. search matches noSpk or client, case-insensitively. client keeps only the SPK of that client name (exact, case-insensitive, trimmed), and can be combined with search. limit defaults to 50 and is capped at 100, applied after client. projectName is included when the tracking source sends it. Products are not listed here, use GET /api/v1/tracking/spk/{noSpk}.",
+        "description": "Source of the SPK and its client for dokubah, SPK internal, outbound, material requests and client returns, and for the dropdowns of Barang Keluar. Read from the tracking system and kept in memory for TRACKING_CACHE_TTL_MINUTES (default 30), then reloaded in the background; refresh=1 reloads it first (the refresh button). search matches noSpk or client, case-insensitively. client keeps only the SPK of that client name (exact, case-insensitive, trimmed), and can be combined with search. limit is optional; without it every SPK is returned. Applied after client. projectName is included when the tracking source sends it. Products are not listed here, use GET /api/v1/tracking/spk/{noSpk}.",
         "security": [
           {
             "bearerAuth": []
@@ -20895,6 +21131,17 @@
             },
             "required": false,
             "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            },
+            "required": false,
+            "name": "refresh",
             "in": "query"
           }
         ],
@@ -21091,7 +21338,7 @@
           "Dokubah"
         ],
         "summary": "List distinct client names",
-        "description": "Client names taken from the SPK list, unique and sorted A to Z. Needs dokubah.view. search matches the client name only, case-insensitively. limit defaults to 50 and is capped at 100. Pick one name here, then list its SPK with GET /api/v1/tracking/spk?client=.",
+        "description": "Client names taken from the SPK list, unique and sorted A to Z. Needs dokubah.view. search matches the client name only, case-insensitively. limit is optional; without it every client is returned. Pick one name here, then list its SPK with GET /api/v1/tracking/spk?client=. refresh=1 reloads the list from tracking first.",
         "security": [
           {
             "bearerAuth": []
@@ -21113,6 +21360,17 @@
             },
             "required": false,
             "name": "limit",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            },
+            "required": false,
+            "name": "refresh",
             "in": "query"
           }
         ],
@@ -21302,7 +21560,7 @@
           "Dokubah"
         ],
         "summary": "Get one SPK with its client and products",
-        "description": "Needs dokubah.view. noSpk is matched exactly. Numbers can contain slashes, so send them URL-encoded (encodeURIComponent). products are what tracking knows for that SPK, merged when tracking holds the same number more than once, and may be empty: then Barang Keluar only offers Stok. outbound itemName is not validated against products. 404 when the SPK is unknown.",
+        "description": "Needs dokubah.view. noSpk is matched exactly. Numbers can contain slashes, so send them URL-encoded (encodeURIComponent). products are what tracking knows for that SPK, merged when tracking holds the same number more than once, and may be empty: then Barang Keluar only offers Stok. outbound itemName is not validated against products. An SPK missing from the cached list is looked up in tracking directly, so a new SPK is found at once. 404 when the SPK is unknown.",
         "security": [
           {
             "bearerAuth": []
@@ -32520,7 +32778,7 @@
           "Report"
         ],
         "summary": "Export the outbound report as xlsx",
-        "description": "One sheet row per item line, the transaction columns repeat.",
+        "description": "One sheet row per item line, the transaction columns repeat. Its layout is what POST /outbound/import reads back, so an exported file can be edited and imported again.",
         "security": [
           {
             "bearerAuth": []
