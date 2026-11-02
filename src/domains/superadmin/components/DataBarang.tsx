@@ -232,6 +232,40 @@ export default function DataBarangGudang() {
     }
   };
 
+  // TEMP(hapus-semua): sementara untuk membersihkan data produksi; hapus blok ini, tombolnya, dan test-nya setelah selesai.
+  // Menghapus semua barang sesuai pencarian/filter aktif (tanpa filter = semua barang). Barang yang sudah dipakai transaksi ditolak BE (409).
+  const [deletingAll, setDeletingAll] = useState('');
+  const handleHapusSemua = async () => {
+    const scope = debouncedSearch || countActiveFilters(filters) ? ' sesuai pencarian/filter' : '';
+    if (window.prompt(`Hapus SEMUA ${total} barang${scope}? Tindakan ini tidak bisa dibatalkan. Ketik HAPUS SEMUA untuk lanjut.`) !== 'HAPUS SEMUA') return;
+    setActionError('');
+    setImportNote('');
+    let deleted = 0;
+    let inUse = 0;
+    const errors: string[] = [];
+    try {
+      const rows = await fetchAllFiltered();
+      for (const [n, r] of rows.entries()) {
+        setDeletingAll(`Menghapus ${n + 1}/${rows.length}...`);
+        try {
+          await deleteItem(r.id);
+          deleted++;
+        } catch (err) {
+          if (err instanceof ApiError && err.status === 409) inUse++;
+          else errors.push(`${r.code ?? r.name}: ${err instanceof Error ? err.message : 'gagal'}`);
+        }
+      }
+    } catch (err) {
+      errors.push(err instanceof Error ? err.message : 'Gagal memuat daftar barang.');
+    } finally {
+      setDeletingAll('');
+      setSelected(new Map());
+      reload();
+    }
+    setImportNote(`${deleted} barang dihapus.${inUse ? ` ${inUse} barang dilewati karena sudah dipakai transaksi.` : ''}`);
+    if (errors.length) setActionError(`${errors.length} barang gagal dihapus: ${errors.slice(0, 5).join('; ')}${errors.length > 5 ? '; ...' : ''}`);
+  };
+
   const handleGantiKodeMassal = async () => {
     const rows = [...selected.values()];
     if (!window.confirm(`Ganti kode ${rows.length} barang? Label lama tidak bisa di-scan lagi. Cetak ulang label setelah ini.`)) return;
@@ -396,6 +430,18 @@ export default function DataBarangGudang() {
               >
                 <RefreshCw className="w-4 h-4" />
                 {`Ganti Kode Massal (${selected.size})`}
+              </button>
+            )}
+            {/* TEMP(hapus-semua) */}
+            {isSuperadmin && canDelete && (
+              <button
+                type="button"
+                onClick={handleHapusSemua}
+                disabled={!!deletingAll || total === 0}
+                className="flex items-center gap-2 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium disabled:opacity-50"
+              >
+                <Trash2 className="w-4 h-4" />
+                {deletingAll || `Hapus Semua (${total})`}
               </button>
             )}
             <ExportExcellButton onClick={handleExportExcel} />
