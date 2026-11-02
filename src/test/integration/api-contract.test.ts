@@ -51,6 +51,7 @@ const UNUSED_ALLOWLIST: Record<string, string> = {
   "get /api/v1/reports/outbound/{param}": "not needed yet",
   "post /api/v1/items/categories": "no add-new-option UI yet, the item form only picks from the list",
   "post /api/v1/items/units": "no add-new-option UI yet, the item form only picks from the list",
+  "get /api/v1/items/{param}/stock-card": "getStockCard builds the card on the FE from the item, inbound and outbound lists (DetailKartuStok needs client/SPK/project per line)",
   "get /health": "infra health check, not an FE call",
 };
 

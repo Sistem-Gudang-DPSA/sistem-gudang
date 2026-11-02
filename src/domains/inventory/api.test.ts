@@ -55,7 +55,8 @@ const rows: Row[] = [
   ['getStockOpname', [4], 'GET /api/v1/stock-opname/4', {}, undefined],
   ['createStockOpname', [{ d: 1 }], 'POST /api/v1/stock-opname', {}, { d: 1 }],
   ['getRequestsReport', [{ q: 'z' }], 'GET /api/v1/reports/requests', { q: 'z' }, undefined],
-  ['getStockCard', [7], 'GET /api/v1/items/7/stock-card', {}, undefined],
+  // getStockCard builds the card on the FE from the item, inbound and outbound lists; the first call is the item
+  ['getStockCard', [7], 'GET /api/v1/items/7', {}, undefined],
   ['listMaterialRequests', [{ search: 'SPK-1', pageSize: 100 }], 'GET /api/v1/material-requests', { search: 'SPK-1', pageSize: '100' }, undefined],
   ['listChecklistDokubah', [{ page: 2, search: 'a' }], 'GET /api/v1/checklist-dokubah', { page: '2', search: 'a' }, undefined],
   ['getChecklistDokubah', [3], 'GET /api/v1/checklist-dokubah/3', {}, undefined],
