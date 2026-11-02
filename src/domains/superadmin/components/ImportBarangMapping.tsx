@@ -24,7 +24,14 @@ const complete = (m: Mapping) => !!(m.category && m.unit && m.locationCode);
 export default function ImportBarangMapping({ rows, options, canSetSupplier = true, onClose, onDone }: Props) {
   // Mengirim supplier butuh item.set-supplier (Purchasing/superadmin); tanpa izin itu kolomnya tidak ditampilkan
   const fields = FIELDS.filter(([key]) => key !== 'supplier' || canSetSupplier);
-  const [maps, setMaps] = useState<Mapping[]>(() => rows.map(() => ({ category: '', unit: '', locationCode: '', supplier: '' })));
+  // Isi awal dari Excel bila cocok dengan master (tanpa beda huruf besar/kecil); yang tidak cocok dikosongkan
+  const match = (value: string, list: string[]) => list.find((o) => o.toLowerCase() === value.toLowerCase()) ?? '';
+  const [maps, setMaps] = useState<Mapping[]>(() => rows.map((r) => ({
+    category: match(r.category, options.categories),
+    unit: match(r.unit, options.units),
+    locationCode: match(r.locationCode, options.locations),
+    supplier: canSetSupplier ? match(r.supplier, options.suppliers) : '',
+  })));
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [bulk, setBulk] = useState<Mapping>({ category: '', unit: '', locationCode: '', supplier: '' });
   const [search, setSearch] = useState('');

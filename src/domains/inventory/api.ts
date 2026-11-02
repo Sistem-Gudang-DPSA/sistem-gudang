@@ -1,4 +1,5 @@
 import type { LocationDataImportRow } from "./components/DataLokasi";
+import { fetchAll } from "@/shared/lib/fetch-all";
 import { invalidateApiData } from "@/shared/lib/use-api-data";
 import { ApiError, apiClient, downloadFile, toQuery } from "@/shared/lib/api-client";
 import type {
@@ -46,15 +47,6 @@ export const getChecklistDokubah = (dokubahId: number) =>
   apiClient.get<ChecklistDokubahDetail>(`/api/v1/checklist-dokubah/${dokubahId}`);
 export const saveChecklistDokubah = (dokubahId: number, input: ChecklistDokubahInput) =>
   apiClient.put<ChecklistDokubahDetail>(`/api/v1/checklist-dokubah/${dokubahId}`, input);
-
-async function fetchAll<T>(fetchPage: (page: number) => Promise<PaginatedResult<T>>) {
-  const all: T[] = [];
-  for (let page = 1; ; page++) {
-    const res = await fetchPage(page);
-    all.push(...res.rows);
-    if (res.rows.length === 0 || all.length >= res.total) return all;
-  }
-}
 
 export async function getStockCard(itemId: number): Promise<KartuStokData> {
   const item = await getItem(itemId);
