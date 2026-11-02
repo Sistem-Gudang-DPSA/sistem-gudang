@@ -14795,6 +14795,21 @@
                                   "PENYESUAIAN"
                                 ]
                               },
+                              "client": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Outbound client, or the client an inbound came back from"
+                              },
+                              "spk": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Outbound only"
+                              },
+                              "noTransaksi": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Outbound only"
+                              },
                               "project": {
                                 "type": "string",
                                 "nullable": true
@@ -14818,6 +14833,9 @@
                               "date",
                               "createdAt",
                               "type",
+                              "client",
+                              "spk",
+                              "noTransaksi",
                               "project",
                               "usage",
                               "qtyIn",
@@ -20193,6 +20211,239 @@
           },
           "409": {
             "description": "Idempotency-Key already used with a different payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/outbound/usage": {
+      "get": {
+        "tags": [
+          "Outbound"
+        ],
+        "summary": "Qty taken per client, SPK and item",
+        "description": "Needs outbound.view. One row per (clientName, spk, itemId) with the summed qty of outbound lines, ordered by client, SPK and item. startDate and endDate (inclusive) filter on the transaction date. spk is a comma-separated list (max 500); omitted means every SPK. Used by Realisasi SPK and the monthly recap instead of paging through GET /outbound.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false,
+            "name": "startDate",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false,
+            "name": "endDate",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": false,
+            "name": "spk",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Usage rows",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "clientName": {
+                            "type": "string"
+                          },
+                          "spk": {
+                            "type": "string"
+                          },
+                          "itemId": {
+                            "type": "number"
+                          },
+                          "qty": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "clientName",
+                          "spk",
+                          "itemId",
+                          "qty"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
             "content": {
               "application/json": {
                 "schema": {

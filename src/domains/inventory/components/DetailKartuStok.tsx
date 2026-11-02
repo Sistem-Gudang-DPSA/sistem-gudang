@@ -112,7 +112,7 @@ export default function KartuStokDetail() {
                                             <td className="px-6 py-4 text-right font-bold text-gray-900">{fmt(r.saldo)}</td>
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-col">
-                                                    <span className="font-medium text-gray-900">{r.note ?? '-'}</span>
+                                                    <span className="font-medium text-gray-900">{r.noTransaksi ?? r.note ?? '-'}</span>
                                                     {(r.usage) && (
                                                         <span className="text-xs text-gray-500">{[r.usage && `${r.usage}`]}</span>
                                                     )}

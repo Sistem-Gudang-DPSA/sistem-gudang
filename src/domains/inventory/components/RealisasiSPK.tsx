@@ -1,10 +1,7 @@
-import { listDokubahBahanBySpk } from '@/domains/ppic/api';
-import type { BahanDokubah } from '@/domains/ppic/data/dokubah';
 import type { ItemListRow } from '@/domains/inventory/types';
 import { toDateRange } from '@/domains/inventory/date';
-import { listOutbound } from '../api';
+import { getOutboundUsage, type OutboundUsageRow } from '../api';
 
-export type SpkBahan = { noSpk: string; bahan: BahanDokubah[] };
 export type SpkUsage = { noSpk: string; qtyOf: (item: ItemListRow) => number };
 export type Cell = { qty: number; cost: number };
 export type RealisasiRow = { id: number; code: string; name: string; price: number; totalQty: number; cells: Cell[] };
@@ -17,8 +14,6 @@ export type RekapBulanan = {
   biaya: number[];
 };
 
-const samaNama = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
-
 export const fmtRp = (n: number) =>
   n.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const fmtQty = (n: number) => n.toLocaleString('id-ID');
@@ -29,35 +24,29 @@ export function periodeLabel(day: string, month: string, year: string) {
   return parts.length > 0 ? parts.join(' ') : 'Semua periode';
 }
 
-function qtyFromBahan(item: ItemListRow, bahan: BahanDokubah[]): number {
-  let cocok = bahan.filter((m) => !!item.code && m.kodeBarang === item.code);
-  if (cocok.length === 0) cocok = bahan.filter((m) => samaNama(m.namaBahan, item.name));
-  return cocok.reduce((sum, m) => sum + m.realisasi, 0); 
+const sameClient = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+
+// Client yang punya barang keluar (pada periode yang dimuat), A-Z
+// (beda huruf besar/kecil dianggap client yang sama)
+export function clientsOf(usage: OutboundUsageRow[]) {
+  const byKey = new Map<string, string>();
+  for (const r of usage) {
+    const name = r.clientName.trim();
+    if (name && !byKey.has(name.toLowerCase())) byKey.set(name.toLowerCase(), name);
+  }
+  return [...byKey.values()].sort((a, b) => a.localeCompare(b));
 }
 
-export async function loadRealisasi(spks: string[]): Promise<SpkUsage[]> {
-  const found = new Map<string, BahanDokubah[]>();
-  for (let i = 0; i < spks.length; i += 100) {
-    const res: SpkBahan[] = await listDokubahBahanBySpk(spks.slice(i, i + 100));
-    res.forEach((r) => found.set(r.noSpk, r.bahan));
+// Satu kolom per SPK client itu; qty = jumlah barang keluar per barang di SPK tersebut
+export function usagesOf(usage: OutboundUsageRow[], client: string): SpkUsage[] {
+  const perSpk = new Map<string, Map<number, number>>();
+  for (const r of usage) {
+    if (!r.spk || !sameClient(r.clientName, client)) continue;
+    const m = perSpk.get(r.spk) ?? new Map<number, number>();
+    m.set(r.itemId, (m.get(r.itemId) ?? 0) + r.qty);
+    perSpk.set(r.spk, m);
   }
-  return spks.map((noSpk) => ({ noSpk, qtyOf: (item) => qtyFromBahan(item, found.get(noSpk) ?? []) }));
-}
-
-export async function loadRealisasiPeriode(spks: string[], range: ReturnType<typeof toDateRange>): Promise<SpkUsage[]> {
-  const perSpk = new Map<string, Map<number, number>>(spks.map((s) => [s, new Map()]));
-  let loaded = 0;
-  for (let page = 1; ; page++) {
-    const res = await listOutbound({ page, pageSize: 100, ...range });
-    for (const trx of res.rows) {
-      const target = perSpk.get(trx.spk);
-      if (!target) continue; // SPK client lain atau transaksi stok
-      for (const line of trx.lines) target.set(line.itemId, (target.get(line.itemId) ?? 0) + line.qty);
-    }
-    loaded += res.rows.length;
-    if (res.rows.length === 0 || loaded >= res.total) break;
-  }
-  return spks.map((noSpk) => ({ noSpk, qtyOf: (item) => perSpk.get(noSpk)?.get(item.id) ?? 0 }));
+  return [...perSpk.keys()].sort((a, b) => a.localeCompare(b)).map((noSpk) => ({ noSpk, qtyOf: (item) => perSpk.get(noSpk)?.get(item.id) ?? 0 }));
 }
 
 // ---------- Tabel ----------
@@ -86,19 +75,13 @@ export const totalsOf = (rows: RealisasiRow[], spkCount: number) =>
 export async function loadRekapBulanan(items: ItemListRow[], month: string, year: string): Promise<RekapBulanan> {
   const range = toDateRange('', month, year);
   const perKolom = new Map<string, { kolom: RekapKolom; qty: Map<number, number> }>();
-  let loaded = 0;
-  for (let page = 1; ; page++) {
-    const res = await listOutbound({ page, pageSize: 100, ...range });
-    for (const trx of res.rows) {
-      const client = trx.clientName?.trim();
-      if (!client || !trx.spk) continue; 
-      const key = JSON.stringify([client, trx.spk]);
-      const entry = perKolom.get(key) ?? { kolom: { client, noSpk: trx.spk }, qty: new Map<number, number>() };
-      for (const l of trx.lines) entry.qty.set(l.itemId, (entry.qty.get(l.itemId) ?? 0) + l.qty);
-      perKolom.set(key, entry);
-    }
-    loaded += res.rows.length;
-    if (res.rows.length === 0 || loaded >= res.total) break;
+  for (const r of await getOutboundUsage(range)) {
+    const client = r.clientName?.trim();
+    if (!client || !r.spk) continue;
+    const key = JSON.stringify([client, r.spk]);
+    const entry = perKolom.get(key) ?? { kolom: { client, noSpk: r.spk }, qty: new Map<number, number>() };
+    entry.qty.set(r.itemId, (entry.qty.get(r.itemId) ?? 0) + r.qty);
+    perKolom.set(key, entry);
   }
 
   const entries = [...perKolom.values()].sort(
