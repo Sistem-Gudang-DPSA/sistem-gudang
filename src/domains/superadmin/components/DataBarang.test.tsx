@@ -151,3 +151,30 @@ describe('DataBarang superadmin: pilih semua barang', () => {
     expect(screen.getByRole('button', { name: 'Ganti Kode Massal (0)' })).not.toBeNull();
   });
 });
+
+// TEMP(hapus-semua): hapus test ini bersama tombolnya
+describe('DataBarang superadmin: Hapus Semua (sementara)', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('butuh ketik HAPUS SEMUA, menghapus semua halaman dan melewati barang yang dipakai transaksi', async () => {
+    const item2 = { ...item, id: 2, code: 'LEM014', name: 'Barang 2' };
+    const api = setup({}, {
+      'GET /api/v1/items': (r: { query: URLSearchParams }) =>
+        r.query.get('pageSize') === '100' ? paged([item, item2]) : paged([item], { total: 2 }),
+      'DELETE /api/v1/items/1': null,
+      'DELETE /api/v1/items/2': fail(409, 'Still in use by other data'),
+    });
+    await screen.findByText('Barang 1');
+    const prompt = vi.spyOn(window, 'prompt').mockReturnValue('hapus');
+    fireEvent.click(screen.getByRole('button', { name: 'Hapus Semua (2)' }));
+    expect(prompt).toHaveBeenCalled();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(api.calls('DELETE /api/v1/items/1')).toHaveLength(0);
+
+    prompt.mockReturnValue('HAPUS SEMUA');
+    fireEvent.click(screen.getByRole('button', { name: 'Hapus Semua (2)' }));
+    expect(await screen.findByText('1 barang dihapus. 1 barang dilewati karena sudah dipakai transaksi.')).not.toBeNull();
+    expect(api.calls('DELETE /api/v1/items/1')).toHaveLength(1);
+    expect(api.calls('DELETE /api/v1/items/2')).toHaveLength(1);
+  });
+});
