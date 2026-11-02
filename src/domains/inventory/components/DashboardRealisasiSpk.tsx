@@ -2,21 +2,19 @@
 
 import React, { useMemo, useState } from 'react';
 import { Download, FileSpreadsheet, Filter, Search } from 'lucide-react';
-import { listItems } from '@/domains/inventory/api';
+import { getOutboundUsage, listItems } from '@/domains/inventory/api';
 import type { ItemListRow } from '@/domains/inventory/types';
 import { toDateRange } from '@/domains/inventory/date';
-import { listTrackingSpk } from '@/domains/ppic/api';
 import { useApiData } from '@/shared/lib/use-api-data';
 import SearchableSelect from '@/shared/components/SearchableSelect';
 import DateFilter from '@/shared/components/DateFilter';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import {
-  fmtQty, fmtRp, loadRealisasi, loadRealisasiPeriode, loadRekapBulanan, makeRows, periodeLabel, totalsOf,
-  type RealisasiTable, type SpkUsage,
+  clientsOf, fmtQty, fmtRp, loadRekapBulanan, makeRows, periodeLabel, totalsOf, usagesOf,
+  type RealisasiTable,
 } from '@/domains/inventory/components/RealisasiSPK';
 import { exportRealisasiExcel, exportRekapBulananExcel, printRealisasiPdf } from '@/shared/components/ExportRealisasi';
 
-const checkboxClass = 'w-4 h-4 accent-[#FF8A00] cursor-pointer disabled:cursor-not-allowed';
 const selectClass =
   'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 bg-white ' +
   'focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors';
@@ -35,7 +33,6 @@ async function loadAllItems(): Promise<ItemListRow[]> {
 export default function RealisasiSpk() {
   const [client, setClient] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [onlyUsed, setOnlyUsed] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
   const [filterDay, setFilterDay] = useState('');
   const [filterMonth, setFilterMonth] = useState('');
@@ -50,8 +47,12 @@ export default function RealisasiSpk() {
 
   const { data: items, loading: loadingItems, error: errItems } =
     useApiData(loadAllItems, 'realisasi-items', 'Gagal memuat data barang.');
-  const { data: spkList, error: errSpk } =
-    useApiData(() => listTrackingSpk(), 'spk', 'Gagal memuat daftar SPK.');
+  // Semua sumber dari barang keluar: daftar client, kolom SPK, dan qty
+  const { data: usage, loading: loadingUsage, error: errUsage } = useApiData(
+    () => getOutboundUsage(dateRange),
+    `realisasi-usage|${filterDay}|${filterMonth}|${filterYear}`,
+    'Gagal memuat data barang keluar.',
+  );
 
   // Harus setelah `items` dideklarasikan
   const bisaRekap = !!filterMonth && !!filterYear && !!items;
@@ -74,33 +75,8 @@ export default function RealisasiSpk() {
     }
   };
 
-  const clientOptions = useMemo(
-    () =>
-      [...new Set((spkList ?? []).map((t) => t.client?.trim()).filter(Boolean) as string[])]
-        .sort((a, b) => a.localeCompare(b))
-        .map((c) => ({ value: c, label: c })),
-    [spkList],
-  );
-
-  // SPK milik client yang dipilih
-  const spks = useMemo(
-    () =>
-      (spkList ?? [])
-        .filter((t) => client && t.client?.trim().toLowerCase() === client.toLowerCase())
-        .map((t) => t.noSpk)
-        .sort((a, b) => a.localeCompare(b)),
-    [spkList, client],
-  );
-
-  // Tanpa filter: dari dokubah. Dengan filter: dari transaksi barang keluar pada periode itu.
-  const { data: usages, loading: loadingSpk, error: errBahan } = useApiData(
-    () => {
-      if (spks.length === 0) return Promise.resolve([] as SpkUsage[]);
-      return periodeAktif ? loadRealisasiPeriode(spks, dateRange) : loadRealisasi(spks);
-    },
-    `realisasi|${client}|${spks.join(',')}|${filterDay}|${filterMonth}|${filterYear}`,
-    'Gagal memuat data pengambilan SPK.',
-  );
+  const clientOptions = useMemo(() => clientsOf(usage ?? []).map((c) => ({ value: c, label: c })), [usage]);
+  const usages = useMemo(() => (client ? usagesOf(usage ?? [], client) : []), [usage, client]);
 
   const spkNos = (usages ?? []).map((u) => u.noSpk);
   const n = spkNos.length;
@@ -110,14 +86,15 @@ export default function RealisasiSpk() {
   const rows = fullRows.filter(
     (r) =>
       (!q || r.code.toLowerCase().includes(q) || r.name.toLowerCase().includes(q)) &&
-      (!onlyUsed || n === 0 || r.cells.some((c) => c.qty > 0)),
+      // tanpa client: semua barang; dengan client: hanya barang yang pernah keluar untuk client itu
+      (!client || r.totalQty > 0),
   );
   const table: RealisasiTable = { client, periode, spks: spkNos, rows, totals: totalsOf(rows, n) };
 
-  const memuat = loadingItems || loadingSpk;
-  const error = errItems || errSpk || errBahan;
+  const memuat = loadingItems || loadingUsage;
+  const error = errItems || errUsage;
   const colCount = 5 + n * 2; // No, Kode, Nama, Harga, Total Pengambilan
-  const pesan = memuat ? 'Memuat data...' : error ? error : rows.length === 0 ? 'Barang tidak ditemukan.' : null;
+  const pesan = memuat ? 'Memuat data...' : error ? error : rows.length === 0 ? (client && n === 0 ? `Belum ada barang keluar untuk ${client} (${periode}).` : 'Barang tidak ditemukan.') : null;
   const thKiri = 'px-3 py-3';
   const sekat = 'border-l border-gray-200';
 
@@ -155,10 +132,6 @@ export default function RealisasiSpk() {
                 className={selectClass}
               />
             </div>
-            <label className="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
-              <input type="checkbox" checked={onlyUsed} onChange={(e) => setOnlyUsed(e.target.checked)} disabled={n === 0} className={checkboxClass} />
-              Hanya barang terpakai
-            </label>
           </div>
 
           <div className="flex items-center gap-2">

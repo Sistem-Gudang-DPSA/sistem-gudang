@@ -7,6 +7,7 @@ export type KartuEntry = {
   type: MutasiTipe;
   client: string | null;   
   spk: string | null;      
+  noTransaksi: string | null; // barang keluar saja
   project: string | null;
   usage: string;
   qtyIn: number;

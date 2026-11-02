@@ -1,5 +1,4 @@
 import type { LocationDataImportRow } from "./components/DataLokasi";
-import { fetchAll } from "@/shared/lib/fetch-all";
 import { invalidateApiData } from "@/shared/lib/use-api-data";
 import { ApiError, apiClient, downloadFile, toQuery } from "@/shared/lib/api-client";
 import type {
@@ -39,7 +38,7 @@ import type {
   StockOpnameRow,
 
 } from "./types";
-import type { KartuStokData, KartuEntry } from '@/domains/inventory/components/KartuStok';
+import type { KartuStokData } from '@/domains/inventory/components/KartuStok';
 
 export const listChecklistDokubah = (params?: ListParams) =>
   apiClient.get<PaginatedResult<ChecklistDokubahRow>>(`/api/v1/checklist-dokubah${toQuery(params)}`);
@@ -48,58 +47,16 @@ export const getChecklistDokubah = (dokubahId: number) =>
 export const saveChecklistDokubah = (dokubahId: number, input: ChecklistDokubahInput) =>
   apiClient.put<ChecklistDokubahDetail>(`/api/v1/checklist-dokubah/${dokubahId}`, input);
 
-export async function getStockCard(itemId: number): Promise<KartuStokData> {
-  const item = await getItem(itemId);
-  const [inbound, outbound] = await Promise.all([
-    fetchAll((page) => listInbound({ page, pageSize: 100 })),
-    fetchAll((page) => listOutbound({ page, pageSize: 100 })),
-  ]);
+// Built by the BE (inbound, outbound and opname, with the opening balance); see GET /items/:id/stock-card
+export function getStockCard(itemId: number) {
+  return apiClient.get<KartuStokData>(`/api/v1/items/${itemId}/stock-card`);
+}
 
-  const entries: KartuEntry[] = [
-    ...inbound
-      .filter((r) => (item.code ? r.itemCode === item.code : r.itemName === item.name))
-      .map((r): KartuEntry => ({
-        id: `in-${r.id}`,
-        date: r.date.slice(0, 10),
-        createdAt: r.date,
-        type: 'MASUK',
-        client: r.clientName ?? null,
-        spk: null,
-        project: null,
-        usage: r.supplierName ? `Penerimaan dari ${r.supplierName}` : r.clientName ? 'Barang kembali' : 'Penerimaan barang',
-        qtyIn: r.qtyArrived,
-        qtyOut: 0,
-        note: null,
-      })),
-
-    ...outbound.flatMap((trx) =>
-      trx.lines
-        .map((line, i) => ({ line, i }))
-        .filter(({ line }) => line.itemId === itemId)
-        .map(({ line, i }): KartuEntry => ({
-          id: `out-${trx.id}-${i}`,
-          date: trx.date.slice(0, 10),
-          createdAt: trx.createdAt,
-          type: 'KELUAR',
-          client: trx.clientName || null,
-          spk: trx.spk || null,
-          project: trx.itemName,
-          usage: `Pengambilan oleh ${line.pic}`,
-          qtyIn: 0,
-          qtyOut: line.qty,
-          note: trx.noTransaksi ? `${trx.noTransaksi}` : null,
-        })),
-    ),
-  ];
-
-  const totalIn = entries.reduce((s, e) => s + e.qtyIn, 0);
-  const totalOut = entries.reduce((s, e) => s + e.qtyOut, 0);
-
-  return {
-    item: { id: item.id, code: item.code ?? null, name: item.name, unit: item.unit, stock: item.stock },
-    openingBalance: item.stock - totalIn + totalOut,
-    entries,
-  };
+// Qty taken per client, SPK and item (summed by the BE); spk omitted = every SPK
+export type OutboundUsageRow = { clientName: string; spk: string; itemId: number; qty: number };
+export function getOutboundUsage(params: { startDate?: string; endDate?: string; spk?: string[] }) {
+  const query = { ...params, spk: params.spk?.join(',') };
+  return apiClient.get<OutboundUsageRow[]>(`/api/v1/outbound/usage${toQuery(query)}`);
 }
 
 // `summary` covers every item matching the search, not just the requested page.
