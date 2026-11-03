@@ -8,6 +8,14 @@ import { ChevronDown, LayoutDashboard, ShieldCheck, Users, Folder } from "lucide
 
 // Tailwind needs full class names, so each theme lists them literally.
 const THEME: Record<NavTheme, { summary: string; icon: string; border: string; heading: string; active: string; idle: string }> = {
+  emerald: {
+    summary: "finance-nav-summary",
+    icon: "finance-nav-icon",
+    border: "finance-nav-border",
+    heading: "finance-nav-heading",
+    active: "finance-nav-active font-medium shadow-sm",
+    idle: "finance-nav-idle",
+  },
   orange: {
     summary: "hover:bg-orange-50 hover:text-orange-600 hover:border-orange-100",
     icon: "bg-orange-100 text-orange-600",
@@ -115,7 +123,7 @@ export default function SidebarNav({ user, pathname, onNavigate }: Props) {
         return (
           <details key={div.key} className="group" open>
             <summary
-              className={`flex items-center justify-between px-4 py-3 text-gray-600 rounded-xl cursor-pointer transition-all duration-200 list-none [&::-webkit-details-marker]:hidden border border-transparent ${t.summary}`}
+              className={`flex items-center justify-between px-4 py-3 rounded-xl cursor-pointer transition-all duration-200 list-none [&::-webkit-details-marker]:hidden border ${div.theme === "emerald" ? "" : "text-gray-600 border-transparent"} ${t.summary}`}
             >
               <div className="flex items-center gap-3">
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${t.icon}`}>
@@ -129,7 +137,7 @@ export default function SidebarNav({ user, pathname, onNavigate }: Props) {
               {div.groups.map((group) => (
                 <details key={group.title} className="group/section" open>
                   <summary
-                    className={`flex items-center justify-between text-sm font-bold text-gray-400 cursor-pointer list-none [&::-webkit-details-marker]:hidden uppercase tracking-wider mb-2 ${t.heading}`}
+                    className={`flex items-center justify-between text-sm font-bold ${div.theme === "emerald" ? "" : "text-gray-400"} cursor-pointer list-none [&::-webkit-details-marker]:hidden uppercase tracking-wider mb-2 ${t.heading}`}
                   >
                     <span>{group.title}</span>
                     <ChevronDown className="w-3 h-3 transition-transform group-open/section:-rotate-180" />
