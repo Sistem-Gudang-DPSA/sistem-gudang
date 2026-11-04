@@ -1,272 +1,215 @@
 "use client";
 
-import React, { useMemo, useState } from 'react';
-import { Download, FileSpreadsheet, Filter, Search } from 'lucide-react';
-import { getOutboundUsage, listItems } from '@/domains/inventory/api';
-import type { ItemListRow } from '@/domains/inventory/types';
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Filter, Search } from 'lucide-react';
+import { formatRupiah } from '@/domains/ppic/data/dokubah';
 import { toDateRange } from '@/domains/inventory/date';
-import { fetchAllPages } from '@/shared/lib/fetch-all';
+import { SUMBER_DATA_NOTICE, loadRealisasiList, periodeLabel, realisasiSpkDetailPath, type RealisasiListRow, type StatusRealisasi } from '@/domains/inventory/components/RealisasiSPK';
+import { exportRealisasiExcel, openPrintWindow, printRealisasiPdf } from '@/shared/components/ExportRealisasi';
 import { useApiData } from '@/shared/lib/use-api-data';
-import SearchableSelect from '@/shared/components/SearchableSelect';
+import { useDebouncedValue } from '@/shared/lib/use-debounced-value';
+import { usePage } from '@/shared/lib/use-page';
+import Pagination from '@/shared/components/Pagination';
+import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import DateFilter from '@/shared/components/DateFilter';
-import { ExportExcellButton } from '@/shared/components/Tombol';
-import {
-  clientsOf, fmtQty, fmtRp, loadRekapBulanan, makeRows, periodeLabel, totalsOf, usagesOf,
-  type RealisasiTable,
-} from '@/domains/inventory/components/RealisasiSPK';
-import { exportRealisasiExcel, exportRekapBulananExcel, printRealisasiPdf } from '@/shared/components/ExportRealisasi';
+import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';
 
-const selectClass =
-  'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 bg-white ' +
-  'focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors';
+const PAGE_SIZE = 20;
+const cellClass = 'px-4 py-3 border-b border-r border-gray-300';
+const cardClass = 'bg-white rounded-sm border border-gray-100 shadow-md p-6 min-h-32';
+const checkboxClass = 'w-4 h-4 accent-[#FF8A00] cursor-pointer disabled:cursor-not-allowed';
 
-// Semua barang (100 per permintaan, batas API), karena tabel menampilkan seluruh barang
-const loadAllItems = () => fetchAllPages<ItemListRow>((page, pageSize) => listItems({ page, pageSize }));
+const statusBadge = (s: StatusRealisasi | null) => s === null ? <span className="text-gray-400">-</span> : (
+  <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium border ${s === 'Untung' ? 'bg-green-100 text-green-700 border-green-200' : 'bg-red-100 text-red-700 border-red-200'}`}>
+    {s}
+  </span>
+);
 
-// TODO(realisasi-dokubah): realisasi masih dihitung dari barang keluar (GET /outbound/usage).
-// Versi berbasis dokubah APPROVED (anggaran vs realisasi per SPK, halaman detail per SPK) sudah
-// ditulis di commit 2a26f4e, tapi ditunda sampai modul PPIC/dokubah dipakai. Lihat
-// docs/18-Realisasi-SPK-Dokubah.md dan issue #38.
 export default function RealisasiSpk() {
-  const [client, setClient] = useState('');
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebouncedValue(searchQuery);
   const [showFilter, setShowFilter] = useState(false);
   const [filterDay, setFilterDay] = useState('');
   const [filterMonth, setFilterMonth] = useState('');
   const [filterYear, setFilterYear] = useState('');
-  const [rekapLoading, setRekapLoading] = useState(false);
-  const [rekapError, setRekapError] = useState('');
+  const [selected, setSelected] = useState(() => new Map<string, RealisasiListRow>()); // lintas halaman
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
 
-  const periodeAktif = !!(filterDay || filterMonth || filterYear);
+  const { sort, toggle, params: sortParams } = useSort();
   const activeCount = [filterDay, filterMonth, filterYear].filter(Boolean).length;
-  const dateRange = toDateRange(filterDay, filterMonth, filterYear);
   const periode = periodeLabel(filterDay, filterMonth, filterYear);
 
-  const { data: items, loading: loadingItems, error: errItems } =
-    useApiData(loadAllItems, 'realisasi-items', 'Gagal memuat data barang.');
-  // Semua sumber dari barang keluar: daftar client, kolom SPK, dan qty
-  const { data: usage, loading: loadingUsage, error: errUsage } = useApiData(
-    () => getOutboundUsage(dateRange),
-    `realisasi-usage|${filterDay}|${filterMonth}|${filterYear}`,
-    'Gagal memuat data barang keluar.',
+  // Data diambil sekali per periode, lalu dicari, diurutkan, dan dipaginasi di sini (jumlah SPK kecil).
+  const range = toDateRange(filterDay, filterMonth, filterYear);
+  const { data: semua, loading, error } = useApiData(
+    () => loadRealisasiList(range),
+    `realisasi-outbound|${JSON.stringify(range)}`,
+    'Gagal memuat realisasi SPK.',
   );
+  const q = debouncedSearch.trim().toLowerCase();
+  const filtered = (semua ?? [])
+    .filter((r) => !q || r.noSpk.toLowerCase().includes(q) || r.client.toLowerCase().includes(q))
+    .sort((a, b) => {
+      if (!sort) return 0;
+      const by = sort.by as 'noSpk' | 'client' | 'realisasi';
+      const d = by === 'realisasi' ? a.realisasi - b.realisasi : a[by].localeCompare(b[by]);
+      return sort.dir === 'asc' ? d : -d;
+    });
+  const total = filtered.length;
+  const [page, setPage] = usePage(`${JSON.stringify(range)}|${q}|${sortParams.sortBy ?? ''}${sortParams.sortDir ?? ''}`);
+  const rows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  // Harus setelah `items` dideklarasikan
-  const bisaRekap = !!filterMonth && !!filterYear && !!items;
+  // Ringkasan atas semua SPK yang cocok dengan pencarian dan filter, bukan hanya halaman ini
+  const realisasiTotal = filtered.reduce((s, r) => s + r.realisasi, 0);
 
-  const handleRekapBulanan = async () => {
-    if (!items) return;
-    setRekapLoading(true);
-    setRekapError('');
+  const allChecked = rows.length > 0 && rows.every((r) => selected.has(r.id));
+  const toggleAll = () =>
+    setSelected((prev) => {
+      const next = new Map(prev);
+      rows.forEach((r) => (allChecked ? next.delete(r.id) : next.set(r.id, r)));
+      return next;
+    });
+  const toggleOne = (row: RealisasiListRow) =>
+    setSelected((prev) => {
+      const next = new Map(prev);
+      if (next.has(row.id)) next.delete(row.id);
+      else next.set(row.id, row);
+      return next;
+    });
+
+  // Ada yang dicentang: hanya itu. Tidak ada: semua SPK sesuai pencarian dan filter, dari semua halaman.
+  const jalankan = async (aksi: (data: RealisasiListRow[]) => void | Promise<void>, saatGagal?: () => void) => {
+    setExporting(true);
+    setExportError('');
     try {
-      const data = await loadRekapBulanan(items, filterMonth, filterYear);
-      if (data.kolom.length === 0) {
-        setRekapError(`Tidak ada transaksi barang keluar untuk SPK pada ${data.periode}.`);
-        return;
-      }
-      await exportRekapBulananExcel(data);
-    } catch (err) {
-      setRekapError(err instanceof Error ? err.message : 'Gagal membuat rekap bulanan.');
+      await aksi(selected.size > 0 ? [...selected.values()] : filtered);
+    } catch {
+      saatGagal?.();
+      setExportError('Gagal menyiapkan data export.');
     } finally {
-      setRekapLoading(false);
+      setExporting(false);
     }
   };
-
-  const clientOptions = useMemo(() => clientsOf(usage ?? []).map((c) => ({ value: c, label: c })), [usage]);
-  const usages = useMemo(() => (client ? usagesOf(usage ?? [], client) : []), [usage, client]);
-
-  const spkNos = (usages ?? []).map((u) => u.noSpk);
-  const n = spkNos.length;
-  const fullRows = useMemo(() => makeRows(items ?? [], usages ?? []), [items, usages]);
-
-  const q = searchQuery.trim().toLowerCase();
-  const rows = fullRows.filter(
-    (r) =>
-      (!q || r.code.toLowerCase().includes(q) || r.name.toLowerCase().includes(q)) &&
-      // tanpa client: semua barang; dengan client: hanya barang yang pernah keluar untuk client itu
-      (!client || r.totalQty > 0),
-  );
-  const table: RealisasiTable = { client, periode, spks: spkNos, rows, totals: totalsOf(rows, n) };
-
-  const memuat = loadingItems || loadingUsage;
-  const error = errItems || errUsage;
-  const colCount = 5 + n * 2; // No, Kode, Nama, Harga, Total Pengambilan
-  const pesan = memuat ? 'Memuat data...' : error ? error : rows.length === 0 ? (client && n === 0 ? `Belum ada barang keluar untuk ${client} (${periode}).` : 'Barang tidak ditemukan.') : null;
-  const thKiri = 'px-3 py-3';
-  const sekat = 'border-l border-gray-200';
+  const handleExcel = () => jalankan((data) => exportRealisasiExcel(data, periode));
+  const handlePdf = () => {
+    const win = openPrintWindow(); // dibuka saat klik supaya tidak diblokir browser
+    if (!win) return;
+    void jalankan((data) => printRealisasiPdf(win, data, periode), () => win.close());
+  };
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
-      <div className="mb-8">
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1">Realisasi SPK</h1>
-        <p className="text-gray-500 text-sm">Pemakaian dan biaya barang per SPK, dapat difilter per tanggal, bulan, dan tahun.</p>
+      <h1 className="text-[18px] font-extrabold text-black tracking-wide mb-6">Realisasi SPK</h1>
+
+      <p role="note" className="mb-6 p-3 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg">{SUMBER_DATA_NOTICE}</p>
+
+      {/* Ringkasan global */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-6">
+        <div className={cardClass}>
+          <h2 className="text-lg font-bold text-gray-900 mb-3">Total SPK Aktif</h2>
+          <p className="text-base font-bold text-gray-900">{total} Proyek</p>
+        </div>
+        <div className={cardClass}>
+          <h2 className="text-lg font-bold text-gray-900 mb-3">Anggaran vs Realisasi</h2>
+          <p className="text-base font-bold text-gray-900">{formatRupiah(realisasiTotal)} <span className="font-normal text-gray-500">dari anggaran (belum tersedia)</span></p>
+        </div>
+        <div className={cardClass}>
+          <h2 className="text-lg font-bold text-gray-900 mb-3">SPK Rugi (Overbudget)</h2>
+          <p className="text-base font-bold text-gray-400">- <span className="font-normal text-sm">(butuh anggaran dokubah)</span></p>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
         {/* Toolbar */}
-        <div className="p-5 border-b border-gray-100 bg-gray-50/50 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-          <div className="flex flex-col sm:flex-row gap-3 flex-1">
-            <div className="relative w-full sm:max-w-xs">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-4 w-4 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                value={searchQuery}
-                maxLength={100}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari kode atau nama barang..."
-                className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] sm:text-sm transition-all shadow-sm"
-              />
-            </div>
-            <div className="w-full sm:w-64">
-              <SearchableSelect
-                value={client}
-                onChange={setClient}
-                options={clientOptions}
-                placeholder="Pilih client"
-                aria-label="Client"
-                className={selectClass}
-              />
-            </div>
+        <div className="p-5 border-b border-gray-100 bg-gray-50/50 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="relative w-full max-w-xs">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><Search className="h-4 w-4 text-gray-400" /></div>
+            <input
+              type="text" value={searchQuery} maxLength={100} onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="No. SPK atau klien" aria-label="Cari SPK"
+              className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] sm:text-sm transition-all shadow-sm"
+            />
           </div>
-
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {selected.size > 0 && (
+              <button type="button" onClick={() => setSelected(new Map())} className="text-xs text-orange-600 font-bold hover:underline">
+                {selected.size} dicentang · Reset
+              </button>
+            )}
             <button
-              type="button"
-              onClick={() => setShowFilter((v) => !v)}
-              aria-expanded={showFilter}
-              className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors text-sm font-medium ${
-                showFilter || activeCount > 0
-                  ? 'bg-orange-50 border-orange-300 text-orange-700'
-                  : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
+              type="button" onClick={() => setShowFilter((v) => !v)} aria-expanded={showFilter}
+              className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors text-sm font-medium ${showFilter || activeCount > 0 ? 'bg-orange-50 border-orange-300 text-orange-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
             >
               <Filter className="w-4 h-4" />
               <span>Filter{activeCount > 0 ? ` (${activeCount})` : ''}</span>
             </button>
-            <ExportExcellButton onClick={() => exportRealisasiExcel(table)} disabled={memuat || rows.length === 0} />
-            <button
-              type="button"
-              onClick={() => printRealisasiPdf(table)}
-              disabled={memuat || rows.length === 0}
-              title="Print Data ke PDF"
-              className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-50"
-            >
-              <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">Print PDF</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleRekapBulanan}
-              disabled={!bisaRekap || rekapLoading}
-              title={bisaRekap ? 'Export rekap semua client untuk bulan ini' : 'Pilih Bulan dan Tahun di Filter dulu'}
-              className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <FileSpreadsheet className="w-4 h-4" />
-              <span className="hidden sm:inline">{rekapLoading ? 'Menyiapkan...' : 'Rekap Bulanan'}</span>
-            </button>
+            <ExportExcellButton onClick={handleExcel} disabled={exporting || loading || total === 0} />
+            <PrintPdfButton onClick={handlePdf} disabled={exporting || loading || total === 0} />
           </div>
         </div>
 
         {showFilter && (
           <DateFilter
-            day={filterDay}
-            month={filterMonth}
-            year={filterYear}
-            onDayChange={setFilterDay}
-            onMonthChange={setFilterMonth}
-            onYearChange={setFilterYear}
+            day={filterDay} month={filterMonth} year={filterYear}
+            onDayChange={setFilterDay} onMonthChange={setFilterMonth} onYearChange={setFilterYear}
             onReset={() => { setFilterDay(''); setFilterMonth(''); setFilterYear(''); }}
           />
         )}
+        {exportError && <p role="alert" className="mx-5 mt-5 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{exportError}</p>}
 
-        {rekapError && (
-          <p role="alert" className="mx-5 mt-5 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{rekapError}</p>
-        )}
-        {client && !memuat && !error && n === 0 && (
-          <p className="mx-5 mt-5 p-3 bg-amber-50 text-amber-800 text-sm rounded-lg">Client ini belum punya SPK.</p>
-        )}
-        {!client && (
-          <p className="mx-5 mt-5 p-3 bg-blue-50 text-blue-700 text-sm rounded-lg">Pilih client untuk menampilkan realisasi per SPK.</p>
-        )}
-        {client && n > 0 && !memuat && !error && (
-          <p className="mx-5 mt-5 text-xs text-gray-500">
-            Periode: <b className="text-gray-700">{periode}</b> · Jumlah diambil dari{' '}
-            {periodeAktif ? 'transaksi barang keluar pada periode ini' : 'pengambilan di dokubah (seluruh periode)'}.
-          </p>
-        )}
-
-        <div className="overflow-auto max-h-[70vh] mt-3">
-          <table className="w-max text-left text-sm whitespace-nowrap">
-            <thead className="sticky top-0 z-20 bg-gray-50 text-gray-600 font-semibold shadow-[0_1px_0_#e5e7eb]">
-              <tr className="border-b border-gray-100">
-                <th rowSpan={n > 0 ? 3 : 1} scope="col" className={`${thKiri} text-center align-middle`}>No</th>
-                <th rowSpan={n > 0 ? 3 : 1} scope="col" className={`${thKiri} align-middle`}>Kode Barang</th>
-                <th rowSpan={n > 0 ? 3 : 1} scope="col" className={`${thKiri} align-middle`}>Nama Barang</th>
-                <th rowSpan={n > 0 ? 3 : 1} scope="col" className={`${thKiri} text-right align-middle`}>Harga Satuan</th>
-                <th rowSpan={n > 0 ? 3 : 1} scope="col" className={`${thKiri} text-right align-middle`}>Total Pengambilan</th>
-                {n > 0 && (
-                  <th colSpan={n * 2} scope="colgroup" className={`px-4 py-3 text-center border-b border-gray-200 ${sekat}`}>{client}</th>
-                )}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm whitespace-nowrap">
+            <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
+              <tr>
+                <th scope="col" className={`${cellClass} w-14`}>No.</th>
+                <SortableTh label="No. SPK" sortKey="noSpk" sort={sort} onSort={toggle} className={cellClass} />
+                <SortableTh label="Klien & Proyek" sortKey="client" sort={sort} onSort={toggle} className={cellClass} />
+                <th scope="col" className={cellClass}>Anggaran</th>
+                <SortableTh label="Realisasi" sortKey="realisasi" sort={sort} onSort={toggle} className={cellClass} />
+                <th scope="col" className={cellClass}>Sisa Anggaran</th>
+                <th scope="col" className={cellClass}>Status</th>
+                <th scope="col" className={`${cellClass} w-24`}>
+                  <label className="flex items-center justify-between gap-2 cursor-pointer">
+                    <span>Check</span>
+                    <input type="checkbox" checked={allChecked} onChange={toggleAll} disabled={rows.length === 0} aria-label="Centang semua" className={checkboxClass} />
+                  </label>
+                </th>
               </tr>
-              {n > 0 && (
-                <>
-                  <tr className="border-b border-gray-100">
-                    {spkNos.map((no) => (
-                      <th key={no} colSpan={2} scope="colgroup" className={`px-4 py-2 text-center ${sekat}`}>{no}</th>
-                    ))}
-                  </tr>
-                  <tr className="border-b border-gray-100">
-                    {spkNos.map((no) => (
-                      <React.Fragment key={no}>
-                        <th scope="col" className={`px-4 py-2 min-w-24 text-center ${sekat}`}>Jumlah</th>
-                        <th scope="col" className="px-4 py-2 min-w-36 text-center">Biaya</th>
-                      </React.Fragment>
-                    ))}
-                  </tr>
-                </>
-              )}
             </thead>
-
-            <tbody className="divide-y divide-gray-50">
-              {pesan && (
-                <tr>
-                  <td colSpan={colCount} className={`px-6 py-10 text-center ${error && !memuat ? 'text-red-500' : 'text-gray-400'}`}>{pesan}</td>
-                </tr>
-              )}
-              {!memuat && !error && rows.map((r, i) => (
-                <tr key={r.id} className="hover:bg-[#FF8A00]/5 transition-colors">
-                  <td className="px-3 py-2.5 text-center text-gray-500">{i + 1}</td>
-                  <td className="px-3 py-2.5 font-mono text-xs text-gray-700">{r.code}</td>
-                  <td className="px-3 py-2.5 font-medium text-gray-900">{r.name}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums text-gray-700">{fmtRp(r.price)}</td>
-                  <td className={`px-3 py-2.5 text-right tabular-nums ${r.totalQty ? 'font-semibold text-gray-900' : 'text-gray-300'}`}>{fmtQty(r.totalQty)}</td>
-                  {r.cells.map((c, k) => (
-                    <React.Fragment key={spkNos[k]}>
-                      <td className={`px-4 py-2.5 min-w-24 text-right tabular-nums ${sekat} ${c.qty ? 'font-semibold text-gray-900' : 'text-gray-300'}`}>{fmtQty(c.qty)}</td>
-                      <td className={`px-4 py-2.5 min-w-36 text-right tabular-nums ${c.cost ? 'font-semibold text-gray-900' : 'text-gray-300'}`}>{fmtRp(c.cost)}</td>
-                    </React.Fragment>
-                  ))}
+            <tbody className="text-gray-600">
+              {rows.map((r, i) => (
+                <tr
+                  key={r.id}
+                  onClick={() => router.push(realisasiSpkDetailPath(r.id))}
+                  className={`cursor-pointer transition-colors ${selected.has(r.id) ? 'bg-orange-50/60' : 'hover:bg-orange-50/20'}`}
+                >
+                  <td className={cellClass}>{(page - 1) * PAGE_SIZE + i + 1}</td>
+                  <td className={`${cellClass} font-semibold text-gray-900`}>{r.noSpk}</td>
+                  <td className={cellClass}>{r.client}</td>
+                  <td className={cellClass}>{r.anggaran === null ? '-' : formatRupiah(r.anggaran)}</td>
+                  <td className={cellClass}>{formatRupiah(r.realisasi)}</td>
+                  <td className={`${cellClass} ${(r.sisa ?? 0) < 0 ? 'text-red-600 font-semibold' : ''}`}>{r.sisa === null ? '-' : formatRupiah(r.sisa)}</td>
+                  <td className={cellClass}>{statusBadge(r.status)}</td>
+                  {/* Sel centang tidak ikut membuka rincian */}
+                  <td className={`${cellClass} text-right cursor-default`} onClick={(e) => e.stopPropagation()}>
+                    <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleOne(r)} aria-label={`Centang ${r.noSpk}`} className={`${checkboxClass} align-middle`} />
+                  </td>
                 </tr>
               ))}
-            </tbody>
-
-            {!memuat && !error && rows.length > 0 && (
-              <tfoot className="sticky bottom-0 z-10 bg-gray-50 font-bold text-gray-900 shadow-[0_-1px_0_#e5e7eb]">
+              {rows.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-3 py-3">Total pengeluaran</td>
-                  {table.totals.map((v, k) => (
-                    <React.Fragment key={spkNos[k]}>
-                      <td className={`px-4 py-3 ${sekat}`} />
-                      <td className="px-4 py-3 text-right tabular-nums">{fmtRp(v)}</td>
-                    </React.Fragment>
-                  ))}
+                  <td colSpan={8} className={`${cellClass} px-6 py-10 text-center text-gray-400 italic`}>
+                    {loading ? 'Memuat data...' : error || 'Data tidak ditemukan.'}
+                  </td>
                 </tr>
-              </tfoot>
-            )}
+              )}
+            </tbody>
           </table>
         </div>
+        <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
       </div>
     </div>
   );

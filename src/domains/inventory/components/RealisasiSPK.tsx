@@ -1,22 +1,27 @@
+import { getOutboundUsage, listItems } from '@/domains/inventory/api';
 import type { ItemListRow } from '@/domains/inventory/types';
-import { toDateRange } from '@/domains/inventory/date';
-import { getOutboundUsage, type OutboundUsageRow } from '../api';
+import { fetchAllPages } from '@/shared/lib/fetch-all';
 
-export type SpkUsage = { noSpk: string; qtyOf: (item: ItemListRow) => number };
-export type Cell = { qty: number; cost: number };
-export type RealisasiRow = { id: number; code: string; name: string; price: number; totalQty: number; cells: Cell[] };
-export type RealisasiTable = { client: string; periode: string; spks: string[]; rows: RealisasiRow[]; totals: number[] };
-export type RekapKolom = { client: string; noSpk: string };
-export type RekapBulanan = {
-  periode: string;
-  kolom: RekapKolom[];
-  rows: { id: number; code: string; name: string; price: number; totalQty: number; qty: number[] }[];
-  biaya: number[];
+// TODO(realisasi-dokubah): sementara realisasi dihitung dari barang keluar (GET /outbound/usage)
+// x harga barang, karena modul PPIC/dokubah belum dipakai. Anggaran, sisa, dan status Untung/Rugi
+// baru ada setelah dokubah APPROVED tersedia; versi dokubah ada di commit 2a26f4e.
+// Lihat docs/18-Realisasi-SPK-Dokubah.md dan issue #38.
+export const SUMBER_DATA_NOTICE =
+  'Data realisasi sementara dihitung dari Barang Keluar (jumlah x harga barang), belum dari dokubah PPIC. Anggaran, sisa, dan status akan tersedia setelah modul PPIC (dokubah) berjalan.';
+
+export const realisasiSpkPath = '/dashboard/gudang/laporan/realisasi-spk';
+export const realisasiSpkDetailPath = (noSpk: string) => `${realisasiSpkPath}/${encodeURIComponent(noSpk)}`;
+
+export type StatusRealisasi = 'Untung' | 'Rugi';
+// Sisa anggaran negatif = pengeluaran melebihi anggaran
+export const statusRealisasi = (anggaran: number, realisasi: number): StatusRealisasi =>
+  anggaran - realisasi < 0 ? 'Rugi' : 'Untung';
+
+// anggaran, sisa, dan status null selama data berasal dari barang keluar
+export type RealisasiListRow = {
+  id: string; noSpk: string; client: string;
+  anggaran: number | null; realisasi: number; sisa: number | null; status: StatusRealisasi | null;
 };
-
-export const fmtRp = (n: number) =>
-  n.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-export const fmtQty = (n: number) => n.toLocaleString('id-ID');
 
 const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 export function periodeLabel(day: string, month: string, year: string) {
@@ -24,83 +29,36 @@ export function periodeLabel(day: string, month: string, year: string) {
   return parts.length > 0 ? parts.join(' ') : 'Semua periode';
 }
 
-const sameClient = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+export const loadAllItems = () => fetchAllPages((page, pageSize) => listItems({ page, pageSize }));
 
-// Client yang punya barang keluar (pada periode yang dimuat), A-Z
-// (beda huruf besar/kecil dianggap client yang sama)
-export function clientsOf(usage: OutboundUsageRow[]) {
-  const byKey = new Map<string, string>();
-  for (const r of usage) {
-    const name = r.clientName.trim();
-    if (name && !byKey.has(name.toLowerCase())) byKey.set(name.toLowerCase(), name);
+// Satu baris per SPK: realisasi = jumlah barang keluar x harga barang saat ini
+export async function loadRealisasiList(range: { startDate?: string; endDate?: string }): Promise<RealisasiListRow[]> {
+  const [usage, items] = await Promise.all([getOutboundUsage(range), loadAllItems()]);
+  const harga = new Map(items.map((it) => [it.id, it.price ?? 0]));
+  const bySpk = new Map<string, RealisasiListRow>();
+  for (const u of usage) {
+    const row = bySpk.get(u.spk) ?? { id: u.spk, noSpk: u.spk, client: u.clientName, anggaran: null, realisasi: 0, sisa: null, status: null };
+    row.realisasi += u.qty * (harga.get(u.itemId) ?? 0);
+    bySpk.set(u.spk, row);
   }
-  return [...byKey.values()].sort((a, b) => a.localeCompare(b));
+  return [...bySpk.values()];
 }
 
-// Satu kolom per SPK client itu; qty = jumlah barang keluar per barang di SPK tersebut
-export function usagesOf(usage: OutboundUsageRow[], client: string): SpkUsage[] {
-  const perSpk = new Map<string, Map<number, number>>();
-  for (const r of usage) {
-    if (!r.spk || !sameClient(r.clientName, client)) continue;
-    const m = perSpk.get(r.spk) ?? new Map<number, number>();
-    m.set(r.itemId, (m.get(r.itemId) ?? 0) + r.qty);
-    perSpk.set(r.spk, m);
-  }
-  return [...perSpk.keys()].sort((a, b) => a.localeCompare(b)).map((noSpk) => ({ noSpk, qtyOf: (item) => perSpk.get(noSpk)?.get(item.id) ?? 0 }));
-}
+// ---------- Rincian satu SPK ----------
+export type RincianRow = { kode: string; nama: string; satuan: string; kuota: number; qty: number; harga: number; biaya: number };
+export type RincianSpk = { id: string; noSpk: string; client: string; anggaran: number | null; rows: RincianRow[]; totalBiaya: number };
 
-// ---------- Tabel ----------
-export function makeRows(items: ItemListRow[], usages: SpkUsage[]): RealisasiRow[] {
-  return items.map((item) => {
-    const price = item.price ?? 0;
-    const cells = usages.map((u) => {
-      const qty = u.qtyOf(item);
-      return { qty, cost: qty * price };
-    });
-    return {
-      id: item.id,
-      code: item.code ?? '-',
-      name: item.name,
-      price,
-      totalQty: cells.reduce((sum, c) => sum + c.qty, 0),
-      cells,
-    };
+export async function loadRincianSpk(noSpk: string, items: ItemListRow[]): Promise<RincianSpk> {
+  const usage = await getOutboundUsage({ spk: [noSpk] });
+  const byId = new Map(items.map((it) => [it.id, it]));
+  const rows = usage.map((u): RincianRow => {
+    const it = byId.get(u.itemId);
+    const harga = it?.price ?? 0;
+    // kuota berasal dari dokubah, belum tersedia
+    return { kode: it?.code || '-', nama: it?.name ?? `Barang #${u.itemId}`, satuan: it?.unit ?? '-', kuota: 0, qty: u.qty, harga, biaya: u.qty * harga };
   });
-}
-
-export const totalsOf = (rows: RealisasiRow[], spkCount: number) =>
-  Array.from({ length: spkCount }, (_, i) => rows.reduce((sum, r) => sum + r.cells[i].cost, 0));
-
-// ---------- Rekap bulanan: semua client ----------
-export async function loadRekapBulanan(items: ItemListRow[], month: string, year: string): Promise<RekapBulanan> {
-  const range = toDateRange('', month, year);
-  const perKolom = new Map<string, { kolom: RekapKolom; qty: Map<number, number> }>();
-  for (const r of await getOutboundUsage(range)) {
-    const client = r.clientName?.trim();
-    if (!client || !r.spk) continue;
-    const key = JSON.stringify([client, r.spk]);
-    const entry = perKolom.get(key) ?? { kolom: { client, noSpk: r.spk }, qty: new Map<number, number>() };
-    entry.qty.set(r.itemId, (entry.qty.get(r.itemId) ?? 0) + r.qty);
-    perKolom.set(key, entry);
-  }
-
-  const entries = [...perKolom.values()].sort(
-    (a, b) => a.kolom.client.localeCompare(b.kolom.client) || a.kolom.noSpk.localeCompare(b.kolom.noSpk),
-  );
-  const rows = items
-    .map((item) => {
-      const qty = entries.map((e) => e.qty.get(item.id) ?? 0);
-      return {
-        id: item.id,
-        code: item.code ?? '-',
-        name: item.name,
-        price: item.price ?? 0,
-        totalQty: qty.reduce((s, v) => s + v, 0),
-        qty,
-      };
-    })
-    .filter((r) => r.totalQty > 0); 
-  const biaya = entries.map((_, i) => rows.reduce((s, r) => s + r.qty[i] * r.price, 0));
-
-  return { periode: periodeLabel('', month, year), kolom: entries.map((e) => e.kolom), rows, biaya };
+  return {
+    id: noSpk, noSpk, client: usage[0]?.clientName ?? '-', anggaran: null, rows,
+    totalBiaya: rows.reduce((s, r) => s + r.biaya, 0),
+  };
 }

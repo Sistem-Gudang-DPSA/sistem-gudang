@@ -1,42 +1,42 @@
-# Realisasi SPK: Barang Keluar Sekarang, Dokubah Nanti
+# Realisasi SPK: Data Barang Keluar Sekarang, Dokubah Nanti
 
 Issue: #38
 
 ## Ringkasan
 
-Halaman Realisasi SPK (`/dashboard/gudang/laporan/realisasi-spk`) menghitung
-realisasi dari **barang keluar** (`GET /outbound/usage`). Versi berbasis
-**dokubah** sudah ditulis, tetapi ditunda karena modul PPIC belum dipakai.
+Halaman Realisasi SPK (`/dashboard/gudang/laporan/realisasi-spk`) memakai
+tampilan baru dari PR #36 (daftar per SPK, ringkasan, halaman rincian per SPK),
+tetapi datanya sementara diambil dari **barang keluar**, bukan dari dokubah PPIC.
+Halaman daftar dan rincian menampilkan notice tentang hal ini.
 
 ## Latar Belakang
 
-Commit `2a26f4e` (branch `cal/updateRabu4Nov`, masuk lewat PR #36) mengganti
-sumber data ke dokubah berstatus `APPROVED`: anggaran (`totalAnggaran`) vs
-realisasi (`totalRealisasiNilai`) per SPK, ringkasan global, dan halaman detail
-per SPK. Database dev belum punya dokubah sama sekali, sehingga halaman kosong.
+PR #36 menghitung realisasi dari dokubah berstatus `APPROVED`. Modul PPIC belum
+dipakai, sehingga belum ada dokubah dan halaman kosong. Sampai PPIC berjalan,
+data diambil dari `GET /outbound/usage`.
 
-Karena PPIC belum mulai mengisi dokubah, sumber data dikembalikan ke barang
-keluar. Halaman detail per SPK (`realisasi-spk/[id]`,
-`DetailRealisasiSPK.tsx`) dihapus dari kode dan tetap ada di riwayat git.
+## Cara Kerja Sementara
 
-## Yang Tetap dari PR #36
+- Satu baris per No. SPK yang punya barang keluar pada periode filter.
+- Realisasi = jumlah barang keluar x harga barang saat ini (dari Data Barang).
+- Anggaran, sisa anggaran, status Untung/Rugi, dan jumlah SPK overbudget
+  ditampilkan `-`, karena anggaran hanya ada di dokubah.
+- Pencarian, urutan, dan paginasi dikerjakan di browser, karena data per periode
+  diambil sekaligus.
+- Rincian per SPK dibuka lewat No. SPK di URL (di-encode, karena No. SPK bisa
+  berisi `/`).
+- Export Excel dan PDF menandai sumber data sebagai Barang Keluar.
 
-- `fetchAllPages` dengan batas 4 request bersamaan, dipakai juga oleh halaman
-  ini untuk memuat seluruh barang.
-- Perubahan Calvin di luar Realisasi SPK: Detail Kartu Stok, Laporan Barang
-  Keluar, dan export Excel.
-
-## Cara Mengaktifkan Versi Dokubah
+## Cara Beralih ke Dokubah
 
 Lakukan setelah PPIC rutin membuat dan menyetujui dokubah.
 
-1. Ambil berkas dari commit `2a26f4e`:
-   `git show 2a26f4e:<path>` untuk
-   `src/domains/inventory/components/DashboardRealisasiSpk.tsx`,
-   `RealisasiSPK.tsx`, `DetailRealisasiSPK.tsx`,
-   `src/shared/components/ExportRealisasi.tsx`, dan
-   `src/app/dashboard/gudang/laporan/realisasi-spk/[id]/page.tsx`.
-2. Terapkan lagi perbaikan dari PR #36: `page.tsx` hanya re-export, tanpa
-   `setState` di `useEffect` (pakai `key={id}`), dan test untuk logika dokubah.
-3. Putuskan apakah barang keluar tetap ditampilkan berdampingan dengan dokubah.
-4. Hapus komentar `TODO(realisasi-dokubah)` di `DashboardRealisasiSpk.tsx`.
+1. Ganti `loadRealisasiList` dan `loadRincianSpk` di
+   `src/domains/inventory/components/RealisasiSPK.tsx` dengan versi dokubah dari
+   commit `2a26f4e` (`listDokubahRows`, `getDokubah`, `toRealisasiRow`).
+2. Kembalikan id baris dan URL rincian ke id dokubah (angka), serta paginasi,
+   pencarian, dan urutan ke server.
+3. Isi kembali kartu ringkasan dari `summary` API dokubah.
+4. Hapus `SUMBER_DATA_NOTICE`, label sumber di export, dan komentar
+   `TODO(realisasi-dokubah)`.
+5. Putuskan apakah data barang keluar tetap ditampilkan berdampingan.
