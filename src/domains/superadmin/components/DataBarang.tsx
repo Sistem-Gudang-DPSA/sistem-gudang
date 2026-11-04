@@ -12,7 +12,7 @@ import { ApiError } from '@/shared/lib/api-client';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { useDebouncedValue } from '@/shared/lib/use-debounced-value';
-import { fetchAll } from '@/shared/lib/fetch-all';
+import { fetchAllPages } from '@/shared/lib/fetch-all';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import { ImportExcelButton, addReferenceColumns } from '@/shared/components/ImportExcelButton';
 import ImportBarangMapping from './ImportBarangMapping';
@@ -141,7 +141,7 @@ export default function DataBarangGudang() {
     });
   // Semua barang sesuai pencarian/filter aktif (semua halaman); dipakai export dan pilih semua
   const fetchAllFiltered = () =>
-    fetchAll((p) => listItems({ page: p, pageSize: 100, search: debouncedSearch || undefined, ...toItemFilterParams(filters), ...sortParams }));
+    fetchAllPages((p) => listItems({ page: p, pageSize: 100, search: debouncedSearch || undefined, ...toItemFilterParams(filters), ...sortParams }));
   const [selectingAll, setSelectingAll] = useState(false);
   const selectAllFiltered = async () => {
     setSelectingAll(true);
