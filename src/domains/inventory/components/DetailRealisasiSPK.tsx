@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { formatRupiah } from '@/domains/ppic/data/dokubah';
 import type { ItemListRow } from '@/domains/inventory/types';
-import { loadAllItems, loadRincianSpk, statusRealisasi } from '@/domains/inventory/components/RealisasiSPK';
+import { loadAllItems, loadRincianSpk, realisasiSpkPath, statusRealisasi } from '@/domains/inventory/components/RealisasiSPK';
 import { exportRincianExcel, openPrintWindow, printRincianPdf } from '@/shared/components/ExportRealisasi';
 import { useApiData } from '@/shared/lib/use-api-data';
 import SearchableSelect from '@/shared/components/SearchableSelect';
@@ -19,19 +19,20 @@ const selectClass =
     'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 bg-white ' +
     'focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors';
 
-export default function RincianSpkDetail({ id, mode, backHref, pathOf }: {
+// Route entry for /dashboard/gudang/laporan/realisasi-spk/[id]. key={id} remounts the
+// detail when moving to another SPK, so its filters start fresh.
+export default function DetailRealisasiSPKPage() {
+    const { id } = useParams<{ id: string }>();
+    return <RincianSpkDetail key={id} id={Number(id)} mode="biaya" backHref={realisasiSpkPath} />;
+}
+
+export function RincianSpkDetail({ id, mode, backHref }: {
     id: number;
     mode: Mode;
     backHref: string;                  // halaman daftar
-    pathOf: (id: number) => string;    // path halaman ini untuk SPK lain
 }) {
-    const router = useRouter();
     const [hanyaTerpakai, setHanyaTerpakai] = useState(true);
     const [produkDipilih, setProdukDipilih] = useState('');
-
-    useEffect(() => {
-        setProdukDipilih('');
-    }, [id]);
 
     // Harga barang hanya dibutuhkan untuk rincian biaya
     const { data: items, loading: loadingItems, error: errItems } = useApiData(
@@ -64,12 +65,6 @@ export default function RincianSpkDetail({ id, mode, backHref, pathOf }: {
     }, [permintaan, rincian]);
 
 
-    const options = useMemo(() => {
-        return (rincian?.rows ?? []).map((r) => ({
-            value: r.kode,
-            label: `${r.kode} · ${r.nama}`,
-        }));
-    }, [rincian]);
 
     const rows = useMemo(
         () =>
