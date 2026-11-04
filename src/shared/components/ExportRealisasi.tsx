@@ -6,6 +6,7 @@ type Cell = string | number;
 type Mode = 'biaya' | 'material';
 const safeName = (s: string) => s.replace(/[^\w.-]+/g, '_');
 const rp = (n: number) => n.toLocaleString('id-ID');
+const orDash = (v: number | string | null) => (v === null ? '-' : v);
 
 // ---------- Jendela cetak ----------
 export function openPrintWindow() {
@@ -44,13 +45,13 @@ function writePrint(win: Window, title: string, meta: string[], headers: string[
 // ---------- Daftar SPK ----------
 const listHeaders = ['No.', 'No. SPK', 'Klien & Proyek', 'Anggaran', 'Realisasi', 'Sisa Anggaran', 'Status'];
 const listBody = (rows: RealisasiListRow[]): Cell[][] =>
-  rows.map((r, i) => [i + 1, r.noSpk, r.client, r.anggaran, r.realisasi, r.sisa, r.status]);
+  rows.map((r, i) => [i + 1, r.noSpk, r.client, orDash(r.anggaran), r.realisasi, orDash(r.sisa), orDash(r.status)]);
 
 export const exportRealisasiExcel = (rows: RealisasiListRow[], periode: string) =>
   exportToExcel({ filename: `Realisasi_SPK_${safeName(periode)}.xlsx`, sheetName: 'Realisasi SPK', headers: listHeaders, rows: listBody(rows) });
 
 export const printRealisasiPdf = (win: Window, rows: RealisasiListRow[], periode: string) =>
-  writePrint(win, 'Realisasi SPK', [`Periode: ${periode}`], listHeaders, listBody(rows));
+  writePrint(win, 'Realisasi SPK', [`Periode: ${periode}`, 'Sumber: Barang Keluar (belum dari dokubah PPIC)'], listHeaders, listBody(rows));
 
 // ---------- Rincian satu SPK ----------
 function rincianTable(mode: Mode, r: RincianSpk, rows: RincianRow[]) {
@@ -71,7 +72,9 @@ function rincianTable(mode: Mode, r: RincianSpk, rows: RincianRow[]) {
 
 const rincianMeta = (mode: Mode, r: RincianSpk) =>
   mode === 'biaya'
-    ? [`No. SPK: ${r.noSpk}`, `Client: ${r.client}`, `Anggaran: ${rp(r.anggaran)}`, `Realisasi: ${rp(r.totalBiaya)}`, `Sisa: ${rp(r.anggaran - r.totalBiaya)} (${statusRealisasi(r.anggaran, r.totalBiaya)})`]
+    ? r.anggaran === null
+      ? [`No. SPK: ${r.noSpk}`, `Client: ${r.client}`, `Realisasi: ${rp(r.totalBiaya)}`, 'Sumber: Barang Keluar (belum dari dokubah PPIC)']
+      : [`No. SPK: ${r.noSpk}`, `Client: ${r.client}`, `Anggaran: ${rp(r.anggaran)}`, `Realisasi: ${rp(r.totalBiaya)}`, `Sisa: ${rp(r.anggaran - r.totalBiaya)} (${statusRealisasi(r.anggaran, r.totalBiaya)})`]
     : [`No. SPK: ${r.noSpk}`, `Client: ${r.client}`];
 
 export function exportRincianExcel(mode: Mode, r: RincianSpk, rows: RincianRow[]) {

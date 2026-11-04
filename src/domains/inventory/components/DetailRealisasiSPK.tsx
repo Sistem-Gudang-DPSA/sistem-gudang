@@ -6,7 +6,7 @@ import { useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { formatRupiah } from '@/domains/ppic/data/dokubah';
 import type { ItemListRow } from '@/domains/inventory/types';
-import { loadAllItems, loadRincianSpk, realisasiSpkPath, statusRealisasi } from '@/domains/inventory/components/RealisasiSPK';
+import { SUMBER_DATA_NOTICE, loadAllItems, loadRincianSpk, realisasiSpkPath, statusRealisasi } from '@/domains/inventory/components/RealisasiSPK';
 import { exportRincianExcel, openPrintWindow, printRincianPdf } from '@/shared/components/ExportRealisasi';
 import { useApiData } from '@/shared/lib/use-api-data';
 import SearchableSelect from '@/shared/components/SearchableSelect';
@@ -23,11 +23,12 @@ const selectClass =
 // detail when moving to another SPK, so its filters start fresh.
 export default function DetailRealisasiSPKPage() {
     const { id } = useParams<{ id: string }>();
-    return <RincianSpkDetail key={id} id={Number(id)} mode="biaya" backHref={realisasiSpkPath} />;
+    const noSpk = decodeURIComponent(id);
+    return <RincianSpkDetail key={noSpk} id={noSpk} mode="biaya" backHref={realisasiSpkPath} />;
 }
 
 export function RincianSpkDetail({ id, mode, backHref }: {
-    id: number;
+    id: string;                        // No. SPK
     mode: Mode;
     backHref: string;                  // halaman daftar
 }) {
@@ -78,8 +79,9 @@ export function RincianSpkDetail({ id, mode, backHref }: {
     );
     const memuat = loadingItems || loading || (!rincian && !error && !errItems);
     const galat = errItems || error;
-    const sisa = rincian ? rincian.anggaran - rincian.totalBiaya : 0;
-    const status = rincian ? statusRealisasi(rincian.anggaran, rincian.totalBiaya) : null;
+    // anggaran null selama data dari barang keluar: sisa dan status belum bisa dihitung
+    const sisa = rincian && rincian.anggaran !== null ? rincian.anggaran - rincian.totalBiaya : null;
+    const status = rincian && rincian.anggaran !== null ? statusRealisasi(rincian.anggaran, rincian.totalBiaya) : null;
     const melebihi = rincian ? rincian.rows.filter((r) => r.qty > r.kuota).length : 0;
 
     const handleExcel = () => rincian && exportRincianExcel(mode, rincian, rows);
@@ -92,10 +94,10 @@ export function RincianSpkDetail({ id, mode, backHref }: {
         ? mode === 'biaya'
             ? [
                 ['Client', rincian.client],
-                ['Anggaran', formatRupiah(rincian.anggaran)],
+                ['Anggaran', rincian.anggaran === null ? '-' : formatRupiah(rincian.anggaran)],
                 ['Realisasi', formatRupiah(rincian.totalBiaya)],
-                ['Sisa Anggaran', <span key="s" className={sisa < 0 ? 'text-red-600' : ''}>{formatRupiah(sisa)}</span>],
-                ['Status', <span key="st" className={status === 'Rugi' ? 'text-red-600' : 'text-green-700'}>{status}</span>],
+                ['Sisa Anggaran', sisa === null ? '-' : <span key="s" className={sisa < 0 ? 'text-red-600' : ''}>{formatRupiah(sisa)}</span>],
+                ['Status', status === null ? '-' : <span key="st" className={status === 'Rugi' ? 'text-red-600' : 'text-green-700'}>{status}</span>],
             ]
             : [
                 ['Client', rincian.client],
@@ -109,6 +111,8 @@ export function RincianSpkDetail({ id, mode, backHref }: {
             <Link href={backHref} className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 mb-4">
                 <ArrowLeft className="w-4 h-4" /> Kembali ke daftar
             </Link>
+
+            <p role="note" className="mb-4 p-3 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg">{SUMBER_DATA_NOTICE}</p>
 
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
                 <div className="p-5 border-b border-gray-100 bg-gray-50/50 flex flex-col lg:flex-row lg:items-end justify-between gap-4">

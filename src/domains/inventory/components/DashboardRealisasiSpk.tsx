@@ -3,13 +3,10 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Filter, Search } from 'lucide-react';
-import { listDokubahRows, statusToApi } from '@/domains/ppic/api';
 import { formatRupiah } from '@/domains/ppic/data/dokubah';
 import { toDateRange } from '@/domains/inventory/date';
-import { periodeLabel, realisasiSpkDetailPath, toRealisasiRow, type RealisasiListRow, type StatusRealisasi } from '@/domains/inventory/components/RealisasiSPK';
+import { SUMBER_DATA_NOTICE, loadRealisasiList, periodeLabel, realisasiSpkDetailPath, type RealisasiListRow, type StatusRealisasi } from '@/domains/inventory/components/RealisasiSPK';
 import { exportRealisasiExcel, openPrintWindow, printRealisasiPdf } from '@/shared/components/ExportRealisasi';
-import { ApiError } from '@/shared/lib/api-client';
-import { fetchAllPages } from '@/shared/lib/fetch-all';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { useDebouncedValue } from '@/shared/lib/use-debounced-value';
 import { usePage } from '@/shared/lib/use-page';
@@ -23,7 +20,7 @@ const cellClass = 'px-4 py-3 border-b border-r border-gray-300';
 const cardClass = 'bg-white rounded-sm border border-gray-100 shadow-md p-6 min-h-32';
 const checkboxClass = 'w-4 h-4 accent-[#FF8A00] cursor-pointer disabled:cursor-not-allowed';
 
-const statusBadge = (s: StatusRealisasi) => (
+const statusBadge = (s: StatusRealisasi | null) => s === null ? <span className="text-gray-400">-</span> : (
   <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium border ${s === 'Untung' ? 'bg-green-100 text-green-700 border-green-200' : 'bg-red-100 text-red-700 border-red-200'}`}>
     {s}
   </span>
@@ -37,7 +34,7 @@ export default function RealisasiSpk() {
   const [filterDay, setFilterDay] = useState('');
   const [filterMonth, setFilterMonth] = useState('');
   const [filterYear, setFilterYear] = useState('');
-  const [selected, setSelected] = useState(() => new Map<number, RealisasiListRow>()); // lintas halaman
+  const [selected, setSelected] = useState(() => new Map<string, RealisasiListRow>()); // lintas halaman
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState('');
 
@@ -45,28 +42,28 @@ export default function RealisasiSpk() {
   const activeCount = [filterDay, filterMonth, filterYear].filter(Boolean).length;
   const periode = periodeLabel(filterDay, filterMonth, filterYear);
 
-  // Hanya dokubah yang disetujui yang punya anggaran final; hapus baris `status` kalau ingin semua
-  const params = {
-    search: debouncedSearch || undefined,
-    status: statusToApi('Approved'),
-    ...toDateRange(filterDay, filterMonth, filterYear),
-    ...sortParams,
-  };
-  const filterKey = JSON.stringify(params);
-  const [page, setPage] = usePage(filterKey);
-  const { data: result, loading, error } = useApiData(
-    () => listDokubahRows({ ...params, page, pageSize: PAGE_SIZE }),
-    `${filterKey}|${page}`,
+  // Data diambil sekali per periode, lalu dicari, diurutkan, dan dipaginasi di sini (jumlah SPK kecil).
+  const range = toDateRange(filterDay, filterMonth, filterYear);
+  const { data: semua, loading, error } = useApiData(
+    () => loadRealisasiList(range),
+    `realisasi-outbound|${JSON.stringify(range)}`,
     'Gagal memuat realisasi SPK.',
   );
-  const rows = (result?.rows ?? []).map(toRealisasiRow);
-  const total = result?.total ?? 0;
+  const q = debouncedSearch.trim().toLowerCase();
+  const filtered = (semua ?? [])
+    .filter((r) => !q || r.noSpk.toLowerCase().includes(q) || r.client.toLowerCase().includes(q))
+    .sort((a, b) => {
+      if (!sort) return 0;
+      const by = sort.by as 'noSpk' | 'client' | 'realisasi';
+      const d = by === 'realisasi' ? a.realisasi - b.realisasi : a[by].localeCompare(b[by]);
+      return sort.dir === 'asc' ? d : -d;
+    });
+  const total = filtered.length;
+  const [page, setPage] = usePage(`${JSON.stringify(range)}|${q}|${sortParams.sortBy ?? ''}${sortParams.sortDir ?? ''}`);
+  const rows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  // Ringkasan global dari API (atas semua SPK yang cocok dengan filter, bukan hanya halaman ini)
-  const summary = result?.summary;
-  const anggaranTotal = summary?.nilaiKuota ?? 0;
-  const realisasiTotal = summary?.nilaiRealisasi ?? 0;
-  const persen = anggaranTotal === 0 ? 0 : Math.round((realisasiTotal / anggaranTotal) * 100);
+  // Ringkasan atas semua SPK yang cocok dengan pencarian dan filter, bukan hanya halaman ini
+  const realisasiTotal = filtered.reduce((s, r) => s + r.realisasi, 0);
 
   const allChecked = rows.length > 0 && rows.every((r) => selected.has(r.id));
   const toggleAll = () =>
@@ -88,13 +85,10 @@ export default function RealisasiSpk() {
     setExporting(true);
     setExportError('');
     try {
-      const data = selected.size > 0
-        ? [...selected.values()]
-        : (await fetchAllPages((p, s) => listDokubahRows({ ...params, page: p, pageSize: s }))).map(toRealisasiRow);
-      await aksi(data);
-    } catch (err) {
+      await aksi(selected.size > 0 ? [...selected.values()] : filtered);
+    } catch {
       saatGagal?.();
-      setExportError(err instanceof ApiError ? err.message : 'Gagal menyiapkan data export.');
+      setExportError('Gagal menyiapkan data export.');
     } finally {
       setExporting(false);
     }
@@ -110,19 +104,21 @@ export default function RealisasiSpk() {
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       <h1 className="text-[18px] font-extrabold text-black tracking-wide mb-6">Realisasi SPK</h1>
 
+      <p role="note" className="mb-6 p-3 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg">{SUMBER_DATA_NOTICE}</p>
+
       {/* Ringkasan global */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-6">
         <div className={cardClass}>
           <h2 className="text-lg font-bold text-gray-900 mb-3">Total SPK Aktif</h2>
-          <p className="text-base font-bold text-gray-900">{summary?.totalApproved ?? 0} Proyek</p>
+          <p className="text-base font-bold text-gray-900">{total} Proyek</p>
         </div>
         <div className={cardClass}>
           <h2 className="text-lg font-bold text-gray-900 mb-3">Anggaran vs Realisasi</h2>
-          <p className="text-base font-bold text-gray-900">{formatRupiah(realisasiTotal)} <span className="font-normal text-gray-500">dari {formatRupiah(anggaranTotal)} ({persen}%)</span></p>
+          <p className="text-base font-bold text-gray-900">{formatRupiah(realisasiTotal)} <span className="font-normal text-gray-500">dari anggaran (belum tersedia)</span></p>
         </div>
         <div className={cardClass}>
           <h2 className="text-lg font-bold text-gray-900 mb-3">SPK Rugi (Overbudget)</h2>
-          <p className={`text-base font-bold ${(summary?.overbudgetCount ?? 0) > 0 ? 'text-red-600' : 'text-gray-900'}`}>{summary?.overbudgetCount ?? 0} Proyek</p>
+          <p className="text-base font-bold text-gray-400">- <span className="font-normal text-sm">(butuh anggaran dokubah)</span></p>
         </div>
       </div>
 
@@ -171,8 +167,8 @@ export default function RealisasiSpk() {
                 <th scope="col" className={`${cellClass} w-14`}>No.</th>
                 <SortableTh label="No. SPK" sortKey="noSpk" sort={sort} onSort={toggle} className={cellClass} />
                 <SortableTh label="Klien & Proyek" sortKey="client" sort={sort} onSort={toggle} className={cellClass} />
-                <SortableTh label="Anggaran" sortKey="totalAnggaran" sort={sort} onSort={toggle} className={cellClass} />
-                <th scope="col" className={cellClass}>Realisasi</th>
+                <th scope="col" className={cellClass}>Anggaran</th>
+                <SortableTh label="Realisasi" sortKey="realisasi" sort={sort} onSort={toggle} className={cellClass} />
                 <th scope="col" className={cellClass}>Sisa Anggaran</th>
                 <th scope="col" className={cellClass}>Status</th>
                 <th scope="col" className={`${cellClass} w-24`}>
@@ -193,9 +189,9 @@ export default function RealisasiSpk() {
                   <td className={cellClass}>{(page - 1) * PAGE_SIZE + i + 1}</td>
                   <td className={`${cellClass} font-semibold text-gray-900`}>{r.noSpk}</td>
                   <td className={cellClass}>{r.client}</td>
-                  <td className={cellClass}>{formatRupiah(r.anggaran)}</td>
+                  <td className={cellClass}>{r.anggaran === null ? '-' : formatRupiah(r.anggaran)}</td>
                   <td className={cellClass}>{formatRupiah(r.realisasi)}</td>
-                  <td className={`${cellClass} ${r.sisa < 0 ? 'text-red-600 font-semibold' : ''}`}>{formatRupiah(r.sisa)}</td>
+                  <td className={`${cellClass} ${(r.sisa ?? 0) < 0 ? 'text-red-600 font-semibold' : ''}`}>{r.sisa === null ? '-' : formatRupiah(r.sisa)}</td>
                   <td className={cellClass}>{statusBadge(r.status)}</td>
                   {/* Sel centang tidak ikut membuka rincian */}
                   <td className={`${cellClass} text-right cursor-default`} onClick={(e) => e.stopPropagation()}>
