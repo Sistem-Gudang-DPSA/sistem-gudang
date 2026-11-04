@@ -34,7 +34,6 @@ for (const [p, ops] of Object.entries(spec.paths))
 const UNUSED_ALLOWLIST: Record<string, string> = {
   "post /api/v1/auth/refresh": "called with raw fetch in api-client (shared refresh promise), not via apiClient",
   "post /api/v1/superadmin/roles": "admin only, no role UI yet",
-  "put /api/v1/superadmin/roles/{param}/permissions": "admin only, no role UI yet",
   "get /api/v1/approvals/{param}/actions": "not needed yet (actions come with approval detail)",
   "get /api/v1/locations/{param}": "not needed yet",
   "put /api/v1/locations/{param}": "not needed yet (no location edit UI)",
