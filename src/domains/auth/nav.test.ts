@@ -39,13 +39,13 @@ describe("visibleNav", () => {
   });
 
   it("maps ppic and purchasing users to their own division", () => {
-    expect(labels(user(["purchase-request.create", "material-request.create", "item.view"]))).toEqual(["ppic"]);
+    expect(labels(user(["material-request.create", "item.view"]))).toEqual(["ppic"]);
     expect(labels(user(["item.set-price", "supplier.view", "item.view"]))).toEqual(["purchasing"]);
   });
 
-  it("puts permintaan pembelian under ppic, not gudang", () => {
+  it("puts permintaan pembelian under ppic, and also under gudang", () => {
     const hrefs = (u: AuthUser, key: string) => visibleNav(u).find((d) => d.key === key)?.groups.flatMap((g) => g.items.map((i) => i.href)) ?? [];
-    const ppic = user(["purchase-request.create", "item.view"]);
+    const ppic = user(["purchase-request.create", "material-request.create", "item.view"]);
     expect(hrefs(ppic, "ppic")).toContain("/dashboard/ppic/transaksi/permintaan-pembelian");
     expect(hrefs(user(["inbound.view"]), "gudang").some((h) => h.includes("pembelian"))).toBe(false);
   });
@@ -53,7 +53,8 @@ describe("visibleNav", () => {
   it("also shows permintaan pembelian under gudang, only with purchase-request.create", () => {
     const hrefs = (u: AuthUser) => visibleNav(u).find((d) => d.key === "gudang")?.groups.flatMap((g) => g.items.map((i) => i.href)) ?? [];
     expect(hrefs(user(["inbound.view", "purchase-request.create"]))).toContain("/dashboard/gudang/transaksi/permintaan-pembelian");
-    expect(hrefs(user(SEEDED.kInventory))).not.toContain("/dashboard/gudang/transaksi/permintaan-pembelian");
+    expect(hrefs(user(SEEDED.kInventory))).toContain("/dashboard/gudang/transaksi/permintaan-pembelian");
+    expect(hrefs(user(SEEDED.stafInventory))).toContain("/dashboard/gudang/transaksi/permintaan-pembelian");
   });
 
   it("shows no division to a user without permissions", () => {
@@ -90,8 +91,8 @@ describe("canAccess", () => {
 
 // Permission sets copied from the seeded accounts of the backend (login response, 2026-10-02).
 const SEEDED = {
-  kInventory: ["inbound.view", "inbound.create", "outbound.view", "outbound.create", "stock-opname.view", "stock-opname.create", "material-request.view", "material-request.update", "report.view", "item.view", "item.create", "item.update", "item.delete", "item.assign-location", "item.adjust-stock", "dokubah.view", "dokubah.approve", "spk-internal.view", "location.view", "location.create", "location.update", "location.delete", "supplier.view"],
-  stafInventory: ["inbound.view", "inbound.create", "outbound.view", "outbound.create", "stock-opname.view", "stock-opname.create", "material-request.view", "material-request.update", "report.view", "item.view", "item.create", "item.update", "item.assign-location", "item.adjust-stock", "dokubah.view", "spk-internal.view", "location.view", "location.create", "location.update", "supplier.view"],
+  kInventory: ["purchase-request.create", "inbound.view", "inbound.create", "outbound.view", "outbound.create", "stock-opname.view", "stock-opname.create", "material-request.view", "material-request.update", "report.view", "item.view", "item.create", "item.update", "item.delete", "item.assign-location", "item.adjust-stock", "dokubah.view", "dokubah.approve", "spk-internal.view", "location.view", "location.create", "location.update", "location.delete", "supplier.view"],
+  stafInventory: ["purchase-request.create", "inbound.view", "inbound.create", "outbound.view", "outbound.create", "stock-opname.view", "stock-opname.create", "material-request.view", "material-request.update", "report.view", "item.view", "item.create", "item.update", "item.assign-location", "item.adjust-stock", "dokubah.view", "spk-internal.view", "location.view", "location.create", "location.update", "supplier.view"],
   ppic: ["purchase-request.create", "material-request.view", "material-request.create", "report.view", "item.view", "item.create", "item.update", "dokubah.view", "dokubah.create", "dokubah.update", "penawaran-harga.view", "penawaran-harga.create", "penawaran-harga.update", "penawaran-harga.publish", "spk-internal.view", "spk-internal.create", "spk-internal.allocate"],
   kPurchasing: ["purchase-request.approve", "item.view", "item.update", "item.set-price", "purchase-order.view", "purchase-order.create", "supplier.view", "supplier.create", "supplier.update", "supplier.delete", "report.view", "penawaran-harga.view", "penawaran-harga.create", "penawaran-harga.update"],
 };
@@ -129,7 +130,8 @@ describe("sidebar per seeded role", () => {
   });
 
   it("only PPIC can open the pembelian request pages and only Purchasing approvers see its rekap", () => {
-    expect(itemsOf(user(SEEDED.kInventory), "gudang").some((l) => l.includes("Pembelian"))).toBe(false);
+    expect(itemsOf(user(SEEDED.kInventory), "gudang")).toContain("Permintaan Pembelian");
+    expect(labels(user(SEEDED.kInventory))).not.toContain("ppic");
     expect(itemsOf(user(SEEDED.kPurchasing), "purchasing")).not.toContain("Permintaan Pembelian");
   });
 
