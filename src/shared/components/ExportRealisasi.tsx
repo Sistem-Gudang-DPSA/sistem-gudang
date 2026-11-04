@@ -1,135 +1,90 @@
 import { escapeHtml } from '@/shared/lib/escape-html';
-import { fmtQty, fmtRp, type RealisasiTable, type RekapBulanan } from '@/domains/inventory/components/RealisasiSPK';
+import { exportToExcel } from '@/shared/lib/export-excel';
+import { statusRealisasi, type RealisasiListRow, type RincianRow, type RincianSpk } from '@/domains/inventory/components/RealisasiSPK';
 
-const F = 5; // kolom tetap: No, Kode, Nama, Harga, Total Pengambilan
+type Cell = string | number;
+type Mode = 'biaya' | 'material';
+const safeName = (s: string) => s.replace(/[^\w.-]+/g, '_');
+const rp = (n: number) => n.toLocaleString('id-ID');
 
-const namaFile = (t: RealisasiTable) =>
-  `Realisasi_SPK_${t.client || 'Semua'}_${t.periode}.xlsx`.replace(/[^\w.-]+/g, '_');
-
-export async function exportRealisasiExcel(t: RealisasiTable) {
-  const XLSX = await import('xlsx');
-  const n = t.spks.length;
-  const base = ['No.', 'Kode Barang', 'Nama Barang', 'Harga Satuan', 'Total Pengambilan'];
-  const blank = Array<string>(F).fill('');
-  const header: string[][] =
-    n === 0
-      ? [base]
-      : [
-          [...base, t.client, ...Array<string>(n * 2 - 1).fill('')],
-          [...blank, ...t.spks.flatMap((no) => [no, ''])],
-          [...blank, ...t.spks.flatMap(() => ['Jumlah', 'Biaya'])],
-        ];
-  const body = t.rows.map((r, i) => [i + 1, r.code, r.name, r.price, r.totalQty, ...r.cells.flatMap((c) => [c.qty, c.cost])]);
-  const total = ['Total pengeluaran', ...Array<string>(F - 1).fill(''), ...t.totals.flatMap((v) => ['', v])];
-  const top = [['REALISASI SPK'], ['Client', t.client || '-'], ['Periode', t.periode], []];
-  const aoa = [...top, ...header, ...body, total];
-
-  const h = top.length; 
-  const merges: { s: { r: number; c: number }; e: { r: number; c: number } }[] = [
-    { s: { r: aoa.length - 1, c: 0 }, e: { r: aoa.length - 1, c: F - 1 } },
-  ];
-  if (n > 0) {
-    for (let c = 0; c < F; c++) merges.push({ s: { r: h, c }, e: { r: h + 2, c } });
-    merges.push({ s: { r: h, c: F }, e: { r: h, c: F + n * 2 - 1 } });
-    t.spks.forEach((_, i) => merges.push({ s: { r: h + 1, c: F + i * 2 }, e: { r: h + 1, c: F + i * 2 + 1 } }));
-  }
-  const sheet = XLSX.utils.aoa_to_sheet(aoa);
-  sheet['!merges'] = merges;
-  const book = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(book, sheet, 'Realisasi SPK');
-  XLSX.writeFile(book, namaFile(t));
-}
-
-export function printRealisasiPdf(t: RealisasiTable) {
+// ---------- Jendela cetak ----------
+export function openPrintWindow() {
   const win = window.open('', '_blank');
   if (!win) {
     alert('Pop-up diblokir browser. Izinkan pop-up untuk mencetak PDF.');
-    return;
+    return null;
   }
   win.opener = null;
-  const n = t.spks.length;
-  const rs = n > 0 ? 3 : 1;
-  const fixed = `<th rowspan="${rs}">No.</th><th rowspan="${rs}">Kode Barang</th><th rowspan="${rs}">Nama Barang</th>
-    <th rowspan="${rs}" class="r">Harga Satuan</th><th rowspan="${rs}" class="r">Total Pengambilan</th>`;
-  const head =
-    n === 0
-      ? `<tr>${fixed}</tr>`
-      : `<tr>${fixed}<th colspan="${n * 2}" class="c">${escapeHtml(t.client)}</th></tr>
-         <tr>${t.spks.map((no) => `<th colspan="2" class="c">${escapeHtml(no)}</th>`).join('')}</tr>
-         <tr>${t.spks.map(() => '<th class="r">Jumlah</th><th class="r">Biaya</th>').join('')}</tr>`;
-  const body = t.rows
-    .map(
-      (r, i) => `<tr><td class="c">${i + 1}</td><td>${escapeHtml(r.code)}</td><td>${escapeHtml(r.name)}</td>
-      <td class="r">${fmtRp(r.price)}</td><td class="r">${fmtQty(r.totalQty)}</td>
-      ${r.cells.map((c) => `<td class="r">${fmtQty(c.qty)}</td><td class="r">${fmtRp(c.cost)}</td>`).join('')}</tr>`,
-    )
+  win.document.write('<p style="font-family:Arial;padding:24px">Menyiapkan data...</p>');
+  return win;
+}
+
+function writePrint(win: Window, title: string, meta: string[], headers: string[], body: Cell[][], boldLast = false) {
+  const cell = (v: Cell) => (typeof v === 'number' ? `<td class="r">${rp(v)}</td>` : `<td>${escapeHtml(v)}</td>`);
+  const rows = body
+    .map((r, i) => `<tr${boldLast && i === body.length - 1 ? ' class="b"' : ''}>${r.map(cell).join('')}</tr>`)
     .join('');
-  const total = `<tr><td colspan="${F}"><b>Total pengeluaran</b></td>${t.totals
-    .map((v) => `<td></td><td class="r"><b>${fmtRp(v)}</b></td>`)
-    .join('')}</tr>`;
-  win.document.write(`<!doctype html><html><head><title>Realisasi SPK</title><style>
+  win.document.open();
+  win.document.write(`<!doctype html><html><head><title>${escapeHtml(title)}</title><style>
     @page { size: landscape; }
     body { font-family: Arial, sans-serif; padding: 24px; color: #111; }
-    h1 { font-size: 18px; margin: 0 0 4px; } .meta { font-size: 12px; margin-bottom: 12px; color: #444; }
-    table { width: 100%; border-collapse: collapse; font-size: 11px; }
-    th, td { border: 1px solid #999; padding: 4px 6px; text-align: left; vertical-align: middle; }
-    th { background: #eee; } .c { text-align: center; } .r { text-align: right; }
-  </style></head><body><h1>Realisasi SPK</h1>
-  <div class="meta">Client: <b>${escapeHtml(t.client || '-')}</b> · Periode: <b>${escapeHtml(t.periode)}</b></div>
-  <table><thead>${head}</thead><tbody>${body}${total}</tbody></table></body></html>`);
+    h1 { font-size: 18px; margin: 0 0 8px; } .meta { font-size: 12px; color: #444; line-height: 1.6; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 12px; }
+    th, td { border: 1px solid #999; padding: 6px 8px; text-align: left; }
+    th { background: #eee; } .r { text-align: right; } .b td { font-weight: bold; background: #f5f5f5; }
+  </style></head><body><h1>${escapeHtml(title)}</h1>
+  ${meta.map((m) => `<div class="meta">${escapeHtml(m)}</div>`).join('')}
+  <table><thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>
+  </body></html>`);
   win.document.close();
   win.focus();
   win.print();
 }
 
-export async function exportRekapBulananExcel(d: RekapBulanan) {
-  const XLSX = await import('xlsx');
-  const FR = 3; 
-  const n = d.kolom.length;
+// ---------- Daftar SPK ----------
+const listHeaders = ['No.', 'No. SPK', 'Klien & Proyek', 'Anggaran', 'Realisasi', 'Sisa Anggaran', 'Status'];
+const listBody = (rows: RealisasiListRow[]): Cell[][] =>
+  rows.map((r, i) => [i + 1, r.noSpk, r.client, r.anggaran, r.realisasi, r.sisa, r.status]);
 
-  // ----- Sheet 1: matriks barang x (client > SPK) -----
-  const row1: (string | number)[] = ['No.', 'Nama Barang', 'Biaya (Harga Satuan)', ...Array<string>(n).fill('')];
-  const groups: { start: number; end: number }[] = [];
-  d.kolom.forEach((k, i) => {
-    if (i === 0 || d.kolom[i - 1].client !== k.client) {
-      row1[FR + i] = k.client;
-      groups.push({ start: FR + i, end: FR + i });
-    } else {
-      groups[groups.length - 1].end = FR + i;
-    }
-  });
-  const row2 = ['', '', '', ...d.kolom.map((k) => k.noSpk)];
-  const body = d.rows.map((r, i) => [i + 1, r.name, r.price, ...r.qty]);
-  const total = ['Total pengeluaran (Rp)', '', '', ...d.biaya];
-  const top = [['REKAP REALISASI SPK BULANAN'], ['Periode', d.periode], []];
-  const aoa = [...top, row1, row2, ...body, total];
+export const exportRealisasiExcel = (rows: RealisasiListRow[], periode: string) =>
+  exportToExcel({ filename: `Realisasi_SPK_${safeName(periode)}.xlsx`, sheetName: 'Realisasi SPK', headers: listHeaders, rows: listBody(rows) });
 
-  const h = top.length;
-  const merges = [
-    ...[0, 1, 2].map((c) => ({ s: { r: h, c }, e: { r: h + 1, c } })),
-    ...groups.map((g) => ({ s: { r: h, c: g.start }, e: { r: h, c: g.end } })),
-    { s: { r: aoa.length - 1, c: 0 }, e: { r: aoa.length - 1, c: FR - 1 } },
-  ];
-  const sheet1 = XLSX.utils.aoa_to_sheet(aoa);
-  sheet1['!merges'] = merges;
+export const printRealisasiPdf = (win: Window, rows: RealisasiListRow[], periode: string) =>
+  writePrint(win, 'Realisasi SPK', [`Periode: ${periode}`], listHeaders, listBody(rows));
 
-  const rekap: (string | number)[][] = [['REKAP PENGELUARAN PER CLIENT'], ['Periode', d.periode], [], ['Client', 'No. SPK', 'Total Pengeluaran']];
-  let grand = 0;
-  for (const client of [...new Set(d.kolom.map((k) => k.client))]) {
-    let sub = 0;
-    d.kolom.forEach((k, i) => {
-      if (k.client !== client) return;
-      rekap.push([client, k.noSpk, d.biaya[i]]);
-      sub += d.biaya[i];
-    });
-    rekap.push([`Subtotal ${client}`, '', sub]);
-    grand += sub;
+// ---------- Rincian satu SPK ----------
+function rincianTable(mode: Mode, r: RincianSpk, rows: RincianRow[]) {
+  if (mode === 'biaya') {
+    return {
+      headers: ['No.', 'Kode Barang', 'Nama Barang', 'Satuan', 'Harga Satuan', 'Jumlah', 'Biaya'],
+      body: [
+        ...rows.map((x, i): Cell[] => [i + 1, x.kode, x.nama, x.satuan, x.harga, x.qty, x.biaya]),
+        ['', '', 'Total biaya', '', '', '', r.totalBiaya] as Cell[],
+      ],
+    };
   }
-  rekap.push(['Total keseluruhan', '', grand]);
-  const sheet2 = XLSX.utils.aoa_to_sheet(rekap);
+  return {
+    headers: ['No.', 'Kode Barang', 'Nama Bahan', 'Satuan', 'Kuota', 'Terpakai', 'Sisa Kuota'],
+    body: rows.map((x, i): Cell[] => [i + 1, x.kode, x.nama, x.satuan, x.kuota, x.qty, x.kuota - x.qty]),
+  };
+}
 
-  const book = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(book, sheet1, 'Realisasi');
-  XLSX.utils.book_append_sheet(book, sheet2, 'Rekap');
-  XLSX.writeFile(book, `Rekap_Realisasi_SPK_${d.periode}.xlsx`.replace(/[^\w.-]+/g, '_'));
+const rincianMeta = (mode: Mode, r: RincianSpk) =>
+  mode === 'biaya'
+    ? [`No. SPK: ${r.noSpk}`, `Client: ${r.client}`, `Anggaran: ${rp(r.anggaran)}`, `Realisasi: ${rp(r.totalBiaya)}`, `Sisa: ${rp(r.anggaran - r.totalBiaya)} (${statusRealisasi(r.anggaran, r.totalBiaya)})`]
+    : [`No. SPK: ${r.noSpk}`, `Client: ${r.client}`];
+
+export function exportRincianExcel(mode: Mode, r: RincianSpk, rows: RincianRow[]) {
+  const { headers, body } = rincianTable(mode, r, rows);
+  return exportToExcel({
+    filename: `${mode === 'biaya' ? 'Rincian_Biaya' : 'Material_Terpakai'}_${safeName(r.noSpk)}.xlsx`,
+    sheetName: mode === 'biaya' ? 'Rincian Biaya' : 'Material',
+    headers,
+    rows: body,
+  });
+}
+
+export function printRincianPdf(win: Window, mode: Mode, r: RincianSpk, rows: RincianRow[]) {
+  const { headers, body } = rincianTable(mode, r, rows);
+  writePrint(win, mode === 'biaya' ? 'Rincian Biaya SPK' : 'Material Terpakai per SPK', rincianMeta(mode, r), headers, body, mode === 'biaya');
 }
