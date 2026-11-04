@@ -100,6 +100,73 @@ const cellsOf = (name: string) => Array.from(rowOf(name).querySelectorAll('td'))
 afterEach(() => vi.useRealTimers());
 
 describe('BarangKeluar list', () => {
+  it('prints two checked SPKs as separate forms on the same sheet with their own materials', async () => {
+    setup({
+      'GET /api/v1/items/1': item(1, 'BRG-1', 'Triplex', 'lembar', 25),
+      'GET /api/v1/items/2': item(2, 'BRG-2', 'Paku', 'kg', 140),
+    }, paged([
+      { ...trx(1), lines: [trx(1).lines[0]] },
+      { ...trx(2), lines: [trx(2).lines[1]] },
+      trx(3),
+    ]));
+    await screen.findByText('Klien 3');
+    fireEvent.click(label('Centang transaksi 1'));
+    fireEvent.click(label('Centang transaksi 2'));
+    fireEvent.click(screen.getByText('Print PDF'));
+    await waitFor(() => expect(document.querySelector('iframe[title="Cetak barang keluar"]')).not.toBeNull());
+    const frame = document.querySelector<HTMLIFrameElement>('iframe[title="Cetak barang keluar"]')!;
+    try {
+      const printed = new DOMParser().parseFromString(frame.srcdoc, 'text/html');
+      expect(printed.querySelectorAll('.kertas')).toHaveLength(1);
+      const forms = printed.querySelectorAll('.kertas > .lembar');
+      expect(forms).toHaveLength(2);
+      expect(forms[0].textContent).toContain('SPK-1');
+      expect(forms[0].textContent).toContain('Triplex');
+      expect(forms[0].textContent).not.toContain('Paku');
+      expect(forms[1].textContent).toContain('SPK-2');
+      expect(forms[1].textContent).toContain('Paku');
+      expect(forms[1].textContent).not.toContain('Triplex');
+      expect(printed.body.textContent).not.toContain('SPK-3');
+    } finally {
+      frame.remove();
+    }
+  });
+
+  it('prints only checked transactions using the compact form without empty rows', async () => {
+    setup({
+      'GET /api/v1/items/1': item(1, 'BRG-1', 'Triplex', 'lembar', 25),
+      'GET /api/v1/items/2': item(2, 'BRG-2', 'Paku', 'kg', 140),
+    }, paged([trx(1), trx(2)]));
+    await screen.findByText('Klien 2');
+    fireEvent.click(label('Centang transaksi 2'));
+    fireEvent.click(screen.getByText('Print PDF'));
+    await waitFor(() => expect(document.querySelector('iframe[title="Cetak barang keluar"]')).not.toBeNull());
+    const frame = document.querySelector<HTMLIFrameElement>('iframe[title="Cetak barang keluar"]')!;
+    try {
+      const printed = new DOMParser().parseFromString(frame.srcdoc, 'text/html');
+      expect(printed.body.textContent).toContain('Klien 2');
+      expect(printed.body.textContent).not.toContain('Klien 1');
+      expect(printed.querySelectorAll('.material tbody tr')).toHaveLength(2);
+      expect(printed.querySelector('.baris-kosong')).toBeNull();
+      expect(printed.querySelector('style')!.textContent).toContain('width: 138mm');
+      expect(printed.body.textContent).toContain('lembar');
+      expect(printed.body.textContent).toContain('kg');
+    } finally {
+      frame.remove();
+    }
+  });
+
+  it('checks and unchecks every transaction on the page', async () => {
+    setup({}, paged([trx(1), trx(2)]));
+    await screen.findByText('Klien 2');
+    fireEvent.click(label('Centang semua transaksi'));
+    expect(label('Centang transaksi 1').checked).toBe(true);
+    expect(label('Centang transaksi 2').checked).toBe(true);
+    fireEvent.click(label('Centang semua transaksi'));
+    expect(label('Centang transaksi 1').checked).toBe(false);
+    expect(label('Centang transaksi 2').checked).toBe(false);
+  });
+
   it('shows one collapsed row per transaction and sends page 1 / pageSize 20', async () => {
     const api = setup();
     expect(await screen.findByText('Triplex')).not.toBeNull();
