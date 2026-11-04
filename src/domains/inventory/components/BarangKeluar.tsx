@@ -10,7 +10,8 @@ import {
   Plus,
   Minus,
   AlertCircle,
-  Download,
+  FileUp,
+  Printer,
   X,
   ChevronRight,
   Pencil,
@@ -18,12 +19,12 @@ import {
   Filter,
   ScanLine,
   Trash2,
-  Upload,
 } from "lucide-react";
 import {
   createOutbound,
   exportOutboundReport,
   getItemByCode,
+  getItem,
   importOutbound,
   listOutbound,
   updateOutbound,
@@ -183,8 +184,8 @@ function buatDokumenBarangKeluar(data: DataCetak, logoUrl: string): string {
   const tanggalJam = data.jam
     ? `${displayDate(data.tanggal)} / ${data.jam}`
     : displayDate(data.tanggal);
-  // Sembilan baris per lembar mengikuti formulir; identitas dan tanda tangan diulang di lembar berikutnya.
-  const barisPerHalaman = 9;
+  // Formulir seperempat A4; identitas dan tanda tangan diulang jika material berlanjut.
+  const barisPerHalaman = 6;
   const jumlahHalaman = Math.max(
     1,
     Math.ceil(data.baris.length / barisPerHalaman),
@@ -192,10 +193,7 @@ function buatDokumenBarangKeluar(data: DataCetak, logoUrl: string): string {
   const halaman = Array.from({ length: jumlahHalaman }, (_, pageIndex) => {
     const awal = pageIndex * barisPerHalaman;
     const barisHalaman = data.baris.slice(awal, awal + barisPerHalaman);
-    const isiTabel = Array.from({ length: barisPerHalaman }, (_, rowIndex) => {
-      const b = barisHalaman[rowIndex];
-      if (!b)
-        return '<tr class="baris-kosong"><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+    const isiTabel = barisHalaman.map((b, rowIndex) => {
       return `<tr>
         <td class="tengah">${awal + rowIndex + 1}</td>
         <td>${escapeHtml(b.name)}</td>
@@ -257,37 +255,39 @@ function buatDokumenBarangKeluar(data: DataCetak, logoUrl: string): string {
         <meta charset="utf-8" />
         <title>${escapeHtml(FORMAT_DOKUMEN.judul)} - ${escapeHtml(data.spk)}</title>
         <style>
-          @page { size: A4 landscape; margin: 10mm; }
+          @page { size: A4 landscape; margin: 5mm; }
           * { box-sizing: border-box; }
           html, body { margin: 0; padding: 0; }
-          body { font: 11pt/1.2 Arial, sans-serif; color: #000; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .lembar { width: 100%; break-after: page; page-break-after: always; }
-          .lembar:last-child { break-after: auto; page-break-after: auto; }
-          .kop { height: 28mm; position: relative; }
-          .logo { position: absolute; top: 0; left: 0; width: 27mm; height: 27mm; object-fit: contain; }
-          h1 { margin: 0; padding-top: 8mm; text-align: center; font-size: 14pt; line-height: 1.2; font-weight: 700; text-decoration: underline; text-underline-offset: 1mm; }
-          .identitas-dokumen { position: absolute; top: 2mm; right: 0; width: 49mm; }
+          body { font: 7pt/1.2 Arial, sans-serif; color: #000; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          /* Area formulir 148 x 105 mm termasuk margin, sekitar seperempat A4. */
+          .kertas { display: grid; grid-template-columns: repeat(2, 138mm); grid-auto-rows: minmax(95mm, auto); gap: 5mm; align-items: start; break-after: page; page-break-after: always; }
+          .kertas:last-child { break-after: auto; page-break-after: auto; }
+          .lembar { width: 138mm; max-width: 100%; break-inside: avoid; page-break-inside: avoid; }
+          .kop { height: 18mm; position: relative; }
+          .logo { position: absolute; top: 0; left: 0; width: 16mm; height: 16mm; object-fit: contain; }
+          h1 { margin: 0 27mm 0 17mm; padding-top: 5mm; text-align: center; font-size: 8pt; line-height: 1.2; font-weight: 700; text-decoration: underline; text-underline-offset: 0.5mm; }
+          .identitas-dokumen { position: absolute; top: 1mm; right: 0; width: 26mm; }
           table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-          .kode-dokumen { font-size: 10pt; }
-          .kode-dokumen tr { height: 8mm; }
-          .kode-dokumen td { border: 1px solid #000; padding: 1mm 2mm; white-space: nowrap; }
-          .divisi { margin: 1.5mm 0 0; text-align: center; font-size: 10pt; font-weight: 700; }
-          .informasi { margin: 0; font-size: 11pt; }
-          .informasi td { height: 7mm; padding: 1mm 1.5mm; border-bottom: 1px solid #000; vertical-align: middle; overflow-wrap: anywhere; }
+          .kode-dokumen { font-size: 6pt; }
+          .kode-dokumen tr { height: 4mm; }
+          .kode-dokumen td { border: 1px solid #000; padding: 0.5mm 1mm; white-space: nowrap; }
+          .divisi { margin: 1mm 0 0; text-align: center; font-size: 6pt; font-weight: 700; }
+          .informasi { margin: 0; font-size: 6.5pt; }
+          .informasi td { height: 4.5mm; padding: 0.5mm; border-bottom: 1px solid #000; vertical-align: middle; overflow-wrap: anywhere; }
           .informasi .label { font-weight: 700; white-space: nowrap; }
-          .material { margin-top: 1.5mm; font-size: 10.5pt; }
-          .material th, .material td { border: 1px solid #000; padding: 1mm 1.5mm; vertical-align: middle; overflow-wrap: anywhere; }
-          .material thead tr { height: 6mm; }
+          .material { margin-top: 1mm; font-size: 7pt; }
+          .material th, .material td { border: 1px solid #000; padding: 0.5mm; vertical-align: middle; overflow-wrap: anywhere; }
+          .material thead tr { height: 4mm; }
           .material th { text-align: center; font-weight: 700; }
-          .material tbody tr { height: 8.5mm; break-inside: avoid; page-break-inside: avoid; }
+          .material tbody tr { height: 5mm; break-inside: avoid; page-break-inside: avoid; }
           .material thead { display: table-header-group; }
           .tengah { text-align: center; }
           .pengesahan { break-inside: avoid; page-break-inside: avoid; }
-          .catatan { margin: 3mm 0 2mm; }
-          .tanda-tangan { font-size: 10.5pt; }
+          .catatan { margin: 2mm 0 1mm; font-size: 6pt; }
+          .tanda-tangan { font-size: 6pt; }
           .tanda-tangan td { width: 25%; border: 0; padding: 0; text-align: center; vertical-align: top; }
-          .ruang-tanda-tangan { height: 16mm; }
-          .nomor-halaman { margin: 2mm 0 0; font-size: 8pt; text-align: right; }
+          .ruang-tanda-tangan { height: 8mm; }
+          .nomor-halaman { margin: 1mm 0 0; font-size: 6pt; text-align: right; }
         </style>
       </head>
       <body>${halaman}</body>
@@ -295,7 +295,7 @@ function buatDokumenBarangKeluar(data: DataCetak, logoUrl: string): string {
 }
 
 // Dokumen cetak terpisah agar menu, tombol, dan transaksi lain tidak ikut tercetak.
-function cetakBarangKeluar(data: DataCetak): Promise<void> {
+function cetakBarangKeluar(data: DataCetak | DataCetak[]): Promise<void> {
   const logoUrl = new URL(FORMAT_DOKUMEN.logo, window.location.origin).href;
   const iframe = document.createElement("iframe");
   iframe.title = "Cetak barang keluar";
@@ -346,7 +346,23 @@ function cetakBarangKeluar(data: DataCetak): Promise<void> {
       iframe.remove();
       reject(new Error("Dokumen cetak gagal dimuat."));
     };
-    iframe.srcdoc = buatDokumenBarangKeluar(data, logoUrl);
+    const dokumen = (Array.isArray(data) ? data : [data]).map((transaksi) =>
+      new DOMParser().parseFromString(buatDokumenBarangKeluar(transaksi, logoUrl), "text/html"),
+    );
+    const gabungan = dokumen[0];
+    for (const lanjutan of dokumen.slice(1)) {
+      gabungan.body.append(...Array.from(lanjutan.body.children));
+    }
+    // Setiap transaksi tetap punya formulir sendiri; muat hingga empat formulir per A4.
+    const formulir = Array.from(gabungan.body.children);
+    gabungan.body.replaceChildren();
+    for (let index = 0; index < formulir.length; index += 4) {
+      const kertas = gabungan.createElement("main");
+      kertas.className = "kertas";
+      kertas.append(...formulir.slice(index, index + 4));
+      gabungan.body.append(kertas);
+    }
+    iframe.srcdoc = `<!doctype html>${gabungan.documentElement.outerHTML}`;
     document.body.appendChild(iframe);
   });
 }
@@ -372,6 +388,8 @@ export default function BarangKeluarGudang() {
   const [searchQuery, setSearchQuery] = useState("");
   // Pesan error di luar modal (mis. dialog cetak gagal dibuka setelah data tersimpan)
   const [actionError, setActionError] = useState("");
+  const [selected, setSelected] = useState<Map<number, OutboundRow>>(new Map());
+  const [printing, setPrinting] = useState(false);
 
   const { sort, toggle, params: sortParams } = useSort();
   const [showFilter, setShowFilter] = useState(false);
@@ -468,6 +486,50 @@ export default function BarangKeluarGudang() {
   );
   const rows = result?.rows ?? [];
   const total = result?.total ?? 0;
+  const allChecked = rows.length > 0 && rows.every((trx) => selected.has(trx.id));
+  const toggleSelected = (trx: OutboundRow) => setSelected((prev) => {
+    const next = new Map(prev);
+    if (next.has(trx.id)) next.delete(trx.id);
+    else next.set(trx.id, trx);
+    return next;
+  });
+  const toggleAllSelected = () => setSelected((prev) => {
+    const next = new Map(prev);
+    rows.forEach((trx) => allChecked ? next.delete(trx.id) : next.set(trx.id, trx));
+    return next;
+  });
+
+  const printSelected = async () => {
+    if (printing) return;
+    const transactions = selected.size > 0
+      ? [...selected.values()].map((trx) => rows.find((row) => row.id === trx.id) ?? trx)
+      : rows;
+    if (transactions.length === 0) return;
+    setPrinting(true);
+    setActionError("");
+    try {
+      const materialIds = [...new Set(transactions.flatMap((trx) => trx.lines.map((line) => line.itemId)))];
+      const materials = await Promise.all(materialIds.map((id) => getItem(id)));
+      const units = new Map(materials.map((material) => [material.id, material.unit]));
+      await cetakBarangKeluar(transactions.map((trx) => ({
+        tanggal: trx.date,
+        client: trx.clientName,
+        spk: trx.spk,
+        namaItem: trx.itemName,
+        baris: trx.lines.map((line) => ({
+          name: line.itemName,
+          code: line.itemCode,
+          unit: units.get(line.itemId),
+          qty: line.qty,
+          pic: line.pic,
+        })),
+      })));
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Gagal menyiapkan dokumen cetak.");
+    } finally {
+      setPrinting(false);
+    }
+  };
 
   // Dropdown SPK di form dan di Edit: pencarian dikirim ke server. The client comes from the tracking system through the SPK; the API ignores a client name from the FE.
   const clientForm = useClientSearch();
@@ -1145,6 +1207,10 @@ export default function BarangKeluarGudang() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto lg:justify-end">
+            <button type="button" onClick={printSelected} disabled={printing || (selected.size === 0 && (loading || !!error || rows.length === 0))} className={orangeButtonClass}>
+              <Printer className="w-4 h-4" />
+              <span>{printing ? "Menyiapkan cetak..." : "Print PDF"}</span>
+            </button>
             {canCreate && (
               <>
                 <button
@@ -1164,14 +1230,6 @@ export default function BarangKeluarGudang() {
                   <Plus className="w-4 h-4" />
                   <span>Barang Keluar Stok</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setImportOpen(true)}
-                  className="flex items-center justify-center gap-2 rounded-xl border border-[#FF8A00] px-5 py-2.5 text-sm font-semibold text-[#FF8A00] transition-colors hover:bg-orange-50"
-                >
-                  <Upload className="h-4 w-4" />
-                  <span>Import</span>
-                </button>
               </>
             )}
 
@@ -1182,7 +1240,7 @@ export default function BarangKeluarGudang() {
                 disabled={downloading || total === 0}
                 className={orangeButtonClass}
               >
-                <Download className="h-4 w-4" />
+                <FileUp className="h-4 w-4" />
                 <span>{downloading ? "Mengekspor..." : "Export"}</span>
               </button>
             )}
@@ -1258,13 +1316,19 @@ export default function BarangKeluarGudang() {
                 <th scope="col" className="px-6 py-4 text-center">
                   Action
                 </th>
+                <th scope="col" className="px-6 py-4 text-center">
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    Check
+                    <input type="checkbox" aria-label="Centang semua transaksi" checked={allChecked} onChange={toggleAllSelected} disabled={loading || !!error || rows.length === 0} className="w-4 h-4 accent-[#FF8A00]" />
+                  </label>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading && (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={9}
                     className="px-6 py-10 text-center text-gray-400"
                   >
                     Memuat data...
@@ -1274,7 +1338,7 @@ export default function BarangKeluarGudang() {
               {!loading && error && (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={9}
                     className="px-6 py-10 text-center text-red-500"
                   >
                     {error}
@@ -1396,6 +1460,9 @@ export default function BarangKeluarGudang() {
                             {!banyak && pertama && tombolEdit(trx, 0)}
                           </div>
                         </td>
+                        <td className="px-6 py-4 text-center">
+                          <input type="checkbox" aria-label={`Centang transaksi ${trx.noTransaksi ?? trx.id}`} checked={selected.has(trx.id)} onChange={() => toggleSelected(trx)} className="w-4 h-4 accent-[#FF8A00] cursor-pointer" />
+                        </td>
                       </tr>
 
                       {terbuka &&
@@ -1429,6 +1496,7 @@ export default function BarangKeluarGudang() {
                                 {tombolEdit(trx, lineIndex)}
                               </div>
                             </td>
+                            <td />
                           </tr>
                         ))}
                     </React.Fragment>
@@ -1437,7 +1505,7 @@ export default function BarangKeluarGudang() {
               {!loading && !error && rows.length === 0 && (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={9}
                     className="px-6 py-10 text-center text-gray-400 italic"
                   >
                     Data tidak ditemukan untuk filter tersebut.

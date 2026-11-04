@@ -1,1 +1,5 @@
-export {default} from "@/domains/inventory/components/DashboardKartuStok";
+import DashboardKartuStok from "@/domains/inventory/components/DashboardKartuStok";
+
+export default function Page() {
+  return <DashboardKartuStok />;
+}
