@@ -1,48 +1,28 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { ItemListRow } from '@/domains/inventory/types';
+import { clientsOf, makeRows, usagesOf } from './RealisasiSPK';
 
-vi.mock('@/domains/ppic/api', () => ({
-  getDokubah: vi.fn(async () => ({
-    noSpk: 'SPK-1',
-    client: 'PT Maju',
-    totalAnggaran: 1000,
-    bahan: [
-      { kodeBarang: 'K1', namaBahan: 'Paku', satuan: 'pcs', kuota: 10, realisasi: 4 },
-      { kodeBarang: null, namaBahan: ' lem kayu ', satuan: 'kg', kuota: 2, realisasi: 1 },
-      { kodeBarang: 'X9', namaBahan: 'Tidak ada', satuan: 'pcs', kuota: 1, realisasi: 3 },
-    ],
-  })),
-}));
+const usage = [
+  { clientName: 'PT Maju', spk: 'SPK-2', itemId: 1, qty: 3 },
+  { clientName: 'PT Maju', spk: 'SPK-1', itemId: 1, qty: 2 },
+  { clientName: 'pt maju ', spk: 'SPK-1', itemId: 2, qty: 5 },
+  { clientName: 'CV Lain', spk: 'SPK-9', itemId: 3, qty: 7 },
+];
+const item = (id: number, price: number) => ({ id, code: `K${id}`, name: `Barang ${id}`, price }) as ItemListRow;
 
-const { loadRincianSpk, periodeLabel, statusRealisasi, toRealisasiRow } = await import('./RealisasiSPK');
-
-const item = (code: string, name: string, price: number) => ({ code, name, price }) as ItemListRow;
-
-describe('Realisasi SPK', () => {
-  it('marks spending over budget as Rugi, otherwise Untung', () => {
-    expect(statusRealisasi(100, 101)).toBe('Rugi');
-    expect(statusRealisasi(100, 100)).toBe('Untung');
+describe('Realisasi SPK dari barang keluar', () => {
+  it('client list comes from outbound only', () => {
+    expect(clientsOf(usage)).toEqual(['CV Lain', 'PT Maju']);
   });
 
-  it('builds a list row with remaining budget and status', () => {
-    expect(toRealisasiRow({ id: 1, noSpk: 'S', client: 'C', totalAnggaran: 500, totalRealisasiNilai: 700 })).toEqual({
-      id: 1, noSpk: 'S', client: 'C', anggaran: 500, realisasi: 700, sisa: -200, status: 'Rugi',
-    });
-  });
-
-  it('labels the period from the chosen parts', () => {
-    expect(periodeLabel('05', '3', '2026')).toBe('5 Maret 2026');
-    expect(periodeLabel('', '', '2026')).toBe('2026');
-    expect(periodeLabel('', '', '')).toBe('Semua periode');
-  });
-
-  it('prices each material by code, then by name, and totals the cost', async () => {
-    const r = await loadRincianSpk(7, [item('K1', 'Paku', 100), item('K2', 'Lem Kayu', 50)]);
-    expect(r.rows.map((x) => [x.kode, x.harga, x.biaya])).toEqual([
-      ['K1', 100, 400],
-      ['-', 50, 50],
-      ['X9', 0, 0],
+  it('one column per SPK of the client, qty per item, other clients ignored', () => {
+    const u = usagesOf(usage, 'PT Maju');
+    expect(u.map((x) => x.noSpk)).toEqual(['SPK-1', 'SPK-2']);
+    const rows = makeRows([item(1, 100), item(2, 10), item(3, 1)], u);
+    expect(rows.map((r) => [r.id, r.totalQty, r.cells.map((c) => c.cost)])).toEqual([
+      [1, 5, [200, 300]],
+      [2, 5, [50, 0]],
+      [3, 0, [0, 0]], // CV Lain's item: filtered out by the page (totalQty 0)
     ]);
-    expect(r).toMatchObject({ id: 7, noSpk: 'SPK-1', anggaran: 1000, totalBiaya: 450 });
   });
 });
