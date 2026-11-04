@@ -2,6 +2,16 @@ export interface Role {
   id: number;
   name: string;
   domainId: number | null;
+  isSuperadmin: boolean;
+  permissionIds: number[];
+}
+
+export interface Permission {
+  id: number;
+  code: string;
+  resource: string;
+  action: string;
+  domainId: number | null;
 }
 
 export interface CreateUserInput {
