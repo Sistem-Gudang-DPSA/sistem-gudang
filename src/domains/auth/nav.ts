@@ -135,7 +135,8 @@ export const NAV_DIVISIONS: NavDivision[] = [
     label: "PPIC",
     icon: UserCog,
     theme: "purple",
-    anyOf: ["material-request.create", "purchase-request.create"],
+    // purchase-request.create alone must not open PPIC: Gudang roles hold it too, for their own Permintaan Pembelian.
+    anyOf: ["material-request.create"],
     groups: [
       {
         title: "Master",
