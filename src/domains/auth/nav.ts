@@ -1,4 +1,4 @@
-import { PackageCheck, ShieldCheck, ShoppingCart, UserCog, Warehouse, Wallet, type LucideIcon } from "lucide-react";
+import { PackageCheck, ShieldCheck, ShoppingCart, UserCog, Warehouse, type LucideIcon } from "lucide-react";
 import type { AuthUser } from "./types";
 
 export interface NavItem {
@@ -13,7 +13,7 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-export type NavTheme = "orange" | "rose" | "purple" | "teal" | "indigo" | "emerald";
+export type NavTheme = "orange" | "rose" | "purple" | "teal" | "indigo";
 
 export interface NavDivision {
   key: string;
@@ -24,7 +24,6 @@ export interface NavDivision {
   anyOf: string[];
   // Only superadmins see this division, whatever their permissions say.
   superadminOnly?: boolean;
-  roleNames?: string[];
   groups: NavGroup[];
 }
 
@@ -198,36 +197,14 @@ export const NAV_DIVISIONS: NavDivision[] = [
       },
     ],
   },
-  {
-    key: "keuangan",
-    label: "Keuangan",
-    icon: Wallet,
-    theme: "emerald",
-    roleNames: ["keuangan", "finance"],
-    anyOf: ["report.view"],
-    groups: [{
-      title: "Laporan",
-      items: [
-        { href: "/dashboard/keuangan/laporan/barang-masuk", label: "Rekap Data Barang Masuk", anyOf: ["report.view"] },
-        { href: "/dashboard/keuangan/laporan/barang-keluar", label: "Rekap Data Barang Keluar", anyOf: ["report.view"] },
-        { href: "/dashboard/keuangan/laporan/rekap-permintaan", label: "Rekap Permintaan", anyOf: ["report.view"] },
-        { href: "/dashboard/keuangan/laporan/stock-opname", label: "Rekap Stok Opname", anyOf: ["report.view"] },
-      ],
-    }],
-  },
 ];
 
 const can = (user: AuthUser, anyOf?: string[]) =>
   user.isSuperadmin || !anyOf || anyOf.some((p) => user.permissions.includes(p));
 
-const canSeeDivision = (user: AuthUser, division: NavDivision) =>
-  user.isSuperadmin || (!division.superadminOnly &&
-    (!division.roleNames || division.roleNames.includes(user.roleName.trim().toLowerCase())) &&
-    can(user, division.anyOf));
-
 // Divisions and items the user may see, with empty groups and divisions dropped.
 export function visibleNav(user: AuthUser): NavDivision[] {
-  return NAV_DIVISIONS.filter((d) => canSeeDivision(user, d))
+  return NAV_DIVISIONS.filter((d) => (d.superadminOnly ? user.isSuperadmin : can(user, d.anyOf)))
     .map((d) => ({
       ...d,
       groups: d.groups
@@ -247,7 +224,7 @@ export function canAccess(user: AuthUser, pathname: string): boolean {
 
   const division = NAV_DIVISIONS.find((d) => path === `/dashboard/${d.key}` || path.startsWith(`/dashboard/${d.key}/`));
   if (!division) return true;
-  if (!canSeeDivision(user, division)) return false;
+  if (!can(user, division.anyOf)) return false;
 
   const item = division.groups
     .flatMap((g) => g.items)

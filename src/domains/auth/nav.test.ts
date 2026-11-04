@@ -8,19 +8,8 @@ const user = (permissions: string[], isSuperadmin = false): AuthUser => ({
 const labels = (u: AuthUser) => visibleNav(u).map((d) => d.key);
 
 describe("visibleNav", () => {
-  it("shows finance reports only to the finance role with report permission", () => {
-    const finance = { ...user(["report.view"]), roleName: "Keuangan" };
-    const nav = visibleNav(finance);
-    expect(nav.map((division) => division.key)).toEqual(["keuangan"]);
-    expect(nav[0].theme).toBe("emerald");
-    expect(nav[0].groups.map((group) => group.title)).toEqual(["Laporan"]);
-    expect(nav[0].groups[0].items).toHaveLength(4);
-    expect(canAccess(finance, "/dashboard/keuangan/laporan/barang-masuk")).toBe(true);
-    expect(canAccess(user(["report.view"]), "/dashboard/keuangan/laporan/barang-masuk")).toBe(false);
-    expect(visibleNav({ ...finance, permissions: [] })).toEqual([]);
-  });
   it("shows every division to a superadmin", () => {
-    expect(labels(user([], true))).toEqual(["superadmin", "gudang", "gudang-barang-jadi", "ppic", "purchasing", "keuangan"]);
+    expect(labels(user([], true))).toEqual(["superadmin", "gudang", "gudang-barang-jadi", "ppic", "purchasing"]);
   });
 
   it("keeps the Super Admin division away from non-superadmins, whatever their permissions", () => {

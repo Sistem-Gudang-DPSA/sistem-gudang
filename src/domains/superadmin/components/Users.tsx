@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import {
   Users, UserPlus, ShieldCheck,
-  UserCog, Package, ShoppingCart, Wallet, Search,
+  UserCog, Package, ShoppingCart, Search,
   AlertCircle, X, Edit2, Trash2
 } from "lucide-react";
 import { createUser, deleteUser, listRoles, listUsers, updateUser } from "@/domains/superadmin/api";
@@ -119,8 +119,6 @@ export default function UserManagementPage() {
       case "ppic": return <UserCog className="w-4 h-4" />;
       case "gudang": return <Package className="w-4 h-4" />;
       case "purchasing": return <ShoppingCart className="w-4 h-4" />;
-      case "keuangan":
-      case "finance": return <Wallet className="w-4 h-4" />;
       default: return <Users className="w-4 h-4" />;
     }
   };
@@ -131,8 +129,6 @@ export default function UserManagementPage() {
       case "ppic": return "bg-purple-100 text-purple-600";
       case "gudang": return "bg-orange-100 text-orange-600";
       case "purchasing": return "bg-teal-100 text-teal-600";
-      case "keuangan":
-      case "finance": return "bg-emerald-100 text-emerald-700";
       default: return "bg-gray-100 text-gray-600";
     }
   };
