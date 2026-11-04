@@ -7,35 +7,6 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Keep the finance palette together, including the active link's text and background. */
-@layer components {
-  .finance-nav-summary {
-    background-color: #ecfdf5;
-    color: #065f46;
-    border-color: #a7f3d0;
-  }
-  .finance-nav-summary:hover {
-    background-color: #d1fae5;
-    border-color: #6ee7b7;
-  }
-  .finance-nav-icon {
-    background-color: #d1fae5;
-    color: #047857;
-  }
-  .finance-nav-border { border-color: #a7f3d0; }
-  .finance-nav-heading { color: #047857; }
-  .finance-nav-active {
-    background-color: #059669;
-    color: #fff;
-  }
-  .finance-nav-active:hover { background-color: #047857; }
-  .finance-nav-idle { color: #065f46; }
-  .finance-nav-idle:hover {
-    background-color: #d1fae5;
-    color: #064e3b;
-  }
-}
-
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

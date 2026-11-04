@@ -3,9 +3,9 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Download, Eye, Search } from 'lucide-react';
-import { getStockCard, listItems } from '@/domains/inventory/api';
+import { listItems } from '@/domains/inventory/api';
 import type { ItemListRow } from '@/domains/inventory/types';
-import { buildKartu, kartuStokPath } from '@/domains/inventory/components/KartuStok';
+import { kartuStokPath } from '@/domains/inventory/components/KartuStok';
 import { exportDaftarExcel, printDaftarPdf } from '@/shared/components/ExportStok';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
@@ -14,36 +14,6 @@ import { ExportExcellButton } from '@/shared/components/Tombol';
 
 const PAGE_SIZE = 20;
 const checkboxClass = 'w-4 h-4 accent-[#FF8A00] cursor-pointer disabled:cursor-not-allowed';
-
-function StockMovementCells({ itemId }: { itemId: number }) {
-  const { data, loading, error, reload } = useApiData(
-    () => getStockCard(itemId),
-    `kartu-stok-${itemId}`,
-    'Gagal memuat total mutasi.',
-  );
-
-  if (loading) {
-    return <td colSpan={2} className="px-6 py-4 text-center text-gray-400">Memuat mutasi...</td>;
-  }
-
-  if (error || !data) {
-    return (
-      <td colSpan={2} className="px-6 py-4 text-center text-red-500">
-        <button type="button" onClick={reload} title={error} className="hover:underline">
-          Gagal memuat · Coba lagi
-        </button>
-      </td>
-    );
-  }
-
-  const { totalIn, totalOut } = buildKartu(data);
-  return (
-    <>
-      <td className="px-6 py-4 text-right font-semibold text-green-600">{totalIn.toLocaleString('id-ID')}</td>
-      <td className="px-6 py-4 text-right font-semibold text-red-600">{totalOut.toLocaleString('id-ID')}</td>
-    </>
-  );
-}
 
 export default function KartuStok() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -132,8 +102,6 @@ export default function KartuStok() {
                 <th scope="col" className="px-6 py-4">Kode Bawaan</th>
                 <th scope="col" className="px-6 py-4">Nama Barang</th>
                 <th scope="col" className="px-6 py-4 text-right">Stok Saat Ini</th>
-                <th scope="col" className="px-6 py-4 text-right">Masuk</th>
-                <th scope="col" className="px-6 py-4 text-right">Keluar</th>
                 <th scope="col" className="px-6 py-4 text-center">Aksi</th>
                 <th scope="col" className="px-6 py-4 text-center">
                   <label className="inline-flex items-center gap-2 cursor-pointer">
@@ -144,8 +112,8 @@ export default function KartuStok() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {loading && <tr><td colSpan={9} className="px-6 py-10 text-center text-gray-400">Memuat data...</td></tr>}
-              {!loading && error && <tr><td colSpan={9} className="px-6 py-10 text-center text-red-500">{error}</td></tr>}
+              {loading && <tr><td colSpan={7} className="px-6 py-10 text-center text-gray-400">Memuat data...</td></tr>}
+              {!loading && error && <tr><td colSpan={7} className="px-6 py-10 text-center text-red-500">{error}</td></tr>}
               {!loading && !error && rows.map((item, index) => (
                 <tr key={item.id} className={`transition-colors ${selected.has(item.id) ? 'bg-orange-50/60' : 'hover:bg-[#FF8A00]/5'}`}>
                   <td className="px-6 py-4 text-gray-500">{(page - 1) * PAGE_SIZE + index + 1}</td>
@@ -155,7 +123,6 @@ export default function KartuStok() {
                   <td className="px-6 py-4 text-right font-bold text-gray-800">
                     {item.stock.toLocaleString('id-ID')} <span className="text-xs font-normal text-gray-500">{item.unit}</span>
                   </td>
-                  <StockMovementCells itemId={item.id} />
                   <td className="px-6 py-4 text-center">
                     <Link
                       href={kartuStokPath(item.id)}
@@ -170,7 +137,7 @@ export default function KartuStok() {
                 </tr>
               ))}
               {!loading && !error && rows.length === 0 && (
-                <tr><td colSpan={9} className="px-6 py-10 text-center text-gray-400 italic">Barang tidak ditemukan.</td></tr>
+                <tr><td colSpan={7} className="px-6 py-10 text-center text-gray-400 italic">Barang tidak ditemukan.</td></tr>
               )}
             </tbody>
           </table>
