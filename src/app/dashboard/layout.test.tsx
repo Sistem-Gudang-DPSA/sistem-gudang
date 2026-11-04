@@ -30,7 +30,7 @@ describe('dashboard layout guard', () => {
   });
 
   it('keeps the desktop sidebar pinned to the viewport so it stays put while the page scrolls', async () => {
-    installFakeApi({ 'POST /api/v1/auth/refresh': me(['purchase-request.create']) });
+    installFakeApi({ 'POST /api/v1/auth/refresh': me(['purchase-request.create', 'material-request.create']) });
     pathname = '/dashboard/ppic/transaksi/permintaan-pembelian';
     const { container } = renderLayout();
     await screen.findByText('ISI HALAMAN');
@@ -51,7 +51,7 @@ describe('dashboard layout guard', () => {
   });
 
   it('renders children, user name and role for an allowed path', async () => {
-    installFakeApi({ 'POST /api/v1/auth/refresh': me(['purchase-request.create']) });
+    installFakeApi({ 'POST /api/v1/auth/refresh': me(['purchase-request.create', 'material-request.create']) });
     pathname = '/dashboard/ppic/transaksi/permintaan-pembelian';
     renderLayout();
     expect(await screen.findByText('ISI HALAMAN')).not.toBeNull();
@@ -62,7 +62,7 @@ describe('dashboard layout guard', () => {
   });
 
   it('shows AccessDenied instead of children when canAccess is false', async () => {
-    installFakeApi({ 'POST /api/v1/auth/refresh': me(['purchase-request.create']) });
+    installFakeApi({ 'POST /api/v1/auth/refresh': me(['purchase-request.create', 'material-request.create']) });
     pathname = '/dashboard/purchasing/master/data-supplier';
     renderLayout();
     expect(await screen.findByText('Akses Ditolak')).not.toBeNull();
@@ -73,7 +73,7 @@ describe('dashboard layout guard', () => {
   });
 
   it('denies non-superadmins on /dashboard/superadmin and allows superadmins', async () => {
-    installFakeApi({ 'POST /api/v1/auth/refresh': me(['purchase-request.create']) });
+    installFakeApi({ 'POST /api/v1/auth/refresh': me(['purchase-request.create', 'material-request.create']) });
     pathname = '/dashboard/superadmin/users';
     const { unmount } = renderLayout();
     expect(await screen.findByText('Akses Ditolak')).not.toBeNull();
@@ -102,7 +102,7 @@ describe('dashboard layout guard', () => {
   });
 
   it('opens and closes the mobile navigation drawer', async () => {
-    installFakeApi({ 'POST /api/v1/auth/refresh': me(['purchase-request.create']) });
+    installFakeApi({ 'POST /api/v1/auth/refresh': me(['purchase-request.create', 'material-request.create']) });
     renderLayout();
     await screen.findByText('ISI HALAMAN');
     expect(screen.queryByLabelText('Tutup menu')).toBeNull();
