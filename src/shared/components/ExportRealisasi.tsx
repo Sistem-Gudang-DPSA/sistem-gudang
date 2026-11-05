@@ -77,8 +77,14 @@ const rincianMeta = (mode: Mode, r: RincianSpk) =>
       : [`No. SPK: ${r.noSpk}`, `Client: ${r.client}`, `Anggaran: ${rp(r.anggaran)}`, `Realisasi: ${rp(r.totalBiaya)}`, `Sisa: ${rp(r.anggaran - r.totalBiaya)} (${statusRealisasi(r.anggaran, r.totalBiaya)})`]
     : [`No. SPK: ${r.noSpk}`, `Client: ${r.client}`];
 
-export function exportRincianExcel(mode: Mode, r: RincianSpk, rows: RincianRow[]) {
+export function exportRincianExcel(
+  mode: Mode,
+  r: RincianSpk,
+  rows: RincianRow[],
+  labelItem?: string
+) {
   const { headers, body } = rincianTable(mode, r, rows);
+
   return exportToExcel({
     filename: `${mode === 'biaya' ? 'Rincian_Biaya' : 'Material_Terpakai'}_${safeName(r.noSpk)}.xlsx`,
     sheetName: mode === 'biaya' ? 'Rincian Biaya' : 'Material',
@@ -87,7 +93,21 @@ export function exportRincianExcel(mode: Mode, r: RincianSpk, rows: RincianRow[]
   });
 }
 
-export function printRincianPdf(win: Window, mode: Mode, r: RincianSpk, rows: RincianRow[]) {
+export function printRincianPdf(
+  win: Window,
+  mode: Mode,
+  r: RincianSpk,
+  rows: RincianRow[],
+  labelItem?: string
+) {
   const { headers, body } = rincianTable(mode, r, rows);
-  writePrint(win, mode === 'biaya' ? 'Rincian Biaya SPK' : 'Material Terpakai per SPK', rincianMeta(mode, r), headers, body, mode === 'biaya');
+
+  writePrint(
+    win,
+    mode === 'biaya' ? 'Rincian Biaya SPK' : 'Material Terpakai per SPK',
+    rincianMeta(mode, r),
+    headers,
+    body,
+    mode === 'biaya'
+  );
 }

@@ -42,7 +42,7 @@ export default function DateFilter({ day, month, year, onDayChange, onMonthChang
       {showDay && (
         <Field>
           <select value={day} onChange={(e) => onDayChange(e.target.value)} className={`${selectClass} w-24`}>
-            <option value="">Hari</option>
+            <option value="">Tanggal</option>
             {DAYS.map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
         </Field>
