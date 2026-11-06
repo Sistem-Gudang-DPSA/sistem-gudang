@@ -16,6 +16,8 @@ type Props<T> = {
   templateHeaders: string[];
   templateExample?: (string | number)[];
   templateFilename: string;
+  // Daftar referensi (mis. kategori) ditaruh beberapa kolom di kanan data, untuk disalin ke baris barang
+  templateReference?: Record<string, string[]>;
   previewColumns: PreviewColumn<T>[];
   parseRow: (row: Record<string, unknown>, rowNumber: number) => T;
   onSave: (rows: T[]) => Promise<void>;
@@ -23,11 +25,21 @@ type Props<T> = {
   saveLabel?: string;
 };
 
+type XLSXModule = typeof import('xlsx');
+// Tulis tiap daftar sebagai satu kolom, mulai 3 kolom kosong setelah kolom data
+export function addReferenceColumns(XLSX: XLSXModule, sheet: import('xlsx').WorkSheet, dataColumns: number, ref: Record<string, string[]>) {
+  const lists = Object.entries(ref);
+  const height = Math.max(0, ...lists.map(([, v]) => v.length));
+  const aoa = [lists.map(([k]) => k), ...Array.from({ length: height }, (_, i) => lists.map(([, v]) => v[i] ?? ''))];
+  XLSX.utils.sheet_add_aoa(sheet, aoa, { origin: { r: 0, c: dataColumns + 3 } });
+}
+
 export function ImportExcelButton<T>({
   title = 'Import Excel',
   templateHeaders,
   templateExample,
   templateFilename,
+  templateReference,
   previewColumns,
   parseRow,
   onSave,
@@ -53,6 +65,7 @@ export function ImportExcelButton<T>({
     const XLSX = await import('xlsx');
     const data = [templateHeaders, ...(templateExample ? [templateExample] : [])];
     const sheet = XLSX.utils.aoa_to_sheet(data);
+    if (templateReference) addReferenceColumns(XLSX, sheet, templateHeaders.length, templateReference);
     const book = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(book, sheet, 'Template');
     XLSX.writeFile(book, templateFilename);
@@ -78,7 +91,9 @@ export function ImportExcelButton<T>({
       const buffer = await f.arrayBuffer();
       const book = XLSX.read(buffer, { type: 'array', cellDates: true });
       const sheet = book.Sheets[book.SheetNames[0]];
-      const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
+      // Baris yang kolom templatenya kosong semua (mis. hanya berisi daftar referensi) dilewati
+      const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' })
+        .filter((r) => templateHeaders.some((h) => String(r[h] ?? '').trim() !== ''));
 
       if (raw.length === 0) {
         setErrors(['File kosong atau tidak ada data.']);

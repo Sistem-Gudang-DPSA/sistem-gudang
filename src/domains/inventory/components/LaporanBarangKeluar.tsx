@@ -10,7 +10,7 @@ import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
-import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';    
+import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';
 
 const PAGE_SIZE = 20;
 
@@ -26,7 +26,7 @@ const monthStart = () => {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 };
 
-export default function LaporanBarangKeluar(){
+export default function LaporanBarangKeluar() {
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [filterPenerima, setFilterPenerima] = useState<'ALL' | RecipientType>('ALL');
     const [startDate, setStartDate] = useState<string>(monthStart());
@@ -37,10 +37,10 @@ export default function LaporanBarangKeluar(){
     const [exporting, setExporting] = useState(false);
 
     const filters = {
-      q: searchQuery || undefined,
-      startDate: startDate || undefined,
-      endDate: endDate || undefined,
-      recipientType: filterPenerima === 'ALL' ? undefined : filterPenerima,
+        q: searchQuery || undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        recipientType: filterPenerima === 'ALL' ? undefined : filterPenerima,
     };
 
     const { sort, toggle, params: sortParams } = useSort();
@@ -51,9 +51,9 @@ export default function LaporanBarangKeluar(){
     const setPage = (next: number) => setPageState({ key: filterKey, page: next });
 
     const { data: report, loading, error } = useApiData(
-      () => getOutboundReport({ ...filters, ...sortParams, page, pageSize: PAGE_SIZE }),
-      `${filterKey}|${page}`,
-      'Gagal memuat laporan barang keluar.',
+        () => getOutboundReport({ ...filters, ...sortParams, page, pageSize: PAGE_SIZE }),
+        `${filterKey}|${page}`,
+        'Gagal memuat laporan barang keluar.',
     );
 
     const handleExport = async () => {
@@ -82,15 +82,13 @@ export default function LaporanBarangKeluar(){
 
         const bodyRows = tableRows.map(({ trx, line, no, firstLine }) => {
             const barang =
-            escapeHtml(line.itemName) +
-            `<div class="sub">${escapeHtml(line.itemCode ?? '-')}${
-                line.locationCode ? ` (${escapeHtml(line.locationCode)})` : ''
-            }</div>`;
+                escapeHtml(line.itemName) +
+                `<div class="sub">${escapeHtml(line.itemCode ?? '-')}${line.locationCode ? ` (${escapeHtml(line.locationCode)})` : ''
+                }</div>`;
             const penerima =
-            escapeHtml(RECIPIENT_LABEL[trx.recipientType]) +
-            `<div class="sub">${escapeHtml(trx.clientName)}${
-                line.pic ? ` - PIC ${escapeHtml(line.pic)}` : ''
-            }</div>`;
+                escapeHtml(RECIPIENT_LABEL[trx.recipientType]) +
+                `<div class="sub">${escapeHtml(trx.clientName)}${line.pic ? ` - PIC ${escapeHtml(line.pic)}` : ''
+                }</div>`;
 
             return `
             <tr>
@@ -127,9 +125,8 @@ export default function LaporanBarangKeluar(){
             </head>
             <body>
                 <h1>Rekap Barang Keluar (halaman ini)</h1>
-                <p class="meta">Periode: ${escapeHtml(periodeText)} &nbsp;|&nbsp; Penerima: ${escapeHtml(penerimaText)}${
-                searchQuery ? ` &nbsp;|&nbsp; Pencarian: ${escapeHtml(searchQuery)}` : ''
-                }</p>
+                <p class="meta">Periode: ${escapeHtml(periodeText)} &nbsp;|&nbsp; Penerima: ${escapeHtml(penerimaText)}${searchQuery ? ` &nbsp;|&nbsp; Pencarian: ${escapeHtml(searchQuery)}` : ''
+            }</p>
                 <p class="summary">
                 <span><b>Total:</b> ${totalTransaksi.toLocaleString('id-ID')} Transaksi</span>
                 </p>
@@ -151,22 +148,22 @@ export default function LaporanBarangKeluar(){
         win.document.close();
         win.focus();
         win.print();
-        };
+    };
 
     const rows = report?.rows ?? [];
     // The API splits the count per warehouse; only Gudang Bahan Baku exists so far, so show the total.
     const totalTransaksi = Object.values(report?.summary ?? {}).reduce((sum, n) => sum + n, 0);
     // The table shows one row per item line, the API returns one row per transaction.
     const tableRows = rows.flatMap((trx, trxIndex) =>
-      trx.lines.map((line, lineIndex) => ({
-        trx,
-        line,
-        no: (page - 1) * PAGE_SIZE + trxIndex + 1,
-        firstLine: lineIndex === 0,
-      })),
+        trx.lines.map((line, lineIndex) => ({
+            trx,
+            line,
+            no: (page - 1) * PAGE_SIZE + trxIndex + 1,
+            firstLine: lineIndex === 0,
+        })),
     );
 
-    return(
+    return (
         <div className='animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10'>
             <div className='flex flex-col justify-start mb-8 gap-2'>
                 <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1 uppercase">REKAP BARANG KELUAR</h1>
@@ -183,49 +180,49 @@ export default function LaporanBarangKeluar(){
                     <div>
                         <label className="block text-xs text-black mb-1">Pencarian</label>
                         <span className="relative flex items-center w-60">
-                        <input
-                            type="text"
-                            placeholder="Cari Client, SPK, Item, atau Penerima"
-                            value={searchQuery}
-                            maxLength={100}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="border border-gray-300 rounded-md pl-3 pr-10 py-1.5 text-sm w-full bg-white text-black placeholder:text-gray focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        <button className="absolute right-2 flex items-center justify-center">
-                            <Search className="text-black w-4 h-4" />
-                        </button>
+                            <input
+                                type="text"
+                                placeholder="Cari Client, SPK, Item, atau Penerima"
+                                value={searchQuery}
+                                maxLength={100}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="border border-gray-300 rounded-md pl-3 pr-10 py-1.5 text-sm w-full bg-white text-black placeholder:text-gray focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <button className="absolute right-2 flex items-center justify-center">
+                                <Search className="text-black w-4 h-4" />
+                            </button>
                         </span>
                     </div>
 
                     <div>
                         <label className="block text-xs text-black mb-1">Tujuan / Penerima</label>
                         <select
-                        value={filterPenerima}
-                        onChange={(e) => setFilterPenerima(e.target.value as 'ALL' | RecipientType)}
-                        className="border border-gray-300 rounded-md px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500c text-black"
+                            value={filterPenerima}
+                            onChange={(e) => setFilterPenerima(e.target.value as 'ALL' | RecipientType)}
+                            className="border border-gray-300 rounded-md px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500c text-black"
                         >
-                        <option value="ALL" className='text-black'>Semua Penerima</option>
-                        <option value="PRODUKSI" className='text-black'>Tukang / Produksi</option>
-                        <option value="KLIEN" className='text-black'>Klien</option>
+                            <option value="ALL" className='text-black'>Semua Penerima</option>
+                            <option value="PRODUKSI" className='text-black'>Tukang / Produksi</option>
+                            <option value="KLIEN" className='text-black'>Klien</option>
                         </select>
                     </div>
 
                     <div>
                         <label className="block text-xs text-black mb-1">Periode Tanggal</label>
                         <div className="flex gap-2 items-center">
-                        <input
-                            type="date"
-                            value={startDate}
-                            onChange={(e) => setStartDate(e.target.value)}
-                            className="border border-gray-300 rounded-md px-2 py-1 text-sm bg-white text-black"
-                        />
-                        <span className="text-xs text-black font-medium">s/d</span>
-                        <input
-                            type="date"
-                            value={endDate}
-                            onChange={(e) => setEndDate(e.target.value)}
-                            className="border border-gray-300 rounded-md px-2 py-1 text-sm bg-white text-black"
-                        />
+                            <input
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                                className="border border-gray-300 rounded-md px-2 py-1 text-sm bg-white text-black"
+                            />
+                            <span className="text-xs text-black font-medium">s/d</span>
+                            <input
+                                type="date"
+                                value={endDate}
+                                onChange={(e) => setEndDate(e.target.value)}
+                                className="border border-gray-300 rounded-md px-2 py-1 text-sm bg-white text-black"
+                            />
                         </div>
                     </div>
                 </div>
@@ -242,73 +239,73 @@ export default function LaporanBarangKeluar(){
                     </div>
                 </div>
                 {actionError && <p className="px-4 pb-2 text-sm text-red-500">{actionError}</p>}
-        <table className="min-w-full divide-y divide-gray-200 text-sm">
-                <thead className="bg-gray-100 font-semibold text-gray-700">
-                    <tr>
-                        <th className="px-4 py-3 text-center w-12">No</th>
-                        <th className="px-4 py-3 text-left">Informasi Barang</th>
-                        <SortableTh label="Tujuan / Penerima" sortKey="clientName" sort={sort} onSort={toggle} className="px-4 py-3" align="left" />
-                        <SortableTh label="SPK" sortKey="spk" sort={sort} onSort={toggle} className="px-4 py-3" align="right" />
-                        <SortableTh label="Tanggal" sortKey="date" sort={sort} onSort={toggle} className="px-4 py-3" align="center" />
-                        <th className="px-4 py-3 text-center">Jumlah</th>
-                        <th className="px-4 py-3 text-center print:hidden">Aksi</th>
-                    </tr>
-                </thead>
+                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead className="bg-gray-100 font-semibold text-gray-700">
+                        <tr>
+                            <th className="px-4 py-3 text-center w-12">No</th>
+                            <th className="px-4 py-3 text-left">Informasi Barang</th>
+                            <SortableTh label="Tujuan / Penerima" sortKey="clientName" sort={sort} onSort={toggle} className="px-4 py-3" align="left" />
+                            <SortableTh label="SPK" sortKey="spk" sort={sort} onSort={toggle} className="px-4 py-3" align="right" />
+                            <SortableTh label="Tanggal" sortKey="date" sort={sort} onSort={toggle} className="px-4 py-3" align="center" />
+                            <th className="px-4 py-3 text-center">Jumlah</th>
+                            <th className="px-4 py-3 text-center print:hidden">Aksi</th>
+                        </tr>
+                    </thead>
                     <tbody className="divide-y divide-gray-200">
                         {loading ? (
-                        <tr>
-                            <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                            <div className="flex items-center justify-center gap-2">
-                                <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-                                <span>Memuat data laporan barang keluar...</span>
-                            </div>
-                            </td>
-                        </tr>
-                        ) : error ? (
-                        <tr>
-                            <td colSpan={7} className="px-4 py-8 text-center text-red-500">
-                            <div className="flex flex-col items-center justify-center gap-2">
-                                <AlertCircle className="w-6 h-6 text-red-500" />
-                                <span className="font-semibold">{error}</span>
-                            </div>
-                            </td>
-                        </tr>
-                        ) : tableRows.length === 0 ? (
-                        <tr>
-                            <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                            Tidak ada data barang keluar ditemukan.
-                            </td>
-                        </tr>
-                        ) : (
-                        tableRows.map(({ trx, line, no, firstLine }, index) => (
-                            <tr key={`${trx.id}-${index}`} className="hover:bg-gray-50 transition-colors">
-                            {firstLine && (
-                            <td rowSpan={trx.lines.length} className="px-4 py-3 text-center text-gray-500 align-top">{no}</td>
-                            )}
-                            <td className="px-4 py-3">
-                                <span className="font-medium text-gray-900">{line.itemName}</span>
-                                <span className="block text-xs font-mono text-gray-500">
-                                    {line.itemCode ?? '-'}{line.locationCode ? ` (${line.locationCode})` : ''}
-                                </span>
-                            </td>
-                            <td className="px-4 py-3">
-                                <span className="font-medium text-gray-900">{RECIPIENT_LABEL[trx.recipientType]}</span>
-                                <span className="block text-xs text-gray-500">{trx.clientName}{line.pic ? ` - PIC ${line.pic}` : ''}</span>
-                            </td>
-                            <td className="px-4 py-3 text-right font-mono font-semibold text-blue-600">{trx.spk}</td>
-                            <td className="px-4 py-3 text-center text-gray-700">{displayDate(trx.date)}</td>
-                            <td className="px-4 py-3 text-center font-bold text-gray-800">{line.qty}</td>
-                            <td className="px-4 py-3 text-center print:hidden">
-                                <button
-                                onClick={() => setSelectedDetail(trx)}
-                                className="flex-1 lg:flex-none flex items-center justify-center gap-2 text-blue-600 hover:text-blue-800 font-medium text-xs bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded border border-blue-200 transition-colors"
-                                >
-                                <Eye className='h-4 w-4'></Eye>
-                                <span>View Detail</span>
-                                </button>
-                            </td>
+                            <tr>
+                                <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                                    <div className="flex items-center justify-center gap-2">
+                                        <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                                        <span>Memuat data laporan barang keluar...</span>
+                                    </div>
+                                </td>
                             </tr>
-                        ))
+                        ) : error ? (
+                            <tr>
+                                <td colSpan={7} className="px-4 py-8 text-center text-red-500">
+                                    <div className="flex flex-col items-center justify-center gap-2">
+                                        <AlertCircle className="w-6 h-6 text-red-500" />
+                                        <span className="font-semibold">{error}</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        ) : tableRows.length === 0 ? (
+                            <tr>
+                                <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                                    Tidak ada data barang keluar ditemukan.
+                                </td>
+                            </tr>
+                        ) : (
+                            tableRows.map(({ trx, line, no, firstLine }, index) => (
+                                <tr key={`${trx.id}-${index}`} className="hover:bg-gray-50 transition-colors">
+                                    {firstLine && (
+                                        <td rowSpan={trx.lines.length} className="px-4 py-3 text-center text-gray-500 align-top">{no}</td>
+                                    )}
+                                    <td className="px-4 py-3">
+                                        <span className="font-medium text-gray-900">{line.itemName}</span>
+                                        <span className="block text-xs font-mono text-gray-500">
+                                            {line.itemCode ?? '-'}{line.locationCode ? ` (${line.locationCode})` : ''}
+                                        </span>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <span className="font-medium text-gray-900">{RECIPIENT_LABEL[trx.recipientType]}</span>
+                                        <span className="block text-xs text-gray-500">{trx.clientName}{line.pic ? ` - PIC ${line.pic}` : ''}</span>
+                                    </td>
+                                    <td className="px-4 py-3 text-right font-mono font-semibold text-blue-600">{trx.spk}</td>
+                                    <td className="px-4 py-3 text-center text-gray-700">{displayDate(trx.date)}</td>
+                                    <td className="px-4 py-3 text-center font-bold text-gray-800">{line.qty}</td>
+                                    <td className="px-4 py-3 text-center print:hidden">
+                                        <button
+                                            onClick={() => setSelectedDetail(trx)}
+                                            className="flex-1 lg:flex-none flex items-center justify-center gap-2 text-blue-600 hover:text-blue-800 font-medium text-xs bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded border border-blue-200 transition-colors"
+                                        >
+                                            <Eye className='h-4 w-4'></Eye>
+                                            <span>View Detail</span>
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))
                         )}
                     </tbody>
                 </table>

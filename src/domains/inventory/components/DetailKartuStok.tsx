@@ -1,16 +1,20 @@
-// KartuStokDetail.tsx
 "use client";
 
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, AlertCircle, Download } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Download, Filter } from 'lucide-react';
 import { getStockCard } from '@/domains/inventory/api';
 import { buildKartu } from '@/domains/inventory/components/KartuStok';
 import { exportKartuExcel, printKartuPdf } from '@/shared/components/ExportStok';
-import { displayDate } from '@/domains/inventory/date';
+import { displayDate, todayIso } from '@/domains/inventory/date';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { ExportExcellButton } from '@/shared/components/Tombol';
+
+const monthStart = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+}
 
 const fmt = (n: number) => n.toLocaleString('id-ID');
 
@@ -18,8 +22,27 @@ export default function KartuStokDetail() {
     const params = useParams<{ id: string }>();
     const itemId = Number(params.id);
     const { data, loading, error, reload } = useApiData(() => getStockCard(itemId), `kartu-stok-${itemId}`, 'Gagal memuat kartu stok.');
-    const kartu = data ? buildKartu(data) : null;
-    const tidakSinkron = data && kartu ? kartu.saldoAkhir !== data.item.stock : false;
+
+    const [startDate, setStartDate] = useState<string>(monthStart());
+    const [endDate, setEndDate] = useState<string>(todayIso());
+    const [showFilter, setShowFilter] = useState(false);
+    const activeDateFilters = [startDate, endDate].filter(Boolean).length;
+    const rentangTerbalik = !!startDate && !!endDate && startDate > endDate;
+
+    const filtered = useMemo(() => {
+        if (!data) return null;
+        if (rentangTerbalik) return data;
+        const sebelum = startDate ? data.entries.filter((e) => e.date < startDate) : [];
+        const opening = data.openingBalance + sebelum.reduce((s, e) => s + e.qtyIn - e.qtyOut, 0);
+        return {
+            ...data,
+            openingBalance: opening,
+            entries: data.entries.filter((e) => (!startDate || e.date >= startDate) && (!endDate || e.date <= endDate)),
+        };
+    }, [data, startDate, endDate, rentangTerbalik]);
+    const kartu = filtered ? buildKartu(filtered) : null;
+    const sampaiSekarang = !endDate || endDate >= todayIso();
+    const tidakSinkron = data && kartu && sampaiSekarang ? kartu.saldoAkhir !== data.item.stock : false;
 
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -38,12 +61,24 @@ export default function KartuStokDetail() {
                             </p>
                         )}
                     </div>
-                    <div className="flex items-center gap-2">
-                        <ExportExcellButton onClick={() => data && exportKartuExcel(data)} disabled={!data} />
+                    <div className="flex flex-wrap items-center gap-2">
                         <button
                             type="button"
-                            onClick={() => data && printKartuPdf(data)}
-                            disabled={!data}
+                            onClick={() => setShowFilter((v) => !v)}
+                            aria-expanded={showFilter}
+                            className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors text-sm font-medium ${showFilter || activeDateFilters > 0
+                                    ? 'bg-orange-50 border-orange-300 text-orange-700'
+                                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                                }`}
+                        >
+                            <Filter className="w-4 h-4" />
+                            <span>Filter{activeDateFilters > 0 ? ` (${activeDateFilters})` : ''}</span>
+                        </button>
+                        <ExportExcellButton onClick={() => filtered && exportKartuExcel(filtered)} disabled={!filtered} />
+                        <button
+                            type="button"
+                            onClick={() => filtered && printKartuPdf(filtered)}
+                            disabled={!filtered}
                             className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-50"
                         >
                             <Download className="w-4 h-4" />
@@ -54,6 +89,33 @@ export default function KartuStokDetail() {
                         </button>
                     </div>
                 </div>
+
+                {showFilter && (
+                    <div className="flex flex-wrap items-end gap-3 px-5 py-3 border-b border-gray-100 bg-white">
+                        <div>
+                            <label htmlFor="ks-mulai" className="block text-xs text-gray-600 mb-1">Dari tanggal</label>
+                            <input id="ks-mulai" type="date" value={startDate} max={endDate || undefined} onChange={(e) => setStartDate(e.target.value)}
+                                className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500" />
+                        </div>
+                        <span className="pb-2.5 text-xs text-gray-500 font-medium">s/d</span>
+                        <div>
+                            <label htmlFor="ks-akhir" className="block text-xs text-gray-600 mb-1">Sampai tanggal</label>
+                            <input id="ks-akhir" type="date" value={endDate} min={startDate || undefined} onChange={(e) => setEndDate(e.target.value)}
+                                className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500" />
+                        </div>
+                        {activeDateFilters > 0 && (
+                            <button type="button" onClick={() => { setStartDate(''); setEndDate(''); }} className="pb-2.5 text-xs text-orange-600 font-bold hover:underline">
+                                Reset
+                            </button>
+                        )}
+                    </div>
+                )}
+
+                {rentangTerbalik && (
+                    <p role="alert" className="mx-5 mt-5 p-3 bg-red-50 text-red-600 text-sm rounded-lg">
+                        Tanggal mulai tidak boleh setelah tanggal akhir. Filter diabaikan sampai diperbaiki.
+                    </p>
+                )}
 
                 {tidakSinkron && kartu && data && (
                     <div className="mx-5 mt-5 flex items-start gap-2 p-3 bg-amber-50 text-amber-800 text-sm rounded-lg">
@@ -112,7 +174,7 @@ export default function KartuStokDetail() {
                                             <td className="px-6 py-4 text-right font-bold text-gray-900">{fmt(r.saldo)}</td>
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-col">
-                                                    <span className="font-medium text-gray-900">{r.note ?? '-'}</span>
+                                                    <span className="font-medium text-gray-900">{r.noTransaksi ?? r.note ?? '-'}</span>
                                                     {(r.usage) && (
                                                         <span className="text-xs text-gray-500">{[r.usage && `${r.usage}`]}</span>
                                                     )}
