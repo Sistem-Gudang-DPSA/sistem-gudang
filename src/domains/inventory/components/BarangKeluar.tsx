@@ -46,6 +46,8 @@ import SearchableSelect from "@/shared/components/SearchableSelect";
 import { useClientSearch, useSpkSearch } from "@/domains/ppic/use-spk-search";
 import { beepFail, beepOk } from "@/domains/inventory/beep";
 import ImportBarangKeluarModal from "./ImportBarangKeluarModal";
+import EditTimerButton from "@/shared/components/TImerEditButton";
+import RealTimeClock from "@/shared/components/RealTIme";
 
 // Satu baris barang hasil scan. SPK dan Nama Produk/Proyek diisi sekali di atas untuk seluruh transaksi.
 // Baris input manual dibuat kosong (itemId null) sampai materialnya dipilih dari dropdown.
@@ -104,11 +106,17 @@ const tambahSatu = (baris: BarisForm[], key: string) =>
 
 // Barang keluar hanya bisa diedit selama 1 hari (24 jam) sejak transaksi dicatat
 const BATAS_EDIT_MS = 24 * 60 * 60 * 1000;
+const SEVEN_HOURS_MS = 7 * 60 * 60 * 1000;
 const PESAN_TIDAK_BISA_EDIT =
   "Data barang keluar ini sudah tidak bisa diedit karena sudah lewat 1 hari sejak dicatat.";
 
-const batasEdit = (trx: OutboundRow) =>
-  new Date(trx.createdAt).getTime() + BATAS_EDIT_MS;
+const batasEdit = (trx: OutboundRow) => {
+  const raw = trx.createdAt ?? "";
+  const waktuMelonjak = new Date(raw).getTime();
+  const createdAtLokalBenar = waktuMelonjak - SEVEN_HOURS_MS;
+  return createdAtLokalBenar + BATAS_EDIT_MS;
+};
+
 // createdAt yang tidak valid menghasilkan NaN, sehingga dianggap tidak bisa diedit
 const bisaEdit = (trx: OutboundRow, now: number) => now < batasEdit(trx);
 
@@ -139,7 +147,7 @@ type EditForm = {
   qty: string;
 };
 
-type DataCetak = {
+export type DataCetak = {
   tanggal: string;
   jam?: string;
   client: string;
@@ -159,7 +167,7 @@ type DataCetak = {
 };
 
 // Identitas formulir mengikuti referensi kantor. Logo disimpan di folder public.
-const FORMAT_DOKUMEN = {
+export const FORMAT_DOKUMEN = {
   logo: "/logo-perusahaan.jpg",
   logoAlternatif: "/logo-perusahaan.png",
   judul: "SK PERMINTAAN BARANG",
@@ -231,7 +239,7 @@ function buatDokumenBarangKeluar(data: DataCetak, logoUrl: string): string {
       </table>
 
       <table class="material">
-        <colgroup><col style="width:8%" /><col style="width:32%" /><col style="width:10%" /><col style="width:12%" /><col style="width:12%" /><col style="width:26%" /></colgroup>
+        <colgroup><col style="width:8%" /><col style="width:32%" /><col style="width:10%" /><col style="width:10%" /><col style="width:14%" /><col style="width:26%" /></colgroup>
         <thead>
           <tr><th rowspan="2" scope="col">No</th><th rowspan="2" scope="col">Nama Material</th><th rowspan="2" scope="col">sat/vol</th><th colspan="2" scope="colgroup">Jumlah</th><th rowspan="2" scope="col">Keterangan</th></tr>
           <tr><th scope="col">Dokubah</th><th scope="col">Pengambilan</th></tr>
@@ -295,7 +303,7 @@ function buatDokumenBarangKeluar(data: DataCetak, logoUrl: string): string {
 }
 
 // Dokumen cetak terpisah agar menu, tombol, dan transaksi lain tidak ikut tercetak.
-function cetakBarangKeluar(data: DataCetak | DataCetak[]): Promise<void> {
+export function cetakBarangKeluar(data: DataCetak | DataCetak[]): Promise<void> {
   const logoUrl = new URL(FORMAT_DOKUMEN.logo, window.location.origin).href;
   const iframe = document.createElement("iframe");
   iframe.title = "Cetak barang keluar";
@@ -367,6 +375,33 @@ function cetakBarangKeluar(data: DataCetak | DataCetak[]): Promise<void> {
   });
 }
 
+const LiveWaktuDicatat: React.FC<{
+    createdAt: string | Date;
+    tampilWaktu: (timestamp: number) => string;
+  }> = ({ createdAt, tampilWaktu }) => {
+    const [liveStr, setLiveStr] = React.useState<string>("");
+
+    React.useEffect(() => {
+      const updateTime = () => {
+        const SEVEN_HOURS_MS = 7 * 60 * 60 * 1000;
+        const dbTimestamp = new Date(createdAt).getTime();
+
+        // Jika data createdAt kamu bertambah 7 jam dari server, kurangi di sini. 
+        // Jika tidak, hapus bagian "- SEVEN_HOURS_MS"
+        const waktuKoreksi = dbTimestamp - SEVEN_HOURS_MS;
+
+        setLiveStr(tampilWaktu(waktuKoreksi));
+      };
+
+      updateTime(); // Pemicu awal
+      const intervalId = setInterval(updateTime, 1000); // Jalan setiap detik
+
+      return () => clearInterval(intervalId);
+    }, [createdAt, tampilWaktu]);
+
+    return <>{liveStr}</>;
+  };
+
 const formCellClass = "border-b border-r border-gray-300";
 const formHeadClass = `${formCellClass} px-2 py-2.5 font-medium whitespace-nowrap`;
 const labelClass = "block text-sm text-gray-800 mb-1.5";
@@ -396,6 +431,22 @@ export default function BarangKeluarGudang() {
   const [filterDay, setFilterDay] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
   const [filterYear, setFilterYear] = useState("");
+  const [waktuSekarang, setWaktuSekarang] = useState<string>('');
+
+  useEffect(() => {
+    const updateTime = () => {
+      setWaktuSekarang(
+        new Date().toLocaleTimeString("id-ID", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        })
+      );
+    };
+    updateTime();
+    const intervalId = setInterval(updateTime, 1000);
+    return () => clearInterval(intervalId);
+  }, []);
 
   const {
     items,
@@ -645,36 +696,15 @@ export default function BarangKeluarGudang() {
     const line = trx.lines[lineIndex];
     if (!line) return null;
     return (
-      <WithNow>
-        {(now) =>
-          bisaEdit(trx, now) ? (
-            <button
-              type="button"
-              onClick={() => {
-                onBuka?.();
-                openEdit(trx, lineIndex);
-              }}
-              title={`Bisa diedit sampai ${tampilWaktu(batasEdit(trx))}`}
-              aria-label={`Edit barang keluar ${trx.id} ${line.itemName}`}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#FF8A00] text-[#FF8A00] text-xs font-semibold hover:bg-orange-50 transition-colors"
-            >
-              <Pencil className="w-3.5 h-3.5" />
-              <span>Edit</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              disabled
-              title="Sudah lewat 1 hari, tidak bisa diedit"
-              aria-label={`Edit barang keluar ${trx.id} ${line.itemName} (terkunci)`}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-gray-50 text-gray-400 text-xs font-semibold cursor-not-allowed opacity-70"
-            >
-              <Lock className="w-3.5 h-3.5" />
-              <span>Edit</span>
-            </button>
-          )
-        }
-      </WithNow>
+      <EditTimerButton
+        deadline={batasEdit(trx)}
+        onEditClick={() => {
+          onBuka?.();
+          openEdit(trx, lineIndex);
+        }}
+        title={`Bisa diedit sampai ${tampilWaktu(batasEdit(trx))}`}
+        ariaLabel={`Edit barang keluar ${trx.id} ${line.itemName}`}
+      />
     );
   };
 
@@ -889,11 +919,11 @@ export default function BarangKeluarGudang() {
   const pilihanMaterial = (b: BarisForm) => [
     ...(b.itemId !== null && !items.some((it) => it.id === b.itemId)
       ? [
-          {
-            value: String(b.itemId),
-            label: b.code ? `${b.name} (${b.code})` : b.name,
-          },
-        ]
+        {
+          value: String(b.itemId),
+          label: b.code ? `${b.name} (${b.code})` : b.name,
+        },
+      ]
       : []),
     ...items
       .filter(
@@ -951,19 +981,19 @@ export default function BarangKeluarGudang() {
         return sama
           ? tambahSatu(bs, sama.key)
           : [
-              ...bs,
-              {
-                key: randomId(),
-                manual: false,
-                itemId: item.id,
-                code: item.code ?? code,
-                name: item.name,
-                unit: item.unit,
-                stock: item.stock,
-                qty: "1",
-                dokubah: "",
-              },
-            ];
+            ...bs,
+            {
+              key: randomId(),
+              manual: false,
+              itemId: item.id,
+              code: item.code ?? code,
+              name: item.name,
+              unit: item.unit,
+              stock: item.stock,
+              qty: "1",
+              dokubah: "",
+            },
+          ];
       });
       ok(item.id);
     } catch (err) {
@@ -1209,7 +1239,7 @@ export default function BarangKeluarGudang() {
           <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto lg:justify-end">
             <button type="button" onClick={printSelected} disabled={printing || (selected.size === 0 && (loading || !!error || rows.length === 0))} className={orangeButtonClass}>
               <Printer className="w-4 h-4" />
-              <span>{printing ? "Menyiapkan cetak..." : "Print PDF"}</span>
+              <span>{printing ? "Menyiapkan cetak..." : "Print"}</span>
             </button>
             {canCreate && (
               <>
@@ -1249,11 +1279,10 @@ export default function BarangKeluarGudang() {
               type="button"
               onClick={() => setShowFilter((v) => !v)}
               aria-expanded={showFilter}
-              className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl transition-colors text-sm font-semibold ${
-                showFilter || activeDateFilters > 0
-                  ? "bg-orange-50 border-orange-300 text-orange-700"
-                  : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
-              }`}
+              className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl transition-colors text-sm font-semibold ${showFilter || activeDateFilters > 0
+                ? "bg-orange-50 border-orange-300 text-orange-700"
+                : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+                }`}
             >
               <Filter className="w-4 h-4" />
               <span>
@@ -2014,6 +2043,12 @@ export default function BarangKeluarGudang() {
                       Data stok belum tersedia.
                     </p>
                   )}
+                  <div className="text-xs">
+                    Waktu Sekarang :
+                    <span className="font-mono font-semibold text-gray-800 ml-1 ">
+                      {waktuSekarang}
+                    </span>
+                  </div>
                   <div className="ml-auto flex flex-wrap items-center gap-3">
                     <button
                       type="submit"
@@ -2165,13 +2200,13 @@ export default function BarangKeluarGudang() {
                         updateEdit(
                           it
                             ? {
-                                itemId,
-                                picked: {
-                                  name: it.name,
-                                  code: it.code,
-                                  unit: it.unit,
-                                },
-                              }
+                              itemId,
+                              picked: {
+                                name: it.name,
+                                code: it.code,
+                                unit: it.unit,
+                              },
+                            }
                             : itemId === editForm.itemId
                               ? {}
                               : { itemId, picked: undefined },
@@ -2185,14 +2220,14 @@ export default function BarangKeluarGudang() {
                           (it) => String(it.id) === editForm.itemId,
                         )
                           ? [
-                              {
-                                value: editForm.itemId,
-                                label:
-                                  editForm.picked?.name ??
-                                  editLine?.itemName ??
-                                  "",
-                              },
-                            ]
+                            {
+                              value: editForm.itemId,
+                              label:
+                                editForm.picked?.name ??
+                                editLine?.itemName ??
+                                "",
+                            },
+                          ]
                           : []),
                         ...items.map((it) => ({
                           value: String(it.id),
@@ -2334,7 +2369,10 @@ export default function BarangKeluarGudang() {
                     ["Pengambil", detailTrx.lines[0]?.pic ?? "-"],
                     [
                       "Dicatat",
-                      tampilWaktu(new Date(detailTrx.createdAt).getTime()),
+                      <LiveWaktuDicatat
+                        createdAt={detailTrx.createdAt}
+                        tampilWaktu={tampilWaktu}
+                      />
                     ],
                   ] as const
                 ).map(([k, v]) => (

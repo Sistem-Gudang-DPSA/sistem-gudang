@@ -5,94 +5,161 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { formatRupiah } from '@/domains/ppic/data/dokubah';
-import type { ItemListRow } from '@/domains/inventory/types';
-import { SUMBER_DATA_NOTICE, loadAllItems, loadRincianSpk, realisasiSpkPath, statusRealisasi } from '@/domains/inventory/components/RealisasiSPK';
+import { listMaterialRequests } from '@/domains/inventory/api';
+import {
+    loadAllItems, loadItemSpk, loadRincianPerItem, loadRincianSpk, realisasiSpkPath, statusRealisasi,
+    type RincianRow,
+} from '@/domains/inventory/components/RealisasiSPK';
 import { exportRincianExcel, openPrintWindow, printRincianPdf } from '@/shared/components/ExportRealisasi';
 import { useApiData } from '@/shared/lib/use-api-data';
 import SearchableSelect from '@/shared/components/SearchableSelect';
 import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';
-import { listMaterialRequests } from '@/domains/inventory/api';
 
-type Mode = 'biaya' | 'material';
+const SEMUA = '__semua__';
+const SUMBER_DATA_NOTICE =
+    'Total SPK dihitung dari dokubah, sedangkan biaya per item dihitung dari transaksi barang keluar. Angka keduanya bisa berbeda.';
 const th = 'px-4 py-3';
 const selectClass =
     'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 bg-white ' +
     'focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors';
 
-// Route entry for /dashboard/gudang/laporan/realisasi-spk/[id]. key={id} remounts the
-// detail when moving to another SPK, so its filters start fresh.
+type Mode = 'biaya' | 'material';
+
+// Route: /dashboard/gudang/laporan/realisasi-spk/[id], id = ID dokubah dari daftar.
+// key={id} membuat ulang komponen saat pindah SPK, sehingga filter mulai dari awal.
 export default function DetailRealisasiSPKPage() {
-    const { id } = useParams<{ id: string }>();
-    const noSpk = decodeURIComponent(id);
-    return <RincianSpkDetail key={noSpk} id={noSpk} mode="biaya" backHref={realisasiSpkPath} />;
+    const { id: rawId } = useParams<{ id: string }>();
+    const noSpk = decodeURIComponent(rawId ?? '');
+    return <RincianSpkDetail key={noSpk} noSpk={noSpk} mode="biaya" backHref={realisasiSpkPath} />;
 }
 
-export function RincianSpkDetail({ id, mode, backHref }: {
-    id: string;                        // No. SPK
+export function RincianSpkDetail({ noSpk, mode, backHref }: {
+    noSpk: string;
     mode: Mode;
-    backHref: string;                  // halaman daftar
+    backHref: string;
 }) {
     const [hanyaTerpakai, setHanyaTerpakai] = useState(true);
-    const [produkDipilih, setProdukDipilih] = useState('');
+    const [itemDipilih, setItemDipilih] = useState(SEMUA);
 
     // Harga barang hanya dibutuhkan untuk rincian biaya
     const { data: items, loading: loadingItems, error: errItems } = useApiData(
-        () => (mode === 'biaya' ? loadAllItems() : Promise.resolve([] as ItemListRow[])),
+        () => (mode === 'biaya' ? loadAllItems() : Promise.resolve([])),
         `rincian-items|${mode}`,
         'Gagal memuat harga barang.',
     );
+
     const { data: rincian, loading, error } = useApiData(
-        () => (items ? loadRincianSpk(id, items) : Promise.resolve(null)),
-        `rincian|${id}|${items ? 'ok' : 'tunggu'}`,
+        () =>
+            items
+                ? loadRincianSpk(noSpk, items)
+                : Promise.resolve(null),
+        `rincian|${noSpk}|${items ? 'ok' : 'tunggu'}`,
         'Gagal memuat rincian SPK.',
     );
 
-    const { data: permintaan } = useApiData(
-        () => listMaterialRequests({ page: 1, pageSize: 100 }),
-        'rincian-produk-spk',
-        'Gagal memuat daftar produk SPK.',
+    // Pengambilan per item, dari transaksi barang keluar SPK ini
+    const { data: perItem, loading: loadingPerItem } = useApiData(
+        () =>
+            mode === 'biaya' && items
+                ? loadRincianPerItem(noSpk, items)
+                : Promise.resolve(null),
+        `per-item|${noSpk}|${items ? 'ok' : 'tunggu'}|${mode}`,
+        'Gagal memuat pengambilan per item.',
     );
 
-    const produkOptions = useMemo(() => {
-        const produk = (permintaan?.rows ?? [])
-            .filter((r) => r.spk === rincian?.noSpk);
+    const { data: daftarItem } = useApiData(
+        () =>
+            mode === 'biaya'
+                ? loadItemSpk(noSpk)
+                : Promise.resolve([]),
+        `produk-spk|${noSpk}|${mode}`,
+        'Gagal memuat daftar item SPK.',
+    );
 
-        return Array.from(
-            new Set(produk.map((r) => r.productionItem).filter(Boolean))
-        ).map((nama) => ({
-            value: nama,
-            label: nama,
-        }));
-    }, [permintaan, rincian]);
+    const opsiItem = useMemo(() => {
+        const mapItem = new Map<string, string>();
 
+        (daftarItem ?? []).forEach((item) => {
+            const raw = item.name?.trim();
+            if (raw) {
+                mapItem.set(raw.toLowerCase(), raw);
+            }
+        });
 
+        if (perItem) {
+            for (const key of perItem.keys()) {
+                const raw = key?.trim();
+                if (raw && !mapItem.has(raw.toLowerCase())) {
+                    mapItem.set(raw.toLowerCase(), raw);
+                }
+            }
+        }
+
+        return [
+            { value: SEMUA, label: 'Semua item' },
+            ...Array.from(mapItem.values())
+                .map((label) => ({
+                    value: label,
+                    label,
+                }))
+                .sort((a, b) => a.label.localeCompare(b.label)),
+        ];
+    }, [daftarItem, perItem]);
+
+    const sumberBaris: RincianRow[] = useMemo(() => {
+        if (mode !== 'biaya' || itemDipilih === SEMUA) {
+            return rincian?.rows ?? [];
+        }
+        if (!perItem) return [];
+
+        const target = itemDipilih.trim().toLowerCase();
+        const direct = perItem.get(target);
+        if (direct) return direct;
+
+        // Exact match case-insensitive
+        for (const [k, v] of perItem.entries()) {
+            if (k?.trim().toLowerCase() === target) {
+                return v;
+            }
+        }
+
+        // Partial match jika nama di tracking sedikit berbeda dengan transaksi barang keluar
+        for (const [k, v] of perItem.entries()) {
+            const keyNorm = k?.trim().toLowerCase();
+            if (keyNorm && (keyNorm.includes(target) || target.includes(keyNorm))) {
+                return v;
+            }
+        }
+
+        return [];
+    }, [mode, itemDipilih, perItem, rincian]);
 
     const rows = useMemo(
-        () =>
-            (rincian?.rows ?? []).filter((r) => {
-                const sesuaiPemakaian = !hanyaTerpakai || r.qty > 0;
-                const sesuaiBarang = !produkDipilih || r.kode === produkDipilih;
-
-                return sesuaiPemakaian && sesuaiBarang;
-            }),
-        [rincian, hanyaTerpakai, produkDipilih]
+        () => sumberBaris.filter((r) => !hanyaTerpakai || r.qty > 0),
+        [sumberBaris, hanyaTerpakai],
     );
-    const memuat = loadingItems || loading || (!rincian && !error && !errItems);
+    const totalTampil = rows.reduce((s, r) => s + r.biaya, 0);
+    const labelItem = itemDipilih === SEMUA ? undefined : itemDipilih;
+
+    const memuat = loadingItems || loading || loadingPerItem || (!rincian && !error && !errItems);
     const galat = errItems || error;
-    // anggaran null selama data dari barang keluar: sisa dan status belum bisa dihitung
+
+    // Anggaran bisa null; sisa dan status baru dihitung kalau anggaran sudah ada
     const sisa = rincian && rincian.anggaran !== null ? rincian.anggaran - rincian.totalBiaya : null;
     const status = rincian && rincian.anggaran !== null ? statusRealisasi(rincian.anggaran, rincian.totalBiaya) : null;
     const melebihi = rincian ? rincian.rows.filter((r) => r.qty > r.kuota).length : 0;
 
-    const handleExcel = () => rincian && exportRincianExcel(mode, rincian, rows);
+    const handleExcel = () =>
+        rincian && exportRincianExcel(mode, { ...rincian, totalBiaya: totalTampil }, rows, labelItem);
     const handlePdf = () => {
         const win = openPrintWindow();
-        if (win && rincian) printRincianPdf(win, mode, rincian, rows);
+        if (win && rincian) printRincianPdf(win, mode, { ...rincian, totalBiaya: totalTampil }, rows, labelItem);
     };
 
     const info: [string, React.ReactNode][] = rincian
         ? mode === 'biaya'
             ? [
+                ['No. SPK', rincian.noSpk],
                 ['Client', rincian.client],
                 ['Anggaran', rincian.anggaran === null ? '-' : formatRupiah(rincian.anggaran)],
                 ['Realisasi', formatRupiah(rincian.totalBiaya)],
@@ -100,6 +167,7 @@ export function RincianSpkDetail({ id, mode, backHref }: {
                 ['Status', status === null ? '-' : <span key="st" className={status === 'Rugi' ? 'text-red-600' : 'text-green-700'}>{status}</span>],
             ]
             : [
+                ['No. SPK', rincian.noSpk],
                 ['Client', rincian.client],
                 ['Material terpakai', `${rincian.rows.filter((r) => r.qty > 0).length} dari ${rincian.rows.length}`],
                 ['Melebihi kuota', <span key="m" className={melebihi > 0 ? 'text-red-600' : ''}>{melebihi} material</span>],
@@ -112,28 +180,36 @@ export function RincianSpkDetail({ id, mode, backHref }: {
                 <ArrowLeft className="w-4 h-4" /> Kembali ke daftar
             </Link>
 
-            <p role="note" className="mb-4 p-3 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg">{SUMBER_DATA_NOTICE}</p>
+            {mode === 'biaya' && (
+                <p role="note" className="mb-4 p-3 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg">
+                    {SUMBER_DATA_NOTICE}
+                </p>
+            )}
 
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
                 <div className="p-5 border-b border-gray-100 bg-gray-50/50 flex flex-col lg:flex-row lg:items-end justify-between gap-4">
-                    <div className="w-full lg:w-96">
-                        <label className="block text-xs text-gray-600 mb-1">
-                            Pilih Item Barang
-                        </label>
-
-                        <SearchableSelect
-                            value={produkDipilih}
-                            onChange={setProdukDipilih}
-                            options={produkOptions}
-                            placeholder="Pilih Item Barang"
-                            emptyText="Barang tidak ditemukan"
-                            aria-label="Pilih Item Barang"
-                            className={selectClass}
-                        />
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
+                    {mode === 'biaya' && (
+                        <div className="w-full lg:w-96">
+                            <label className="block text-xs text-gray-600 mb-1">Pilih Item Barang</label>
+                            <SearchableSelect
+                                value={itemDipilih}
+                                onChange={(v) => setItemDipilih(v || SEMUA)}
+                                options={opsiItem}
+                                placeholder="Semua item"
+                                emptyText="Item tidak ditemukan"
+                                aria-label="Pilih Item Barang"
+                                className={selectClass}
+                            />
+                        </div>
+                    )}
+                    <div className="flex flex-wrap items-center gap-2 ml-auto">
                         <label className="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
-                            <input type="checkbox" checked={hanyaTerpakai} onChange={(e) => setHanyaTerpakai(e.target.checked)} className="w-4 h-4 accent-[#FF8A00]" />
+                            <input
+                                type="checkbox"
+                                checked={hanyaTerpakai}
+                                onChange={(e) => setHanyaTerpakai(e.target.checked)}
+                                className="w-4 h-4 accent-[#FF8A00]"
+                            />
                             Hanya yang terpakai
                         </label>
                         <ExportExcellButton onClick={handleExcel} disabled={memuat || !rincian} />
@@ -142,7 +218,7 @@ export function RincianSpkDetail({ id, mode, backHref }: {
                 </div>
 
                 {rincian && (
-                    <dl className="grid grid-cols-2 md:grid-cols-5 gap-x-8 gap-y-3 px-5 py-4 border-b border-gray-100 text-sm">
+                    <dl className="grid grid-cols-2 md:grid-cols-6 gap-x-8 gap-y-3 px-5 py-4 border-b border-gray-100 text-sm">
                         {info.map(([k, v]) => (
                             <div key={k} className="flex flex-col">
                                 <dt className="text-gray-500">{k}</dt>
@@ -199,17 +275,21 @@ export function RincianSpkDetail({ id, mode, backHref }: {
                                         <>
                                             <td className={`${th} text-right tabular-nums`}>{r.kuota.toLocaleString('id-ID')}</td>
                                             <td className={`${th} text-right tabular-nums font-semibold`}>{r.qty.toLocaleString('id-ID')}</td>
-                                            <td className={`${th} text-right tabular-nums ${r.kuota - r.qty < 0 ? 'text-red-600 font-semibold' : ''}`}>{(r.kuota - r.qty).toLocaleString('id-ID')}</td>
+                                            <td className={`${th} text-right tabular-nums ${r.kuota - r.qty < 0 ? 'text-red-600 font-semibold' : ''}`}>
+                                                {(r.kuota - r.qty).toLocaleString('id-ID')}
+                                            </td>
                                         </>
                                     )}
                                 </tr>
                             ))}
                         </tbody>
-                        {mode === 'biaya' && !memuat && !galat && rincian && rows.length > 0 && (
+                        {mode === 'biaya' && !memuat && !galat && rows.length > 0 && (
                             <tfoot className="bg-gray-50 border-t-2 border-gray-200 font-bold text-gray-900">
                                 <tr>
-                                    <td colSpan={6} className={th}>Total biaya</td>
-                                    <td className={`${th} text-right tabular-nums`}>{formatRupiah(rincian.totalBiaya)}</td>
+                                    <td colSpan={6} className={th}>
+                                        Total biaya{labelItem ? ` · ${labelItem}` : ''}
+                                    </td>
+                                    <td className={`${th} text-right tabular-nums`}>{formatRupiah(totalTampil)}</td>
                                 </tr>
                             </tfoot>
                         )}
