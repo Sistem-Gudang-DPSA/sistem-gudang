@@ -54,7 +54,7 @@ function setup(extra: Record<string, unknown> = {}, rows: unknown = paged([trx(1
 }
 const lastQ = (api: ReturnType<typeof installFakeApi>) => api.calls('GET /api/v1/outbound').at(-1)!.query;
 const label = (text: string) => screen.getByLabelText(text) as HTMLInputElement;
-// DateFilter selects have no label; pick each one by its placeholder option (Hari / Bulan / Tahun).
+// DateFilter selects have no label; pick each one by its placeholder option (Tanggal / Bulan / Tahun).
 const dateSelect = (placeholder: string) => screen.getByRole('option', { name: placeholder }).closest('select') as HTMLSelectElement;
 
 async function openForm(api: ReturnType<typeof installFakeApi>) {
@@ -100,6 +100,73 @@ const cellsOf = (name: string) => Array.from(rowOf(name).querySelectorAll('td'))
 afterEach(() => vi.useRealTimers());
 
 describe('BarangKeluar list', () => {
+  it('prints two checked SPKs as separate forms on the same sheet with their own materials', async () => {
+    setup({
+      'GET /api/v1/items/1': item(1, 'BRG-1', 'Triplex', 'lembar', 25),
+      'GET /api/v1/items/2': item(2, 'BRG-2', 'Paku', 'kg', 140),
+    }, paged([
+      { ...trx(1), lines: [trx(1).lines[0]] },
+      { ...trx(2), lines: [trx(2).lines[1]] },
+      trx(3),
+    ]));
+    await screen.findByText('Klien 3');
+    fireEvent.click(label('Centang transaksi 1'));
+    fireEvent.click(label('Centang transaksi 2'));
+    fireEvent.click(screen.getByText('Print'));
+    await waitFor(() => expect(document.querySelector('iframe[title="Cetak barang keluar"]')).not.toBeNull());
+    const frame = document.querySelector<HTMLIFrameElement>('iframe[title="Cetak barang keluar"]')!;
+    try {
+      const printed = new DOMParser().parseFromString(frame.srcdoc, 'text/html');
+      expect(printed.querySelectorAll('.kertas')).toHaveLength(1);
+      const forms = printed.querySelectorAll('.kertas > .lembar');
+      expect(forms).toHaveLength(2);
+      expect(forms[0].textContent).toContain('SPK-1');
+      expect(forms[0].textContent).toContain('Triplex');
+      expect(forms[0].textContent).not.toContain('Paku');
+      expect(forms[1].textContent).toContain('SPK-2');
+      expect(forms[1].textContent).toContain('Paku');
+      expect(forms[1].textContent).not.toContain('Triplex');
+      expect(printed.body.textContent).not.toContain('SPK-3');
+    } finally {
+      frame.remove();
+    }
+  });
+
+  it('prints only checked transactions using the compact form without empty rows', async () => {
+    setup({
+      'GET /api/v1/items/1': item(1, 'BRG-1', 'Triplex', 'lembar', 25),
+      'GET /api/v1/items/2': item(2, 'BRG-2', 'Paku', 'kg', 140),
+    }, paged([trx(1), trx(2)]));
+    await screen.findByText('Klien 2');
+    fireEvent.click(label('Centang transaksi 2'));
+    fireEvent.click(screen.getByText('Print'));
+    await waitFor(() => expect(document.querySelector('iframe[title="Cetak barang keluar"]')).not.toBeNull());
+    const frame = document.querySelector<HTMLIFrameElement>('iframe[title="Cetak barang keluar"]')!;
+    try {
+      const printed = new DOMParser().parseFromString(frame.srcdoc, 'text/html');
+      expect(printed.body.textContent).toContain('Klien 2');
+      expect(printed.body.textContent).not.toContain('Klien 1');
+      expect(printed.querySelectorAll('.material tbody tr')).toHaveLength(2);
+      expect(printed.querySelector('.baris-kosong')).toBeNull();
+      expect(printed.querySelector('style')!.textContent).toContain('width: 138mm');
+      expect(printed.body.textContent).toContain('lembar');
+      expect(printed.body.textContent).toContain('kg');
+    } finally {
+      frame.remove();
+    }
+  });
+
+  it('checks and unchecks every transaction on the page', async () => {
+    setup({}, paged([trx(1), trx(2)]));
+    await screen.findByText('Klien 2');
+    fireEvent.click(label('Centang semua transaksi'));
+    expect(label('Centang transaksi 1').checked).toBe(true);
+    expect(label('Centang transaksi 2').checked).toBe(true);
+    fireEvent.click(label('Centang semua transaksi'));
+    expect(label('Centang transaksi 1').checked).toBe(false);
+    expect(label('Centang transaksi 2').checked).toBe(false);
+  });
+
   it('shows one collapsed row per transaction and sends page 1 / pageSize 20', async () => {
     const api = setup();
     expect(await screen.findByText('Triplex')).not.toBeNull();
@@ -220,7 +287,7 @@ describe('BarangKeluar list', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Filter/ }));
     fireEvent.change(dateSelect('Tahun'), { target: { value: '2025' } });
     fireEvent.change(dateSelect('Bulan'), { target: { value: '02' } });
-    fireEvent.change(dateSelect('Hari'), { target: { value: '14' } });
+    fireEvent.change(dateSelect('Tanggal'), { target: { value: '14' } });
     await waitFor(() => expect(lastQ(api).get('startDate')).toBe('2025-02-14'));
     expect(lastQ(api).get('endDate')).toBe('2025-02-14');
     expect(label('Cari barang keluar').maxLength).toBe(100);
@@ -427,7 +494,9 @@ describe('BarangKeluar create', () => {
     scan('BRG-1');
     await screen.findByText('Triplex', { selector: 'td' });
     fireEvent.click(screen.getByText('Simpan'));
-    expect((screen.getByText('Simpan') as HTMLButtonElement).disabled).toBe(true);
+    // while saving the button reads Menyimpan... and both save buttons are disabled
+    expect((screen.getByText('Menyimpan...') as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByText('Simpan + Cetak') as HTMLButtonElement).disabled).toBe(true);
     expect(await screen.findByText('Stok tidak cukup')).not.toBeNull();
     expect((screen.getByText('Simpan') as HTMLButtonElement).disabled).toBe(false);
   });
@@ -445,13 +514,13 @@ describe('BarangKeluar edit', () => {
     await choose(label('SPK'), 'SPK-9');
     expect(label('Nama Client').value).toBe('PT Maju');
     fireEvent.change(label('Jumlah'), { target: { value: '12' } });
-    fireEvent.click(screen.getByText('Simpan Perubahan'));
+    fireEvent.click(screen.getByText('Simpan'));
     await waitFor(() => expect(api.calls('PUT /api/v1/outbound/1').length).toBe(1));
     expect(api.calls('PUT /api/v1/outbound/1')[0].body).toEqual({
       date: '2026-03-05', spk: 'SPK-9', itemName: 'Proyek 1', recipientType: 'KLIEN',
       lines: [{ itemId: 1, qty: 4, pic: 'Andi' }, { itemId: 2, qty: 12, pic: 'Andi' }],
     });
-    await waitFor(() => expect(screen.queryByText('Simpan Perubahan')).toBeNull());
+    await waitFor(() => expect(screen.queryByText('Simpan')).toBeNull());
   });
 
   it('shows the 1-day warning and sends no PUT when the limit passes while the pop-up is open', async () => {
@@ -460,12 +529,12 @@ describe('BarangKeluar edit', () => {
     await waitFor(() => expect(api.calls('GET /api/v1/items').length).toBeGreaterThan(0));
     fireEvent.click(screen.getByRole('button', { name: 'Buka rincian barang 1' }));
     fireEvent.click(screen.getByLabelText('Edit barang keluar 1 Paku'));
-    expect(screen.getByText('Simpan Perubahan')).toBeTruthy();
+    expect(screen.getByText('Simpan')).toBeTruthy();
     // Only Date is faked so waitFor keeps working; move the clock 25h past createdAt
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(Date.now() + 25 * 60 * 60 * 1000);
-    fireEvent.click(screen.getByText('Simpan Perubahan'));
-    await waitFor(() => expect(screen.queryByText('Simpan Perubahan')).toBeNull());
+    fireEvent.click(screen.getByText('Simpan'));
+    await waitFor(() => expect(screen.queryByText('Simpan')).toBeNull());
     expect(await screen.findByText(/sudah tidak bisa diedit/)).toBeTruthy();
     expect(api.calls('PUT /api/v1/outbound/1')).toHaveLength(0);
   });
@@ -488,7 +557,7 @@ describe('BarangKeluar edit', () => {
     expect((tombol as HTMLButtonElement).disabled).toBe(true);
     // A native disabled button swallows clicks, so the warning pop-up is not reachable from here.
     fireEvent.click(tombol);
-    expect(screen.queryByText('Simpan Perubahan')).toBeNull();
+    expect(screen.queryByText('Simpan')).toBeNull();
     expect(api.calls('PUT /api/v1/outbound/1').length).toBe(0);
   });
 });
@@ -557,13 +626,13 @@ describe('permissions', () => {
   it('hides mutation and download buttons from a view-only user but keeps the list', async () => {
     await open(who([]));
     expect(screen.queryByText('Barang Keluar')).toBeNull();
-    expect(screen.queryByText('Download')).toBeNull();
+    expect(screen.queryByText('Export')).toBeNull();
   });
 
   it('shows them to a user with the permissions', async () => {
     await open(who(['outbound.create', 'outbound.update', 'report.view']));
     expect(screen.getByText('Barang Keluar SPK')).not.toBeNull();
-    expect(screen.getByText('Download')).not.toBeNull();
+    expect(screen.getByText('Export')).not.toBeNull();
   });
 
   it('shows Edit only to a user with outbound.update', async () => {

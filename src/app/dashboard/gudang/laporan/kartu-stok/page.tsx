@@ -1,1 +1,1 @@
-export {default} from "@/domains/inventory/components/DashboardKartuStok";
+export { default } from "@/domains/inventory/components/DashboardKartuStok";

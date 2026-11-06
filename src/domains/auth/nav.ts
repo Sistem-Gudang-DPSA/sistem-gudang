@@ -1,4 +1,4 @@
-import { PackageCheck, ShieldCheck, ShoppingCart, UserCog, Warehouse, type LucideIcon } from "lucide-react";
+import { PackageCheck, ShieldCheck, ShoppingCart, UserCog, Warehouse, Wallet, type LucideIcon } from "lucide-react";
 import type { AuthUser } from "./types";
 
 export interface NavItem {
@@ -13,7 +13,7 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-export type NavTheme = "orange" | "rose" | "purple" | "teal" | "indigo";
+export type NavTheme = "orange" | "rose" | "purple" | "teal" | "indigo" | "emerald";
 
 export interface NavDivision {
   key: string;
@@ -24,6 +24,8 @@ export interface NavDivision {
   anyOf: string[];
   // Only superadmins see this division, whatever their permissions say.
   superadminOnly?: boolean;
+  // Divisi codes (user.domainCode) that get this division. Omitted = no divisi filter.
+  domains?: string[];
   groups: NavGroup[];
 }
 
@@ -59,6 +61,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
     label: "Gudang",
     icon: Warehouse,
     theme: "orange",
+    domains: ["inventory"],
     // report.view is shared with PPIC reports, so it must not open the Gudang division by itself.
     anyOf: ["inbound.view", "outbound.view", "stock-opname.view", "location.view"],
     groups: [
@@ -98,6 +101,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
     label: "Gudang Barang Jadi",
     icon: PackageCheck,
     theme: "rose",
+    domains: ["gudang-barang-jadi"],
     // Own routes (re-exporting the Gudang screens) so only one division's link lights up in the sidebar.
     // report.view is shared with PPIC reports, so it must not open the Gudang division by itself.
     anyOf: ["inbound.view", "outbound.view", "stock-opname.view", "location.view"],
@@ -134,7 +138,9 @@ export const NAV_DIVISIONS: NavDivision[] = [
     label: "PPIC",
     icon: UserCog,
     theme: "purple",
-    anyOf: ["material-request.create", "purchase-request.create"],
+    domains: ["ppic"],
+    // purchase-request.create alone must not open PPIC: Gudang roles hold it too, for their own Permintaan Pembelian.
+    anyOf: ["material-request.create"],
     groups: [
       {
         title: "Master",
@@ -168,6 +174,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
     label: "Purchasing",
     icon: ShoppingCart,
     theme: "teal",
+    domains: ["purchasing"],
     anyOf: ["item.set-price", "supplier.create", "supplier.update"],
     groups: [
       {
@@ -197,14 +204,38 @@ export const NAV_DIVISIONS: NavDivision[] = [
       },
     ],
   },
+  {
+    key: "keuangan",
+    label: "Keuangan",
+    icon: Wallet,
+    theme: "emerald",
+    domains: ["keuangan"],
+    anyOf: ["report.view"],
+    groups: [{
+      title: "Laporan",
+      items: [
+        { href: "/dashboard/keuangan/laporan/data-barang", label: "Data Barang", anyOf: ["report.view"] },
+        { href: "/dashboard/keuangan/laporan/realisasi-spk", label: "Realisasi SPK", anyOf: ["report.view"] },
+        // { href: "/dashboard/keuangan/laporan/rekap-permintaan", label: "Rekap Permintaan", anyOf: ["report.view"] },
+        // { href: "/dashboard/keuangan/laporan/stock-opname", label: "Rekap Stok Opname", anyOf: ["report.view"] },
+      ],
+    }],
+  },
 ];
 
 const can = (user: AuthUser, anyOf?: string[]) =>
   user.isSuperadmin || !anyOf || anyOf.some((p) => user.permissions.includes(p));
 
+// A user with a divisi only gets that divisi's divisions; without one, permissions decide alone.
+const inDomain = (user: AuthUser, division: NavDivision) =>
+  !user.domainCode || !division.domains || division.domains.includes(user.domainCode);
+
+const canSeeDivision = (user: AuthUser, division: NavDivision) =>
+  user.isSuperadmin || (!division.superadminOnly && inDomain(user, division) && can(user, division.anyOf));
+
 // Divisions and items the user may see, with empty groups and divisions dropped.
 export function visibleNav(user: AuthUser): NavDivision[] {
-  return NAV_DIVISIONS.filter((d) => (d.superadminOnly ? user.isSuperadmin : can(user, d.anyOf)))
+  return NAV_DIVISIONS.filter((d) => canSeeDivision(user, d))
     .map((d) => ({
       ...d,
       groups: d.groups
@@ -224,7 +255,7 @@ export function canAccess(user: AuthUser, pathname: string): boolean {
 
   const division = NAV_DIVISIONS.find((d) => path === `/dashboard/${d.key}` || path.startsWith(`/dashboard/${d.key}/`));
   if (!division) return true;
-  if (!can(user, division.anyOf)) return false;
+  if (!canSeeDivision(user, division)) return false;
 
   const item = division.groups
     .flatMap((g) => g.items)

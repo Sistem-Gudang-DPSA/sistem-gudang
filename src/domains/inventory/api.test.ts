@@ -56,6 +56,7 @@ const rows: Row[] = [
   ['createStockOpname', [{ d: 1 }], 'POST /api/v1/stock-opname', {}, { d: 1 }],
   ['getRequestsReport', [{ q: 'z' }], 'GET /api/v1/reports/requests', { q: 'z' }, undefined],
   ['getStockCard', [7], 'GET /api/v1/items/7/stock-card', {}, undefined],
+  ['getOutboundUsage', [{ startDate: '2026-10-01', spk: ['A', 'B'] }], 'GET /api/v1/outbound/usage', { startDate: '2026-10-01', spk: 'A,B' }, undefined],
   ['listMaterialRequests', [{ search: 'SPK-1', pageSize: 100 }], 'GET /api/v1/material-requests', { search: 'SPK-1', pageSize: '100' }, undefined],
   ['listChecklistDokubah', [{ page: 2, search: 'a' }], 'GET /api/v1/checklist-dokubah', { page: '2', search: 'a' }, undefined],
   ['getChecklistDokubah', [3], 'GET /api/v1/checklist-dokubah/3', {}, undefined],

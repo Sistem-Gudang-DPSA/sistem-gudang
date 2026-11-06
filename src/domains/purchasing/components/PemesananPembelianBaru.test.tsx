@@ -33,7 +33,7 @@ describe('PemesananPembelianBaru', () => {
     list = paged([]);
     fireEvent.click(screen.getByLabelText('Data Supplier'));
     fireEvent.change(screen.getByLabelText('Cari Data Supplier'), { target: { value: 'zzz' } });
-    await vi.waitFor(() => expect(screen.getByRole('option', { name: 'PT Kayu' })).toBeTruthy());
+    await screen.findByRole('option', { name: 'PT Kayu' });
     fireEvent.click(screen.getByRole('option', { name: 'PT Kayu' }));
     expect(screen.getByLabelText('Data Supplier').textContent).toBe('PT Kayu');
   });
