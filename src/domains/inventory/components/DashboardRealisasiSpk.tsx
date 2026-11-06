@@ -1,11 +1,10 @@
 "use client";
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Filter, Search } from 'lucide-react';
 import { formatRupiah } from '@/domains/ppic/data/dokubah';
 import { toDateRange } from '@/domains/inventory/date';
-import { SUMBER_DATA_NOTICE, loadRealisasiList, periodeLabel, realisasiSpkDetailPath, type RealisasiListRow, type StatusRealisasi } from '@/domains/inventory/components/RealisasiSPK';
+import { SUMBER_DATA_NOTICE, loadRealisasiList, periodeLabel, type RealisasiListRow, type StatusRealisasi } from '@/domains/inventory/components/RealisasiSPK';
 import { exportRealisasiExcel, openPrintWindow, printRealisasiPdf } from '@/shared/components/ExportRealisasi';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { useDebouncedValue } from '@/shared/lib/use-debounced-value';
@@ -27,7 +26,6 @@ const statusBadge = (s: StatusRealisasi | null) => s === null ? <span className=
 );
 
 export default function RealisasiSpk() {
-  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebouncedValue(searchQuery);
   const [showFilter, setShowFilter] = useState(false);
@@ -183,7 +181,6 @@ export default function RealisasiSpk() {
               {rows.map((r, i) => (
                 <tr
                   key={r.id}
-                  onClick={() => router.push(realisasiSpkDetailPath(r.id))}
                   className={`cursor-pointer transition-colors ${selected.has(r.id) ? 'bg-orange-50/60' : 'hover:bg-orange-50/20'}`}
                 >
                   <td className={cellClass}>{(page - 1) * PAGE_SIZE + i + 1}</td>
