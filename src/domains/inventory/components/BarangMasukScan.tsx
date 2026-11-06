@@ -2,7 +2,7 @@
 
 import { useAuthUser } from '@/domains/auth/user-context';
 import React, { useEffect, useRef, useState } from 'react';
-import { Camera, Minus, PackageCheck, Plus, ScanLine, Trash2, Undo2 } from 'lucide-react';
+import { Camera, Minus, PackageCheck, Plus, Printer, ScanLine, Trash2, Undo2 } from 'lucide-react';
 import { createInboundScanBatch, getItemByCode, listItems } from '@/domains/inventory/api';
 import { todayIso } from '@/domains/inventory/date';
 import { ApiError } from '@/shared/lib/api-client';
@@ -66,7 +66,7 @@ export default function BarangMasukScan({ onClose, onSaved }: { onClose: () => v
   const stepRef = useRef<Step>('hub');
 
   useEffect(() => { draftRef.current = draft; saveDraft(draft.pass.length + draft.retur.length > 0 ? draft : null, draftKey); }, [draft, draftKey]);
-  useEffect(() => { stepRef.current = step; if (step === 'pass' || step === 'retur') inputRef.current?.focus();}, [step]);
+  useEffect(() => { stepRef.current = step; if (step === 'pass' || step === 'retur') inputRef.current?.focus(); }, [step]);
   const [supplierError, setSupplierError] = useState('');
   const supplierIds = [...new Set([...draft.pass, ...draft.retur].flatMap((l) => (l.supplierId === null ? [] : [l.supplierId])))].filter((id) => !(id in supplierNames));
   const missingKey = supplierIds.join(',');
@@ -79,7 +79,7 @@ export default function BarangMasukScan({ onClose, onSaved }: { onClose: () => v
   }, [missingKey]);
 
   const supplierName = (id: number | null) => id === null ? '-' : supplierNames[id] ?? `#${id}`;
-  const goTo = (next: Step) => {setCameraOn(false); setScanError(''); setError(''); setStep(next);};
+  const goTo = (next: Step) => { setCameraOn(false); setScanError(''); setError(''); setStep(next); };
   const setList = (kind: Kind, fn: (ls: Line[]) => Line[]) => setDraft((d) => ({ ...d, [kind]: fn(d[kind]) }));
   const patchLine = (kind: Kind, itemId: number, patch: Partial<Line>) => setList(kind, (ls) => ls.map((l) => (l.itemId === itemId ? { ...l, ...patch } : l)));
 
@@ -98,14 +98,14 @@ export default function BarangMasukScan({ onClose, onSaved }: { onClose: () => v
         ls.some((l) => l.itemId === item.id)
           ? bump(ls, (l) => l.itemId === item.id)
           : [...ls, {
-              itemId: item.id, code, name: item.name, unit: item.unit, stock: item.stock,
-              supplierId: item.supplierId ?? null, qty: '1', reason: '',
-            }],
+            itemId: item.id, code, name: item.name, unit: item.unit, stock: item.stock,
+            supplierId: item.supplierId ?? null, qty: '1', reason: '',
+          }],
       );
     } catch (err) {
       setScanError(
         err instanceof ApiError && err.status === 404 ? `Kode "${code}" tidak dikenal.`
-        : err instanceof ApiError ? err.message : 'Gagal membaca kode.',
+          : err instanceof ApiError ? err.message : 'Gagal membaca kode.',
       );
     }
   };
@@ -135,7 +135,8 @@ export default function BarangMasukScan({ onClose, onSaved }: { onClose: () => v
     setError('');
     try {
       await createInboundScanBatch(
-        { date: draft.date, pass: draft.pass.map((l) => ({ itemId: l.itemId, qtyArrived: qtyOf(l)})),
+        {
+          date: draft.date, pass: draft.pass.map((l) => ({ itemId: l.itemId, qtyArrived: qtyOf(l) })),
           retur: draft.retur.map((l) => ({ itemId: l.itemId, qty: qtyOf(l), reason: l.reason.trim() })),
         },
         draft.key,
@@ -168,8 +169,8 @@ export default function BarangMasukScan({ onClose, onSaved }: { onClose: () => v
 
   const title =
     step === 'hub' ? 'Scan Barang Masuk'
-    : step === 'review' ? 'Periksa Sebelum Simpan'
-    : `Scan ${KIND_LABEL[step]}`;
+      : step === 'review' ? 'Periksa Sebelum Simpan'
+        : `Scan ${KIND_LABEL[step]}`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4">
@@ -432,6 +433,14 @@ export default function BarangMasukScan({ onClose, onSaved }: { onClose: () => v
               <button type="button" onClick={submit} disabled={saving} className={btnPrimary}>
                 {saving ? 'Menyimpan...' : 'Konfirmasi simpan'}
               </button>
+              {/* <button
+                onClick={() => handleSimpan(true)}
+                disabled={saving}
+                className="flex items-center gap-2 px-8 py-2.5 bg-[#ff8a00] text-white rounded-md hover:bg-[#e07b00] transition-colors font-medium text-[15px] shadow-sm"
+              >
+                <Printer className="w-4 h-4" />
+                Simpan + Cetak
+              </button> */}
             </div>
           </>
         )}
