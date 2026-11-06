@@ -5,20 +5,30 @@ import type { AuthUser } from "./types";
 const user = (permissions: string[], isSuperadmin = false): AuthUser => ({
   id: 1, username: "u", email: "u@x", roleId: 1, roleName: "r", isSuperadmin, permissions,
 });
+const withDomain = (u: AuthUser, domainCode: string | null): AuthUser => ({ ...u, domainCode });
 const labels = (u: AuthUser) => visibleNav(u).map((d) => d.key);
 
 describe("visibleNav", () => {
-  it("shows finance reports only to the finance role with report permission", () => {
-    const finance = { ...user(["report.view"]), roleName: "Keuangan" };
+  it("shows finance reports only to the keuangan domain with report permission", () => {
+    const finance = withDomain(user(["report.view"]), "keuangan");
     const nav = visibleNav(finance);
     expect(nav.map((division) => division.key)).toEqual(["keuangan"]);
     expect(nav[0].theme).toBe("emerald");
     expect(nav[0].groups.map((group) => group.title)).toEqual(["Laporan"]);
-    expect(nav[0].groups[0].items).toHaveLength(4);
-    expect(canAccess(finance, "/dashboard/keuangan/laporan/barang-masuk")).toBe(true);
-    expect(canAccess(user(["report.view"]), "/dashboard/keuangan/laporan/barang-masuk")).toBe(false);
+    expect(nav[0].groups[0].items).toEqual([
+      expect.objectContaining({ href: "/dashboard/keuangan/laporan/data-barang" }),
+      expect.objectContaining({ href: "/dashboard/keuangan/laporan/realisasi-spk" }),
+    ]);
+    expect(canAccess(finance, "/dashboard/keuangan/laporan/data-barang")).toBe(true);
+    expect(canAccess(withDomain(user(["report.view"]), "inventory"), "/dashboard/keuangan/laporan/data-barang")).toBe(false);
     expect(visibleNav({ ...finance, permissions: [] })).toEqual([]);
   });
+
+  it("keeps keuangan away from ppic and purchasing users who also hold report.view", () => {
+    expect(labels(withDomain(user(SEEDED.ppic), "ppic"))).toEqual(["ppic"]);
+    expect(labels(withDomain(user(SEEDED.kPurchasing), "purchasing"))).toEqual(["purchasing"]);
+  });
+
   it("shows every division to a superadmin", () => {
     expect(labels(user([], true))).toEqual(["superadmin", "gudang", "gudang-barang-jadi", "ppic", "purchasing", "keuangan"]);
   });
@@ -28,19 +38,31 @@ describe("visibleNav", () => {
     expect(labels(everything)).not.toContain("superadmin");
   });
 
-  it("shows only the gudang divisions to an inventory user, without pages outside their permissions", () => {
-    const inventory = user(["inbound.view", "report.view", "dokubah.view", "item.view", "location.view", "supplier.view"]);
+  it("shows only the gudang division to an inventory user, without pages outside their permissions", () => {
+    const inventory = withDomain(user(["inbound.view", "report.view", "dokubah.view", "item.view", "location.view", "supplier.view"]), "inventory");
     const nav = visibleNav(inventory);
-    expect(nav.map((d) => d.key)).toEqual(["gudang", "gudang-barang-jadi"]);
+    expect(nav.map((d) => d.key)).toEqual(["gudang"]);
     const hrefs = nav[0].groups.flatMap((g) => g.items.map((i) => i.href));
     expect(hrefs).toContain("/dashboard/gudang/laporan/rekap-permintaan");
     expect(hrefs).not.toContain("/dashboard/gudang/transaksi/barang-keluar");
     expect(hrefs).toContain("/dashboard/gudang/laporan/dokubah");
   });
 
+  it("shows only gudang-barang-jadi to a gudang-barang-jadi domain user, even with inventory permissions", () => {
+    const gbj = withDomain(user(SEEDED.kInventory), "gudang-barang-jadi");
+    expect(labels(gbj)).toEqual(["gudang-barang-jadi"]);
+    expect(canAccess(gbj, "/dashboard/gudang/laporan/rekap-permintaan")).toBe(false);
+    expect(canAccess(gbj, "/dashboard/gudang-barang-jadi/laporan/rekap-permintaan")).toBe(true);
+  });
+
   it("maps ppic and purchasing users to their own division", () => {
     expect(labels(user(["material-request.create", "item.view"]))).toEqual(["ppic"]);
     expect(labels(user(["item.set-price", "supplier.view", "item.view"]))).toEqual(["purchasing"]);
+  });
+
+  it("falls back to permissions only when the user has no domainCode", () => {
+    expect(labels(withDomain(user(SEEDED.ppic), null))).toEqual(["ppic", "keuangan"]);
+    expect(labels(withDomain(user(SEEDED.kInventory), null))).toEqual(["gudang", "gudang-barang-jadi", "keuangan"]);
   });
 
   it("puts permintaan pembelian under ppic, and also under gudang", () => {
@@ -53,8 +75,8 @@ describe("visibleNav", () => {
   it("also shows permintaan pembelian under gudang, only with purchase-request.create", () => {
     const hrefs = (u: AuthUser) => visibleNav(u).find((d) => d.key === "gudang")?.groups.flatMap((g) => g.items.map((i) => i.href)) ?? [];
     expect(hrefs(user(["inbound.view", "purchase-request.create"]))).toContain("/dashboard/gudang/transaksi/permintaan-pembelian");
-    expect(hrefs(user(SEEDED.kInventory))).toContain("/dashboard/gudang/transaksi/permintaan-pembelian");
-    expect(hrefs(user(SEEDED.stafInventory))).toContain("/dashboard/gudang/transaksi/permintaan-pembelian");
+    expect(hrefs(withDomain(user(SEEDED.kInventory), "inventory"))).toContain("/dashboard/gudang/transaksi/permintaan-pembelian");
+    expect(hrefs(withDomain(user(SEEDED.stafInventory), "inventory"))).toContain("/dashboard/gudang/transaksi/permintaan-pembelian");
   });
 
   it("shows no division to a user without permissions", () => {
@@ -63,7 +85,7 @@ describe("visibleNav", () => {
 });
 
 describe("canAccess", () => {
-  const inventory = user(["inbound.view", "report.view", "item.view", "location.view"]);
+  const inventory = withDomain(user(["inbound.view", "report.view", "item.view", "location.view"]), "inventory");
 
   it("allows the overview and pages of the user's own division", () => {
     expect(canAccess(inventory, "/dashboard")).toBe(true);
@@ -84,6 +106,11 @@ describe("canAccess", () => {
     expect(canAccess(user([], true), "/dashboard/superadmin/master/kategori")).toBe(true);
   });
 
+  it("denies another domain's dashboard even when the permissions match", () => {
+    expect(canAccess(withDomain(user(SEEDED.ppic), "ppic"), "/dashboard/keuangan/laporan/data-barang")).toBe(false);
+    expect(canAccess(withDomain(user(SEEDED.kPurchasing), "purchasing"), "/dashboard/keuangan/laporan/realisasi-spk")).toBe(false);
+  });
+
   it("lets unknown paths through so Next.js can answer 404", () => {
     expect(canAccess(inventory, "/dashboard/tidak-ada")).toBe(true);
   });
@@ -101,14 +128,16 @@ const itemsOf = (u: AuthUser, key: string) =>
   visibleNav(u).find((d) => d.key === key)?.groups.flatMap((g) => g.items.map((i) => i.label)) ?? [];
 
 describe("sidebar per seeded role", () => {
-  it("Inventory staff and coordinator see only the Gudang divisions", () => {
-    expect(labels(user(SEEDED.kInventory))).toEqual(["gudang", "gudang-barang-jadi"]);
-    expect(labels(user(SEEDED.stafInventory))).toEqual(["gudang", "gudang-barang-jadi"]);
-    expect(itemsOf(user(SEEDED.kInventory), "gudang")).toContain("Rekap Dokubah");
+  it("Inventory staff and coordinator see only the Gudang division", () => {
+    const koor = withDomain(user(SEEDED.kInventory), "inventory");
+    const staf = withDomain(user(SEEDED.stafInventory), "inventory");
+    expect(labels(koor)).toEqual(["gudang"]);
+    expect(labels(staf)).toEqual(["gudang"]);
+    expect(itemsOf(koor, "gudang")).toContain("Rekap Dokubah");
   });
 
   it("PPIC sees only the PPIC division even though it holds report.view and item.view", () => {
-    const ppic = user(SEEDED.ppic);
+    const ppic = withDomain(user(SEEDED.ppic), "ppic");
     expect(labels(ppic)).toEqual(["ppic"]);
     expect(itemsOf(ppic, "ppic")).toEqual([
       "Data Barang", "Penawaran Harga", "Dokubah", "SPK Internal & Mutasi Stok", "Permintaan Pembelian", "Approval",
@@ -119,7 +148,7 @@ describe("sidebar per seeded role", () => {
   });
 
   it("Purchasing sees only the Purchasing division with its own pages", () => {
-    const p = user(SEEDED.kPurchasing);
+    const p = withDomain(user(SEEDED.kPurchasing), "purchasing");
     expect(labels(p)).toEqual(["purchasing"]);
     expect(itemsOf(p, "purchasing")).toEqual([
       "Data Barang", "Data Supplier", "PO Barang", "Penawaran Harga / SPH", "Retur ke Supplier",
@@ -130,9 +159,9 @@ describe("sidebar per seeded role", () => {
   });
 
   it("only PPIC can open the pembelian request pages and only Purchasing approvers see its rekap", () => {
-    expect(itemsOf(user(SEEDED.kInventory), "gudang")).toContain("Permintaan Pembelian");
-    expect(labels(user(SEEDED.kInventory))).not.toContain("ppic");
-    expect(itemsOf(user(SEEDED.kPurchasing), "purchasing")).not.toContain("Permintaan Pembelian");
+    expect(itemsOf(withDomain(user(SEEDED.kInventory), "inventory"), "gudang")).toContain("Permintaan Pembelian");
+    expect(labels(withDomain(user(SEEDED.kInventory), "inventory"))).not.toContain("ppic");
+    expect(itemsOf(withDomain(user(SEEDED.kPurchasing), "purchasing"), "purchasing")).not.toContain("Permintaan Pembelian");
   });
 
   it("every nav item declares the permission it needs", () => {

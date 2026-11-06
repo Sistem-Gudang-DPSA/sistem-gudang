@@ -20,36 +20,23 @@ const EditTimerButton: React.FC<EditTimerProps> = ({
     title,
     disabled = false,
 }) => {
-    const hitungSisa = () => {
-        if (deadline !== undefined) {
-            const target = typeof deadline === 'number' ? deadline : new Date(deadline).getTime();
-            return Math.max(0, Math.floor((target - Date.now()) / 1000));
-        }
-        return Math.max(0, initialSeconds ?? 0);
-    };
-
-    const [secondsLeft, setSecondsLeft] = useState<number>(hitungSisa);
+    // Sisa waktu dihitung dari jam saat render; state hanya menyimpan "sekarang" yang diperbarui tiap detik
+    const [mulai] = useState(() => Date.now());
+    const [now, setNow] = useState(mulai);
+    const target = deadline !== undefined
+        ? (typeof deadline === 'number' ? deadline : new Date(deadline).getTime())
+        : mulai + (initialSeconds ?? 0) * 1000;
+    const secondsLeft = Math.max(0, Math.floor((target - now) / 1000));
 
     useEffect(() => {
-        setSecondsLeft(hitungSisa());
-
+        if (target <= Date.now()) return;
         const timerId = setInterval(() => {
-            setSecondsLeft((prev) => {
-                if (deadline !== undefined) {
-                    const sisa = hitungSisa();
-                    if (sisa <= 0) clearInterval(timerId);
-                    return sisa;
-                }
-                if (prev <= 1) {
-                    clearInterval(timerId);
-                    return 0;
-                }
-                return prev - 1;
-            });
+            const t = Date.now();
+            setNow(t);
+            if (t >= target) clearInterval(timerId);
         }, 1000);
-
         return () => clearInterval(timerId);
-    }, [deadline, initialSeconds]);
+    }, [target]);
 
     const isTimeUp = secondsLeft <= 0 || disabled;
 
