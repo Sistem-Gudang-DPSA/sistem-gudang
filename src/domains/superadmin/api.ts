@@ -1,6 +1,6 @@
 import { apiClient, toQuery } from "@/shared/lib/api-client";
 import type { PaginatedResult, ListParams, SortParams } from "@/domains/inventory/types";
-import type { CreatedUser, CreateUserInput, Permission, Role, UpdateUserInput, UserAccount } from "./types";
+import type { CreatedUser, CreateRoleInput, CreateUserInput, Domain, Permission, Role, UpdateRoleInput, UpdateUserInput, UserAccount } from "./types";
 
 export function listRoles() {
   return apiClient.get<Role[]>("/api/v1/superadmin/roles");
@@ -8,6 +8,18 @@ export function listRoles() {
 
 export function listPermissions() {
   return apiClient.get<Permission[]>("/api/v1/superadmin/permissions");
+}
+
+export function listDomains() {
+  return apiClient.get<Domain[]>("/api/v1/superadmin/domains");
+}
+
+export function createRole(input: CreateRoleInput) {
+  return apiClient.post<Role>("/api/v1/superadmin/roles", input);
+}
+
+export function updateRole(roleId: number, input: UpdateRoleInput) {
+  return apiClient.put<Role>(`/api/v1/superadmin/roles/${roleId}`, input);
 }
 
 // Replaces the role's full permission list.

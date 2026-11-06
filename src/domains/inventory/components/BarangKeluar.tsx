@@ -2370,6 +2370,7 @@ export default function BarangKeluarGudang() {
                     [
                       "Dicatat",
                       <LiveWaktuDicatat
+                        key="dicatat"
                         createdAt={detailTrx.createdAt}
                         tampilWaktu={tampilWaktu}
                       />
