@@ -40,7 +40,7 @@ describe('Realisasi SPK dari barang keluar', () => {
   });
 
   it('encodes the SPK number in the detail path (it may contain a slash)', () => {
-    expect(realisasiSpkDetailPath('SPK/01')).toBe('/dashboard/gudang/laporan/realisasi-spk/SPK%2F01');
+    expect(realisasiSpkDetailPath('SPK/01')).toBe('/dashboard/keuangan/laporan/realisasi-spk/SPK%2F01');
   });
 
   it('keeps the dokubah helpers for later: status and period label', () => {

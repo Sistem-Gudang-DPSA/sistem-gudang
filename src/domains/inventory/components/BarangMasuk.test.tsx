@@ -21,7 +21,7 @@ function setup(extra: Record<string, unknown> = {}, rows: unknown = paged([inbou
   return { api, view };
 }
 const lastList = (api: ReturnType<typeof installFakeApi>) => api.calls('GET /api/v1/inbound').at(-1)!.query;
-// DateFilter selects have no label; pick each one by its placeholder option (Hari / Bulan / Tahun).
+// DateFilter selects have no label; pick each one by its placeholder option (Tanggal / Bulan / Tahun).
 const dateSelect = (placeholder: string) => screen.getByRole('option', { name: placeholder }).closest('select') as HTMLSelectElement;
 
 async function openBaru() {
@@ -73,7 +73,7 @@ describe('BarangMasuk list', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Filter/ }));
     fireEvent.change(dateSelect('Tahun'), { target: { value: '2026' } });
     fireEvent.change(dateSelect('Bulan'), { target: { value: '03' } });
-    fireEvent.change(dateSelect('Hari'), { target: { value: '05' } });
+    fireEvent.change(dateSelect('Tanggal'), { target: { value: '05' } });
     await waitFor(() => expect(lastList(api).get('startDate')).toBe('2026-03-05'));
     expect(lastList(api).get('endDate')).toBe('2026-03-05');
     expect(lastList(api).get('page')).toBe('1');
