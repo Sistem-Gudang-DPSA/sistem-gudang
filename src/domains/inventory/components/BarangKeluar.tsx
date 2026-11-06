@@ -2070,6 +2070,7 @@ export default function BarangKeluarGudang() {
                       }
                       className={orangeButtonClass}
                     >
+                      <Printer className="w-4 h-4" />
                       Simpan + Cetak
                     </button>
                   </div>

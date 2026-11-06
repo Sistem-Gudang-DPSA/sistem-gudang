@@ -64,7 +64,7 @@ function buatDokumenBarangMasuk(data: DataCetakMasuk, logoUrl: string): string {
         <td class="tengah">${awal + rowIndex + 1}</td>
         <td>${escapeHtml(b.name)}</td>
         <td class="tengah">${escapeHtml(b.unit)}</td>
-        <td class="tengah">${escapeHtml(b.code)}</td>
+        <td class="tengah"></td>
         <td class="tengah">${escapeHtml(b.qty)}</td>
         <td></td>
       </tr>`)
@@ -97,7 +97,8 @@ function buatDokumenBarangMasuk(data: DataCetakMasuk, logoUrl: string): string {
       <table class="material">
         <colgroup><col style="width:8%" /><col style="width:36%" /><col style="width:10%" /><col style="width:14%" /><col style="width:14%" /><col style="width:18%" /></colgroup>
         <thead>
-          <tr><th scope="col">No</th><th scope="col">Nama Barang</th><th scope="col">sat/vol</th><th scope="col">Kode</th><th scope="col">Jumlah Masuk</th><th scope="col">Keterangan</th></tr>
+          <tr><th rowspan="2" scope="col">No</th><th rowspan="2" scope="col">Nama Material</th><th rowspan="2" scope="col">sat/vol</th><th colspan="2" scope="colgroup">Jumlah</th><th rowspan="2" scope="col">Keterangan</th></tr>
+          <tr><th scope="col">Dokubah</th><th scope="col">Pengambilan</th></tr>
         </thead>
         <tbody>${isiTabel}</tbody>
       </table>
@@ -330,7 +331,7 @@ export default function BarangMasukGudang() {
   const openModal = () => { searchItems(''); setModalData({ ...emptyBaru, tanggal: todayIso() }); setModalError(""); setIsModalOpen(true); };
   const openModalKembali = () => { searchItems(''); setModalKembaliData({ ...emptyKembali, tanggal: todayIso() }); setModalError(""); setIsModalKembaliOpen(true); };
 
-  const handleSimpan = async () => {
+  const handleSimpan = async (cetakSetelah = false) => {
     const itemId = itemBaru?.id;
     const { tanggal, jumlahKedatangan, jumlahRekap, statusQc } = modalData;
     if (!itemId || !tanggal || !jumlahKedatangan || jumlahRekap === "") {
@@ -340,7 +341,7 @@ export default function BarangMasukGudang() {
     setSaving(true);
     setModalError("");
     try {
-      await createInbound({
+      const saved = await createInbound({
         itemId,
         date: tanggal,
         qtyArrived: Number(jumlahKedatangan),
@@ -349,6 +350,18 @@ export default function BarangMasukGudang() {
       });
       setIsModalOpen(false);
       reload();
+      if (cetakSetelah) {
+        try {
+          const itemDetail = await getItem(saved.itemId);
+          await cetakBarangMasuk({
+            tanggal: saved.date,
+            supplier: saved.supplierName ?? saved.clientName ?? "-",
+            baris: [{ name: saved.itemName, code: saved.itemCode, unit: itemDetail.unit, qty: saved.qtyArrived }],
+          });
+        } catch (err) {
+          setActionError(err instanceof Error ? err.message : "Gagal menyiapkan dokumen cetak.");
+        }
+      }
     } catch (err) {
       setModalError(err instanceof ApiError ? err.message : "Gagal menyimpan barang masuk.");
     } finally {
@@ -617,13 +630,21 @@ export default function BarangMasukGudang() {
             </div>
 
             {(modalError || itemError) && <p className="text-sm text-red-500 mb-2 text-right">{modalError || itemError}</p>}
-            <div className="flex justify-end mt-2">
+            <div className="flex justify-end gap-2 mt-2">
               <button
-                onClick={handleSimpan}
+                onClick={() => handleSimpan(false)}
                 disabled={saving}
-                className="px-8 py-2.5 bg-[#ff8a00] text-white rounded-md hover:bg-[#e07b00] transition-colors font-medium text-[15px] shadow-sm"
+                className="px-8 py-2.5 bg-white text-[#ff8a00] border border-[#ff8a00] rounded-md hover:bg-orange-50 transition-colors font-medium text-[15px] shadow-sm"
               >
                 Simpan
+              </button>
+              <button
+                onClick={() => handleSimpan(true)}
+                disabled={saving}
+                className="flex items-center gap-2 px-8 py-2.5 bg-[#ff8a00] text-white rounded-md hover:bg-[#e07b00] transition-colors font-medium text-[15px] shadow-sm"
+              >
+                <Printer className="w-4 h-4" />
+                Simpan + Cetak
               </button>
             </div>
           </div>
