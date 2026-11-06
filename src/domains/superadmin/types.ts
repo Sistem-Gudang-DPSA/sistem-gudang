@@ -6,6 +6,23 @@ export interface Role {
   permissionIds: number[];
 }
 
+export interface Domain {
+  id: number;
+  code: string;
+  name: string;
+}
+
+export interface CreateRoleInput {
+  name: string;
+  domainId: number | null;
+  isSuperadmin: false;
+}
+
+export interface UpdateRoleInput {
+  name: string;
+  domainId: number | null;
+}
+
 export interface Permission {
   id: number;
   code: string;
