@@ -12,6 +12,20 @@ const rowCount = () => screen.getAllByRole('row').length - 1; // minus header ro
 const footer = () => screen.getByText(/Menampilkan/).textContent;
 
 describe('DaftarProyek', () => {
+  it('shows the SPK masuk date from tracking, and "-" when it is missing', async () => {
+    installFakeApi({
+      'GET /api/v1/tracking/spk': [
+        { ...spk(1), tanggalMasuk: '2026-01-05' },
+        { ...spk(2), tanggalMasuk: null },
+      ],
+    });
+    render(<DaftarProyekPage />);
+    await screen.findByText('SPK-1');
+    const cells = (no: string) => screen.getByText(no).closest('tr')!.querySelectorAll('td');
+    expect(cells('SPK-1')[4].textContent).toBe(new Date('2026-01-05T00:00:00').toLocaleDateString('id-ID', { dateStyle: 'medium' }));
+    expect(cells('SPK-2')[4].textContent).toBe('-');
+  });
+
   it('requests the full list without a limit', async () => {
     const api = installFakeApi({ 'GET /api/v1/tracking/spk': many });
     render(<DaftarProyekPage />);
