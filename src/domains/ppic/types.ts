@@ -70,6 +70,8 @@ export interface TrackingSpk {
   noSpk: string;
   client: string;
   projectName?: string;
+  // SPK masuk date from tracking, YYYY-MM-DD; null when tracking has none
+  tanggalMasuk?: string | null;
 }
 
 export interface TrackingSpkProduct {
