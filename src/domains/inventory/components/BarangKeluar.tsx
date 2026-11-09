@@ -1,6 +1,6 @@
 "use client";
 
-import { useCan } from "@/domains/auth/user-context";
+import { useAuthUser, useCan } from "@/domains/auth/user-context";
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -28,6 +28,7 @@ import {
   importOutbound,
   listOutbound,
   updateOutbound,
+  requestOutboundEdit,
 } from "@/domains/inventory/api";
 import { getTrackingSpk } from "@/domains/ppic/api";
 import type { TrackingSpkDetail } from "@/domains/ppic/types";
@@ -45,8 +46,8 @@ import DateFilter from "@/shared/components/DateFilter";
 import SearchableSelect from "@/shared/components/SearchableSelect";
 import { useClientSearch, useSpkSearch } from "@/domains/ppic/use-spk-search";
 import { beepFail, beepOk } from "@/domains/inventory/beep";
+import RiwayatEditBarangKeluar from "./RiwayatEditBarangKeluar";
 import ImportBarangKeluarModal from "./ImportBarangKeluarModal";
-import EditTimerButton from "@/shared/components/TImerEditButton";
 import RealTimeClock from "@/shared/components/RealTIme";
 
 // Satu baris barang hasil scan. SPK dan Nama Produk/Proyek diisi sekali di atas untuk seluruh transaksi.
@@ -104,30 +105,30 @@ const tambahSatu = (baris: BarisForm[], key: string) =>
       : b,
   );
 
-// Barang keluar hanya bisa diedit selama 1 hari (24 jam) sejak transaksi dicatat
+// Batas waktu berlaku untuk pengajuan, persetujuan tetap dapat dipakai setelahnya.
 const BATAS_EDIT_MS = 24 * 60 * 60 * 1000;
-const SEVEN_HOURS_MS = 7 * 60 * 60 * 1000;
 const PESAN_TIDAK_BISA_EDIT =
-  "Data barang keluar ini sudah tidak bisa diedit karena sudah lewat 1 hari sejak dicatat.";
+  "Ajukan edit ke superadmin dan tunggu persetujuan. Setiap transaksi hanya dapat diedit satu kali.";
+const batasEdit = (trx: OutboundRow) => new Date(trx.createdAt).getTime() + BATAS_EDIT_MS;
+const bisaEdit = (trx: OutboundRow, userId?: number) =>
+  trx.editRequest?.status === "APPROVED" &&
+  (userId === undefined || trx.editRequest.requestedBy === userId);
 
-const batasEdit = (trx: OutboundRow) => {
-  const raw = trx.createdAt ?? "";
-  const waktuMelonjak = new Date(raw).getTime();
-  const createdAtLokalBenar = waktuMelonjak - SEVEN_HOURS_MS;
-  return createdAtLokalBenar + BATAS_EDIT_MS;
-};
-
-// createdAt yang tidak valid menghasilkan NaN, sehingga dianggap tidak bisa diedit
-const bisaEdit = (trx: OutboundRow, now: number) => now < batasEdit(trx);
-
-// Menyegarkan waktu tiap menit di komponen kecil ini saja, supaya tombol Edit otomatis terkunci
-// begitu batas 1 hari lewat tanpa me-render ulang seluruh halaman.
-function WithNow({ children }: { children: (now: number) => React.ReactNode }) {
+// Jadwalkan persis pada akhir 24 jam agar tombol hilang tanpa memuat ulang halaman.
+function WithNow({
+  deadline,
+  children,
+}: {
+  deadline: number;
+  children: (now: number) => React.ReactNode;
+}) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 60_000);
-    return () => clearInterval(timer);
-  }, []);
+    const remaining = deadline - Date.now();
+    if (!Number.isFinite(remaining) || remaining <= 0) return;
+    const timer = setTimeout(() => setNow(Date.now()), remaining);
+    return () => clearTimeout(timer);
+  }, [deadline]);
   return <>{children(now)}</>;
 }
 
@@ -138,14 +139,13 @@ const tampilWaktu = (ms: number) => {
 };
 
 type EditTarget = { trx: OutboundRow; lineIndex: number };
-type EditForm = {
-  tanggal: string;
-  spk: string;
-  namaItem: string;
+type EditLineForm = {
   itemId: string;
   picked?: { name: string; code: string | null; unit?: string };
   qty: string;
 };
+
+type EditForm = { tanggal: string; spk: string; namaItem: string; lines: EditLineForm[] };
 
 export type DataCetak = {
   tanggal: string;
@@ -376,31 +376,31 @@ export function cetakBarangKeluar(data: DataCetak | DataCetak[]): Promise<void> 
 }
 
 const LiveWaktuDicatat: React.FC<{
-    createdAt: string | Date;
-    tampilWaktu: (timestamp: number) => string;
-  }> = ({ createdAt, tampilWaktu }) => {
-    const [liveStr, setLiveStr] = React.useState<string>("");
+  createdAt: string | Date;
+  tampilWaktu: (timestamp: number) => string;
+}> = ({ createdAt, tampilWaktu }) => {
+  const [liveStr, setLiveStr] = React.useState<string>("");
 
-    React.useEffect(() => {
-      const updateTime = () => {
-        const SEVEN_HOURS_MS = 7 * 60 * 60 * 1000;
-        const dbTimestamp = new Date(createdAt).getTime();
+  React.useEffect(() => {
+    const updateTime = () => {
+      const SEVEN_HOURS_MS = 7 * 60 * 60 * 1000;
+      const dbTimestamp = new Date(createdAt).getTime();
 
-        // Jika data createdAt kamu bertambah 7 jam dari server, kurangi di sini. 
-        // Jika tidak, hapus bagian "- SEVEN_HOURS_MS"
-        const waktuKoreksi = dbTimestamp - SEVEN_HOURS_MS;
+      // Jika data createdAt kamu bertambah 7 jam dari server, kurangi di sini. 
+      // Jika tidak, hapus bagian "- SEVEN_HOURS_MS"
+      const waktuKoreksi = dbTimestamp - SEVEN_HOURS_MS;
 
-        setLiveStr(tampilWaktu(waktuKoreksi));
-      };
+      setLiveStr(tampilWaktu(waktuKoreksi));
+    };
 
-      updateTime(); // Pemicu awal
-      const intervalId = setInterval(updateTime, 1000); // Jalan setiap detik
+    updateTime(); // Pemicu awal
+    const intervalId = setInterval(updateTime, 1000); // Jalan setiap detik
 
-      return () => clearInterval(intervalId);
-    }, [createdAt, tampilWaktu]);
+    return () => clearInterval(intervalId);
+  }, [createdAt, tampilWaktu]);
 
-    return <>{liveStr}</>;
-  };
+  return <>{liveStr}</>;
+};
 
 const formCellClass = "border-b border-r border-gray-300";
 const formHeadClass = `${formCellClass} px-2 py-2.5 font-medium whitespace-nowrap`;
@@ -432,6 +432,9 @@ export default function BarangKeluarGudang() {
   const [filterMonth, setFilterMonth] = useState("");
   const [filterYear, setFilterYear] = useState("");
   const [waktuSekarang, setWaktuSekarang] = useState<string>('');
+
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewCetak, setPreviewCetak] = useState(false);
 
   useEffect(() => {
     const updateTime = () => {
@@ -489,6 +492,10 @@ export default function BarangKeluarGudang() {
   const pengambilRef = useRef("");
   const pengambilOk = form.namaPengambil.trim() !== "";
 
+  const user = useAuthUser();
+  const [requesting, setRequesting] = useState<number | null>(null);
+  const requestingRef = useRef(false);
+  const [historyId, setHistoryId] = useState<number | null>(null);
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   const [editForm, setEditForm] = useState<EditForm | null>(null);
   const [editSaving, setEditSaving] = useState(false);
@@ -537,6 +544,14 @@ export default function BarangKeluarGudang() {
   );
   const rows = result?.rows ?? [];
   const total = result?.total ?? 0;
+  const hasPendingEdit = rows.some((row) => row.editRequest?.status === "PENDING");
+  useEffect(() => {
+    const refresh = () => reload();
+    window.addEventListener("focus", refresh);
+    const timer = hasPendingEdit ? setInterval(refresh, 15_000) : undefined;
+    return () => { window.removeEventListener("focus", refresh); if (timer) clearInterval(timer); };
+  }, [hasPendingEdit, reload]);
+
   const allChecked = rows.length > 0 && rows.every((trx) => selected.has(trx.id));
   const toggleSelected = (trx: OutboundRow) => setSelected((prev) => {
     const next = new Map(prev);
@@ -656,19 +671,17 @@ export default function BarangKeluarGudang() {
   const openEdit = (trx: OutboundRow, lineIndex: number) => {
     const line = trx.lines[lineIndex];
     if (!line) return;
-    const material = items.find((item) => item.id === line.itemId);
+    if (!bisaEdit(trx, user?.id)) { setPeringatan(PESAN_TIDAK_BISA_EDIT); return; }
     setEditTarget({ trx, lineIndex });
     setEditForm({
       tanggal: trx.date.slice(0, 10),
       spk: trx.spk,
       namaItem: trx.itemName,
-      itemId: String(line.itemId),
-      picked: {
-        name: line.itemName,
-        code: line.itemCode ?? null,
-        unit: material?.unit,
-      },
-      qty: String(line.qty),
+      lines: trx.lines.map((entry) => ({
+        itemId: String(entry.itemId),
+        picked: { name: entry.itemName, code: entry.itemCode, unit: items.find((item) => item.id === entry.itemId)?.unit },
+        qty: String(entry.qty),
+      })),
     });
     setEditError("");
   };
@@ -686,34 +699,98 @@ export default function BarangKeluarGudang() {
       return next;
     });
 
-  // Tombol Edit satu baris barang; terkunci setelah 1 hari. onBuka dipanggil dulu, misalnya untuk menutup pop-up rincian
-  const tombolEdit = (
-    trx: OutboundRow,
-    lineIndex: number,
-    onBuka?: () => void,
-  ) => {
-    if (!canUpdate) return null;
-    const line = trx.lines[lineIndex];
-    if (!line) return null;
+  const ajukanEdit = async (trx: OutboundRow) => {
+    if (requestingRef.current) return;
+    requestingRef.current = true;
+    setRequesting(trx.id);
+    setActionError("");
+    try {
+      const updated = await requestOutboundEdit(trx.id);
+      setDetailTrx((current) => (current?.id === trx.id ? updated : current));
+      reload();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Gagal mengajukan edit.");
+    } finally {
+      requestingRef.current = false;
+      setRequesting(null);
+    }
+  };
+
+  const tombolEdit = (trx: OutboundRow, lineIndex: number, onBuka?: () => void) => {
+    if (!canUpdate || !trx.lines[lineIndex] || !bisaEdit(trx, user?.id)) return null;
     return (
-      <EditTimerButton
-        deadline={batasEdit(trx)}
-        onEditClick={() => {
+      <button
+        type="button"
+        onClick={() => {
           onBuka?.();
           openEdit(trx, lineIndex);
         }}
-        title={`Bisa diedit sampai ${tampilWaktu(batasEdit(trx))}`}
-        ariaLabel={`Edit barang keluar ${trx.id} ${line.itemName}`}
-      />
+        aria-label={`Edit barang keluar ${trx.id} ${trx.lines[lineIndex].itemName}`}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#FF8A00] text-[#FF8A00] text-xs font-semibold hover:bg-orange-50"
+      >
+        <Pencil className="w-3.5 h-3.5" />
+        Edit
+      </button>
     );
   };
 
-  const editLine = editTarget
-    ? editTarget.trx.lines[editTarget.lineIndex]
-    : undefined;
+  const aksiPengajuan = (trx: OutboundRow) => (
+    <div className="flex flex-col items-center gap-2">
+      {canUpdate && !trx.editRequest && (
+        <WithNow deadline={batasEdit(trx)}>
+          {(now) =>
+            now < batasEdit(trx) ? (
+              <button
+                type="button"
+                disabled={requesting !== null}
+                onClick={() => void ajukanEdit(trx)}
+                title={`Ajukan edit sebelum ${tampilWaktu(batasEdit(trx))}`}
+                aria-label={`Ajukan edit barang keluar ${trx.id}`}
+                className="rounded-lg border border-orange-400 px-3 py-1.5 text-xs font-semibold text-orange-600 disabled:opacity-50"
+              >
+                {requesting === trx.id ? "Mengajukan..." : "Ajukan Edit"}
+              </button>
+            ) : null
+          }
+        </WithNow>
+      )}
+      {trx.editRequest?.status === "PENDING" && (
+        <span className="text-xs text-amber-700">Menunggu persetujuan</span>
+      )}
+      {trx.editRequest?.status === "REJECTED" && (
+        <span className="text-xs text-red-600">Pengajuan ditolak</span>
+      )}
+      {trx.editRequest?.status === "USED" && (
+        <span className="text-xs text-gray-500">Sudah diedit 1 kali</span>
+      )}
+      {trx.editRequest?.status === "APPROVED" && !bisaEdit(trx, user?.id) && (
+        <span className="text-xs text-green-700">Disetujui untuk pengaju</span>
+      )}
+      {trx.editRequest && (
+        <button
+          type="button"
+          onClick={() => setHistoryId(trx.id)}
+          aria-label={`Riwayat edit barang keluar ${trx.id}`}
+          className="text-xs text-blue-600 underline"
+        >
+          Riwayat Edit
+        </button>
+      )}
+    </div>
+  );
 
   const updateEdit = (patch: Partial<EditForm>) =>
     setEditForm((prev) => (prev ? { ...prev, ...patch } : prev));
+
+  const updateEditLine = (index: number, patch: Partial<EditLineForm>) =>
+    setEditForm((prev) =>
+      prev
+        ? {
+            ...prev,
+            lines: prev.lines.map((line, i) => (i === index ? { ...line, ...patch } : line)),
+          }
+        : prev,
+    );
 
   const handleSimpanEdit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -722,32 +799,25 @@ export default function BarangKeluarGudang() {
     const submitter = (e.nativeEvent as SubmitEvent).submitter;
     const cetakSetelahSimpan =
       submitter instanceof HTMLButtonElement && submitter.value === "cetak";
-    const { trx, lineIndex } = editTarget;
-    // Dicek ulang saat simpan, karena batas waktu bisa lewat selagi pop-up masih terbuka
-    if (!bisaEdit(trx, Date.now())) {
+    const { trx } = editTarget;
+    if (!bisaEdit(trx, user?.id)) {
       closeEdit();
       setPeringatan(PESAN_TIDAK_BISA_EDIT);
       return;
     }
-    const { tanggal, spk, namaItem, itemId, qty } = editForm;
+    const { tanggal, spk, namaItem, lines } = editForm;
     if (
       !tanggal ||
       !spk ||
       !namaItem.trim() ||
-      !Number.isSafeInteger(Number(itemId)) ||
-      Number(itemId) <= 0 ||
-      !jumlahValid(qty)
+      lines.some((line) => !Number.isSafeInteger(Number(line.itemId)) || Number(line.itemId) <= 0 || !jumlahValid(line.qty))
     ) {
       setEditError(
         "Isi tanggal, SPK, nama item/projek, nama barang, dan jumlah berupa bilangan bulat positif maksimal 9 digit.",
       );
       return;
     }
-    if (
-      trx.lines.some(
-        (line, i) => i !== lineIndex && line.itemId === Number(itemId),
-      )
-    ) {
+    if (new Set(lines.map((line) => line.itemId)).size !== lines.length) {
       setEditError(
         "Barang ini sudah ada pada baris lain di transaksi yang sama.",
       );
@@ -759,18 +829,14 @@ export default function BarangKeluarGudang() {
     setEditError("");
     setActionError("");
     try {
-      // API menyimpan per transaksi, jadi baris lain di transaksi yang sama ikut dikirim apa adanya
+      // Seluruh koreksi barang disimpan bersama agar izin edit hanya dipakai satu kali.
       await updateOutbound(trx.id, {
         date: tanggal,
         spk,
         itemName: namaItem.trim(),
         recipientType: trx.recipientType,
         notes: trx.notes ?? undefined,
-        lines: trx.lines.map((l, i) =>
-          i === lineIndex
-            ? { itemId: Number(itemId), qty: Number(qty), pic: l.pic }
-            : { itemId: l.itemId, qty: l.qty, pic: l.pic },
-        ),
+        lines: lines.map((line, index) => ({ itemId: Number(line.itemId), qty: Number(line.qty), pic: trx.lines[index].pic })),
       });
       closeEdit();
       reload();
@@ -782,25 +848,11 @@ export default function BarangKeluarGudang() {
               clientOf(spk) || (spk === trx.spk ? trx.clientName : "") || "-",
             spk,
             namaItem: namaItem.trim(),
-            baris: trx.lines.map((line, i) => ({
-              name:
-                i === lineIndex
-                  ? (editForm.picked?.name ?? line.itemName)
-                  : line.itemName,
-              code:
-                i === lineIndex && editForm.picked
-                  ? editForm.picked.code
-                  : line.itemCode,
-              unit:
-                (i === lineIndex ? editForm.picked?.unit : undefined) ??
-                items.find(
-                  (item) =>
-                    item.id ===
-                    (i === lineIndex ? Number(itemId) : line.itemId),
-                )?.unit ??
-                "",
-              qty: i === lineIndex ? Number(qty) : line.qty,
-              pic: line.pic,
+            baris: lines.map((line, index) => ({
+              name: line.picked?.name ?? trx.lines[index].itemName,
+              code: line.picked?.code ?? trx.lines[index].itemCode,
+              unit: line.picked?.unit ?? items.find((item) => item.id === Number(line.itemId))?.unit ?? "",
+              qty: Number(line.qty), pic: trx.lines[index].pic,
             })),
           });
         } catch (err) {
@@ -819,6 +871,53 @@ export default function BarangKeluarGudang() {
       submittingRef.current = false;
       setEditSaving(false);
     }
+  };
+
+  // Dipanggil saat tombol Simpan / Simpan + Cetak ditekan di form
+  const bukaPreview = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (submittingRef.current) return;
+    if (pendingScansRef.current > 0) {
+      setModalError("Tunggu proses scan barang selesai sebelum menyimpan.");
+      return;
+    }
+    if (modeKeluar === "stok") {
+      setModalError("Data stok belum tersedia. Barang keluar stok belum dapat disimpan.");
+      return;
+    }
+    const submitter = (e.nativeEvent as SubmitEvent).submitter;
+    setPreviewCetak(submitter instanceof HTMLButtonElement && submitter.value === "cetak");
+
+    // Validasi yang sama dengan sebelumnya (salin dari handleSimpan lama, tanpa bagian kirim)
+    const { namaPengambil, tanggal, client, spk, namaItem, baris } = form;
+    if (!tanggal || !client || !spk || !namaPengambil.trim() || !namaItem.trim()) {
+      setModalError("Lengkapi tanggal, client, SPK, nama pengambil, dan nama produk/proyek.");
+      return;
+    }
+    if (!spkPilihan.some((p) => p.value === spk) || !produkTracking.some((p) => p.name === namaItem)) {
+      setModalError("Pilih SPK milik client dan item yang tersedia pada SPK tersebut.");
+      return;
+    }
+    const terisi = baris.filter((b) => b.itemId !== null);
+    if (terisi.length === 0) {
+      setModalError("Scan atau pilih minimal satu barang yang keluar.");
+      return;
+    }
+    if (terisi.some((b) => !jumlahValid(b.qty))) {
+      setModalError("Jumlah pengambilan harus berupa bilangan bulat positif maksimal 9 digit.");
+      return;
+    }
+    if (new Set(terisi.map((b) => b.itemId)).size !== terisi.length) {
+      setModalError("Material yang sama cukup diisi pada satu baris. Tambahkan jumlahnya di baris tersebut.");
+      return;
+    }
+    const melebihiStok = terisi.find((b) => Number(b.qty) > b.stock);
+    if (melebihiStok) {
+      setModalError(`Jumlah ${melebihiStok.name} melebihi stok ${melebihiStok.stock} ${melebihiStok.unit}.`);
+      return;
+    }
+    setModalError("");
+    setPreviewOpen(true);
   };
 
   // The modal shows err.message. For bad rows, the first lines name the rows.
@@ -1049,81 +1148,10 @@ export default function BarangKeluarGudang() {
     })),
   ];
 
-  const handleSimpan = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const konfirmasiSimpan = async () => {
     if (submittingRef.current) return;
-    if (pendingScansRef.current > 0) {
-      setModalError("Tunggu proses scan barang selesai sebelum menyimpan.");
-      return;
-    }
-    const submitter = (e.nativeEvent as SubmitEvent).submitter;
-    const cetakSetelahSimpan =
-      submitter instanceof HTMLButtonElement && submitter.value === "cetak";
-    // Stock IDs and their items will come from a dedicated API, not tracking SPKs.
-    if (modeKeluar === "stok") {
-      setModalError(
-        "Data stok belum tersedia. Barang keluar stok belum dapat disimpan.",
-      );
-      return;
-    }
-    const {
-      namaPengambil,
-      tanggal,
-      client,
-      spk,
-      namaItem,
-      recipientType,
-      baris,
-    } = form;
-    if (
-      !tanggal ||
-      !client ||
-      !spk ||
-      !namaPengambil.trim() ||
-      !namaItem.trim()
-    ) {
-      setModalError(
-        "Lengkapi tanggal, client, SPK, nama pengambil, dan nama produk/proyek.",
-      );
-      return;
-    }
-    if (
-      !spkPilihan.some((p) => p.value === spk) ||
-      !produkTracking.some((p) => p.name === namaItem)
-    ) {
-      setModalError(
-        "Pilih SPK milik client dan item yang tersedia pada SPK tersebut.",
-      );
-      return;
-    }
-    // Baris input manual yang belum dipilih materialnya diabaikan
-    const terisi = baris.flatMap((b) =>
-      b.itemId === null ? [] : [{ ...b, itemId: b.itemId }],
-    );
-    if (terisi.length === 0) {
-      setModalError("Scan atau pilih minimal satu barang yang keluar.");
-      return;
-    }
-    if (terisi.some((b) => !jumlahValid(b.qty))) {
-      setModalError(
-        "Jumlah pengambilan harus berupa bilangan bulat positif maksimal 9 digit.",
-      );
-      return;
-    }
-    if (new Set(terisi.map((b) => b.itemId)).size !== terisi.length) {
-      setModalError(
-        "Material yang sama cukup diisi pada satu baris. Tambahkan jumlahnya di baris tersebut.",
-      );
-      return;
-    }
-    const melebihiStok = terisi.find((b) => Number(b.qty) > b.stock);
-    if (melebihiStok) {
-      setModalError(
-        `Jumlah ${melebihiStok.name} melebihi stok ${melebihiStok.stock} ${melebihiStok.unit}.`,
-      );
-      return;
-    }
-
+    const { namaPengambil, tanggal, client, spk, namaItem, recipientType, baris } = form;
+    const terisi = baris.filter((b) => b.itemId !== null);
     submittingRef.current = true;
     setSaving(true);
     setModalError("");
@@ -1135,51 +1163,36 @@ export default function BarangKeluarGudang() {
         itemName: namaItem.trim(),
         recipientType,
         notes: `Pengambil: ${namaPengambil.trim()}`,
-        lines: terisi.map((b) => ({
-          itemId: b.itemId,
-          qty: Number(b.qty),
-          pic: namaPengambil.trim(),
-        })),
+        lines: terisi.map((b) => ({ itemId: b.itemId as number, qty: Number(b.qty), pic: namaPengambil.trim() })),
       };
-
       const payload = JSON.stringify(input);
       if (!draftKey.current.key || draftKey.current.payload !== payload)
         draftKey.current = { key: randomId(), payload };
-
       await createOutbound(input, draftKey.current.key);
       draftKey.current = { key: "", payload: "" };
 
+      setPreviewOpen(false);
       closeModal();
       reload();
-      if (cetakSetelahSimpan) {
+      if (previewCetak) {
         try {
           await cetakBarangKeluar({
             tanggal,
             client,
             spk,
             namaItem: namaItem.trim(),
-            // Dokubah dicetak dari draft; payload API saat ini belum menyimpan kolom Dokubah.
             baris: terisi.map((b) => ({
-              name: b.name,
-              code: b.code,
-              unit: b.unit,
-              dokubah: b.dokubah,
-              qty: Number(b.qty),
-              pic: namaPengambil.trim(),
+              name: b.name, code: b.code, unit: b.unit, dokubah: b.dokubah,
+              qty: Number(b.qty), pic: namaPengambil.trim(),
             })),
           });
         } catch (err) {
-          setActionError(
-            `Data sudah tersimpan, tetapi dialog cetak gagal dibuka. ${err instanceof Error ? err.message : ""}`,
-          );
+          setActionError(`Data sudah tersimpan, tetapi dialog cetak gagal dibuka. ${err instanceof Error ? err.message : ""}`);
         }
       }
     } catch (err) {
-      setModalError(
-        err instanceof ApiError
-          ? err.message
-          : "Gagal menyimpan barang keluar.",
-      );
+      // Preview tetap terbuka supaya pengguna bisa membaca pesan dan memperbaiki
+      setModalError(err instanceof ApiError ? err.message : "Gagal menyimpan barang keluar.");
     } finally {
       submittingRef.current = false;
       setSaving(false);
@@ -1188,12 +1201,18 @@ export default function BarangKeluarGudang() {
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+      {historyId !== null && <RiwayatEditBarangKeluar id={historyId} onClose={() => setHistoryId(null)} />}
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
         <h1 className="text-[18px] font-extrabold text-black tracking-wide uppercase">
           Data Barang Keluar
         </h1>
       </div>
+
+      <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        Untuk mengedit barang keluar, ajukan edit ke superadmin maksimal 24 jam sejak transaksi dicatat.
+        Setelah disetujui, transaksi hanya dapat diedit satu kali. Semua perubahan tersimpan dalam riwayat edit.
+      </p>
 
       {actionError && (
         <div
@@ -1204,7 +1223,7 @@ export default function BarangKeluarGudang() {
           <button
             type="button"
             onClick={() => setActionError("")}
-            aria-label="Tutup pesan cetak"
+            aria-label="Tutup pesan aksi"
           >
             <X className="w-4 h-4" />
           </button>
@@ -1485,8 +1504,9 @@ export default function BarangKeluarGudang() {
                         <td className="px-6 py-4">
                           {/* Menggunakan kontainer flex agar tombol berjejer rapi ke samping */}
                           <div className="flex items-center justify-center gap-2">
-                            {/* Transaksi satu barang punya Edit di sini; transaksi banyak barang Edit ada per baris di rincian */}
-                            {!banyak && pertama && tombolEdit(trx, 0)}
+                            {/* Aksi pengajuan selalu terlihat pada baris transaksi. */}
+                            {(!banyak || !terbuka) && pertama && tombolEdit(trx, 0)}
+                            {aksiPengajuan(trx)}
                           </div>
                         </td>
                         <td className="px-6 py-4 text-center">
@@ -1545,6 +1565,91 @@ export default function BarangKeluarGudang() {
           </table>
         </div>
 
+        {previewOpen &&
+          createPortal(
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+              <div role="dialog" aria-modal="true" aria-labelledby="preview-bk-judul"
+                className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-full overflow-y-auto p-6 sm:p-8 relative animate-in zoom-in-95 duration-200">
+                <h2 id="preview-bk-judul" className="text-[18px] font-extrabold text-black tracking-wide uppercase mb-1">
+                  Preview Barang Keluar
+                </h2>
+                <p className="text-sm text-gray-500 mb-6">Periksa data di bawah sebelum disimpan. Stok berkurang setelah dikonfirmasi.</p>
+
+                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 mb-6 text-sm">
+                  {([
+                    ["Tanggal", displayDate(form.tanggal)],
+                    ["Nama Pengambil", form.namaPengambil],
+                    ["Client", form.client],
+                    ["No. SPK", form.spk],
+                    ["Nama Item/Projek", form.namaItem],
+                    ["Tujuan", "Tukang / Produksi"],
+                  ] as const).map(([k, v]) => (
+                    <div key={k} className="flex flex-col">
+                      <dt className="text-gray-500">{k}</dt>
+                      <dd className="font-semibold text-gray-900">{v || "-"}</dd>
+                    </div>
+                  ))}
+                </dl>
+
+                <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-gray-50 text-gray-600 font-semibold">
+                      <tr>
+                        <th className="px-4 py-2.5">No</th>
+                        <th className="px-4 py-2.5">Nama Material</th>
+                        <th className="px-4 py-2.5">Kode</th>
+                        <th className="px-4 py-2.5">Satuan</th>
+                        <th className="px-4 py-2.5">Dokubah</th>
+                        <th className="px-4 py-2.5 text-right">Jumlah</th>
+                        <th className="px-4 py-2.5 text-right">Stok Sekarang</th>
+                        <th className="px-4 py-2.5 text-right">Sisa Setelah Keluar</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {form.baris.filter((b) => b.itemId !== null).map((b, i) => {
+                        const qty = Number(b.qty);
+                        return (
+                          <tr key={b.key}>
+                            <td className="px-4 py-2.5 text-gray-500">{i + 1}</td>
+                            <td className="px-4 py-2.5 font-medium text-gray-900">{b.name}</td>
+                            <td className="px-4 py-2.5 font-mono text-xs text-gray-600">{b.code}</td>
+                            <td className="px-4 py-2.5 text-gray-600">{b.unit}</td>
+                            <td className="px-4 py-2.5 text-gray-600">{b.dokubah || "-"}</td>
+                            <td className="px-4 py-2.5 text-right font-bold text-gray-800">{qty}</td>
+                            <td className="px-4 py-2.5 text-right text-gray-600">{b.stock}</td>
+                            <td className="px-4 py-2.5 text-right font-semibold text-gray-900">{b.stock - qty}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot className="bg-gray-50 font-bold text-gray-900">
+                      <tr>
+                        <td colSpan={5} className="px-4 py-2.5">Total</td>
+                        <td className="px-4 py-2.5 text-right">
+                          {form.baris.reduce((n, b) => n + (b.itemId !== null ? Number(b.qty) || 0 : 0), 0)}
+                        </td>
+                        <td colSpan={2} />
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+
+                {modalError && <p role="alert" className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{modalError}</p>}
+
+                <div className="flex justify-end items-center gap-3 mt-6 pt-5 border-t border-gray-100">
+                  <button type="button" onClick={() => setPreviewOpen(false)} disabled={saving}
+                    className="px-5 py-2.5 text-gray-600 bg-gray-100 hover:bg-gray-200 font-semibold rounded-xl transition-colors text-sm disabled:opacity-50">
+                    Kembali Edit
+                  </button>
+                  <button type="button" onClick={konfirmasiSimpan} disabled={saving} className={orangeButtonClass}>
+                    {saving ? "Menyimpan..." : previewCetak ? "Konfirmasi + Cetak" : "Konfirmasi Simpan"}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )}
+
         <Pagination
           page={page}
           pageSize={PAGE_SIZE}
@@ -1569,7 +1674,7 @@ export default function BarangKeluarGudang() {
         createPortal(
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md transition-opacity duration-300 p-4">
             <form
-              onSubmit={handleSimpan}
+              onSubmit={bukaPreview}
               noValidate
               className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-full overflow-y-auto p-6 sm:p-8 relative animate-in zoom-in-95 duration-200"
             >
@@ -2113,10 +2218,7 @@ export default function BarangKeluarGudang() {
                   <span className="font-semibold text-gray-800">
                     {editTarget.trx.id}
                   </span>{" "}
-                  · bisa diedit sampai{" "}
-                  <span className="font-semibold text-gray-800">
-                    {tampilWaktu(batasEdit(editTarget.trx))}
-                  </span>
+                  · Disetujui superadmin untuk satu kali penyimpanan. Periksa seluruh barang sebelum menyimpan.
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -2190,89 +2292,69 @@ export default function BarangKeluarGudang() {
                       className={fieldClass}
                     />
                   </div>
-                  <div>
-                    <label htmlFor="edit-bk-barang" className={labelClass}>
-                      Nama Barang
-                    </label>
-                    <SearchableSelect
-                      value={editForm.itemId}
-                      onChange={(itemId) => {
-                        const it = items.find((x) => String(x.id) === itemId);
-                        updateEdit(
-                          it
-                            ? {
-                              itemId,
-                              picked: {
-                                name: it.name,
-                                code: it.code,
-                                unit: it.unit,
-                              },
-                            }
-                            : itemId === editForm.itemId
-                              ? {}
-                              : { itemId, picked: undefined },
-                        );
-                      }}
-                      onSearch={searchItems}
-                      pending={itemPending}
-                      options={[
-                        // Barang terpilih (lama atau baru) tetap muncul walau di luar hasil pencarian terakhir
-                        ...(!items.some(
-                          (it) => String(it.id) === editForm.itemId,
-                        )
-                          ? [
-                            {
-                              value: editForm.itemId,
-                              label:
-                                editForm.picked?.name ??
-                                editLine?.itemName ??
-                                "",
-                            },
-                          ]
-                          : []),
-                        ...items.map((it) => ({
-                          value: String(it.id),
-                          label: it.name,
-                        })),
-                      ]}
-                      placeholder="Pilih barang"
-                      aria-label="Nama Barang"
-                      className={`${fieldClass} cursor-pointer`}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="edit-bk-kode" className={labelClass}>
-                        Kode Barang
-                      </label>
-                      <input
-                        id="edit-bk-kode"
-                        type="text"
-                        readOnly
-                        value={
-                          (editForm.picked
-                            ? editForm.picked.code
-                            : editLine?.itemCode) ?? "-"
-                        }
-                        className={`${fieldClass} bg-gray-50 cursor-default font-mono text-xs`}
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="edit-bk-jumlah" className={labelClass}>
-                        Jumlah
-                      </label>
-                      <input
-                        {...INTEGER_INPUT}
-                        id="edit-bk-jumlah"
-                        maxLength={9}
-                        value={editForm.qty}
-                        onChange={(e) =>
-                          updateEdit({ qty: digitsOnly(e.target.value) })
-                        }
-                        className={`${fieldClass} text-right`}
-                      />
-                    </div>
-                  </div>
+                </div>
+                <div className="mt-5 space-y-4">
+                  {editForm.lines.map((line, index) => {
+                    const utama = index === editTarget.lineIndex;
+                    const nama = editTarget.trx.lines[index].itemName;
+                    return (
+                      <div
+                        key={index}
+                        className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-xl border border-gray-100 p-3"
+                      >
+                        <div>
+                          <span className={labelClass}>Nama Barang {index + 1}</span>
+                          <SearchableSelect
+                            value={line.itemId}
+                            onChange={(itemId) => {
+                              const item = items.find((entry) => String(entry.id) === itemId);
+                              updateEditLine(index, {
+                                itemId,
+                                picked: item ? { name: item.name, code: item.code, unit: item.unit } : undefined,
+                              });
+                            }}
+                            onSearch={searchItems}
+                            pending={itemPending}
+                            options={[
+                              ...(!items.some((item) => String(item.id) === line.itemId)
+                                ? [{ value: line.itemId, label: line.picked?.name ?? nama }]
+                                : []),
+                              ...items.map((item) => ({ value: String(item.id), label: item.name })),
+                            ]}
+                            placeholder="Pilih barang"
+                            aria-label={utama ? "Nama Barang" : `Nama Barang ${index + 1}`}
+                            className={`${fieldClass} cursor-pointer`}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label htmlFor={`edit-bk-kode-${index}`} className={labelClass}>
+                              Kode Barang
+                            </label>
+                            <input
+                              id={`edit-bk-kode-${index}`}
+                              readOnly
+                              value={line.picked?.code ?? "-"}
+                              className={`${fieldClass} bg-gray-50 font-mono text-xs`}
+                            />
+                          </div>
+                          <div>
+                            <label htmlFor={`edit-bk-jumlah-${index}`} className={labelClass}>
+                              {utama ? "Jumlah" : `Jumlah Barang ${index + 1}`}
+                            </label>
+                            <input
+                              {...INTEGER_INPUT}
+                              id={`edit-bk-jumlah-${index}`}
+                              maxLength={9}
+                              value={line.qty}
+                              onChange={(e) => updateEditLine(index, { qty: digitsOnly(e.target.value) })}
+                              className={`${fieldClass} text-right`}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
 
                 {editTarget.trx.lines.length > 1 && (
@@ -2430,17 +2512,10 @@ export default function BarangKeluarGudang() {
                 </table>
               </div>
 
-              <WithNow>
-                {(now) => (
-                  <p
-                    className={`mt-4 text-sm ${bisaEdit(detailTrx, now) ? "text-gray-600" : "text-red-600"}`}
-                  >
-                    {bisaEdit(detailTrx, now)
-                      ? `Bisa diedit sampai ${tampilWaktu(batasEdit(detailTrx))}`
-                      : "Sudah lewat 1 hari, tidak bisa diedit"}
-                  </p>
-                )}
-              </WithNow>
+              <p className="mt-4 text-sm text-gray-600">
+                {bisaEdit(detailTrx, user?.id) ? "Disetujui superadmin. Transaksi dapat diedit satu kali." : PESAN_TIDAK_BISA_EDIT}
+              </p>
+              {aksiPengajuan(detailTrx)}
             </div>
           </div>,
           document.body,

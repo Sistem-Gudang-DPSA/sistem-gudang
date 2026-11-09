@@ -51,8 +51,6 @@ export default function RekapDokubah() {
   const filteredData = (result?.rows ?? []).map((row) => ({
     ...row,
     status: STATUS_TO_UI[row.status],
-    realisasi: row.totalRealisasiNilai,
-    sisa: row.totalAnggaran - row.totalRealisasiNilai,
   }));
 
   // Ringkasan dari API, dihitung atas semua SPK yang cocok dengan filter (bukan hanya halaman ini)
@@ -92,9 +90,6 @@ export default function RekapDokubah() {
       'No.': index + 1,
       'No. SPK': item.noSpk,
       'Klien & Proyek': item.client,
-      'Anggaran': item.totalAnggaran,
-      'Realisasi': item.realisasi,
-      'Sisa Anggaran': item.sisa,
       'Status': item.status,
     }));
     const sheet = XLSX.utils.json_to_sheet(rows);
@@ -116,9 +111,6 @@ export default function RekapDokubah() {
         <td class="center">${index + 1}</td>
         <td>${escapeHtml(item.noSpk)}</td>
         <td>${escapeHtml(item.client)}</td>
-        <td class="right">${formatRupiah(item.totalAnggaran)}</td>
-        <td class="right">${formatRupiah(item.realisasi)}</td>
-        <td class="right">${formatRupiah(item.sisa)}</td>
         <td>${escapeHtml(item.status)}</td>
       </tr>`).join('');
     win.document.write(`<!doctype html>
@@ -139,7 +131,7 @@ export default function RekapDokubah() {
           <h1>Rekapitulasi Dokubah per SPK</h1>${checkedRows.length === 0 && total > filteredData.length ? `<p>Halaman ini (${filteredData.length} dari ${total} data)</p>` : ''}
           <table>
             <thead>
-              <tr><th class="center">No.</th><th>No. SPK</th><th>Klien &amp; Proyek</th><th>Anggaran</th><th>Realisasi</th><th>Sisa Anggaran</th><th>Status</th></tr>
+              <tr><th class="center">No.</th><th>No. SPK</th><th>Klien &amp; Proyek</th><th>Status</th></tr>
             </thead>
             <tbody>${bodyRows}</tbody>
           </table>
@@ -240,9 +232,6 @@ export default function RekapDokubah() {
                 <th scope="col" className={`${cellClass} w-14`}>No.</th>
                 <SortableTh label="No. SPK" sortKey="noSpk" sort={sort} onSort={toggle} className={cellClass} />
                 <SortableTh label="Klien & Proyek" sortKey="client" sort={sort} onSort={toggle} className={cellClass} />
-                <SortableTh label="Anggaran" sortKey="totalAnggaran" sort={sort} onSort={toggle} className={cellClass} />
-                <th scope="col" className={cellClass}>Realisasi</th>
-                <th scope="col" className={cellClass}>Sisa Anggaran</th>
                 <SortableTh label="Status" sortKey="status" sort={sort} onSort={toggle} className={cellClass} />
                 <th scope="col" className={`${cellClass} w-24`}>
                   <label className="flex items-center justify-between gap-2 cursor-pointer">
@@ -274,9 +263,6 @@ export default function RekapDokubah() {
                     </Link>
                   </td>
                   <td className={cellClass}>{item.client}</td>
-                  <td className={cellClass}>{formatRupiah(item.totalAnggaran)}</td>
-                  <td className={cellClass}>{formatRupiah(item.realisasi)}</td>
-                  <td className={`${cellClass} ${item.sisa < 0 ? 'text-red-600 font-semibold' : ''}`}>{formatRupiah(item.sisa)}</td>
                   <td className={cellClass}>{getStatusBadge(item.status)}</td>
                   {/* Sel centang tidak ikut membuka halaman detail */}
                   <td className={`${cellClass} text-right cursor-default`} onClick={(e) => e.stopPropagation()}>
@@ -292,7 +278,7 @@ export default function RekapDokubah() {
               ))}
               {filteredData.length === 0 && (
                 <tr>
-                  <td colSpan={8} className={`${cellClass} px-6 py-10 text-center text-gray-400 italic`}>
+                  <td colSpan={5} className={`${cellClass} px-6 py-10 text-center text-gray-400 italic`}>
                     {loading ? 'Memuat data...' : error || 'Data tidak ditemukan.'}
                   </td>
                 </tr>
