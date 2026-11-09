@@ -8320,7 +8320,8 @@
                         "harga": {
                           "type": "integer",
                           "nullable": true,
-                          "minimum": 0
+                          "minimum": 0,
+                          "maximum": 2000000000
                         }
                       },
                       "required": [
@@ -15015,11 +15016,13 @@
                         "price": {
                           "type": "integer",
                           "minimum": 0,
+                          "maximum": 2000000000,
                           "default": 0
                         },
                         "stock": {
                           "type": "number",
                           "minimum": 0,
+                          "maximum": 1000000,
                           "default": 0
                         },
                         "locationCode": {
@@ -20035,7 +20038,8 @@
                   "qty": {
                     "type": "integer",
                     "minimum": 0,
-                    "exclusiveMinimum": true
+                    "exclusiveMinimum": true,
+                    "maximum": 100000
                   },
                   "spk": {
                     "type": "string",
@@ -21817,8 +21821,8 @@
         "tags": [
           "Outbound"
         ],
-        "summary": "Use an approved outbound edit once",
-        "description": "Replaces date, spk, itemName, recipientType, notes and all lines. clientName is re-read from the tracking SPK and warehouseType cannot change, neither is accepted. Stock moves by the net difference per item in one transaction, 400 if any item would drop below 0. Needs outbound.update and an APPROVED edit request owned by the caller. Approval may be used after the initial 24 hours. One successful save consumes it atomically with stock changes and before/after history. 409 without an unused approval; 403 for a different caller. Failed stock validation does not consume approval.",
+        "summary": "Edit an outbound transaction with an approved edit request",
+        "description": "Needs outbound.update and an APPROVED edit request made by the caller (POST /outbound/{id}/edit-request, then a superadmin approves). Replaces date, spk, itemName, recipientType, notes and all lines. clientName is re-read from the tracking SPK and warehouseType cannot change, neither is accepted. Stock moves by the net difference per item in one transaction, 400 if any item would drop below 0, and then the approval stays APPROVED. A successful edit marks the request USED: a second PUT needs a new request. 409 without an approved request, 403 when the approval belongs to another user.",
         "security": [
           {
             "bearerAuth": []
@@ -22223,7 +22227,7 @@
             }
           },
           "409": {
-            "description": "No unused approved edit request",
+            "description": "No approved edit request for this transaction. 403 (from the common errors) when the approval was made by another user",
             "content": {
               "application/json": {
                 "schema": {
@@ -22442,13 +22446,1947 @@
         }
       }
     },
+    "/api/v1/outbound/edit-requests": {
+      "get": {
+        "tags": [
+          "Outbound"
+        ],
+        "summary": "List outbound edit requests (superadmin)",
+        "description": "Superadmin only, 403 otherwise. Newest activity first (edit time when used, else request time). status filters the list. Each row: request (the edit request fields), outbound (the transaction header, without lines), requestedByName (the requester's username).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "maximum": 100,
+              "default": 20
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "APPROVED",
+                "REJECTED",
+                "USED"
+              ]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Edit request list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "rows": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "request": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "number"
+                                  },
+                                  "outboundId": {
+                                    "type": "number"
+                                  },
+                                  "status": {
+                                    "type": "string",
+                                    "enum": [
+                                      "PENDING",
+                                      "APPROVED",
+                                      "REJECTED",
+                                      "USED"
+                                    ]
+                                  },
+                                  "requestedBy": {
+                                    "type": "number"
+                                  },
+                                  "requestedAt": {
+                                    "type": "string"
+                                  },
+                                  "reviewedBy": {
+                                    "type": "number",
+                                    "nullable": true
+                                  },
+                                  "reviewedAt": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "editedAt": {
+                                    "type": "string",
+                                    "nullable": true
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "outboundId",
+                                  "status",
+                                  "requestedBy",
+                                  "requestedAt",
+                                  "reviewedBy",
+                                  "reviewedAt",
+                                  "editedAt"
+                                ]
+                              },
+                              "outbound": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "number"
+                                  },
+                                  "noTransaksi": {
+                                    "type": "string",
+                                    "example": "OUT-000042"
+                                  },
+                                  "date": {
+                                    "type": "string",
+                                    "example": "2026-09-30"
+                                  },
+                                  "clientName": {
+                                    "type": "string"
+                                  },
+                                  "spk": {
+                                    "type": "string"
+                                  },
+                                  "itemName": {
+                                    "type": "string"
+                                  },
+                                  "warehouseType": {
+                                    "type": "string",
+                                    "enum": [
+                                      "BAHAN_BAKU",
+                                      "WIP",
+                                      "BARANG_JADI"
+                                    ]
+                                  },
+                                  "recipientType": {
+                                    "type": "string",
+                                    "enum": [
+                                      "PRODUKSI",
+                                      "KLIEN"
+                                    ]
+                                  },
+                                  "notes": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "createdBy": {
+                                    "type": "number"
+                                  },
+                                  "createdAt": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "noTransaksi",
+                                  "date",
+                                  "clientName",
+                                  "spk",
+                                  "itemName",
+                                  "warehouseType",
+                                  "recipientType",
+                                  "notes",
+                                  "createdBy",
+                                  "createdAt"
+                                ]
+                              },
+                              "requestedByName": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "request",
+                              "outbound",
+                              "requestedByName"
+                            ]
+                          }
+                        },
+                        "total": {
+                          "type": "number"
+                        },
+                        "page": {
+                          "type": "number"
+                        },
+                        "pageSize": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "rows",
+                        "total",
+                        "page",
+                        "pageSize"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/outbound/{id}/edit-request": {
+      "post": {
+        "tags": [
+          "Outbound"
+        ],
+        "summary": "Ask a superadmin to allow one edit of an outbound transaction",
+        "description": "Needs outbound.update. Creates a PENDING request by the caller. Allowed within 24 hours of recording. One request per transaction, whatever its status: a second one is 409, including after a rejection. Returns the outbound transaction with its editRequest.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Request created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "noTransaksi": {
+                          "type": "string",
+                          "example": "OUT-000042"
+                        },
+                        "date": {
+                          "type": "string",
+                          "example": "2026-09-30"
+                        },
+                        "clientName": {
+                          "type": "string"
+                        },
+                        "spk": {
+                          "type": "string"
+                        },
+                        "itemName": {
+                          "type": "string"
+                        },
+                        "warehouseType": {
+                          "type": "string",
+                          "enum": [
+                            "BAHAN_BAKU",
+                            "WIP",
+                            "BARANG_JADI"
+                          ]
+                        },
+                        "recipientType": {
+                          "type": "string",
+                          "enum": [
+                            "PRODUKSI",
+                            "KLIEN"
+                          ]
+                        },
+                        "notes": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdBy": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "editRequest": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "id": {
+                              "type": "number"
+                            },
+                            "outboundId": {
+                              "type": "number"
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "PENDING",
+                                "APPROVED",
+                                "REJECTED",
+                                "USED"
+                              ]
+                            },
+                            "requestedBy": {
+                              "type": "number"
+                            },
+                            "requestedAt": {
+                              "type": "string"
+                            },
+                            "reviewedBy": {
+                              "type": "number",
+                              "nullable": true
+                            },
+                            "reviewedAt": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "editedAt": {
+                              "type": "string",
+                              "nullable": true
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "outboundId",
+                            "status",
+                            "requestedBy",
+                            "requestedAt",
+                            "reviewedBy",
+                            "reviewedAt",
+                            "editedAt"
+                          ]
+                        },
+                        "lines": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "itemId": {
+                                "type": "number"
+                              },
+                              "itemCode": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "itemName": {
+                                "type": "string"
+                              },
+                              "locationCode": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "qty": {
+                                "type": "number"
+                              },
+                              "pic": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "itemId",
+                              "itemCode",
+                              "itemName",
+                              "locationCode",
+                              "qty",
+                              "pic"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "noTransaksi",
+                        "date",
+                        "clientName",
+                        "spk",
+                        "itemName",
+                        "warehouseType",
+                        "recipientType",
+                        "notes",
+                        "createdBy",
+                        "createdAt",
+                        "editRequest",
+                        "lines"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "More than 24 hours since recording, or the transaction already has a request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/outbound/{id}/edit-request/approve": {
+      "post": {
+        "tags": [
+          "Outbound"
+        ],
+        "summary": "Approve an edit request (superadmin)",
+        "description": "Superadmin only, 403 otherwise. The request must be PENDING, 409 otherwise. Works after the 24-hour window. The requester can then edit the transaction once with PUT /outbound/{id}.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Approved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "noTransaksi": {
+                          "type": "string",
+                          "example": "OUT-000042"
+                        },
+                        "date": {
+                          "type": "string",
+                          "example": "2026-09-30"
+                        },
+                        "clientName": {
+                          "type": "string"
+                        },
+                        "spk": {
+                          "type": "string"
+                        },
+                        "itemName": {
+                          "type": "string"
+                        },
+                        "warehouseType": {
+                          "type": "string",
+                          "enum": [
+                            "BAHAN_BAKU",
+                            "WIP",
+                            "BARANG_JADI"
+                          ]
+                        },
+                        "recipientType": {
+                          "type": "string",
+                          "enum": [
+                            "PRODUKSI",
+                            "KLIEN"
+                          ]
+                        },
+                        "notes": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdBy": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "editRequest": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "id": {
+                              "type": "number"
+                            },
+                            "outboundId": {
+                              "type": "number"
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "PENDING",
+                                "APPROVED",
+                                "REJECTED",
+                                "USED"
+                              ]
+                            },
+                            "requestedBy": {
+                              "type": "number"
+                            },
+                            "requestedAt": {
+                              "type": "string"
+                            },
+                            "reviewedBy": {
+                              "type": "number",
+                              "nullable": true
+                            },
+                            "reviewedAt": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "editedAt": {
+                              "type": "string",
+                              "nullable": true
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "outboundId",
+                            "status",
+                            "requestedBy",
+                            "requestedAt",
+                            "reviewedBy",
+                            "reviewedAt",
+                            "editedAt"
+                          ]
+                        },
+                        "lines": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "itemId": {
+                                "type": "number"
+                              },
+                              "itemCode": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "itemName": {
+                                "type": "string"
+                              },
+                              "locationCode": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "qty": {
+                                "type": "number"
+                              },
+                              "pic": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "itemId",
+                              "itemCode",
+                              "itemName",
+                              "locationCode",
+                              "qty",
+                              "pic"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "noTransaksi",
+                        "date",
+                        "clientName",
+                        "spk",
+                        "itemName",
+                        "warehouseType",
+                        "recipientType",
+                        "notes",
+                        "createdBy",
+                        "createdAt",
+                        "editRequest",
+                        "lines"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request is not PENDING anymore",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/outbound/{id}/edit-request/reject": {
+      "post": {
+        "tags": [
+          "Outbound"
+        ],
+        "summary": "Reject an edit request (superadmin)",
+        "description": "Superadmin only, 403 otherwise. The request must be PENDING, 409 otherwise. A rejected request cannot be re-sent: the transaction keeps its one request.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "noTransaksi": {
+                          "type": "string",
+                          "example": "OUT-000042"
+                        },
+                        "date": {
+                          "type": "string",
+                          "example": "2026-09-30"
+                        },
+                        "clientName": {
+                          "type": "string"
+                        },
+                        "spk": {
+                          "type": "string"
+                        },
+                        "itemName": {
+                          "type": "string"
+                        },
+                        "warehouseType": {
+                          "type": "string",
+                          "enum": [
+                            "BAHAN_BAKU",
+                            "WIP",
+                            "BARANG_JADI"
+                          ]
+                        },
+                        "recipientType": {
+                          "type": "string",
+                          "enum": [
+                            "PRODUKSI",
+                            "KLIEN"
+                          ]
+                        },
+                        "notes": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdBy": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "editRequest": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "id": {
+                              "type": "number"
+                            },
+                            "outboundId": {
+                              "type": "number"
+                            },
+                            "status": {
+                              "type": "string",
+                              "enum": [
+                                "PENDING",
+                                "APPROVED",
+                                "REJECTED",
+                                "USED"
+                              ]
+                            },
+                            "requestedBy": {
+                              "type": "number"
+                            },
+                            "requestedAt": {
+                              "type": "string"
+                            },
+                            "reviewedBy": {
+                              "type": "number",
+                              "nullable": true
+                            },
+                            "reviewedAt": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "editedAt": {
+                              "type": "string",
+                              "nullable": true
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "outboundId",
+                            "status",
+                            "requestedBy",
+                            "requestedAt",
+                            "reviewedBy",
+                            "reviewedAt",
+                            "editedAt"
+                          ]
+                        },
+                        "lines": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "itemId": {
+                                "type": "number"
+                              },
+                              "itemCode": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "itemName": {
+                                "type": "string"
+                              },
+                              "locationCode": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "qty": {
+                                "type": "number"
+                              },
+                              "pic": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "itemId",
+                              "itemCode",
+                              "itemName",
+                              "locationCode",
+                              "qty",
+                              "pic"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "noTransaksi",
+                        "date",
+                        "clientName",
+                        "spk",
+                        "itemName",
+                        "warehouseType",
+                        "recipientType",
+                        "notes",
+                        "createdBy",
+                        "createdAt",
+                        "editRequest",
+                        "lines"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request is not PENDING anymore",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/outbound/{id}/edit-history": {
+      "get": {
+        "tags": [
+          "Outbound"
+        ],
+        "summary": "Edit request history of one outbound transaction",
+        "description": "Needs outbound.view. 404 for an unknown transaction. data is null when the transaction was never asked to be edited. Otherwise the request fields with requestedByName and reviewedByName (null until reviewed), and beforeValues and afterValues: the transaction header and lines before and after the edit (null until USED).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "History, or null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "outboundId": {
+                          "type": "number"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "PENDING",
+                            "APPROVED",
+                            "REJECTED",
+                            "USED"
+                          ]
+                        },
+                        "requestedBy": {
+                          "type": "number"
+                        },
+                        "requestedAt": {
+                          "type": "string"
+                        },
+                        "reviewedBy": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "reviewedAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "editedAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "requestedByName": {
+                          "type": "string"
+                        },
+                        "reviewedByName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "beforeValues": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "id": {
+                              "type": "number"
+                            },
+                            "noTransaksi": {
+                              "type": "string",
+                              "example": "OUT-000042"
+                            },
+                            "date": {
+                              "type": "string",
+                              "example": "2026-09-30"
+                            },
+                            "clientName": {
+                              "type": "string"
+                            },
+                            "spk": {
+                              "type": "string"
+                            },
+                            "itemName": {
+                              "type": "string"
+                            },
+                            "warehouseType": {
+                              "type": "string",
+                              "enum": [
+                                "BAHAN_BAKU",
+                                "WIP",
+                                "BARANG_JADI"
+                              ]
+                            },
+                            "recipientType": {
+                              "type": "string",
+                              "enum": [
+                                "PRODUKSI",
+                                "KLIEN"
+                              ]
+                            },
+                            "notes": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "createdBy": {
+                              "type": "number"
+                            },
+                            "createdAt": {
+                              "type": "string"
+                            },
+                            "lines": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "itemId": {
+                                    "type": "number"
+                                  },
+                                  "itemCode": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "itemName": {
+                                    "type": "string"
+                                  },
+                                  "locationCode": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "qty": {
+                                    "type": "number"
+                                  },
+                                  "pic": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "itemId",
+                                  "itemCode",
+                                  "itemName",
+                                  "locationCode",
+                                  "qty",
+                                  "pic"
+                                ]
+                              }
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "noTransaksi",
+                            "date",
+                            "clientName",
+                            "spk",
+                            "itemName",
+                            "warehouseType",
+                            "recipientType",
+                            "notes",
+                            "createdBy",
+                            "createdAt",
+                            "lines"
+                          ]
+                        },
+                        "afterValues": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "id": {
+                              "type": "number"
+                            },
+                            "noTransaksi": {
+                              "type": "string",
+                              "example": "OUT-000042"
+                            },
+                            "date": {
+                              "type": "string",
+                              "example": "2026-09-30"
+                            },
+                            "clientName": {
+                              "type": "string"
+                            },
+                            "spk": {
+                              "type": "string"
+                            },
+                            "itemName": {
+                              "type": "string"
+                            },
+                            "warehouseType": {
+                              "type": "string",
+                              "enum": [
+                                "BAHAN_BAKU",
+                                "WIP",
+                                "BARANG_JADI"
+                              ]
+                            },
+                            "recipientType": {
+                              "type": "string",
+                              "enum": [
+                                "PRODUKSI",
+                                "KLIEN"
+                              ]
+                            },
+                            "notes": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "createdBy": {
+                              "type": "number"
+                            },
+                            "createdAt": {
+                              "type": "string"
+                            },
+                            "lines": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "itemId": {
+                                    "type": "number"
+                                  },
+                                  "itemCode": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "itemName": {
+                                    "type": "string"
+                                  },
+                                  "locationCode": {
+                                    "type": "string",
+                                    "nullable": true
+                                  },
+                                  "qty": {
+                                    "type": "number"
+                                  },
+                                  "pic": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "itemId",
+                                  "itemCode",
+                                  "itemName",
+                                  "locationCode",
+                                  "qty",
+                                  "pic"
+                                ]
+                              }
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "noTransaksi",
+                            "date",
+                            "clientName",
+                            "spk",
+                            "itemName",
+                            "warehouseType",
+                            "recipientType",
+                            "notes",
+                            "createdBy",
+                            "createdAt",
+                            "lines"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "outboundId",
+                        "status",
+                        "requestedBy",
+                        "requestedAt",
+                        "reviewedBy",
+                        "reviewedAt",
+                        "editedAt",
+                        "requestedByName",
+                        "reviewedByName",
+                        "beforeValues",
+                        "afterValues"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/tracking/spk": {
       "get": {
         "tags": [
           "Dokubah"
         ],
         "summary": "List SPK numbers with their client",
-        "description": "Source of the SPK and its client for dokubah, SPK internal, outbound, material requests and client returns, and for the dropdowns of Barang Keluar. Read from the tracking system and kept in memory for TRACKING_CACHE_TTL_MINUTES (default 30), then reloaded in the background; refresh=1 reloads it first (the refresh button). search matches noSpk or client, case-insensitively. client keeps only the SPK of that client name (exact, case-insensitive, trimmed), and can be combined with search. limit is optional; without it every SPK is returned. Applied after client. projectName is included when the tracking source sends it. Products are not listed here, use GET /api/v1/tracking/spk/{noSpk}.",
+        "description": "Source of the SPK and its client for dokubah, SPK internal, outbound, material requests and client returns, and for the dropdowns of Barang Keluar. Read from the tracking system and kept in memory for TRACKING_CACHE_TTL_MINUTES (default 30), then reloaded in the background; refresh=1 reloads it first (the refresh button). search matches noSpk or client, case-insensitively. client keeps only the SPK of that client name (exact, case-insensitive, trimmed), and can be combined with search. limit is optional; without it every SPK is returned. Applied after client. projectName is included when the tracking source sends it. tanggalMasuk is the SPK masuk date from tracking (spk.tanggal_masuk), passed through as is, null when missing. Products are not listed here, use GET /api/v1/tracking/spk/{noSpk}.",
         "security": [
           {
             "bearerAuth": []
@@ -22523,11 +24461,18 @@
                           },
                           "projectName": {
                             "type": "string"
+                          },
+                          "tanggalMasuk": {
+                            "type": "string",
+                            "nullable": true,
+                            "description": "SPK masuk date (YYYY-MM-DD) from tracking, null when tracking has none",
+                            "example": "2026-01-05"
                           }
                         },
                         "required": [
                           "noSpk",
-                          "client"
+                          "client",
+                          "tanggalMasuk"
                         ]
                       }
                     }
@@ -31236,7 +33181,8 @@
                         "qty": {
                           "type": "integer",
                           "minimum": 0,
-                          "exclusiveMinimum": true
+                          "exclusiveMinimum": true,
+                          "maximum": 1000000
                         }
                       },
                       "required": [
@@ -35111,7 +37057,8 @@
                                         },
                                         "jumlah": {
                                           "type": "number",
-                                          "minimum": 0
+                                          "minimum": 0,
+                                          "maximum": 1000000
                                         }
                                       },
                                       "required": [
@@ -35386,7 +37333,8 @@
                               },
                               "jumlah": {
                                 "type": "number",
-                                "minimum": 0
+                                "minimum": 0,
+                                "maximum": 1000000
                               }
                             },
                             "required": [
@@ -35653,12 +37601,299 @@
         }
       }
     },
-    "/api/v1/outbound/edit-requests": {
+    "/api/v1/bug-reports": {
+      "post": {
+        "tags": [
+          "Bug Report"
+        ],
+        "summary": "Report a problem to IT",
+        "description": "Any logged-in user, no permission needed. Multipart form: description (1 to 2000 characters), pageUrl and userAgent (1 to 500 characters each), and an optional screenshot file (JPEG, PNG or WebP, 10 MB max). The screenshot is re-encoded into a WebP thumb and display pair under /uploads/bug-reports, the same way as item photos. 400 for missing or too long text, a wrong type or an oversized screenshot.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "description": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  },
+                  "pageUrl": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "userAgent": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "screenshot": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "required": [
+                  "description",
+                  "pageUrl",
+                  "userAgent"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Report stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "pageUrl": {
+                          "type": "string"
+                        },
+                        "userAgent": {
+                          "type": "string"
+                        },
+                        "screenshot": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "thumb": {
+                              "type": "string",
+                              "example": "/uploads/bug-reports/<uuid>-thumb.webp"
+                            },
+                            "display": {
+                              "type": "string",
+                              "example": "/uploads/bug-reports/<uuid>-display.webp"
+                            }
+                          },
+                          "required": [
+                            "thumb",
+                            "display"
+                          ],
+                          "description": "Relative URLs under /uploads (WebP), null when no screenshot"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "OPEN",
+                            "DIPROSES",
+                            "SELESAI"
+                          ]
+                        },
+                        "reporterName": {
+                          "type": "string"
+                        },
+                        "reporterRole": {
+                          "type": "string"
+                        },
+                        "handledByName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "description",
+                        "pageUrl",
+                        "userAgent",
+                        "screenshot",
+                        "status",
+                        "reporterName",
+                        "reporterRole",
+                        "handledByName",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
       "get": {
         "tags": [
-          "Outbound"
+          "Bug Report"
         ],
-        "summary": "List outbound edit requests (superadmin only)",
+        "summary": "List bug reports (superadmin)",
+        "description": "Superadmin only, 403 otherwise. Newest first. status filters the list. Each row has the reporter's username and role name, and the handler's username once handled.",
         "security": [
           {
             "bearerAuth": []
@@ -35679,8 +37914,7 @@
           {
             "schema": {
               "type": "integer",
-              "minimum": 0,
-              "exclusiveMinimum": true,
+              "minimum": 1,
               "maximum": 100,
               "default": 20
             },
@@ -35692,10 +37926,9 @@
             "schema": {
               "type": "string",
               "enum": [
-                "PENDING",
-                "APPROVED",
-                "REJECTED",
-                "USED"
+                "OPEN",
+                "DIPROSES",
+                "SELESAI"
               ]
             },
             "required": false,
@@ -35705,7 +37938,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Requests retrieved",
+            "description": "Bug report list",
             "content": {
               "application/json": {
                 "schema": {
@@ -35728,125 +37961,76 @@
                           "items": {
                             "type": "object",
                             "properties": {
-                              "request": {
-                                "type": "object",
-                                "properties": {
-                                  "id": {
-                                    "type": "number"
-                                  },
-                                  "outboundId": {
-                                    "type": "number"
-                                  },
-                                  "status": {
-                                    "type": "string",
-                                    "enum": [
-                                      "PENDING",
-                                      "APPROVED",
-                                      "REJECTED",
-                                      "USED"
-                                    ]
-                                  },
-                                  "requestedBy": {
-                                    "type": "number"
-                                  },
-                                  "requestedAt": {
-                                    "type": "string"
-                                  },
-                                  "reviewedBy": {
-                                    "type": "number",
-                                    "nullable": true
-                                  },
-                                  "reviewedAt": {
-                                    "type": "string",
-                                    "nullable": true
-                                  },
-                                  "editedAt": {
-                                    "type": "string",
-                                    "nullable": true
-                                  }
-                                },
-                                "required": [
-                                  "id",
-                                  "outboundId",
-                                  "status",
-                                  "requestedBy",
-                                  "requestedAt",
-                                  "reviewedBy",
-                                  "reviewedAt",
-                                  "editedAt"
-                                ]
+                              "id": {
+                                "type": "number"
                               },
-                              "outbound": {
-                                "type": "object",
-                                "properties": {
-                                  "id": {
-                                    "type": "number"
-                                  },
-                                  "noTransaksi": {
-                                    "type": "string",
-                                    "example": "OUT-000042"
-                                  },
-                                  "date": {
-                                    "type": "string",
-                                    "example": "2026-09-30"
-                                  },
-                                  "clientName": {
-                                    "type": "string"
-                                  },
-                                  "spk": {
-                                    "type": "string"
-                                  },
-                                  "itemName": {
-                                    "type": "string"
-                                  },
-                                  "warehouseType": {
-                                    "type": "string",
-                                    "enum": [
-                                      "BAHAN_BAKU",
-                                      "WIP",
-                                      "BARANG_JADI"
-                                    ]
-                                  },
-                                  "recipientType": {
-                                    "type": "string",
-                                    "enum": [
-                                      "PRODUKSI",
-                                      "KLIEN"
-                                    ]
-                                  },
-                                  "notes": {
-                                    "type": "string",
-                                    "nullable": true
-                                  },
-                                  "createdBy": {
-                                    "type": "number"
-                                  },
-                                  "createdAt": {
-                                    "type": "string"
-                                  }
-                                },
-                                "required": [
-                                  "id",
-                                  "noTransaksi",
-                                  "date",
-                                  "clientName",
-                                  "spk",
-                                  "itemName",
-                                  "warehouseType",
-                                  "recipientType",
-                                  "notes",
-                                  "createdBy",
-                                  "createdAt"
-                                ]
-                              },
-                              "requestedByName": {
+                              "description": {
                                 "type": "string"
+                              },
+                              "pageUrl": {
+                                "type": "string"
+                              },
+                              "userAgent": {
+                                "type": "string"
+                              },
+                              "screenshot": {
+                                "type": "object",
+                                "nullable": true,
+                                "properties": {
+                                  "thumb": {
+                                    "type": "string",
+                                    "example": "/uploads/bug-reports/<uuid>-thumb.webp"
+                                  },
+                                  "display": {
+                                    "type": "string",
+                                    "example": "/uploads/bug-reports/<uuid>-display.webp"
+                                  }
+                                },
+                                "required": [
+                                  "thumb",
+                                  "display"
+                                ],
+                                "description": "Relative URLs under /uploads (WebP), null when no screenshot"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "OPEN",
+                                  "DIPROSES",
+                                  "SELESAI"
+                                ]
+                              },
+                              "reporterName": {
+                                "type": "string"
+                              },
+                              "reporterRole": {
+                                "type": "string"
+                              },
+                              "handledByName": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "createdAt": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "updatedAt": {
+                                "type": "string",
+                                "nullable": true
                               }
                             },
                             "required": [
-                              "request",
-                              "outbound",
-                              "requestedByName"
+                              "id",
+                              "description",
+                              "pageUrl",
+                              "userAgent",
+                              "screenshot",
+                              "status",
+                              "reporterName",
+                              "reporterRole",
+                              "handledByName",
+                              "createdAt",
+                              "updatedAt"
                             ]
                           }
                         },
@@ -36016,13 +38200,13 @@
         }
       }
     },
-    "/api/v1/outbound/{id}/edit-request": {
-      "post": {
+    "/api/v1/bug-reports/{id}/status": {
+      "patch": {
         "tags": [
-          "Outbound"
+          "Bug Report"
         ],
-        "summary": "Request a single edit within 24 hours",
-        "description": "Needs outbound.update. Request before createdAt + 24 hours (exclusive), independent of transaction date. One request per outbound, 409 if expired or already requested. Does not change stock.",
+        "summary": "Change a bug report's status (superadmin)",
+        "description": "Superadmin only, 403 otherwise. Sets the status and records the caller as handledBy. 404 when the report does not exist.",
         "security": [
           {
             "bearerAuth": []
@@ -36039,9 +38223,31 @@
             "in": "path"
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "OPEN",
+                      "DIPROSES",
+                      "SELESAI"
+                    ]
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            }
+          }
+        },
         "responses": {
-          "201": {
-            "description": "Request submitted",
+          "200": {
+            "description": "Status updated",
             "content": {
               "application/json": {
                 "schema": {
@@ -36062,1479 +38268,73 @@
                         "id": {
                           "type": "number"
                         },
-                        "noTransaksi": {
-                          "type": "string",
-                          "example": "OUT-000042"
-                        },
-                        "date": {
-                          "type": "string",
-                          "example": "2026-09-30"
-                        },
-                        "clientName": {
+                        "description": {
                           "type": "string"
                         },
-                        "spk": {
+                        "pageUrl": {
                           "type": "string"
                         },
-                        "itemName": {
+                        "userAgent": {
                           "type": "string"
                         },
-                        "warehouseType": {
-                          "type": "string",
-                          "enum": [
-                            "BAHAN_BAKU",
-                            "WIP",
-                            "BARANG_JADI"
-                          ]
-                        },
-                        "recipientType": {
-                          "type": "string",
-                          "enum": [
-                            "PRODUKSI",
-                            "KLIEN"
-                          ]
-                        },
-                        "notes": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "createdBy": {
-                          "type": "number"
-                        },
-                        "createdAt": {
-                          "type": "string"
-                        },
-                        "editRequest": {
+                        "screenshot": {
                           "type": "object",
                           "nullable": true,
                           "properties": {
-                            "id": {
-                              "type": "number"
-                            },
-                            "outboundId": {
-                              "type": "number"
-                            },
-                            "status": {
+                            "thumb": {
                               "type": "string",
-                              "enum": [
-                                "PENDING",
-                                "APPROVED",
-                                "REJECTED",
-                                "USED"
-                              ]
+                              "example": "/uploads/bug-reports/<uuid>-thumb.webp"
                             },
-                            "requestedBy": {
-                              "type": "number"
-                            },
-                            "requestedAt": {
-                              "type": "string"
-                            },
-                            "reviewedBy": {
-                              "type": "number",
-                              "nullable": true
-                            },
-                            "reviewedAt": {
+                            "display": {
                               "type": "string",
-                              "nullable": true
-                            },
-                            "editedAt": {
-                              "type": "string",
-                              "nullable": true
+                              "example": "/uploads/bug-reports/<uuid>-display.webp"
                             }
                           },
                           "required": [
-                            "id",
-                            "outboundId",
-                            "status",
-                            "requestedBy",
-                            "requestedAt",
-                            "reviewedBy",
-                            "reviewedAt",
-                            "editedAt"
-                          ]
-                        },
-                        "lines": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "itemId": {
-                                "type": "number"
-                              },
-                              "itemCode": {
-                                "type": "string",
-                                "nullable": true
-                              },
-                              "itemName": {
-                                "type": "string"
-                              },
-                              "locationCode": {
-                                "type": "string",
-                                "nullable": true
-                              },
-                              "qty": {
-                                "type": "number"
-                              },
-                              "pic": {
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "itemId",
-                              "itemCode",
-                              "itemName",
-                              "locationCode",
-                              "qty",
-                              "pic"
-                            ]
-                          }
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "noTransaksi",
-                        "date",
-                        "clientName",
-                        "spk",
-                        "itemName",
-                        "warehouseType",
-                        "recipientType",
-                        "notes",
-                        "createdBy",
-                        "createdAt",
-                        "editRequest",
-                        "lines"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message",
-                    "data"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation failed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or invalid access token",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Authenticated, but not authorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Expired or already requested",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/outbound/{id}/edit-request/approve": {
-      "post": {
-        "tags": [
-          "Outbound"
-        ],
-        "summary": "approve an outbound edit request (superadmin only)",
-        "description": "Only PENDING requests can be reviewed; review is allowed after the request window expires. Does not change stock. 403 for non-superadmins, 409 if already reviewed.",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "example": "1"
-            },
-            "required": true,
-            "name": "id",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Request reviewed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        true
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "number"
-                        },
-                        "noTransaksi": {
-                          "type": "string",
-                          "example": "OUT-000042"
-                        },
-                        "date": {
-                          "type": "string",
-                          "example": "2026-09-30"
-                        },
-                        "clientName": {
-                          "type": "string"
-                        },
-                        "spk": {
-                          "type": "string"
-                        },
-                        "itemName": {
-                          "type": "string"
-                        },
-                        "warehouseType": {
-                          "type": "string",
-                          "enum": [
-                            "BAHAN_BAKU",
-                            "WIP",
-                            "BARANG_JADI"
-                          ]
-                        },
-                        "recipientType": {
-                          "type": "string",
-                          "enum": [
-                            "PRODUKSI",
-                            "KLIEN"
-                          ]
-                        },
-                        "notes": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "createdBy": {
-                          "type": "number"
-                        },
-                        "createdAt": {
-                          "type": "string"
-                        },
-                        "editRequest": {
-                          "type": "object",
-                          "nullable": true,
-                          "properties": {
-                            "id": {
-                              "type": "number"
-                            },
-                            "outboundId": {
-                              "type": "number"
-                            },
-                            "status": {
-                              "type": "string",
-                              "enum": [
-                                "PENDING",
-                                "APPROVED",
-                                "REJECTED",
-                                "USED"
-                              ]
-                            },
-                            "requestedBy": {
-                              "type": "number"
-                            },
-                            "requestedAt": {
-                              "type": "string"
-                            },
-                            "reviewedBy": {
-                              "type": "number",
-                              "nullable": true
-                            },
-                            "reviewedAt": {
-                              "type": "string",
-                              "nullable": true
-                            },
-                            "editedAt": {
-                              "type": "string",
-                              "nullable": true
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "outboundId",
-                            "status",
-                            "requestedBy",
-                            "requestedAt",
-                            "reviewedBy",
-                            "reviewedAt",
-                            "editedAt"
-                          ]
-                        },
-                        "lines": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "itemId": {
-                                "type": "number"
-                              },
-                              "itemCode": {
-                                "type": "string",
-                                "nullable": true
-                              },
-                              "itemName": {
-                                "type": "string"
-                              },
-                              "locationCode": {
-                                "type": "string",
-                                "nullable": true
-                              },
-                              "qty": {
-                                "type": "number"
-                              },
-                              "pic": {
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "itemId",
-                              "itemCode",
-                              "itemName",
-                              "locationCode",
-                              "qty",
-                              "pic"
-                            ]
-                          }
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "noTransaksi",
-                        "date",
-                        "clientName",
-                        "spk",
-                        "itemName",
-                        "warehouseType",
-                        "recipientType",
-                        "notes",
-                        "createdBy",
-                        "createdAt",
-                        "editRequest",
-                        "lines"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message",
-                    "data"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation failed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or invalid access token",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Authenticated, but not authorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Already reviewed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/outbound/{id}/edit-request/reject": {
-      "post": {
-        "tags": [
-          "Outbound"
-        ],
-        "summary": "reject an outbound edit request (superadmin only)",
-        "description": "Only PENDING requests can be reviewed; review is allowed after the request window expires. Does not change stock. 403 for non-superadmins, 409 if already reviewed.",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "example": "1"
-            },
-            "required": true,
-            "name": "id",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Request reviewed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        true
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "number"
-                        },
-                        "noTransaksi": {
-                          "type": "string",
-                          "example": "OUT-000042"
-                        },
-                        "date": {
-                          "type": "string",
-                          "example": "2026-09-30"
-                        },
-                        "clientName": {
-                          "type": "string"
-                        },
-                        "spk": {
-                          "type": "string"
-                        },
-                        "itemName": {
-                          "type": "string"
-                        },
-                        "warehouseType": {
-                          "type": "string",
-                          "enum": [
-                            "BAHAN_BAKU",
-                            "WIP",
-                            "BARANG_JADI"
-                          ]
-                        },
-                        "recipientType": {
-                          "type": "string",
-                          "enum": [
-                            "PRODUKSI",
-                            "KLIEN"
-                          ]
-                        },
-                        "notes": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "createdBy": {
-                          "type": "number"
-                        },
-                        "createdAt": {
-                          "type": "string"
-                        },
-                        "editRequest": {
-                          "type": "object",
-                          "nullable": true,
-                          "properties": {
-                            "id": {
-                              "type": "number"
-                            },
-                            "outboundId": {
-                              "type": "number"
-                            },
-                            "status": {
-                              "type": "string",
-                              "enum": [
-                                "PENDING",
-                                "APPROVED",
-                                "REJECTED",
-                                "USED"
-                              ]
-                            },
-                            "requestedBy": {
-                              "type": "number"
-                            },
-                            "requestedAt": {
-                              "type": "string"
-                            },
-                            "reviewedBy": {
-                              "type": "number",
-                              "nullable": true
-                            },
-                            "reviewedAt": {
-                              "type": "string",
-                              "nullable": true
-                            },
-                            "editedAt": {
-                              "type": "string",
-                              "nullable": true
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "outboundId",
-                            "status",
-                            "requestedBy",
-                            "requestedAt",
-                            "reviewedBy",
-                            "reviewedAt",
-                            "editedAt"
-                          ]
-                        },
-                        "lines": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "itemId": {
-                                "type": "number"
-                              },
-                              "itemCode": {
-                                "type": "string",
-                                "nullable": true
-                              },
-                              "itemName": {
-                                "type": "string"
-                              },
-                              "locationCode": {
-                                "type": "string",
-                                "nullable": true
-                              },
-                              "qty": {
-                                "type": "number"
-                              },
-                              "pic": {
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "itemId",
-                              "itemCode",
-                              "itemName",
-                              "locationCode",
-                              "qty",
-                              "pic"
-                            ]
-                          }
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "noTransaksi",
-                        "date",
-                        "clientName",
-                        "spk",
-                        "itemName",
-                        "warehouseType",
-                        "recipientType",
-                        "notes",
-                        "createdBy",
-                        "createdAt",
-                        "editRequest",
-                        "lines"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message",
-                    "data"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation failed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or invalid access token",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Authenticated, but not authorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Already reviewed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/outbound/{id}/edit-history": {
-      "get": {
-        "tags": [
-          "Outbound"
-        ],
-        "summary": "Get request, reviewer and immutable before/after edit history",
-        "description": "Needs outbound.view. null when never requested. Snapshots are present after the approved edit is saved.",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "example": "1"
-            },
-            "required": true,
-            "name": "id",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "History retrieved",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        true
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "data": {
-                      "type": "object",
-                      "nullable": true,
-                      "properties": {
-                        "id": {
-                          "type": "number"
-                        },
-                        "outboundId": {
-                          "type": "number"
+                            "thumb",
+                            "display"
+                          ],
+                          "description": "Relative URLs under /uploads (WebP), null when no screenshot"
                         },
                         "status": {
                           "type": "string",
                           "enum": [
-                            "PENDING",
-                            "APPROVED",
-                            "REJECTED",
-                            "USED"
+                            "OPEN",
+                            "DIPROSES",
+                            "SELESAI"
                           ]
                         },
-                        "requestedBy": {
-                          "type": "number"
-                        },
-                        "requestedAt": {
+                        "reporterName": {
                           "type": "string"
                         },
-                        "reviewedBy": {
-                          "type": "number",
-                          "nullable": true
-                        },
-                        "reviewedAt": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "editedAt": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "requestedByName": {
+                        "reporterRole": {
                           "type": "string"
                         },
-                        "reviewedByName": {
+                        "handledByName": {
                           "type": "string",
                           "nullable": true
                         },
-                        "beforeValues": {
-                          "type": "object",
-                          "nullable": true,
-                          "properties": {
-                            "id": {
-                              "type": "number"
-                            },
-                            "noTransaksi": {
-                              "type": "string",
-                              "example": "OUT-000042"
-                            },
-                            "date": {
-                              "type": "string",
-                              "example": "2026-09-30"
-                            },
-                            "clientName": {
-                              "type": "string"
-                            },
-                            "spk": {
-                              "type": "string"
-                            },
-                            "itemName": {
-                              "type": "string"
-                            },
-                            "warehouseType": {
-                              "type": "string",
-                              "enum": [
-                                "BAHAN_BAKU",
-                                "WIP",
-                                "BARANG_JADI"
-                              ]
-                            },
-                            "recipientType": {
-                              "type": "string",
-                              "enum": [
-                                "PRODUKSI",
-                                "KLIEN"
-                              ]
-                            },
-                            "notes": {
-                              "type": "string",
-                              "nullable": true
-                            },
-                            "createdBy": {
-                              "type": "number"
-                            },
-                            "createdAt": {
-                              "type": "string"
-                            },
-                            "editRequest": {
-                              "type": "object",
-                              "nullable": true,
-                              "properties": {
-                                "id": {
-                                  "type": "number"
-                                },
-                                "outboundId": {
-                                  "type": "number"
-                                },
-                                "status": {
-                                  "type": "string",
-                                  "enum": [
-                                    "PENDING",
-                                    "APPROVED",
-                                    "REJECTED",
-                                    "USED"
-                                  ]
-                                },
-                                "requestedBy": {
-                                  "type": "number"
-                                },
-                                "requestedAt": {
-                                  "type": "string"
-                                },
-                                "reviewedBy": {
-                                  "type": "number",
-                                  "nullable": true
-                                },
-                                "reviewedAt": {
-                                  "type": "string",
-                                  "nullable": true
-                                },
-                                "editedAt": {
-                                  "type": "string",
-                                  "nullable": true
-                                }
-                              },
-                              "required": [
-                                "id",
-                                "outboundId",
-                                "status",
-                                "requestedBy",
-                                "requestedAt",
-                                "reviewedBy",
-                                "reviewedAt",
-                                "editedAt"
-                              ]
-                            },
-                            "lines": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "itemId": {
-                                    "type": "number"
-                                  },
-                                  "itemCode": {
-                                    "type": "string",
-                                    "nullable": true
-                                  },
-                                  "itemName": {
-                                    "type": "string"
-                                  },
-                                  "locationCode": {
-                                    "type": "string",
-                                    "nullable": true
-                                  },
-                                  "qty": {
-                                    "type": "number"
-                                  },
-                                  "pic": {
-                                    "type": "string"
-                                  }
-                                },
-                                "required": [
-                                  "itemId",
-                                  "itemCode",
-                                  "itemName",
-                                  "locationCode",
-                                  "qty",
-                                  "pic"
-                                ]
-                              }
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "noTransaksi",
-                            "date",
-                            "clientName",
-                            "spk",
-                            "itemName",
-                            "warehouseType",
-                            "recipientType",
-                            "notes",
-                            "createdBy",
-                            "createdAt",
-                            "editRequest",
-                            "lines"
-                          ]
+                        "createdAt": {
+                          "type": "string",
+                          "nullable": true
                         },
-                        "afterValues": {
-                          "type": "object",
-                          "nullable": true,
-                          "properties": {
-                            "id": {
-                              "type": "number"
-                            },
-                            "noTransaksi": {
-                              "type": "string",
-                              "example": "OUT-000042"
-                            },
-                            "date": {
-                              "type": "string",
-                              "example": "2026-09-30"
-                            },
-                            "clientName": {
-                              "type": "string"
-                            },
-                            "spk": {
-                              "type": "string"
-                            },
-                            "itemName": {
-                              "type": "string"
-                            },
-                            "warehouseType": {
-                              "type": "string",
-                              "enum": [
-                                "BAHAN_BAKU",
-                                "WIP",
-                                "BARANG_JADI"
-                              ]
-                            },
-                            "recipientType": {
-                              "type": "string",
-                              "enum": [
-                                "PRODUKSI",
-                                "KLIEN"
-                              ]
-                            },
-                            "notes": {
-                              "type": "string",
-                              "nullable": true
-                            },
-                            "createdBy": {
-                              "type": "number"
-                            },
-                            "createdAt": {
-                              "type": "string"
-                            },
-                            "editRequest": {
-                              "type": "object",
-                              "nullable": true,
-                              "properties": {
-                                "id": {
-                                  "type": "number"
-                                },
-                                "outboundId": {
-                                  "type": "number"
-                                },
-                                "status": {
-                                  "type": "string",
-                                  "enum": [
-                                    "PENDING",
-                                    "APPROVED",
-                                    "REJECTED",
-                                    "USED"
-                                  ]
-                                },
-                                "requestedBy": {
-                                  "type": "number"
-                                },
-                                "requestedAt": {
-                                  "type": "string"
-                                },
-                                "reviewedBy": {
-                                  "type": "number",
-                                  "nullable": true
-                                },
-                                "reviewedAt": {
-                                  "type": "string",
-                                  "nullable": true
-                                },
-                                "editedAt": {
-                                  "type": "string",
-                                  "nullable": true
-                                }
-                              },
-                              "required": [
-                                "id",
-                                "outboundId",
-                                "status",
-                                "requestedBy",
-                                "requestedAt",
-                                "reviewedBy",
-                                "reviewedAt",
-                                "editedAt"
-                              ]
-                            },
-                            "lines": {
-                              "type": "array",
-                              "items": {
-                                "type": "object",
-                                "properties": {
-                                  "itemId": {
-                                    "type": "number"
-                                  },
-                                  "itemCode": {
-                                    "type": "string",
-                                    "nullable": true
-                                  },
-                                  "itemName": {
-                                    "type": "string"
-                                  },
-                                  "locationCode": {
-                                    "type": "string",
-                                    "nullable": true
-                                  },
-                                  "qty": {
-                                    "type": "number"
-                                  },
-                                  "pic": {
-                                    "type": "string"
-                                  }
-                                },
-                                "required": [
-                                  "itemId",
-                                  "itemCode",
-                                  "itemName",
-                                  "locationCode",
-                                  "qty",
-                                  "pic"
-                                ]
-                              }
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "noTransaksi",
-                            "date",
-                            "clientName",
-                            "spk",
-                            "itemName",
-                            "warehouseType",
-                            "recipientType",
-                            "notes",
-                            "createdBy",
-                            "createdAt",
-                            "editRequest",
-                            "lines"
-                          ]
+                        "updatedAt": {
+                          "type": "string",
+                          "nullable": true
                         }
                       },
                       "required": [
                         "id",
-                        "outboundId",
+                        "description",
+                        "pageUrl",
+                        "userAgent",
+                        "screenshot",
                         "status",
-                        "requestedBy",
-                        "requestedAt",
-                        "reviewedBy",
-                        "reviewedAt",
-                        "editedAt",
-                        "requestedByName",
-                        "reviewedByName",
-                        "beforeValues",
-                        "afterValues"
+                        "reporterName",
+                        "reporterRole",
+                        "handledByName",
+                        "createdAt",
+                        "updatedAt"
                       ]
                     }
                   },

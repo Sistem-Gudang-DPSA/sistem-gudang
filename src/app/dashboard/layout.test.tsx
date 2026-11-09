@@ -77,6 +77,8 @@ describe('dashboard layout guard', () => {
     pathname = '/dashboard/superadmin/users';
     const { unmount } = renderLayout();
     expect(await screen.findByText('Akses Ditolak')).not.toBeNull();
+    // Every other role can report a problem to IT from the sidebar
+    expect(screen.getAllByText('Laporkan Masalah').length).toBeGreaterThan(0);
     unmount();
 
     installFakeApi({ 'POST /api/v1/auth/refresh': me([], { isSuperadmin: true, roleName: 'Superadmin' }) });
@@ -84,6 +86,8 @@ describe('dashboard layout guard', () => {
     expect(await screen.findByText('ISI HALAMAN')).not.toBeNull();
     // Shown twice: as the role label in the header and as the superadmin-only division in the sidebar.
     expect(screen.getAllByText('Super Admin').length).toBeGreaterThanOrEqual(1);
+    // Superadmin receives the reports, so it gets no report button
+    expect(screen.queryByText('Laporkan Masalah')).toBeNull();
   });
 
   it('always lets any logged-in user open /dashboard', async () => {
