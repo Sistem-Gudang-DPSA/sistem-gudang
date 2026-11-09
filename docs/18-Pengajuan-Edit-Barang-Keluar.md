@@ -24,7 +24,7 @@ Persetujuan yang belum dipakai tetap berada di halaman pengajuan. Penyimpanan ta
 
 ## Backend
 
-Implementasi API berada di proyek pendamping `../sistem-gudang-api`. Status, peninjauan dan snapshot disimpan di tabel `outbound_edit_requests`. Unique key `outbound_id` serta penguncian header transaksi melindungi pengajuan dan konsumsi persetujuan dari permintaan bersamaan. Perubahan stok, snapshot, audit log dan status `USED` ditulis dalam transaksi database yang sama.
+Implementasi API berada di repo BE `../sistem-gudang-be` (branch `feat/outbound-edit-request`). Status, peninjauan dan snapshot disimpan di tabel `outbound_edit_requests`. Unique key `outbound_id` serta penguncian header transaksi melindungi pengajuan dan konsumsi persetujuan dari permintaan bersamaan. Perubahan stok, snapshot, audit log dan status `USED` ditulis dalam transaksi database yang sama.
 
 | Method | Endpoint | Akses |
 |---|---|---|
@@ -39,7 +39,7 @@ Implementasi API berada di proyek pendamping `../sistem-gudang-api`. Status, pen
 
 ## Migrasi dan verifikasi
 
-Migrasi baru: `../sistem-gudang-api/src/db/migrations/0037_outbound_edit_requests.sql`. Deploy tabel bersama API sebelum frontend baru. Pada database development lokal, tabel ini sudah dibuat dengan menjalankan SQL `0037` secara terpisah. SQL memakai satu `CREATE TABLE IF NOT EXISTS` yang mencakup seluruh foreign key dan index sehingga aman jika dijalankan kembali oleh migrator. Riwayat migrasi tidak dimajukan atau ditandai selesai secara palsu. Migrasi lama `0035` dan `0036` masih tertunda dan masing-masing menghapus tabel `barang` dan kolom `dokubah_materials.realisasi`; tinjau keduanya sebelum menjalankan rangkaian migrasi penuh.
+Migrasi baru: `../sistem-gudang-be/src/db/migrations/0038_outbound_edit_requests.sql` (`0037` sudah dipakai untuk `business_domains`). Deploy tabel bersama API sebelum frontend baru. SQL memakai satu `CREATE TABLE IF NOT EXISTS` yang mencakup seluruh foreign key dan index sehingga aman jika dijalankan kembali oleh migrator.
 
 Jika tabel belum dibuat, daftar dan proses simpan barang keluar akan gagal dengan query ke `outbound_edit_requests`. Setelah tabel tersedia, percobaan simpan yang gagal dapat diulang; pembuatan transaksi, perubahan stok dan pencatatan idempotensi berada dalam transaksi database yang sama sehingga kegagalan tersebut tidak menyimpan transaksi sebagian. Verifikasi lokal mencakup pembacaan daftar, pembuatan dan pembacaan kembali transaksi, status pengajuan `PENDING → APPROVED → USED` dan pengulangan SQL. Seluruh data simulasi dibatalkan dengan rollback; jumlah transaksi existing tetap sama.
 
