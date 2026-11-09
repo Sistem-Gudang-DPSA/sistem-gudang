@@ -169,6 +169,11 @@ export interface StockOpnameSummary {
 export type ApprovalStatus = "pending" | "approved" | "rejected" | "revision_requested";
 
 export interface PurchaseRequestItem {
+  itemId?: number;
+  tanggal?: string;
+  supplier?: string;
+  keterangan?: string;
+  deadlineTanggal?: string;
   namaBarang: string;
   qty: number;
   satuan: string;
@@ -177,6 +182,7 @@ export interface PurchaseRequestItem {
 }
 
 export interface PurchaseRequestPayload {
+  periode?: string;
   bagian: string;
   namaPemohon: string;
   jabatan: string;
@@ -186,6 +192,7 @@ export interface PurchaseRequestPayload {
 }
 
 export interface ApprovalRequest {
+  purchaseStatus?: 'NOT_PURCHASED' | 'PARTIALLY_PURCHASED' | 'PURCHASED';
   id: number;
   type: string;
   requestedBy: number;

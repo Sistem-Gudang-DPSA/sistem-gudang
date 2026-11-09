@@ -170,7 +170,7 @@ export interface InboundReport {
 }
 
 export type WarehouseType = "BAHAN_BAKU" | "WIP" | "BARANG_JADI";
-export type RecipientType = "PRODUKSI" | "KLIEN";
+export type RecipientType = "PRODUKSI" | "KLIEN" | "INTERNAL";
 
 export interface OutboundLine {
   itemId: number;

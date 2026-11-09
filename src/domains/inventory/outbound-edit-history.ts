@@ -30,9 +30,9 @@ export function outboundEditChanges(before: OutboundRow, after: OutboundRow): Ou
     add("Tanggal", displayDate(before.date), displayDate(after.date));
   }
   add("Client", before.clientName, after.clientName);
-  add("SPK", before.spk, after.spk);
+  add(before.recipientType === "INTERNAL" ? "ID Stok/Internal" : "SPK", before.spk, after.spk);
   add("Nama Item/Projek", before.itemName, after.itemName);
-  const recipients = { PRODUKSI: "Produksi", KLIEN: "Klien" };
+  const recipients = { PRODUKSI: "Produksi", KLIEN: "Klien", INTERNAL: "Stok / Internal" };
   add("Tujuan / Penerima", recipients[before.recipientType], recipients[after.recipientType]);
   add("Catatan", before.notes, after.notes);
 
