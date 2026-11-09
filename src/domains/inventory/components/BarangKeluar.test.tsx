@@ -56,7 +56,7 @@ function setup(extra: Record<string, unknown> = {}, rows: unknown = paged([trx(1
 }
 const lastQ = (api: ReturnType<typeof installFakeApi>) => api.calls('GET /api/v1/outbound').at(-1)!.query;
 const label = (text: string) => screen.getByLabelText(text) as HTMLInputElement;
-// DateFilter selects have no label; pick each one by its placeholder option (Hari / Bulan / Tahun).
+// DateFilter selects have no label; pick each one by its placeholder option (Tanggal / Bulan / Tahun).
 const dateSelect = (placeholder: string) => screen.getByRole('option', { name: placeholder }).closest('select') as HTMLSelectElement;
 
 async function openForm(api: ReturnType<typeof installFakeApi>) {
@@ -114,7 +114,7 @@ describe('BarangKeluar list', () => {
     await screen.findByText('Klien 3');
     fireEvent.click(label('Centang transaksi 1'));
     fireEvent.click(label('Centang transaksi 2'));
-    fireEvent.click(screen.getByText('Print PDF'));
+    fireEvent.click(screen.getByText('Print'));
     await waitFor(() => expect(document.querySelector('iframe[title="Cetak barang keluar"]')).not.toBeNull());
     const frame = document.querySelector<HTMLIFrameElement>('iframe[title="Cetak barang keluar"]')!;
     try {
@@ -141,7 +141,7 @@ describe('BarangKeluar list', () => {
     }, paged([trx(1), trx(2)]));
     await screen.findByText('Klien 2');
     fireEvent.click(label('Centang transaksi 2'));
-    fireEvent.click(screen.getByText('Print PDF'));
+    fireEvent.click(screen.getByText('Print'));
     await waitFor(() => expect(document.querySelector('iframe[title="Cetak barang keluar"]')).not.toBeNull());
     const frame = document.querySelector<HTMLIFrameElement>('iframe[title="Cetak barang keluar"]')!;
     try {
@@ -289,7 +289,7 @@ describe('BarangKeluar list', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Filter/ }));
     fireEvent.change(dateSelect('Tahun'), { target: { value: '2025' } });
     fireEvent.change(dateSelect('Bulan'), { target: { value: '02' } });
-    fireEvent.change(dateSelect('Hari'), { target: { value: '14' } });
+    fireEvent.change(dateSelect('Tanggal'), { target: { value: '14' } });
     await waitFor(() => expect(lastQ(api).get('startDate')).toBe('2025-02-14'));
     expect(lastQ(api).get('endDate')).toBe('2025-02-14');
     expect(label('Cari barang keluar').maxLength).toBe(100);
@@ -439,6 +439,7 @@ describe('BarangKeluar create', () => {
     scan('HPL-01');
     await screen.findByText('HPL Putih', { selector: 'td' });
     fireEvent.click(screen.getByText('Simpan'));
+    fireEvent.click(await screen.findByText('Konfirmasi Simpan'));
     await waitFor(() => expect(api.calls('POST /api/v1/outbound').length).toBe(1));
     const a = api.calls('POST /api/v1/outbound')[0].body as Record<string, unknown>;
     expect(a).toMatchObject({ spk: 'SPK-9', itemName: 'Lemari', recipientType: 'PRODUKSI', notes: 'Pengambil: Rudi' });
@@ -467,6 +468,7 @@ describe('BarangKeluar create', () => {
     expect(Array.from(row.querySelectorAll('td')).slice(2, 4).map((td) => td.textContent)).toEqual(['kg', 'BRG-2']);
     fireEvent.change(label('Pengambilan Paku'), { target: { value: '7' } });
     fireEvent.click(screen.getByText('Simpan'));
+    fireEvent.click(await screen.findByText('Konfirmasi Simpan'));
     await waitFor(() => expect(api.calls('POST /api/v1/outbound').length).toBe(1));
     expect((api.calls('POST /api/v1/outbound')[0].body as Record<string, unknown>).lines)
       .toEqual([{ itemId: 1, qty: 1, pic: 'Rudi' }, { itemId: 2, qty: 7, pic: 'Rudi' }]);
@@ -496,10 +498,11 @@ describe('BarangKeluar create', () => {
     scan('BRG-1');
     await screen.findByText('Triplex', { selector: 'td' });
     fireEvent.click(screen.getByText('Simpan'));
-    // while saving the button reads Menyimpan... and both save buttons are disabled
-    expect((screen.getByText('Menyimpan...') as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(await screen.findByText('Konfirmasi Simpan'));
+    // while saving the form and preview buttons read Menyimpan... and every save button is disabled
+    expect(screen.getAllByText('Menyimpan...').every((b) => (b as HTMLButtonElement).disabled)).toBe(true);
     expect((screen.getByText('Simpan + Cetak') as HTMLButtonElement).disabled).toBe(true);
-    expect(await screen.findByText('Stok tidak cukup')).not.toBeNull();
+    expect((await screen.findAllByText('Stok tidak cukup')).length).toBeGreaterThan(0);
     expect((screen.getByText('Simpan') as HTMLButtonElement).disabled).toBe(false);
   });
 });

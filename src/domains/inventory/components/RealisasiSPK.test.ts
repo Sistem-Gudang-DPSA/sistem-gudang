@@ -1,28 +1,52 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { ItemListRow } from '@/domains/inventory/types';
-import { clientsOf, makeRows, usagesOf } from './RealisasiSPK';
 
 const usage = [
-  { clientName: 'PT Maju', spk: 'SPK-2', itemId: 1, qty: 3 },
-  { clientName: 'PT Maju', spk: 'SPK-1', itemId: 1, qty: 2 },
-  { clientName: 'pt maju ', spk: 'SPK-1', itemId: 2, qty: 5 },
-  { clientName: 'CV Lain', spk: 'SPK-9', itemId: 3, qty: 7 },
+  { clientName: 'PT Maju', spk: 'SPK/01', itemId: 1, qty: 4 },
+  { clientName: 'PT Maju', spk: 'SPK/01', itemId: 2, qty: 1 },
+  { clientName: 'CV Lain', spk: 'SPK-9', itemId: 1, qty: 2 },
+  { clientName: 'CV Lain', spk: 'SPK-9', itemId: 99, qty: 5 }, // barang tidak dikenal: harga 0
 ];
-const item = (id: number, price: number) => ({ id, code: `K${id}`, name: `Barang ${id}`, price }) as ItemListRow;
+const items = [
+  { id: 1, code: 'K1', name: 'Paku', unit: 'pcs', price: 100 },
+  { id: 2, code: 'K2', name: 'Lem', unit: 'kg', price: 50 },
+] as ItemListRow[];
+
+const getOutboundUsage = vi.fn(async (p: { spk?: string[] }) => (p.spk ? usage.filter((u) => p.spk!.includes(u.spk)) : usage));
+vi.mock('@/domains/inventory/api', () => ({
+  getOutboundUsage: (p: { spk?: string[] }) => getOutboundUsage(p),
+  listItems: async () => ({ rows: items, total: items.length }),
+}));
+
+const { loadRealisasiList, loadRincianSpk, periodeLabel, realisasiSpkDetailPath, statusRealisasi } = await import('./RealisasiSPK');
 
 describe('Realisasi SPK dari barang keluar', () => {
-  it('client list comes from outbound only', () => {
-    expect(clientsOf(usage)).toEqual(['CV Lain', 'PT Maju']);
+  it('one row per SPK, realisasi = qty x item price, no budget yet', async () => {
+    expect(await loadRealisasiList({ startDate: '2026-11-01', endDate: '2026-11-30' })).toEqual([
+      { id: 'SPK/01', noSpk: 'SPK/01', client: 'PT Maju', anggaran: null, realisasi: 450, sisa: null, status: null },
+      { id: 'SPK-9', noSpk: 'SPK-9', client: 'CV Lain', anggaran: null, realisasi: 200, sisa: null, status: null },
+    ]);
+    expect(getOutboundUsage).toHaveBeenCalledWith({ startDate: '2026-11-01', endDate: '2026-11-30' });
   });
 
-  it('one column per SPK of the client, qty per item, other clients ignored', () => {
-    const u = usagesOf(usage, 'PT Maju');
-    expect(u.map((x) => x.noSpk)).toEqual(['SPK-1', 'SPK-2']);
-    const rows = makeRows([item(1, 100), item(2, 10), item(3, 1)], u);
-    expect(rows.map((r) => [r.id, r.totalQty, r.cells.map((c) => c.cost)])).toEqual([
-      [1, 5, [200, 300]],
-      [2, 5, [50, 0]],
-      [3, 0, [0, 0]], // CV Lain's item: filtered out by the page (totalQty 0)
+  it('details one SPK per item with cost and total', async () => {
+    const r = await loadRincianSpk('SPK/01', items);
+    expect(getOutboundUsage).toHaveBeenLastCalledWith({ spk: ['SPK/01'] });
+    expect(r.rows.map((x) => [x.kode, x.nama, x.satuan, x.qty, x.harga, x.biaya])).toEqual([
+      ['K1', 'Paku', 'pcs', 4, 100, 400],
+      ['K2', 'Lem', 'kg', 1, 50, 50],
     ]);
+    expect(r).toMatchObject({ noSpk: 'SPK/01', client: 'PT Maju', anggaran: null, totalBiaya: 450 });
+  });
+
+  it('encodes the SPK number in the detail path (it may contain a slash)', () => {
+    expect(realisasiSpkDetailPath('SPK/01')).toBe('/dashboard/keuangan/laporan/realisasi-spk/SPK%2F01');
+  });
+
+  it('keeps the dokubah helpers for later: status and period label', () => {
+    expect(statusRealisasi(100, 101)).toBe('Rugi');
+    expect(statusRealisasi(100, 100)).toBe('Untung');
+    expect(periodeLabel('05', '3', '2026')).toBe('5 Maret 2026');
+    expect(periodeLabel('', '', '')).toBe('Semua periode');
   });
 });

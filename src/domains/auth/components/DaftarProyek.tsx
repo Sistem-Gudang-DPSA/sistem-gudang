@@ -30,7 +30,6 @@ export default function DaftarProyekPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
 
-  // Tracking list has no SPK date, so spkMasuk shows "-"
   const { data: spkList, loading, error, reload } = useApiData(
     () => listTrackingSpk(debouncedSearch || undefined),
     `daftar-proyek|${debouncedSearch}`,
@@ -55,7 +54,10 @@ export default function DaftarProyekPage() {
     client: spk.client,
     namaProyek: spk.projectName ?? "-",
     noSpk: spk.noSpk,
-    spkMasuk: "-",
+    // shown as is from tracking, "-" when it has no date
+    spkMasuk: spk.tanggalMasuk
+      ? new Date(`${spk.tanggalMasuk}T00:00:00`).toLocaleDateString("id-ID", { dateStyle: "medium" })
+      : "-",
   }));
 
   // Filter Data Berdasarkan Input Pencarian

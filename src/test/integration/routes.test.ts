@@ -24,7 +24,8 @@ const sources = nonTest.map((f) => ({ f, src: readFileSync(f, "utf8") }));
 describe("dashboard pages", () => {
   it("every page re-exports an existing module", () => {
     const bad = reexportPages.filter((f) => {
-      const m = readFileSync(f, "utf8").match(/(?:export\s*\{\s*default\s*\}|import\s+\w+)\s*from\s*["']@\/([^"']+)["']/);
+      // The whole file must be one re-export (AGENTS.md); a wrapper component does not count.
+      const m = readFileSync(f, "utf8").trim().match(/^export\s*\{\s*default\s*\}\s*from\s*["']@\/([^"']+)["'];?$/);
       if (!m) return true;
       const base = join(SRC, m[1]);
       return !["", ".tsx", ".ts", "/index.tsx", "/index.ts"].some((e) => existsSync(base + e) && statSync(base + e).isFile());

@@ -19,3 +19,13 @@ Next.js 16 (App Router) + React 19 + TypeScript + Tailwind v4. Package manager: 
 
 - Keep new code inside the relevant `src/domains/<domain>` module; put route-only glue in `src/app`.
 - No custom framework deviations — standard Next.js App Router behavior applies.
+
+## Rules (wajib sebelum push/PR ke `dev`)
+
+- `src/app/**/page.tsx` hanya boleh re-export: `export { default } from "@/domains/<domain>/components/<Komponen>";`. Logika (termasuk `redirect`, fetch, JSX) taruh di komponen dalam `src/domains`. Dijaga oleh `src/test/integration/routes.test.ts`.
+- Jalankan `bun run lint`, `bun run test`, dan `bunx tsc --noEmit` (atau `bun run build`) sebelum push. Lint 0 error, test lulus, type check bersih; Vercel gagal build jika ada type error yang tidak tertangkap lint/test. Laporkan hasil sebenarnya, jangan klaim lulus tanpa menjalankan.
+- Perubahan baru wajib diverifikasi, bukan hanya "seharusnya jalan". Tambah/ubah test bila perilaku berubah.
+- Jangan menghapus atau melemahkan test agar lulus. Test gagal = perbaiki kode, atau tanyakan dulu.
+- Jangan commit/push sebelum diminta user. Jangan push ke `dev` langsung; pakai branch + PR.
+- Jangan mengerjakan di luar permintaan (scope creep). Perubahan tak terkait dipisah ke PR lain.
+- Agent wajib membaca aturan di file ini dan menaatinya; hasil agent tetap harus ditinjau manusia sebelum merge.
