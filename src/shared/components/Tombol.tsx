@@ -15,7 +15,7 @@ export function ExportExcellButton({ onClick, disabled, label = 'Export Excel' }
   );
 }
 
-export function PrintPdfButton({ onClick, disabled, label = 'Print PDF' }: ButtonProps) {
+export function PrintPdfButton({ onClick, disabled, label = 'Print' }: ButtonProps) {
   return (
     <button type="button" onClick={onClick} disabled={disabled} title={label} className={baseClass}>
       <Download className="w-4 h-4" />

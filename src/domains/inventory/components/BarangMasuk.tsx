@@ -2,9 +2,9 @@
 
 import { useCan } from '@/domains/auth/user-context';
 import React, { useState } from 'react';
-import { Search, Plus, Filter, ScanLine } from 'lucide-react';
-import { createInbound, createInboundReturn, listInbound } from '@/domains/inventory/api';
-import type { StatusQc } from '@/domains/inventory/types';
+import { Search, Plus, Filter, ScanLine, Printer, X } from 'lucide-react';
+import { createInbound, createInboundReturn, getItem, listInbound } from '@/domains/inventory/api';
+import type { InboundRow, StatusQc } from '@/domains/inventory/types';
 import { useItemSearch } from '@/domains/inventory/use-item-search';
 import { useSpkSearch } from '@/domains/ppic/use-spk-search';
 import { displayDate, todayIso, toDateRange } from '@/domains/inventory/date';
@@ -27,6 +27,201 @@ type PickedItem = { id: number; name: string; code: string | null };
 const emptyBaru = { item: null as PickedItem | null, tanggal: todayIso(), jumlahKedatangan: "", jumlahRekap: "", statusQc: "PASS" as StatusQc };
 const emptyKembali = { item: null as PickedItem | null, tanggal: todayIso(), jumlah: "", spk: "" };
 
+const orangeButtonClass =
+  "flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed";
+
+// ---------- Cetak dokumen barang masuk ----------
+type BarisCetak = { name: string; code: string | null | undefined; unit?: string; qty: number };
+type DataCetakMasuk = { tanggal: string; supplier: string; baris: BarisCetak[] };
+
+const FORMAT_DOKUMEN = {
+  logo: "/logo-perusahaan.jpg",
+  logoAlternatif: "/logo-perusahaan.png",
+  judul: "SK PENERIMAAN BARANG",
+  kode: "PPIC",
+  nomor: "011",
+  revisi: "00",
+  terbit: "08/25",
+  divisi: "DPSA",
+};
+
+const escapeHtml = (value: string | number | null | undefined) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+function buatDokumenBarangMasuk(data: DataCetakMasuk, logoUrl: string): string {
+  const barisPerHalaman = 6;
+  const jumlahHalaman = Math.max(1, Math.ceil(data.baris.length / barisPerHalaman));
+  const halaman = Array.from({ length: jumlahHalaman }, (_, pageIndex) => {
+    const awal = pageIndex * barisPerHalaman;
+    const isiTabel = data.baris
+      .slice(awal, awal + barisPerHalaman)
+      .map((b, rowIndex) => `<tr>
+        <td class="tengah">${awal + rowIndex + 1}</td>
+        <td>${escapeHtml(b.name)}</td>
+        <td class="tengah">${escapeHtml(b.unit)}</td>
+        <td class="tengah"></td>
+        <td class="tengah">${escapeHtml(b.qty)}</td>
+        <td></td>
+      </tr>`)
+      .join("");
+
+    return `<section class="lembar">
+      <header class="kop">
+        <img class="logo" src="${escapeHtml(logoUrl)}" alt="Logo perusahaan" />
+        <h1>${escapeHtml(FORMAT_DOKUMEN.judul)}</h1>
+        <div class="identitas-dokumen">
+          <table class="kode-dokumen">
+            <colgroup><col style="width:42%" /><col style="width:58%" /></colgroup>
+            <tbody>
+              <tr><td rowspan="2" class="tengah">${escapeHtml(FORMAT_DOKUMEN.kode)}<br />${escapeHtml(FORMAT_DOKUMEN.nomor)}</td><td>Rev:${escapeHtml(FORMAT_DOKUMEN.revisi)}</td></tr>
+              <tr><td>Terbit:${escapeHtml(FORMAT_DOKUMEN.terbit)}</td></tr>
+            </tbody>
+          </table>
+          <p class="divisi">${escapeHtml(FORMAT_DOKUMEN.divisi)}</p>
+        </div>
+      </header>
+
+      <table class="informasi">
+        <colgroup><col style="width:18%" /><col style="width:2%" /><col style="width:80%" /></colgroup>
+        <tbody>
+          <tr><td class="label">SUPPLIER</td><td>:</td><td>${escapeHtml(data.supplier)}</td></tr>
+          <tr><td class="label">TGL KEDATANGAN</td><td>:</td><td>${escapeHtml(displayDate(data.tanggal))}</td></tr>
+        </tbody>
+      </table>
+
+      <table class="material">
+        <colgroup><col style="width:8%" /><col style="width:36%" /><col style="width:10%" /><col style="width:14%" /><col style="width:14%" /><col style="width:18%" /></colgroup>
+        <thead>
+          <tr><th rowspan="2" scope="col">No</th><th rowspan="2" scope="col">Nama Material</th><th rowspan="2" scope="col">sat/vol</th><th colspan="2" scope="colgroup">Jumlah</th><th rowspan="2" scope="col">Keterangan</th></tr>
+          <tr><th scope="col">Dokubah</th><th scope="col">Pengambilan</th></tr>
+        </thead>
+        <tbody>${isiTabel}</tbody>
+      </table>
+
+      <footer class="pengesahan">
+        <p class="catatan">Ket : Rangkap 3 (untuk Gudang, PPIC &amp; Keuangan)</p>
+        <table class="tanda-tangan"><tbody><tr>
+          ${["PENERIMA", "GUDANG", "PPIC", "KEUANGAN"].map((label) => `<td>${label}<div class="ruang-tanda-tangan"></div>(____________________)</td>`).join("")}
+        </tr></tbody></table>
+        ${jumlahHalaman > 1 ? `<p class="nomor-halaman">Halaman ${pageIndex + 1} dari ${jumlahHalaman}</p>` : ""}
+      </footer>
+    </section>`;
+  }).join("");
+
+  return `<!doctype html>
+    <html lang="id">
+      <head>
+        <meta charset="utf-8" />
+        <title>${escapeHtml(FORMAT_DOKUMEN.judul)} - ${escapeHtml(data.supplier)}</title>
+        <style>
+          @page { size: A4 landscape; margin: 5mm; }
+          * { box-sizing: border-box; }
+          html, body { margin: 0; padding: 0; }
+          body { font: 7pt/1.2 Arial, sans-serif; color: #000; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .kertas { display: grid; grid-template-columns: repeat(2, 138mm); grid-auto-rows: minmax(95mm, auto); gap: 5mm; align-items: start; break-after: page; page-break-after: always; }
+          .kertas:last-child { break-after: auto; page-break-after: auto; }
+          .lembar { width: 138mm; max-width: 100%; break-inside: avoid; page-break-inside: avoid; }
+          .kop { height: 18mm; position: relative; }
+          .logo { position: absolute; top: 0; left: 0; width: 16mm; height: 16mm; object-fit: contain; }
+          h1 { margin: 0 27mm 0 17mm; padding-top: 5mm; text-align: center; font-size: 8pt; line-height: 1.2; font-weight: 700; text-decoration: underline; text-underline-offset: 0.5mm; }
+          .identitas-dokumen { position: absolute; top: 1mm; right: 0; width: 26mm; }
+          table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+          .kode-dokumen { font-size: 6pt; }
+          .kode-dokumen tr { height: 4mm; }
+          .kode-dokumen td { border: 1px solid #000; padding: 0.5mm 1mm; white-space: nowrap; }
+          .divisi { margin: 1mm 0 0; text-align: center; font-size: 6pt; font-weight: 700; }
+          .informasi { margin: 0; font-size: 6.5pt; }
+          .informasi td { height: 4.5mm; padding: 0.5mm; border-bottom: 1px solid #000; vertical-align: middle; overflow-wrap: anywhere; }
+          .informasi .label { font-weight: 700; white-space: nowrap; }
+          .material { margin-top: 1mm; font-size: 7pt; }
+          .material th, .material td { border: 1px solid #000; padding: 0.5mm; vertical-align: middle; overflow-wrap: anywhere; }
+          .material thead tr { height: 4mm; }
+          .material th { text-align: center; font-weight: 700; }
+          .material tbody tr { height: 5mm; break-inside: avoid; page-break-inside: avoid; }
+          .material thead { display: table-header-group; }
+          .tengah { text-align: center; }
+          .pengesahan { break-inside: avoid; page-break-inside: avoid; }
+          .catatan { margin: 2mm 0 1mm; font-size: 6pt; }
+          .tanda-tangan { font-size: 6pt; }
+          .tanda-tangan td { width: 25%; border: 0; padding: 0; text-align: center; vertical-align: top; }
+          .ruang-tanda-tangan { height: 8mm; }
+          .nomor-halaman { margin: 1mm 0 0; font-size: 6pt; text-align: right; }
+        </style>
+      </head>
+      <body>${halaman}</body>
+    </html>`;
+}
+
+// Iframe tersembunyi: tidak diblokir pop-up, dan menu serta tombol halaman tidak ikut tercetak.
+function cetakBarangMasuk(data: DataCetakMasuk | DataCetakMasuk[]): Promise<void> {
+  const logoUrl = new URL(FORMAT_DOKUMEN.logo, window.location.origin).href;
+  const iframe = document.createElement("iframe");
+  iframe.title = "Cetak barang masuk";
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
+
+  return new Promise((resolve, reject) => {
+    iframe.onload = async () => {
+      const printWindow = iframe.contentWindow;
+      const printDocument = iframe.contentDocument;
+      if (!printWindow || !printDocument) {
+        iframe.remove();
+        reject(new Error("Dokumen cetak tidak dapat dibuka."));
+        return;
+      }
+      printWindow.addEventListener("afterprint", () => iframe.remove(), { once: true });
+      try {
+        await Promise.all(
+          Array.from(printDocument.images, (img) =>
+            img.decode().catch(async () => {
+              img.src = new URL(FORMAT_DOKUMEN.logoAlternatif, window.location.origin).href;
+              try {
+                await img.decode();
+              } catch {
+                throw new Error("Logo gagal dimuat. Letakkan logo di public/logo-perusahaan.jpg atau public/logo-perusahaan.png.");
+              }
+            }),
+          ),
+        );
+        printWindow.focus();
+        printWindow.print();
+        resolve();
+      } catch (err) {
+        iframe.remove();
+        reject(err);
+      }
+    };
+    iframe.onerror = () => {
+      iframe.remove();
+      reject(new Error("Dokumen cetak gagal dimuat."));
+    };
+
+    const dokumen = (Array.isArray(data) ? data : [data]).map((d) =>
+      new DOMParser().parseFromString(buatDokumenBarangMasuk(d, logoUrl), "text/html"),
+    );
+    const gabungan = dokumen[0];
+    for (const lanjutan of dokumen.slice(1)) {
+      gabungan.body.append(...Array.from(lanjutan.body.children));
+    }
+    // Setiap formulir tetap sendiri; muat hingga empat formulir per A4.
+    const formulir = Array.from(gabungan.body.children);
+    gabungan.body.replaceChildren();
+    for (let index = 0; index < formulir.length; index += 4) {
+      const kertas = gabungan.createElement("main");
+      kertas.className = "kertas";
+      kertas.append(...formulir.slice(index, index + 4));
+      gabungan.body.append(kertas);
+    }
+    iframe.srcdoc = `<!doctype html>${gabungan.documentElement.outerHTML}`;
+    document.body.appendChild(iframe);
+  });
+}
+
 export default function BarangMasukGudang() {
   const canCreate = useCan('inbound.create');
   const { sort, toggle, params: sortParams } = useSort();
@@ -45,6 +240,10 @@ export default function BarangMasukGudang() {
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState("");
 
+  const [selected, setSelected] = useState<Map<number, InboundRow>>(new Map());
+  const [printing, setPrinting] = useState(false);
+  const [actionError, setActionError] = useState("");
+
   const dateRange = toDateRange(filterDay, filterMonth, filterYear);
 
   const filterKey = JSON.stringify([searchQuery, filterDay, filterMonth, filterYear, sortParams]);
@@ -56,6 +255,21 @@ export default function BarangMasukGudang() {
   );
   const rows = result?.rows ?? [];
   const total = result?.total ?? 0;
+
+  const allChecked = rows.length > 0 && rows.every((r) => selected.has(r.id));
+  const toggleSelected = (row: InboundRow) =>
+    setSelected((prev) => {
+      const next = new Map(prev);
+      if (next.has(row.id)) next.delete(row.id);
+      else next.set(row.id, row);
+      return next;
+    });
+  const toggleAllSelected = () =>
+    setSelected((prev) => {
+      const next = new Map(prev);
+      rows.forEach((r) => (allChecked ? next.delete(r.id) : next.set(r.id, r)));
+      return next;
+    });
 
   const spkKembali = useSpkSearch(modalKembaliData.spk);
 
@@ -73,7 +287,7 @@ export default function BarangMasukGudang() {
     return it ? { id: it.id, name: it.name, code: it.code } : prev && String(prev.id) === id ? prev : null;
   };
 
-  // Exports the rows currently loaded in the table.
+  // Ekspor CSV untuk baris yang tampil di halaman ini
   const handleExportCsv = () => {
     const csv = toCsv([
       ['No', 'Tanggal', 'Kode Barang', 'Nama Barang', 'Supplier', 'Jumlah Kedatangan', 'Jumlah Rekap'],
@@ -87,10 +301,37 @@ export default function BarangMasukGudang() {
     URL.revokeObjectURL(url);
   };
 
+  // Cetak: baris yang dicentang, atau semua baris yang tampil bila tidak ada yang dicentang.
+  // Satu formulir per baris; satuan diambil dari data barang.
+  const printSelected = async () => {
+    if (printing) return;
+    const sumber = selected.size > 0 ? [...selected.values()] : rows;
+    if (sumber.length === 0) return;
+
+    setPrinting(true);
+    setActionError("");
+    try {
+      const itemIds = [...new Set(sumber.map((r) => r.itemId))];
+      const materials = await Promise.all(itemIds.map((id) => getItem(id)));
+      const units = new Map(materials.map((m) => [m.id, m.unit]));
+      await cetakBarangMasuk(
+        sumber.map((r): DataCetakMasuk => ({
+          tanggal: r.date,
+          supplier: r.supplierName ?? r.clientName ?? "-",
+          baris: [{ name: r.itemName, code: r.itemCode, unit: units.get(r.itemId), qty: r.qtyArrived }],
+        })),
+      );
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Gagal menyiapkan dokumen cetak.");
+    } finally {
+      setPrinting(false);
+    }
+  };
+
   const openModal = () => { searchItems(''); setModalData({ ...emptyBaru, tanggal: todayIso() }); setModalError(""); setIsModalOpen(true); };
   const openModalKembali = () => { searchItems(''); setModalKembaliData({ ...emptyKembali, tanggal: todayIso() }); setModalError(""); setIsModalKembaliOpen(true); };
 
-  const handleSimpan = async () => {
+  const handleSimpan = async (cetakSetelah = false) => {
     const itemId = itemBaru?.id;
     const { tanggal, jumlahKedatangan, jumlahRekap, statusQc } = modalData;
     if (!itemId || !tanggal || !jumlahKedatangan || jumlahRekap === "") {
@@ -100,7 +341,7 @@ export default function BarangMasukGudang() {
     setSaving(true);
     setModalError("");
     try {
-      await createInbound({
+      const saved = await createInbound({
         itemId,
         date: tanggal,
         qtyArrived: Number(jumlahKedatangan),
@@ -109,6 +350,18 @@ export default function BarangMasukGudang() {
       });
       setIsModalOpen(false);
       reload();
+      if (cetakSetelah) {
+        try {
+          const itemDetail = await getItem(saved.itemId);
+          await cetakBarangMasuk({
+            tanggal: saved.date,
+            supplier: saved.supplierName ?? saved.clientName ?? "-",
+            baris: [{ name: saved.itemName, code: saved.itemCode, unit: itemDetail.unit, qty: saved.qtyArrived }],
+          });
+        } catch (err) {
+          setActionError(err instanceof Error ? err.message : "Gagal menyiapkan dokumen cetak.");
+        }
+      }
     } catch (err) {
       setModalError(err instanceof ApiError ? err.message : "Gagal menyimpan barang masuk.");
     } finally {
@@ -148,8 +401,15 @@ export default function BarangMasukGudang() {
         <p className="text-gray-500 text-sm">Kelola rincian kedatangan barang dan rekap pembelian inventaris.</p>
       </div>
 
+      {actionError && (
+        <div role="alert" className="mb-4 flex items-center justify-between gap-3 p-3 bg-red-50 text-red-600 text-sm rounded-lg">
+          <span>{actionError}</span>
+          <button type="button" onClick={() => setActionError("")} aria-label="Tutup pesan cetak"><X className="w-4 h-4" /></button>
+        </div>
+      )}
+
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
-        {/* Table Toolbar */}
+        {/* Toolbar */}
         <div className="p-5 border-b border-gray-100 bg-gray-50/50 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
             <div className="relative w-full max-w-xs">
@@ -167,28 +427,29 @@ export default function BarangMasukGudang() {
             </div>
           </div>
 
-          <div className="flex gap-2 w-full lg:w-auto">
-            {canCreate && <button
-              onClick={openModal}
-              className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Barang Baru</span>
-            </button>}
-            {canCreate && <button
-              onClick={() => setIsScanOpen(true)}
-              className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0"
-            >
-              <ScanLine className="w-4 h-4" />
-              <span>Scan Barang</span>
-            </button>}
-            {canCreate && <button
-              onClick={openModalKembali}
-              className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Barang Kembali</span>
-            </button>}
+          <div className="flex flex-wrap gap-2 w-full lg:w-auto lg:justify-end">
+            <button type="button" onClick={printSelected} disabled={printing || (selected.size === 0 && (loading || !!error || rows.length === 0))} className={orangeButtonClass}>
+              <Printer className="w-4 h-4" />
+              <span>{printing ? "Menyiapkan cetak..." : "Print"}</span>
+            </button>
+            {canCreate && (
+              <button type="button" onClick={openModal} className={orangeButtonClass}>
+                <Plus className="w-4 h-4" />
+                <span>Barang Baru</span>
+              </button>
+            )}
+            {canCreate && (
+              <button type="button" onClick={() => setIsScanOpen(true)} className={orangeButtonClass}>
+                <ScanLine className="w-4 h-4" />
+                <span>Scan Barang</span>
+              </button>
+            )}
+            {canCreate && (
+              <button type="button" onClick={openModalKembali} className={orangeButtonClass}>
+                <Plus className="w-4 h-4" />
+                <span>Barang Kembali</span>
+              </button>
+            )}
 
             <button
               type="button"
@@ -214,12 +475,14 @@ export default function BarangMasukGudang() {
           />
         )}
 
-
-        {/* Table Container */}
+        {/* Tabel */}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
               <tr>
+                <th scope="col" className="px-4 py-4">
+                  <input type="checkbox" aria-label="Centang semua baris" checked={allChecked} onChange={toggleAllSelected} disabled={loading || !!error || rows.length === 0} className="w-4 h-4 accent-[#FF8A00]" />
+                </th>
                 <th scope="col" className="px-6 py-4">No</th>
                 <SortableTh label="Tanggal" sortKey="date" sort={sort} onSort={toggle} />
                 <SortableTh label="Informasi Barang" sortKey="itemName" sort={sort} onSort={toggle} />
@@ -229,14 +492,17 @@ export default function BarangMasukGudang() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading && (
-                <tr><td colSpan={5} className="px-6 py-10 text-center text-gray-400">Memuat data...</td></tr>
+                <tr><td colSpan={6} className="px-6 py-10 text-center text-gray-400">Memuat data...</td></tr>
               )}
               {!loading && error && (
-                <tr><td colSpan={5} className="px-6 py-10 text-center text-red-500">{error}</td></tr>
+                <tr><td colSpan={6} className="px-6 py-10 text-center text-red-500">{error}</td></tr>
               )}
               {!loading && !error && rows.map((item, index) => (
                 <tr key={item.id} className="hover:bg-[#FF8A00]/5 transition-colors group">
-                  <td className="px-6 py-4 text-gray-500 text-center">{index + 1}.</td>
+                  <td className="px-4 py-4">
+                    <input type="checkbox" aria-label={`Centang ${item.itemName}`} checked={selected.has(item.id)} onChange={() => toggleSelected(item)} className="w-4 h-4 accent-[#FF8A00]" />
+                  </td>
+                  <td className="px-6 py-4 text-gray-500 text-center">{(page - 1) * 20 + index + 1}.</td>
                   <td className="px-6 py-4 text-gray-500">{displayDate(item.date)}</td>
 
                   <td className="px-6 py-4">
@@ -246,13 +512,8 @@ export default function BarangMasukGudang() {
                     </div>
                   </td>
 
-                  <td className="px-6 py-4 text-center font-bold text-gray-800">
-                    {item.qtyArrived}
-                  </td>
-
-                  <td className="px-6 py-4 text-center font-bold text-[#FF8A00]">
-                    {item.qtyPurchased ?? '-'}
-                  </td>
+                  <td className="px-6 py-4 text-center font-bold text-gray-800">{item.qtyArrived}</td>
+                  <td className="px-6 py-4 text-center font-bold text-[#FF8A00]">{item.qtyPurchased ?? '-'}</td>
                 </tr>
               ))}
               {!loading && !error && rows.length === 0 && (
@@ -269,7 +530,7 @@ export default function BarangMasukGudang() {
         <Pagination page={page} pageSize={20} total={total} onPageChange={setPage} />
       </div>
 
-      {/* Simpan/Download Button Outside */}
+      {/* Export */}
       <div className="flex justify-end mt-6">
         <ExportExcellButton onClick={handleExportCsv} />
       </div>
@@ -284,9 +545,7 @@ export default function BarangMasukGudang() {
               onClick={() => setIsModalOpen(false)}
               className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X className="h-4 w-4" />
             </button>
 
             <h2 className="text-[20px] font-extrabold text-gray-900 mb-8 tracking-wide uppercase">
@@ -294,7 +553,6 @@ export default function BarangMasukGudang() {
             </h2>
 
             <div className="flex flex-col gap-6 mb-10">
-              {/* Row 1 */}
               <div className="flex flex-col sm:flex-row gap-6">
                 <div className="flex-1 flex flex-col gap-2">
                   <label className="text-[15px] font-medium text-gray-900">Kode Barang</label>
@@ -303,29 +561,26 @@ export default function BarangMasukGudang() {
                     disabled
                     placeholder="Isi Otomatis"
                     value={itemBaru?.code ?? ''}
-                    className="w-full border border-gray-300 rounded-md py-3 px-4 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 placeholder-gray-400 bg-[#f8f9fa] text-sm"
+                    className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-700 placeholder-gray-400 bg-[#f8f9fa] text-sm"
                   />
                 </div>
                 <div className="flex-1 flex flex-col gap-2">
                   <label className="text-[15px] font-medium text-gray-900">Nama Barang</label>
-                  <div className="relative">
-                    <SearchableSelect
-                      value={itemBaru ? String(itemBaru.id) : ''}
-                      onChange={(id) => setModalData((prev) => ({ ...prev, item: pilihBarang(id, prev.item) }))}
-                      onSearch={searchItems}
-                      pending={itemPending}
-                      options={pilihanBarang(itemBaru)}
-                      placeholder="Isi Nama Barang"
-                      emptyText="Barang tidak ditemukan"
-                      aria-label="Nama Barang"
-                      className="w-full border border-gray-300 rounded-md py-3 pl-4 pr-3 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 text-sm"
-                    />
-                  </div>
+                  <SearchableSelect
+                    value={itemBaru ? String(itemBaru.id) : ''}
+                    onChange={(id) => setModalData((prev) => ({ ...prev, item: pilihBarang(id, prev.item) }))}
+                    onSearch={searchItems}
+                    pending={itemPending}
+                    options={pilihanBarang(itemBaru)}
+                    placeholder="Isi Nama Barang"
+                    emptyText="Barang tidak ditemukan"
+                    aria-label="Nama Barang"
+                    className="w-full border border-gray-300 rounded-md py-3 pl-4 pr-3 text-gray-700 text-sm"
+                  />
                 </div>
               </div>
 
-              {/* Row 2 */}
-              <div className="flex flex-col sm:flex-row gap-6 ">
+              <div className="flex flex-col sm:flex-row gap-6">
                 <div className="flex-1 flex flex-col gap-2">
                   <label className="text-[15px] font-medium text-gray-900">Jumlah Sesuai Kedatangan</label>
                   <input
@@ -350,7 +605,6 @@ export default function BarangMasukGudang() {
                 </div>
               </div>
 
-              {/* Row 3 */}
               <div className="flex flex-col sm:flex-row gap-6">
                 <div className="flex-1 flex flex-col gap-2">
                   <label className="text-[15px] font-medium text-gray-900">Tanggal</label>
@@ -375,15 +629,22 @@ export default function BarangMasukGudang() {
               </div>
             </div>
 
-
             {(modalError || itemError) && <p className="text-sm text-red-500 mb-2 text-right">{modalError || itemError}</p>}
-            <div className="flex justify-end mt-2">
+            <div className="flex justify-end gap-2 mt-2">
               <button
-                onClick={handleSimpan}
+                onClick={() => handleSimpan(false)}
                 disabled={saving}
-                className="px-8 py-2.5 bg-[#ff8a00] text-white rounded-md hover:bg-[#e07b00] transition-colors font-medium text-[15px] shadow-sm"
+                className="px-8 py-2.5 bg-white text-[#ff8a00] border border-[#ff8a00] rounded-md hover:bg-orange-50 transition-colors font-medium text-[15px] shadow-sm"
               >
                 Simpan
+              </button>
+              <button
+                onClick={() => handleSimpan(true)}
+                disabled={saving}
+                className="flex items-center gap-2 px-8 py-2.5 bg-[#ff8a00] text-white rounded-md hover:bg-[#e07b00] transition-colors font-medium text-[15px] shadow-sm"
+              >
+                <Printer className="w-4 h-4" />
+                Simpan + Cetak
               </button>
             </div>
           </div>
@@ -398,9 +659,7 @@ export default function BarangMasukGudang() {
               onClick={() => setIsModalKembaliOpen(false)}
               className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X className="h-4 w-4" />
             </button>
 
             <h2 className="text-[20px] font-extrabold text-gray-900 mb-8 tracking-wide uppercase">
@@ -408,7 +667,6 @@ export default function BarangMasukGudang() {
             </h2>
 
             <div className="flex flex-col gap-6 mb-10">
-              {/* Row 1 */}
               <div className="flex flex-col sm:flex-row gap-6">
                 <div className="flex-1 flex flex-col gap-2">
                   <label className="text-[15px] font-medium text-gray-900">Kode Barang</label>
@@ -417,39 +675,34 @@ export default function BarangMasukGudang() {
                     disabled
                     placeholder="Isi Otomatis"
                     value={itemKembali?.code ?? ''}
-                    className="w-full border border-gray-300 rounded-md py-3 px-4 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 placeholder-gray-400 bg-[#f8f9fa] text-sm"
+                    className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-700 placeholder-gray-400 bg-[#f8f9fa] text-sm"
                   />
                 </div>
                 <div className="flex-1 flex flex-col gap-2">
                   <label className="text-[15px] font-medium text-gray-900">Nama Barang</label>
-                  <div className="relative">
-                    <SearchableSelect
-                      value={itemKembali ? String(itemKembali.id) : ''}
-                      onChange={(id) => setModalKembaliData((prev) => ({ ...prev, item: pilihBarang(id, prev.item) }))}
-                      onSearch={searchItems}
-                      pending={itemPending}
-                      options={pilihanBarang(itemKembali)}
-                      placeholder="Isi Nama Barang"
-                      emptyText="Barang tidak ditemukan"
-                      aria-label="Nama Barang"
-                      className="w-full border border-gray-300 rounded-md py-3 pl-4 pr-3 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 text-sm"
-                    />
-                  </div>
+                  <SearchableSelect
+                    value={itemKembali ? String(itemKembali.id) : ''}
+                    onChange={(id) => setModalKembaliData((prev) => ({ ...prev, item: pilihBarang(id, prev.item) }))}
+                    onSearch={searchItems}
+                    pending={itemPending}
+                    options={pilihanBarang(itemKembali)}
+                    placeholder="Isi Nama Barang"
+                    emptyText="Barang tidak ditemukan"
+                    aria-label="Nama Barang"
+                    className="w-full border border-gray-300 rounded-md py-3 pl-4 pr-3 text-gray-700 text-sm"
+                  />
                 </div>
               </div>
 
-              {/* Row 2 */}
               <div className="flex flex-col sm:flex-row gap-6">
                 <div className="flex-1 flex flex-col gap-2">
                   <label className="text-[15px] font-medium text-gray-900">Tanggal</label>
-                  <div className="relative">
-                    <input
-                      type="date"
-                      value={modalKembaliData.tanggal}
-                      onChange={(e) => setModalKembaliData({ ...modalKembaliData, tanggal: e.target.value })}
-                      className="w-full border border-gray-300 rounded-md py-3 pl-4 pr-10 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 placeholder-gray-400 text-sm"
-                    />
-                  </div>
+                  <input
+                    type="date"
+                    value={modalKembaliData.tanggal}
+                    onChange={(e) => setModalKembaliData({ ...modalKembaliData, tanggal: e.target.value })}
+                    className="w-full border border-gray-300 rounded-md py-3 pl-4 pr-10 text-gray-700 placeholder-gray-400 text-sm"
+                  />
                 </div>
                 <div className="flex-1 flex flex-col gap-2">
                   <label className="text-[15px] font-medium text-gray-900">Jumlah</label>
@@ -459,12 +712,11 @@ export default function BarangMasukGudang() {
                     placeholder="0"
                     value={modalKembaliData.jumlah}
                     onChange={(e) => setModalKembaliData({ ...modalKembaliData, jumlah: digitsOnly(e.target.value) })}
-                    className="w-full border border-gray-300 rounded-md py-3 px-4 focus:outline-none focus:ring-1 focus:ring-gray-400 text-gray-700 placeholder-gray-400 text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-700 placeholder-gray-400 text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
               </div>
 
-              {/* Row 3 */}
               <div className="flex flex-col sm:flex-row gap-6">
                 <div className="flex-1 flex flex-col gap-2">
                   <label className="text-[15px] font-medium text-gray-900">SPK (opsional)</label>
@@ -475,7 +727,7 @@ export default function BarangMasukGudang() {
                     options={[{ value: '', label: 'Tanpa SPK' }, ...spkKembali.options.map((t) => ({ value: t.noSpk, label: `${t.noSpk} - ${t.client}` }))]}
                     placeholder="Tanpa SPK"
                     aria-label="SPK"
-                    className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white text-sm"
+                    className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-700 bg-white text-sm"
                   />
                 </div>
               </div>
