@@ -142,3 +142,14 @@ describe("sidebar per seeded role", () => {
     expect(leaked).toEqual([]);
   });
 });
+
+
+describe("superadmin outbound edit history access", () => {
+  const path = "/dashboard/superadmin/laporan/riwayat-edit-barang-keluar";
+  it("exposes the history menu only to superadmin", () => {
+    expect(itemsOf(user([], true), "superadmin")).toContain("Riwayat Edit Barang Keluar");
+    expect(canAccess(user([], true), path)).toBe(true);
+    expect(canAccess(user(["outbound.view", "outbound.update", "report.view"]), path)).toBe(false);
+    expect(visibleNav(user(["outbound.view", "outbound.update", "report.view"])).flatMap((division) => division.groups.flatMap((group) => group.items)).some((item) => item.href === path)).toBe(false);
+  });
+});

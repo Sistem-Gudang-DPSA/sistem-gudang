@@ -44,6 +44,14 @@ export const NAV_DIVISIONS: NavDivision[] = [
     anyOf: [],
     groups: [
       {
+        title: "Transaksi",
+        items: [{ href: "/dashboard/superadmin/transaksi/pengajuan-edit-barang-keluar", label: "Pengajuan Edit Barang Keluar" }],
+      },
+      {
+        title: "Laporan",
+        items: [{ href: "/dashboard/superadmin/laporan/riwayat-edit-barang-keluar", label: "Riwayat Edit Barang Keluar" }],
+      },
+      {
         title: "Master",
         items: [
           { href: "/dashboard/superadmin/master/data-barang", label: "Data Barang" },
