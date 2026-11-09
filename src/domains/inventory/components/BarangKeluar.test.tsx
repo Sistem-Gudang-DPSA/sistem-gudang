@@ -1,6 +1,6 @@
 import { AuthUserProvider } from '@/domains/auth/user-context';
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
+import { act, render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { installFakeApi, paged, fail } from '@/test/fake-api';
 import BarangKeluar from './BarangKeluar';
 
@@ -32,6 +32,8 @@ const trx = (id: number) => ({
 });
 // Transaksi yang baru dicatat, jadi Edit masih terbuka
 const baru = () => ({ ...trx(1), createdAt: new Date().toISOString() });
+const disetujui = () => ({ ...baru(), editRequest: { id: 1, outboundId: 1, status: 'APPROVED', requestedBy: 1, requestedAt: new Date().toISOString(), reviewedBy: 2, reviewedAt: new Date().toISOString(), editedAt: null } });
+
 const tracking = { 'GET /api/v1/tracking/clients': ['Klien 1', 'PT Gagal', 'PT Jaya', 'PT Maju'].map((client) => ({ client })), 'GET /api/v1/tracking/spk': [{ noSpk: 'SPK-1', client: 'Klien 1' }, { noSpk: 'SPK-9', client: 'PT Maju' }, { noSpk: 'SPK-7', client: 'PT Jaya' }, { noSpk: 'SPK-8', client: 'PT Gagal' }] };
 // Client and products of one SPK from tracking, the choices of the Nama Produk/Proyek dropdown
 const trackingDetail = (noSpk: string, client: string, products: { name: string; qty: number; unit: string }[]) => ({ noSpk, client, projectName: `Proyek ${noSpk}`, products });
@@ -205,7 +207,7 @@ describe('BarangKeluar list', () => {
   });
 
   it('expands a multi-line transaction into one sub-row per line, each with its own Edit', async () => {
-    setup({}, paged([baru()]));
+    setup({}, paged([disetujui()]));
     await screen.findAllByText('Klien 1');
     expect(screen.queryByLabelText('Edit barang keluar 1 Paku')).toBeNull();
     const chevron = screen.getByRole('button', { name: 'Buka rincian barang 1' });
@@ -220,16 +222,16 @@ describe('BarangKeluar list', () => {
     expect(screen.getAllByRole('row')).toHaveLength(2);
   });
 
-  it('totals the qty of a multi-line transaction on its collapsed row, without an Edit button there', async () => {
-    setup({}, paged([baru()]));
+  it('totals the qty and exposes Edit on the collapsed transaction after approval', async () => {
+    setup({}, paged([disetujui()]));
     await screen.findByText('Triplex');
     const row = screen.getByText('+1 barang lainnya').closest('tr')!;
     expect(row.querySelectorAll('td')[6].textContent).toBe('13');
-    expect(row.querySelector('button[aria-label^="Edit"]')).toBeNull();
+    expect(row.querySelector('button[aria-label^="Edit"]')).not.toBeNull();
   });
 
   it('shows Edit directly in the row of a single-line transaction, without a chevron', async () => {
-    setup({}, paged([{ ...baru(), lines: [trx(1).lines[0]] }]));
+    setup({}, paged([{ ...disetujui(), lines: [trx(1).lines[0]] }]));
     await screen.findAllByText('Klien 1');
     expect(screen.queryByRole('button', { name: /rincian barang/ })).toBeNull();
     expect(screen.queryByText(/barang lainnya/)).toBeNull();
@@ -246,7 +248,7 @@ describe('BarangKeluar list', () => {
     const dialog = screen.getByRole('dialog', { name: 'Rincian Barang Keluar' });
     expect(within(dialog).getByText('Triplex')).toBeTruthy();
     expect(within(dialog).getByText('Paku')).toBeTruthy();
-    expect(within(dialog).getByText('Sudah lewat 1 hari, tidak bisa diedit')).toBeTruthy();
+    expect(within(dialog).getByText(/Ajukan edit ke superadmin/)).toBeTruthy();
     expect(within(dialog).getByText(/\d{2}-\d{2}-2026 \d{2}:\d{2}/)).toBeTruthy(); // Dicatat
     fireEvent.click(within(dialog).getByLabelText('Tutup rincian'));
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -255,12 +257,12 @@ describe('BarangKeluar list', () => {
   });
 
   it('edits a line from the rincian pop-up, which closes before the edit form opens', async () => {
-    const api = setup({}, paged([baru()]));
+    const api = setup({}, paged([disetujui()]));
     await screen.findAllByText('Klien 1');
     await waitFor(() => expect(api.calls('GET /api/v1/items').length).toBeGreaterThan(0));
     fireEvent.click(screen.getAllByRole('button', { name: 'Lihat rincian 1' })[0]);
     const dialog = screen.getByRole('dialog', { name: 'Rincian Barang Keluar' });
-    expect(within(dialog).getByText(/Bisa diedit sampai/)).toBeTruthy();
+    expect(within(dialog).getByText(/Disetujui superadmin/)).toBeTruthy();
     fireEvent.click(within(dialog).getByLabelText('Edit barang keluar 1 Paku'));
     expect(screen.queryByRole('dialog', { name: 'Rincian Barang Keluar' })).toBeNull();
     expect(label('Jumlah').value).toBe('9');
@@ -503,8 +505,8 @@ describe('BarangKeluar create', () => {
 });
 
 describe('BarangKeluar edit', () => {
-  it('opens the edit pop-up within 1 day and PUTs the whole transaction with the edited line', async () => {
-    const api = setup({ 'PUT /api/v1/outbound/1': { id: 1 } }, paged([baru()]));
+  it('saves all materials together using a single approval', async () => {
+    const api = setup({ 'PUT /api/v1/outbound/1': { id: 1 } }, paged([disetujui()]));
     await screen.findAllByText('Klien 1');
     await waitFor(() => expect(api.calls('GET /api/v1/items').length).toBeGreaterThan(0));
     fireEvent.click(screen.getByRole('button', { name: 'Buka rincian barang 1' }));
@@ -514,33 +516,26 @@ describe('BarangKeluar edit', () => {
     await choose(label('SPK'), 'SPK-9');
     expect(label('Nama Client').value).toBe('PT Maju');
     fireEvent.change(label('Jumlah'), { target: { value: '12' } });
+    fireEvent.change(label('Jumlah Barang 1'), { target: { value: '6' } });
     fireEvent.click(screen.getByText('Simpan'));
     await waitFor(() => expect(api.calls('PUT /api/v1/outbound/1').length).toBe(1));
     expect(api.calls('PUT /api/v1/outbound/1')[0].body).toEqual({
       date: '2026-03-05', spk: 'SPK-9', itemName: 'Proyek 1', recipientType: 'KLIEN',
-      lines: [{ itemId: 1, qty: 4, pic: 'Andi' }, { itemId: 2, qty: 12, pic: 'Andi' }],
+      lines: [{ itemId: 1, qty: 6, pic: 'Andi' }, { itemId: 2, qty: 12, pic: 'Andi' }],
     });
     await waitFor(() => expect(screen.queryByText('Simpan')).toBeNull());
   });
 
-  it('shows the 1-day warning and sends no PUT when the limit passes while the pop-up is open', async () => {
-    const api = setup({ 'PUT /api/v1/outbound/1': { id: 1 } }, paged([baru()]));
+  it('keeps an approved edit usable after the 24-hour request window', async () => {
+    const api = setup({ 'PUT /api/v1/outbound/1': { id: 1 } }, paged([{ ...disetujui(), createdAt: '2020-01-01T00:00:00Z' }]));
     await screen.findAllByText('Klien 1');
-    await waitFor(() => expect(api.calls('GET /api/v1/items').length).toBeGreaterThan(0));
-    fireEvent.click(screen.getByRole('button', { name: 'Buka rincian barang 1' }));
-    fireEvent.click(screen.getByLabelText('Edit barang keluar 1 Paku'));
-    expect(screen.getByText('Simpan')).toBeTruthy();
-    // Only Date is faked so waitFor keeps working; move the clock 25h past createdAt
-    vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(Date.now() + 25 * 60 * 60 * 1000);
+    fireEvent.click(screen.getByLabelText('Edit barang keluar 1 Triplex'));
     fireEvent.click(screen.getByText('Simpan'));
-    await waitFor(() => expect(screen.queryByText('Simpan')).toBeNull());
-    expect(await screen.findByText(/sudah tidak bisa diedit/)).toBeTruthy();
-    expect(api.calls('PUT /api/v1/outbound/1')).toHaveLength(0);
+    await waitFor(() => expect(api.calls('PUT /api/v1/outbound/1')).toHaveLength(1));
   });
 
   it('shows the Client of the SPK even when it is outside the first 50 of the list', async () => {
-    const api = setup({ 'GET /api/v1/tracking/spk': [{ noSpk: 'SPK-1', client: 'Klien 1' }] }, paged([{ ...baru(), spk: 'SPK-9' }]));
+    const api = setup({ 'GET /api/v1/tracking/spk': [{ noSpk: 'SPK-1', client: 'Klien 1' }] }, paged([{ ...disetujui(), spk: 'SPK-9' }]));
     await screen.findAllByText('Klien 1');
     fireEvent.click(screen.getByRole('button', { name: 'Buka rincian barang 1' }));
     fireEvent.click(screen.getByLabelText('Edit barang keluar 1 Paku'));
@@ -549,17 +544,66 @@ describe('BarangKeluar edit', () => {
     expect(api.calls('GET /api/v1/tracking/spk/SPK-9')).toHaveLength(1);
   });
 
-  it('locks Edit after 1 day and shows a warning instead of the form', async () => {
-    const api = setup({}, paged([trx(1)]));
+  it('hides the request action for an expired transaction and never exposes direct editing', async () => {
+    const api = setup({}, paged([{ ...trx(1), createdAt: '2020-01-01T00:00:00Z' }]));
     await screen.findAllByText('Klien 1');
-    fireEvent.click(screen.getByRole('button', { name: 'Buka rincian barang 1' }));
-    const tombol = screen.getByLabelText('Edit barang keluar 1 Triplex (terkunci)');
-    expect((tombol as HTMLButtonElement).disabled).toBe(true);
-    // A native disabled button swallows clicks, so the warning pop-up is not reachable from here.
-    fireEvent.click(tombol);
-    expect(screen.queryByText('Simpan')).toBeNull();
-    expect(api.calls('PUT /api/v1/outbound/1').length).toBe(0);
+    expect(screen.queryByRole('button', { name: 'Ajukan edit barang keluar 1' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Edit barang keluar/ })).toBeNull();
+    expect(api.calls('PUT /api/v1/outbound/1')).toHaveLength(0);
   });
+
+  it('submits a request and shows pending approval with no Edit or repeat request', async () => {
+    const row = { ...baru(), editRequest: null as null | ReturnType<typeof disetujui>['editRequest'] };
+    const api = setup({
+      'GET /api/v1/outbound': () => paged([row]),
+      'POST /api/v1/outbound/1/edit-request': () => { row.editRequest = { ...disetujui().editRequest, status: 'PENDING' }; return row; },
+    }, paged([row]));
+    await screen.findAllByText('Klien 1');
+    expect(screen.queryByLabelText('Edit barang keluar 1 Triplex')).toBeNull();
+    const button = screen.getByRole('button', { name: 'Ajukan edit barang keluar 1' });
+    fireEvent.click(button); fireEvent.click(button);
+    expect(await screen.findByText('Menunggu persetujuan')).toBeTruthy();
+    expect(api.calls('POST /api/v1/outbound/1/edit-request')).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'Ajukan edit barang keluar 1' })).toBeNull();
+    // A superadmin approval is picked up when the warehouse tab regains focus.
+    row.editRequest = { ...disetujui().editRequest, status: 'APPROVED' };
+    fireEvent(window, new Event('focus'));
+    expect(await screen.findByLabelText('Edit barang keluar 1 Triplex')).toBeTruthy();
+  });
+
+  it('removes Ajukan Edit at the exact 24-hour deadline without a reload', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
+    const createdAt = new Date(Date.now() - 24 * 3600_000 + 500).toISOString();
+    setup({}, paged([{ ...baru(), createdAt }]));
+    // Flush fetch responses while keeping the deadline in the future.
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    expect(screen.getByRole('button', { name: 'Ajukan edit barang keluar 1' })).toBeTruthy();
+    await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+    expect(screen.queryByRole('button', { name: 'Ajukan edit barang keluar 1' })).toBeNull();
+  });
+
+  it('locks the edited transaction and exposes its before/after history', async () => {
+    const approved = disetujui();
+    const used = { ...approved, editRequest: { ...approved.editRequest, status: 'USED', editedAt: new Date().toISOString() } };
+    setup({ 'GET /api/v1/outbound/1/edit-history': { ...used.editRequest, requestedByName: 'Admin Gudang', reviewedByName: 'Superadmin', beforeValues: approved, afterValues: { ...used, lines: [{ ...used.lines[0], qty: 7 }] } } }, paged([used]));
+    expect(await screen.findByText('Sudah diedit 1 kali')).toBeTruthy();
+    expect(screen.queryByLabelText('Edit barang keluar 1 Triplex')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Ajukan edit barang keluar 1' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Riwayat edit barang keluar 1' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Riwayat Edit Barang Keluar #1' });
+    expect(await within(dialog).findByText('Sebelum')).toBeTruthy();
+    expect(within(dialog).getByText('Sesudah')).toBeTruthy();
+    expect(within(dialog).getByRole('cell', { name: '7' })).toBeTruthy();
+    expect(within(dialog).getByText(/Superadmin ·/)).toBeTruthy();
+  });
+
+  it('keeps an approved edit hidden from a different warehouse admin', async () => {
+    installFakeApi({ 'GET /api/v1/outbound': paged([disetujui()]), 'GET /api/v1/items': items, ...tracking });
+    render(<AuthUserProvider user={{ ...who(['outbound.update']), id: 9 }}><BarangKeluar /></AuthUserProvider>);
+    expect(await screen.findByText('Disetujui untuk pengaju')).toBeTruthy();
+    expect(screen.queryByLabelText('Edit barang keluar 1 Triplex')).toBeNull();
+  });
+
 });
 
 describe('BarangKeluar camera', () => {

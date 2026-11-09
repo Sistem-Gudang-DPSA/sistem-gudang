@@ -81,7 +81,7 @@ export default function DaftarProyekPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Daftar Proyek</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Kelola data proyek, SPK masuk, dan progres pekerjaan client.
+            Daftar proyek yang tersedia.
           </p>
         </div>
         <button

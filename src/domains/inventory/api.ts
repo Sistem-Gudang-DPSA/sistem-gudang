@@ -29,6 +29,9 @@ import type {
   OutboundReport,
   OutboundReportParams,
   OutboundRow,
+  OutboundEditHistory,
+  OutboundEditRequestRow,
+  OutboundEditRequest,
 
   PaginatedResult,
   RequestReport,
@@ -316,4 +319,24 @@ export async function importLocationData(rows: LocationDataImportRow[]) {
     });
     throw new Error(lines.slice(0, 10).join("; ") + (lines.length > 10 ? `; dan ${lines.length - 10} error lain` : ""));
   }
+}
+
+export function requestOutboundEdit(id: number) {
+  return apiClient.post<OutboundRow>(`/api/v1/outbound/${id}/edit-request`);
+}
+
+export function getOutboundEditHistory(id: number) {
+  return apiClient.get<OutboundEditHistory | null>(`/api/v1/outbound/${id}/edit-history`);
+}
+
+export function listOutboundEditRequests(params?: { page?: number; pageSize?: number; status?: OutboundEditRequest["status"] }) {
+  return apiClient.get<PaginatedResult<OutboundEditRequestRow>>(`/api/v1/outbound/edit-requests${toQuery(params)}`);
+}
+
+export function approveOutboundEdit(id: number) {
+  return apiClient.post<OutboundRow>(`/api/v1/outbound/${id}/edit-request/approve`);
+}
+
+export function rejectOutboundEdit(id: number) {
+  return apiClient.post<OutboundRow>(`/api/v1/outbound/${id}/edit-request/reject`);
 }
