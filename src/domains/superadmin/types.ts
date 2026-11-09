@@ -62,3 +62,19 @@ export interface UpdateUserInput {
   password?: string;
   roleId?: number;
 }
+
+export type BugReportStatus = "OPEN" | "DIPROSES" | "SELESAI";
+
+export interface BugReport {
+  id: number;
+  description: string;
+  pageUrl: string;
+  userAgent: string;
+  screenshot: { thumb: string; display: string } | null;
+  status: BugReportStatus;
+  reporterName: string;
+  reporterRole: string;
+  handledByName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}

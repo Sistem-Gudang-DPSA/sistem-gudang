@@ -1,6 +1,6 @@
 import { apiClient, toQuery } from "@/shared/lib/api-client";
 import type { PaginatedResult, ListParams, SortParams } from "@/domains/inventory/types";
-import type { CreatedUser, CreateRoleInput, CreateUserInput, Domain, Permission, Role, UpdateRoleInput, UpdateUserInput, UserAccount } from "./types";
+import type { BugReport, BugReportStatus, CreatedUser, CreateRoleInput, CreateUserInput, Domain, Permission, Role, UpdateRoleInput, UpdateUserInput, UserAccount } from "./types";
 
 export function listRoles() {
   return apiClient.get<Role[]>("/api/v1/superadmin/roles");
@@ -45,4 +45,22 @@ export function updateUser(id: number, input: UpdateUserInput) {
 
 export function deleteUser(id: number) {
   return apiClient.delete<void>(`/api/v1/superadmin/users/${id}`);
+}
+
+// Multipart: description, pageUrl, userAgent and an optional `screenshot` file. Any logged-in user.
+export function createBugReport(input: { description: string; pageUrl: string; userAgent: string; screenshot?: File }) {
+  const form = new FormData();
+  form.append("description", input.description);
+  form.append("pageUrl", input.pageUrl);
+  form.append("userAgent", input.userAgent);
+  if (input.screenshot) form.append("screenshot", input.screenshot);
+  return apiClient.upload<BugReport>("/api/v1/bug-reports", form);
+}
+
+export function listBugReports(params?: { page?: number; pageSize?: number; status?: BugReportStatus }) {
+  return apiClient.get<PaginatedResult<BugReport>>(`/api/v1/bug-reports${toQuery(params)}`);
+}
+
+export function updateBugReportStatus(id: number, status: BugReportStatus) {
+  return apiClient.patch<BugReport>(`/api/v1/bug-reports/${id}/status`, { status });
 }

@@ -195,6 +195,7 @@ export interface OutboundRow {
   createdBy: number;
   createdAt: string;
   lines: OutboundLine[];
+  editRequest?: OutboundEditRequest | null;
 }
 
 export interface OutboundListParams {
@@ -369,3 +370,27 @@ export type ChecklistDokubahDetail = {
   checklist: (ChecklistDokubahInput & { updatedAt: string }) | null;
 };
 
+
+export interface OutboundEditRequest {
+  id: number;
+  outboundId: number;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "USED";
+  requestedBy: number;
+  requestedAt: string;
+  reviewedBy: number | null;
+  reviewedAt: string | null;
+  editedAt: string | null;
+}
+
+export interface OutboundEditHistory extends OutboundEditRequest {
+  requestedByName: string;
+  reviewedByName: string | null;
+  beforeValues: OutboundRow | null;
+  afterValues: OutboundRow | null;
+}
+
+export interface OutboundEditRequestRow {
+  request: OutboundEditRequest;
+  outbound: Omit<OutboundRow, "lines" | "editRequest">;
+  requestedByName: string;
+}
