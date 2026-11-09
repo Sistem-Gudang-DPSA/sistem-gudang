@@ -376,31 +376,31 @@ export function cetakBarangKeluar(data: DataCetak | DataCetak[]): Promise<void> 
 }
 
 const LiveWaktuDicatat: React.FC<{
-    createdAt: string | Date;
-    tampilWaktu: (timestamp: number) => string;
-  }> = ({ createdAt, tampilWaktu }) => {
-    const [liveStr, setLiveStr] = React.useState<string>("");
+  createdAt: string | Date;
+  tampilWaktu: (timestamp: number) => string;
+}> = ({ createdAt, tampilWaktu }) => {
+  const [liveStr, setLiveStr] = React.useState<string>("");
 
-    React.useEffect(() => {
-      const updateTime = () => {
-        const SEVEN_HOURS_MS = 7 * 60 * 60 * 1000;
-        const dbTimestamp = new Date(createdAt).getTime();
+  React.useEffect(() => {
+    const updateTime = () => {
+      const SEVEN_HOURS_MS = 7 * 60 * 60 * 1000;
+      const dbTimestamp = new Date(createdAt).getTime();
 
-        // Jika data createdAt kamu bertambah 7 jam dari server, kurangi di sini. 
-        // Jika tidak, hapus bagian "- SEVEN_HOURS_MS"
-        const waktuKoreksi = dbTimestamp - SEVEN_HOURS_MS;
+      // Jika data createdAt kamu bertambah 7 jam dari server, kurangi di sini. 
+      // Jika tidak, hapus bagian "- SEVEN_HOURS_MS"
+      const waktuKoreksi = dbTimestamp - SEVEN_HOURS_MS;
 
-        setLiveStr(tampilWaktu(waktuKoreksi));
-      };
+      setLiveStr(tampilWaktu(waktuKoreksi));
+    };
 
-      updateTime(); // Pemicu awal
-      const intervalId = setInterval(updateTime, 1000); // Jalan setiap detik
+    updateTime(); // Pemicu awal
+    const intervalId = setInterval(updateTime, 1000); // Jalan setiap detik
 
-      return () => clearInterval(intervalId);
-    }, [createdAt, tampilWaktu]);
+    return () => clearInterval(intervalId);
+  }, [createdAt, tampilWaktu]);
 
-    return <>{liveStr}</>;
-  };
+  return <>{liveStr}</>;
+};
 
 const formCellClass = "border-b border-r border-gray-300";
 const formHeadClass = `${formCellClass} px-2 py-2.5 font-medium whitespace-nowrap`;
@@ -432,6 +432,9 @@ export default function BarangKeluarGudang() {
   const [filterMonth, setFilterMonth] = useState("");
   const [filterYear, setFilterYear] = useState("");
   const [waktuSekarang, setWaktuSekarang] = useState<string>('');
+
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewCetak, setPreviewCetak] = useState(false);
 
   useEffect(() => {
     const updateTime = () => {
@@ -821,6 +824,53 @@ export default function BarangKeluarGudang() {
     }
   };
 
+  // Dipanggil saat tombol Simpan / Simpan + Cetak ditekan di form
+  const bukaPreview = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (submittingRef.current) return;
+    if (pendingScansRef.current > 0) {
+      setModalError("Tunggu proses scan barang selesai sebelum menyimpan.");
+      return;
+    }
+    if (modeKeluar === "stok") {
+      setModalError("Data stok belum tersedia. Barang keluar stok belum dapat disimpan.");
+      return;
+    }
+    const submitter = (e.nativeEvent as SubmitEvent).submitter;
+    setPreviewCetak(submitter instanceof HTMLButtonElement && submitter.value === "cetak");
+
+    // Validasi yang sama dengan sebelumnya (salin dari handleSimpan lama, tanpa bagian kirim)
+    const { namaPengambil, tanggal, client, spk, namaItem, baris } = form;
+    if (!tanggal || !client || !spk || !namaPengambil.trim() || !namaItem.trim()) {
+      setModalError("Lengkapi tanggal, client, SPK, nama pengambil, dan nama produk/proyek.");
+      return;
+    }
+    if (!spkPilihan.some((p) => p.value === spk) || !produkTracking.some((p) => p.name === namaItem)) {
+      setModalError("Pilih SPK milik client dan item yang tersedia pada SPK tersebut.");
+      return;
+    }
+    const terisi = baris.filter((b) => b.itemId !== null);
+    if (terisi.length === 0) {
+      setModalError("Scan atau pilih minimal satu barang yang keluar.");
+      return;
+    }
+    if (terisi.some((b) => !jumlahValid(b.qty))) {
+      setModalError("Jumlah pengambilan harus berupa bilangan bulat positif maksimal 9 digit.");
+      return;
+    }
+    if (new Set(terisi.map((b) => b.itemId)).size !== terisi.length) {
+      setModalError("Material yang sama cukup diisi pada satu baris. Tambahkan jumlahnya di baris tersebut.");
+      return;
+    }
+    const melebihiStok = terisi.find((b) => Number(b.qty) > b.stock);
+    if (melebihiStok) {
+      setModalError(`Jumlah ${melebihiStok.name} melebihi stok ${melebihiStok.stock} ${melebihiStok.unit}.`);
+      return;
+    }
+    setModalError("");
+    setPreviewOpen(true);
+  };
+
   // The modal shows err.message. For bad rows, the first lines name the rows.
   const handlePilihFileImpor = async (file: File) => {
     try {
@@ -1049,81 +1099,10 @@ export default function BarangKeluarGudang() {
     })),
   ];
 
-  const handleSimpan = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const konfirmasiSimpan = async () => {
     if (submittingRef.current) return;
-    if (pendingScansRef.current > 0) {
-      setModalError("Tunggu proses scan barang selesai sebelum menyimpan.");
-      return;
-    }
-    const submitter = (e.nativeEvent as SubmitEvent).submitter;
-    const cetakSetelahSimpan =
-      submitter instanceof HTMLButtonElement && submitter.value === "cetak";
-    // Stock IDs and their items will come from a dedicated API, not tracking SPKs.
-    if (modeKeluar === "stok") {
-      setModalError(
-        "Data stok belum tersedia. Barang keluar stok belum dapat disimpan.",
-      );
-      return;
-    }
-    const {
-      namaPengambil,
-      tanggal,
-      client,
-      spk,
-      namaItem,
-      recipientType,
-      baris,
-    } = form;
-    if (
-      !tanggal ||
-      !client ||
-      !spk ||
-      !namaPengambil.trim() ||
-      !namaItem.trim()
-    ) {
-      setModalError(
-        "Lengkapi tanggal, client, SPK, nama pengambil, dan nama produk/proyek.",
-      );
-      return;
-    }
-    if (
-      !spkPilihan.some((p) => p.value === spk) ||
-      !produkTracking.some((p) => p.name === namaItem)
-    ) {
-      setModalError(
-        "Pilih SPK milik client dan item yang tersedia pada SPK tersebut.",
-      );
-      return;
-    }
-    // Baris input manual yang belum dipilih materialnya diabaikan
-    const terisi = baris.flatMap((b) =>
-      b.itemId === null ? [] : [{ ...b, itemId: b.itemId }],
-    );
-    if (terisi.length === 0) {
-      setModalError("Scan atau pilih minimal satu barang yang keluar.");
-      return;
-    }
-    if (terisi.some((b) => !jumlahValid(b.qty))) {
-      setModalError(
-        "Jumlah pengambilan harus berupa bilangan bulat positif maksimal 9 digit.",
-      );
-      return;
-    }
-    if (new Set(terisi.map((b) => b.itemId)).size !== terisi.length) {
-      setModalError(
-        "Material yang sama cukup diisi pada satu baris. Tambahkan jumlahnya di baris tersebut.",
-      );
-      return;
-    }
-    const melebihiStok = terisi.find((b) => Number(b.qty) > b.stock);
-    if (melebihiStok) {
-      setModalError(
-        `Jumlah ${melebihiStok.name} melebihi stok ${melebihiStok.stock} ${melebihiStok.unit}.`,
-      );
-      return;
-    }
-
+    const { namaPengambil, tanggal, client, spk, namaItem, recipientType, baris } = form;
+    const terisi = baris.filter((b) => b.itemId !== null);
     submittingRef.current = true;
     setSaving(true);
     setModalError("");
@@ -1135,51 +1114,36 @@ export default function BarangKeluarGudang() {
         itemName: namaItem.trim(),
         recipientType,
         notes: `Pengambil: ${namaPengambil.trim()}`,
-        lines: terisi.map((b) => ({
-          itemId: b.itemId,
-          qty: Number(b.qty),
-          pic: namaPengambil.trim(),
-        })),
+        lines: terisi.map((b) => ({ itemId: b.itemId as number, qty: Number(b.qty), pic: namaPengambil.trim() })),
       };
-
       const payload = JSON.stringify(input);
       if (!draftKey.current.key || draftKey.current.payload !== payload)
         draftKey.current = { key: randomId(), payload };
-
       await createOutbound(input, draftKey.current.key);
       draftKey.current = { key: "", payload: "" };
 
+      setPreviewOpen(false);
       closeModal();
       reload();
-      if (cetakSetelahSimpan) {
+      if (previewCetak) {
         try {
           await cetakBarangKeluar({
             tanggal,
             client,
             spk,
             namaItem: namaItem.trim(),
-            // Dokubah dicetak dari draft; payload API saat ini belum menyimpan kolom Dokubah.
             baris: terisi.map((b) => ({
-              name: b.name,
-              code: b.code,
-              unit: b.unit,
-              dokubah: b.dokubah,
-              qty: Number(b.qty),
-              pic: namaPengambil.trim(),
+              name: b.name, code: b.code, unit: b.unit, dokubah: b.dokubah,
+              qty: Number(b.qty), pic: namaPengambil.trim(),
             })),
           });
         } catch (err) {
-          setActionError(
-            `Data sudah tersimpan, tetapi dialog cetak gagal dibuka. ${err instanceof Error ? err.message : ""}`,
-          );
+          setActionError(`Data sudah tersimpan, tetapi dialog cetak gagal dibuka. ${err instanceof Error ? err.message : ""}`);
         }
       }
     } catch (err) {
-      setModalError(
-        err instanceof ApiError
-          ? err.message
-          : "Gagal menyimpan barang keluar.",
-      );
+      // Preview tetap terbuka supaya pengguna bisa membaca pesan dan memperbaiki
+      setModalError(err instanceof ApiError ? err.message : "Gagal menyimpan barang keluar.");
     } finally {
       submittingRef.current = false;
       setSaving(false);
@@ -1545,6 +1509,91 @@ export default function BarangKeluarGudang() {
           </table>
         </div>
 
+        {previewOpen &&
+          createPortal(
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+              <div role="dialog" aria-modal="true" aria-labelledby="preview-bk-judul"
+                className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-full overflow-y-auto p-6 sm:p-8 relative animate-in zoom-in-95 duration-200">
+                <h2 id="preview-bk-judul" className="text-[18px] font-extrabold text-black tracking-wide uppercase mb-1">
+                  Preview Barang Keluar
+                </h2>
+                <p className="text-sm text-gray-500 mb-6">Periksa data di bawah sebelum disimpan. Stok berkurang setelah dikonfirmasi.</p>
+
+                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 mb-6 text-sm">
+                  {([
+                    ["Tanggal", displayDate(form.tanggal)],
+                    ["Nama Pengambil", form.namaPengambil],
+                    ["Client", form.client],
+                    ["No. SPK", form.spk],
+                    ["Nama Item/Projek", form.namaItem],
+                    ["Tujuan", "Tukang / Produksi"],
+                  ] as const).map(([k, v]) => (
+                    <div key={k} className="flex flex-col">
+                      <dt className="text-gray-500">{k}</dt>
+                      <dd className="font-semibold text-gray-900">{v || "-"}</dd>
+                    </div>
+                  ))}
+                </dl>
+
+                <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-gray-50 text-gray-600 font-semibold">
+                      <tr>
+                        <th className="px-4 py-2.5">No</th>
+                        <th className="px-4 py-2.5">Nama Material</th>
+                        <th className="px-4 py-2.5">Kode</th>
+                        <th className="px-4 py-2.5">Satuan</th>
+                        <th className="px-4 py-2.5">Dokubah</th>
+                        <th className="px-4 py-2.5 text-right">Jumlah</th>
+                        <th className="px-4 py-2.5 text-right">Stok Sekarang</th>
+                        <th className="px-4 py-2.5 text-right">Sisa Setelah Keluar</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {form.baris.filter((b) => b.itemId !== null).map((b, i) => {
+                        const qty = Number(b.qty);
+                        return (
+                          <tr key={b.key}>
+                            <td className="px-4 py-2.5 text-gray-500">{i + 1}</td>
+                            <td className="px-4 py-2.5 font-medium text-gray-900">{b.name}</td>
+                            <td className="px-4 py-2.5 font-mono text-xs text-gray-600">{b.code}</td>
+                            <td className="px-4 py-2.5 text-gray-600">{b.unit}</td>
+                            <td className="px-4 py-2.5 text-gray-600">{b.dokubah || "-"}</td>
+                            <td className="px-4 py-2.5 text-right font-bold text-gray-800">{qty}</td>
+                            <td className="px-4 py-2.5 text-right text-gray-600">{b.stock}</td>
+                            <td className="px-4 py-2.5 text-right font-semibold text-gray-900">{b.stock - qty}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot className="bg-gray-50 font-bold text-gray-900">
+                      <tr>
+                        <td colSpan={5} className="px-4 py-2.5">Total</td>
+                        <td className="px-4 py-2.5 text-right">
+                          {form.baris.reduce((n, b) => n + (b.itemId !== null ? Number(b.qty) || 0 : 0), 0)}
+                        </td>
+                        <td colSpan={2} />
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+
+                {modalError && <p role="alert" className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{modalError}</p>}
+
+                <div className="flex justify-end items-center gap-3 mt-6 pt-5 border-t border-gray-100">
+                  <button type="button" onClick={() => setPreviewOpen(false)} disabled={saving}
+                    className="px-5 py-2.5 text-gray-600 bg-gray-100 hover:bg-gray-200 font-semibold rounded-xl transition-colors text-sm disabled:opacity-50">
+                    Kembali Edit
+                  </button>
+                  <button type="button" onClick={konfirmasiSimpan} disabled={saving} className={orangeButtonClass}>
+                    {saving ? "Menyimpan..." : previewCetak ? "Konfirmasi + Cetak" : "Konfirmasi Simpan"}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )}
+
         <Pagination
           page={page}
           pageSize={PAGE_SIZE}
@@ -1569,7 +1618,7 @@ export default function BarangKeluarGudang() {
         createPortal(
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md transition-opacity duration-300 p-4">
             <form
-              onSubmit={handleSimpan}
+              onSubmit={bukaPreview}
               noValidate
               className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-full overflow-y-auto p-6 sm:p-8 relative animate-in zoom-in-95 duration-200"
             >
