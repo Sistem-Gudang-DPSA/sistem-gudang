@@ -17,6 +17,7 @@ const PAGE_SIZE = 20;
 const RECIPIENT_LABEL: Record<RecipientType, string> = {
     PRODUKSI: 'Tukang / Produksi',
     KLIEN: 'Klien',
+    INTERNAL: 'Stok / Internal',
 };
 
 const displayDate = (iso: string) => iso.slice(0, 10).split('-').reverse().join('-');
@@ -204,6 +205,7 @@ export default function LaporanBarangKeluar() {
                             <option value="ALL" className='text-black'>Semua Penerima</option>
                             <option value="PRODUKSI" className='text-black'>Tukang / Produksi</option>
                             <option value="KLIEN" className='text-black'>Klien</option>
+                            <option value="INTERNAL" className='text-black'>Stok / Internal</option>
                         </select>
                     </div>
 
