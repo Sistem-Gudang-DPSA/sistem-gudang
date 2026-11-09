@@ -4,7 +4,8 @@ import React from "react";
 import Link from "next/link";
 import { visibleNav, type NavTheme } from "../nav";
 import type { AuthUser } from "../types";
-import { ChevronDown, KeyRound, LayoutDashboard, ShieldCheck, Users, Folder } from "lucide-react";
+import { ChevronDown, KeyRound, LayoutDashboard, ShieldCheck, Users, Folder, MessageSquareWarning } from "lucide-react";
+import LaporMasalahButton from "./LaporMasalahButton";
 
 // Tailwind needs full class names, so each theme lists them literally.
 const THEME: Record<NavTheme, { summary: string; icon: string; border: string; heading: string; active: string; idle: string }> = {
@@ -84,36 +85,37 @@ export default function SidebarNav({ user, pathname, onNavigate }: Props) {
   return (
     <nav className="space-y-2">
       {user.isSuperadmin && (
-          <>
-            <Link href="/dashboard/superadmin" onClick={onNavigate} className={topLink(pathname === "/dashboard/superadmin")}>
-              <ShieldCheck className="w-5 h-5" />
-              <span className="font-medium">Dashboard SA</span>
-            </Link>
-            <Link href="/dashboard/superadmin/users" onClick={onNavigate} className={topLink(checkActive(pathname , "/dashboard/superadmin/users"))}>
-              <Users className="w-5 h-5" />
-              <span className="font-medium">Kelola Data User</span>
-            </Link>
-            <Link href="/dashboard/superadmin/roles" onClick={onNavigate} className={topLink(checkActive(pathname, "/dashboard/superadmin/roles"))}>
-              <KeyRound className="w-5 h-5" />
-              <span className="font-medium">Kelola Role</span>
-            </Link>
-            </>
-          )}
-
+        <>
+        <Link href="/dashboard/superadmin" onClick={onNavigate} className={topLink(pathname === "/dashboard/superadmin")}>
+          <ShieldCheck className="w-5 h-5" />
+          <span className="font-medium">Dashboard SA</span>
+        </Link>
+        <Link href="/dashboard/superadmin/laporan-masalah" onClick={onNavigate} className={topLink(checkActive(pathname, "/dashboard/superadmin/laporan-masalah"))}>
+          <MessageSquareWarning className="w-5 h-5" />
+          <span className="font-medium">Laporan Masalah</span>
+        </Link>
+        </>
+      )}
       <Link href="/dashboard" onClick={onNavigate} className={topLink(pathname === "/dashboard")}>
         <LayoutDashboard className="w-5 h-5" />
         <span className="font-medium">Overview</span>
       </Link>
-
-     <Link 
-        href="/dashboard/daftar-proyek" 
-        onClick={onNavigate} 
-        className={topLink(checkActive(pathname, "/dashboard/daftar-proyek"))}
-      >
+      <Link href="/dashboard/daftar-proyek" onClick={onNavigate} className={topLink(checkActive(pathname, "/dashboard/daftar-proyek"))}>
         <Folder className="w-5 h-5" />
         <span className="font-medium">Daftar Proyek</span>
       </Link>
-
+      {user.isSuperadmin && (
+        <>
+        <Link href="/dashboard/superadmin/users" onClick={onNavigate} className={topLink(checkActive(pathname, "/dashboard/superadmin/users"))}>
+          <Users className="w-5 h-5" />
+          <span className="font-medium">Kelola Data User</span>
+        </Link>
+        <Link href="/dashboard/superadmin/roles" onClick={onNavigate} className={topLink(checkActive(pathname, "/dashboard/superadmin/roles"))}>
+          <KeyRound className="w-5 h-5" />
+          <span className="font-medium">Kelola Role</span>
+        </Link>
+        </>
+      )}
 
       {divisions.length > 0 && (
         <div className="pt-4 pb-2">
@@ -168,6 +170,8 @@ export default function SidebarNav({ user, pathname, onNavigate }: Props) {
           </details>
         );
       })}
+
+      {!user.isSuperadmin && <LaporMasalahButton />}
     </nav>
   );
 }
