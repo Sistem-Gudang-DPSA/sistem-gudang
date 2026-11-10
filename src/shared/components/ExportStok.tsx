@@ -52,39 +52,41 @@ export function printDaftarPdf(rows: ItemListRow[]) {
 }
 
 // ---------- Kartu stok satu barang (halaman detail) ----------
-export async function exportKartuExcel(data: KartuStokData) {
+// A filtered card supplies the original ledger balances, including hidden movements.
+export async function exportKartuExcel(data: KartuStokData, kartu = buildKartu(data)) {
   const XLSX = await import('xlsx');
-  const { rows, saldoAkhir } = buildKartu(data);
+  const { rows, saldoAkhir, totalIn, totalOut } = kartu;
   const sheet = XLSX.utils.aoa_to_sheet([
     ['KARTU STOK'],
     ['Kode Barang', data.item.code ?? '-'],
     ['Nama Barang', data.item.name],
     ['Satuan', data.item.unit],
-    [],
-    ['No.', 'Tanggal', 'Nama Proyek', 'Penggunaan', 'Masuk', 'Keluar', 'Saldo', 'Keterangan'],
+    ['Saldo mengikuti seluruh mutasi pada periode. Total masuk/keluar mengikuti baris yang ditampilkan.'],
+    ['No.', 'Tanggal', 'Nama Proyek/Item', 'Penggunaan', 'Masuk', 'Keluar', 'Saldo', 'Keterangan'],
     ['', '', '', 'Saldo awal', '', '', data.openingBalance, ''],
-    ...rows.map((r, i) => [i + 1, displayDate(r.date), r.project ? `${r.project}${r.client || r.spk ? ` (${[r.client, r.spk && `SPK ${r.spk}`].filter(Boolean).join(' · ')})` : ''}` : '-', r.usage, r.qtyIn || '', r.qtyOut || '', r.saldo, r.note ?? '']),
-    ['', '', '', 'Saldo akhir', '', '', saldoAkhir, ''],
+    ...rows.map((r, i) => [i + 1, displayDate(r.date), r.project ? `${r.project}${r.spk ? ` (${r.spk})` : ''}` : '-', r.client || '-', r.qtyIn || '', r.qtyOut || '', r.saldo, [r.noTransaksi ?? r.note, r.usage].filter(Boolean).join('\n')]),
+    ['', '', '', 'Total / Saldo akhir', totalIn, totalOut, saldoAkhir, ''],
   ]);
   const book = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(book, sheet, 'Kartu Stok');
   XLSX.writeFile(book, `Kartu_Stok_${data.item.code ?? data.item.id}.xlsx`);
 }
 
-export function printKartuPdf(data: KartuStokData) {
-  const { rows, saldoAkhir, totalIn, totalOut } = buildKartu(data);
+export function printKartuPdf(data: KartuStokData, kartu = buildKartu(data)) {
+  const { rows, saldoAkhir, totalIn, totalOut } = kartu;
   const body = rows.map((r, i) => `<tr>
     <td class="c">${i + 1}</td>
     <td>${escapeHtml(displayDate(r.date))}</td>
-    <td>${escapeHtml(r.project ?? '-')}${(r.client || r.spk) ? `<div class="sub">${escapeHtml([r.client, r.spk && `${r.spk}`].filter(Boolean).join(' · '))}</div>` : ''}</td>
-    <td>${escapeHtml(r.usage || '-')}</td>
+    <td>${escapeHtml(r.project ?? '-')}${r.spk ? `<div class="sub">${escapeHtml(r.spk)}</div>` : ''}</td>
+    <td>${escapeHtml(r.client || '-')}</td>
     <td class="r">${r.qtyIn || ''}</td>
     <td class="r">${r.qtyOut || ''}</td>
     <td class="r">${r.saldo}</td>
-    <td>${escapeHtml(r.note ?? '')}</td></tr>`).join('');
+    <td>${escapeHtml(r.noTransaksi ?? r.note ?? '')}${r.usage ? `<div class="sub">${escapeHtml(r.usage)}</div>` : ''}</td></tr>`).join('');
 
   printHtml(`Kartu Stok ${data.item.name}`, `<h1>Kartu Stok</h1>
     <div class="meta">Kode: <b>${escapeHtml(data.item.code ?? '-')}</b><br>Nama: <b>${escapeHtml(data.item.name)}</b><br>Satuan: ${escapeHtml(data.item.unit)}</div>
+    <p class="sub">Saldo mengikuti seluruh mutasi pada periode. Total masuk/keluar mengikuti baris yang ditampilkan.</p>
     <table>
       <thead>
         <tr>
@@ -96,7 +98,7 @@ export function printKartuPdf(data: KartuStokData) {
           <th rowspan="2" class="r">Saldo</th>
           <th rowspan="2">Keterangan</th>
         </tr>
-        <tr><th>Nama Proyek</th><th>Penggunaan</th></tr>
+        <tr><th>Nama Proyek/Item</th><th>Penggunaan</th></tr>
       </thead>
       <tbody>
         <tr><td colspan="4"><b>Saldo awal</b></td><td></td><td></td><td class="r">${data.openingBalance}</td><td></td></tr>
