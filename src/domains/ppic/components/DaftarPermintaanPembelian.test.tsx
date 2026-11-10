@@ -98,7 +98,7 @@ describe('DaftarPermintaanPembelian', () => {
   it('has a link to the tambah page', async () => {
     installFakeApi({ 'GET /api/v1/approvals': paged([]) });
     render(<DaftarPermintaanPembelianPPIC />);
-    const link = screen.getByText('Tambah Data').closest('a');
+    const link = screen.getByText('Ajukan Permintaan Pembelian').closest('a');
     expect(link?.getAttribute('href')).toBe('/dashboard/ppic/transaksi/permintaan-pembelian/tambah');
     await within(document.body).findByText('Data tidak ditemukan untuk filter tersebut.');
   });
@@ -110,7 +110,7 @@ describe('permissions', () => {
     installFakeApi({ 'GET /api/v1/approvals': paged([row(1, 'pending')]) });
     render(withUser(<DaftarPermintaanPembelianPPIC />, ['approval.view']));
     await screen.findByText('Detail');
-    expect(screen.queryByText('Tambah Data')).toBeNull();
+    expect(screen.queryByText('Ajukan Permintaan Pembelian')).toBeNull();
   });
 
   it.each([
@@ -120,6 +120,32 @@ describe('permissions', () => {
     installFakeApi({ 'GET /api/v1/approvals': paged([row(1, 'pending')]) });
     render(withUser(<DaftarPermintaanPembelianPPIC />, perms, isSuperadmin));
     await screen.findByText('Detail');
-    expect(screen.getByText('Tambah Data')).toBeTruthy();
+    expect(screen.getByText('Ajukan Permintaan Pembelian')).toBeTruthy();
+  });
+});
+
+
+describe('purchase status and edit links', () => {
+  it('uses purchase progress rather than approval status and keeps Gudang links in Gudang', async () => {
+    installFakeApi({ 'GET /api/v1/approvals': paged([
+      row(1, 'pending', { purchaseStatus: 'NOT_PURCHASED' }),
+      row(2, 'approved', { purchaseStatus: 'PARTIALLY_PURCHASED' }),
+      row(3, 'approved', { purchaseStatus: 'PURCHASED' }),
+    ]) });
+    render(withUser(<DaftarPermintaanPembelianPPIC basePath="/dashboard/gudang/transaksi/permintaan-pembelian" />, ['purchase-request.create']));
+    expect(await screen.findByText('Belum dibeli')).toBeTruthy();
+    expect(screen.getByText('Sebagian dibeli')).toBeTruthy();
+    expect(screen.getByText('Sudah dibeli')).toBeTruthy();
+    expect(screen.getAllByRole('link', { name: 'Edit' })).toHaveLength(1);
+    expect(screen.getByRole('link', { name: 'Edit' }).getAttribute('href')).toBe('/dashboard/gudang/transaksi/permintaan-pembelian/1/edit');
+    expect(screen.getByText('Ajukan Permintaan Pembelian').closest('a')?.getAttribute('href')).toBe('/dashboard/gudang/transaksi/permintaan-pembelian/tambah');
+    expect(screen.queryByRole('button', { name: 'Tambah' })).toBeNull();
+  });
+
+  it('does not expose editing for another requester', async () => {
+    installFakeApi({ 'GET /api/v1/approvals': paged([row(9, 'pending', { requestedBy: 42 })]) });
+    render(withUser(<DaftarPermintaanPembelianPPIC />, ['purchase-request.create']));
+    await screen.findByText('Detail');
+    expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull();
   });
 });
