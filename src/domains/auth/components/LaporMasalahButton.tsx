@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle2, ImagePlus, Info, MessageSquareWarning, X } from "lucide-react";
-import { createBugReport } from "@/domains/superadmin/api";
+import { createBugReport, listMyBugReports } from "@/domains/superadmin/api";
+import type { BugReport, BugReportStatus } from "@/domains/superadmin/types";
+import { waktuEdit } from "@/domains/inventory/components/RiwayatEditBarangKeluar";
 import { ApiError } from "@/shared/lib/api-client";
 
 const MAX_DESCRIPTION = 2000;
@@ -11,8 +14,21 @@ const MAX_SCREENSHOT_BYTES = 10 * 1024 * 1024;
 const MAX_FIELD = 500;
 const ACCEPT = "image/jpeg,image/png,image/webp";
 
+const statusInfo: Record<BugReportStatus, { label: string; className: string }> = {
+  OPEN: { label: "Baru", className: "bg-gray-100 text-gray-600" },
+  DIPROSES: { label: "Diproses", className: "bg-amber-100 text-amber-700" },
+  SELESAI: { label: "Selesai", className: "bg-green-100 text-green-700" },
+};
+
 export default function LaporMasalahButton() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<"buat" | "saya">("buat");
+  const [mine, setMine] = useState<BugReport[]>([]);
+  const [mineLoading, setMineLoading] = useState(false);
+  const [mineError, setMineError] = useState("");
   const [description, setDescription] = useState("");
   const [screenshot, setScreenshot] = useState<File | undefined>();
   const [preview, setPreview] = useState("");
@@ -32,6 +48,37 @@ export default function LaporMasalahButton() {
     setOpen(false);
     setError("");
   };
+
+  // Loads on every open of the tab, so a report answered meanwhile shows its IT note
+  const loadMine = useCallback(async () => {
+    setMineLoading(true);
+    setMineError("");
+    try {
+      const page = await listMyBugReports({ page: 1, pageSize: 20 });
+      setMine(page.rows);
+    } catch (err) {
+      setMineError(err instanceof Error ? err.message : "Gagal memuat laporan.");
+    } finally {
+      setMineLoading(false);
+    }
+  }, []);
+
+  const pilihTab = useCallback(
+    (next: "buat" | "saya") => {
+      setTab(next);
+      if (next === "saya") void loadMine();
+    },
+    [loadMine],
+  );
+
+  // Deep link from e.g. a notification: /dashboard/...?laporan=saya
+  useEffect(() => {
+    if (searchParams.get("laporan") !== "saya") return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the URL is an external trigger; opening the modal is the point
+    setOpen(true);
+    pilihTab("saya");
+    router.replace(pathname);
+  }, [searchParams, pathname, router, pilihTab]);
 
   useEffect(() => {
     if (!open) return;
@@ -139,7 +186,37 @@ export default function LaporMasalahButton() {
                 </button>
               </div>
 
-              <div className="space-y-5 px-6 py-5">
+              <div role="tablist" aria-label="Laporan" className="flex gap-1 border-b border-gray-100 px-6">
+                {(
+                  [
+                    ["buat", "Buat Laporan"],
+                    ["saya", "Laporan Saya"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    role="tab"
+                    id={`lapor-tab-${value}`}
+                    aria-selected={tab === value}
+                    aria-controls={`lapor-panel-${value}`}
+                    onClick={() => pilihTab(value)}
+                    className={`-mb-px border-b-2 px-3 py-2.5 text-sm font-semibold ${
+                      tab === value ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <div
+                role="tabpanel"
+                id="lapor-panel-buat"
+                aria-labelledby="lapor-tab-buat"
+                hidden={tab !== "buat"}
+                className="space-y-5 px-6 py-5"
+              >
                 <div>
                   <label htmlFor="lapor-deskripsi" className="mb-1.5 block text-sm font-semibold text-gray-800">
                     Deskripsi
@@ -208,22 +285,61 @@ export default function LaporMasalahButton() {
                 )}
               </div>
 
-              <div className="flex justify-end gap-2 border-t border-gray-100 px-6 py-4">
-                <button
-                  type="button"
-                  onClick={close}
-                  disabled={sending}
-                  className="rounded-xl bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-200 disabled:opacity-50"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={sending || !description.trim()}
-                  className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-blue-200 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {sending ? "Mengirim..." : "Kirim Laporan"}
-                </button>
+              {tab === "buat" && (
+                <div className="flex justify-end gap-2 border-t border-gray-100 px-6 py-4">
+                  <button
+                    type="button"
+                    onClick={close}
+                    disabled={sending}
+                    className="rounded-xl bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-200 disabled:opacity-50"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={sending || !description.trim()}
+                    className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-blue-200 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {sending ? "Mengirim..." : "Kirim Laporan"}
+                  </button>
+                </div>
+              )}
+
+              <div
+                role="tabpanel"
+                id="lapor-panel-saya"
+                aria-labelledby="lapor-tab-saya"
+                hidden={tab !== "saya"}
+                className="max-h-96 space-y-3 overflow-y-auto px-6 py-5"
+              >
+                {mineLoading && <p className="text-center text-sm text-gray-400">Memuat laporan...</p>}
+                {!mineLoading && mineError && (
+                  <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">
+                    {mineError}
+                  </p>
+                )}
+                {!mineLoading && !mineError && mine.length === 0 && (
+                  <p className="text-center text-sm text-gray-400">Belum ada laporan</p>
+                )}
+                {!mineLoading &&
+                  !mineError &&
+                  mine.map((r) => (
+                    <div key={r.id} className="rounded-xl border border-gray-200 p-4">
+                      <div className="flex items-center justify-between gap-3 text-xs text-gray-500">
+                        <span>{waktuEdit(r.createdAt)} WIB</span>
+                        <span className={`rounded-full px-2 py-0.5 font-semibold ${statusInfo[r.status].className}`}>
+                          {statusInfo[r.status].label}
+                        </span>
+                      </div>
+                      <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm text-gray-800">{r.description}</p>
+                      {r.itNote && (
+                        <div className="mt-3 rounded-lg bg-blue-50 px-3 py-2">
+                          <p className="text-xs font-semibold text-blue-700">Catatan IT</p>
+                          <p className="whitespace-pre-wrap text-sm text-blue-900">{r.itNote}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
               </div>
             </form>
           </div>,

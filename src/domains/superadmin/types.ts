@@ -75,6 +75,7 @@ export interface BugReport {
   reporterName: string;
   reporterRole: string;
   handledByName: string | null;
+  itNote: string | null;
   createdAt: string;
   updatedAt: string;
 }
