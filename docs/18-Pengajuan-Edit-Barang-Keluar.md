@@ -44,3 +44,10 @@ Migrasi baru: `../sistem-gudang-be/src/db/migrations/0038_outbound_edit_requests
 Jika tabel belum dibuat, daftar dan proses simpan barang keluar akan gagal dengan query ke `outbound_edit_requests`. Setelah tabel tersedia, percobaan simpan yang gagal dapat diulang; pembuatan transaksi, perubahan stok dan pencatatan idempotensi berada dalam transaksi database yang sama sehingga kegagalan tersebut tidak menyimpan transaksi sebagian. Verifikasi lokal mencakup pembacaan daftar, pembuatan dan pembacaan kembali transaksi, status pengajuan `PENDING → APPROVED → USED` dan pengulangan SQL. Seluruh data simulasi dibatalkan dengan rollback; jumlah transaksi existing tetap sama.
 
 Tes frontend mencakup batas waktu tepat 24 jam, pengajuan, persetujuan saat tab kembali aktif, edit beberapa barang sekaligus, akses pengaju dan riwayat. Tes layanan API tanpa MySQL dijalankan dengan `npm test -- --config vitest.unit.config.ts` dari proyek API. Tes integrasi HTTP juga diperbarui untuk alur baru; akun database lokal saat ini tidak berizin membuat database pengujian terpisah sehingga tes tersebut belum dapat dijalankan.
+
+
+## Barang keluar stok/internal
+
+Tombol dan formulir **Barang Keluar Stok / Internal** menerima **ID Stok / Internal** serta **Nama Item** sebagai input teks manual yang dimulai kosong. Mengubah ID tidak menghapus nama item yang sudah diketik. Formulir SPK tetap memakai pilihan client, SPK dan produk dari tracking. Bahan yang dikeluarkan tetap terhubung ke master barang agar jumlah stok dapat diperiksa dan dikurangi sesuai barangnya.
+
+Transaksi stok/internal memakai `recipientType: INTERNAL`, ID manual disimpan pada field `spk` yang sudah ada, dan `clientName` ditetapkan server sebagai `Internal`. Tidak memerlukan migrasi tambahan. Preview dan cetak menampilkan ID stok/internal. Aturan pengajuan edit 24 jam, persetujuan superadmin, satu kali edit dan riwayat perubahan tetap berlaku. Form edit untuk transaksi internal juga memakai input ID manual. Transaksi internal tidak dihitung sebagai realisasi SPK, termasuk jika ID manual kebetulan sama dengan nomor SPK tracking.
