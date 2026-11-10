@@ -32,6 +32,7 @@ for (const [p, ops] of Object.entries(spec.paths))
 
 // Contract endpoints the FE intentionally does not call (yet).
 const UNUSED_ALLOWLIST: Record<string, string> = {
+  "patch /api/v1/bug-reports/{param}/status": "legacy alias kept by BE for older FE builds; FE now uses PATCH /bug-reports/{id}",
   "post /api/v1/auth/refresh": "called with raw fetch in api-client (shared refresh promise), not via apiClient",
   "get /api/v1/approvals/{param}/actions": "not needed yet (actions come with approval detail)",
   "get /api/v1/locations/{param}": "not needed yet",
