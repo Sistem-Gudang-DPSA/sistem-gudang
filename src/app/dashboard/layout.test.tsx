@@ -5,7 +5,7 @@ import DashboardLayout from './layout';
 
 const router = { push: vi.fn(), replace: vi.fn(), back: vi.fn() };
 let pathname = '/dashboard';
-vi.mock('next/navigation', () => ({ useRouter: () => router, usePathname: () => pathname, useParams: () => ({}) }));
+vi.mock('next/navigation', () => ({ useRouter: () => router, usePathname: () => pathname, useParams: () => ({}), useSearchParams: () => new URLSearchParams() }));
 
 const me = (permissions: string[], over = {}) => ({
   accessToken: 't',
