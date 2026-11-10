@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { Suspense } from "react";
 import Link from "next/link";
 import { visibleNav, type NavTheme } from "../nav";
 import type { AuthUser } from "../types";
@@ -171,7 +171,11 @@ export default function SidebarNav({ user, pathname, onNavigate }: Props) {
         );
       })}
 
-      {!user.isSuperadmin && <LaporMasalahButton />}
+      {!user.isSuperadmin && (
+        <Suspense fallback={null}>
+          <LaporMasalahButton />
+        </Suspense>
+      )}
     </nav>
   );
 }

@@ -1,7 +1,14 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fail, installFakeApi } from "@/test/fake-api";
+import { fail, installFakeApi, paged } from "@/test/fake-api";
 import LaporMasalahButton from "./LaporMasalahButton";
+
+const router = { push: vi.fn(), replace: vi.fn() };
+vi.mock("next/navigation", () => ({
+  useRouter: () => router,
+  usePathname: () => "/dashboard",
+  useSearchParams: () => new URLSearchParams(),
+}));
 
 const report = {
   id: 1,
@@ -13,6 +20,7 @@ const report = {
   reporterName: "Admin",
   reporterRole: "Admin Gudang",
   handledByName: null,
+  itNote: null,
   createdAt: "2026-11-09T02:00:00Z",
   updatedAt: "2026-11-09T02:00:00Z",
 };
@@ -73,5 +81,20 @@ describe("Lapor Masalah button", () => {
     fireEvent.click(screen.getByRole("button", { name: "Kirim Laporan" }));
     expect(await screen.findByRole("alert")).toHaveProperty("textContent", "Deskripsi wajib diisi.");
     await waitFor(() => expect(screen.getByRole("button", { name: "Kirim Laporan" })).toBeTruthy());
+  });
+
+  it("lists my reports with the IT note on the Laporan Saya tab", async () => {
+    const api = installFakeApi({
+      "GET /api/v1/bug-reports/mine": paged([{ ...report, itNote: "Sudah diperbaiki, coba lagi" }]),
+    });
+    render(<LaporMasalahButton />);
+    fireEvent.click(screen.getByRole("button", { name: "Laporkan Masalah" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Laporan Saya" }));
+
+    expect(await screen.findByText("Tombol tidak jalan")).toBeTruthy();
+    expect(screen.getByText("Catatan IT")).toBeTruthy();
+    expect(screen.getByText("Sudah diperbaiki, coba lagi")).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Laporan Saya" }).getAttribute("aria-selected")).toBe("true");
+    expect(api.calls("GET /api/v1/bug-reports/mine")[0].query.get("pageSize")).toBe("20");
   });
 });
