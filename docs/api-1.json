@@ -3142,6 +3142,15 @@
                                   "revision_requested"
                                 ]
                               },
+                              "purchaseStatus": {
+                                "type": "string",
+                                "enum": [
+                                  "NOT_PURCHASED",
+                                  "PARTIALLY_PURCHASED",
+                                  "PURCHASED"
+                                ],
+                                "description": "Purchase progress based on quantities in active ISSUED purchase orders; cancelled orders do not count."
+                              },
                               "mappingStatus": {
                                 "type": "string",
                                 "nullable": true,
@@ -3339,7 +3348,7 @@
           "Approval"
         ],
         "summary": "Submit an approval request",
-        "description": "The workflow step matching the requester's own domain is auto-approved immediately. For purchase-request, every items[].noSpk must be one of GET /api/v1/tracking/spk, otherwise 400 with errors keyed like items.0.noSpk. items[].itemId is optional and links the line to the catalog; an unknown id is a 400 keyed items.0.itemId, and a line without itemId stays free text. The same check applies on resubmit.",
+        "description": "The workflow step matching the requester's own domain is auto-approved immediately. For purchase-request, items[].noSpk is optional for the paper form; when supplied it must be one of GET /api/v1/tracking/spk, otherwise 400 with errors keyed like items.0.noSpk. items[].itemId is optional and links the line to the catalog; an unknown id is a 400 keyed items.0.itemId, and a line without itemId stays free text. The same check applies on edit and resubmit.",
         "security": [
           {
             "bearerAuth": []
@@ -3381,6 +3390,10 @@
                             "type": "string",
                             "format": "date"
                           },
+                          "periode": {
+                            "type": "string",
+                            "maxLength": 100
+                          },
                           "items": {
                             "type": "array",
                             "items": {
@@ -3390,6 +3403,22 @@
                                   "type": "integer",
                                   "minimum": 0,
                                   "exclusiveMinimum": true
+                                },
+                                "tanggal": {
+                                  "type": "string",
+                                  "format": "date"
+                                },
+                                "supplier": {
+                                  "type": "string",
+                                  "maxLength": 191
+                                },
+                                "keterangan": {
+                                  "type": "string",
+                                  "maxLength": 500
+                                },
+                                "deadlineTanggal": {
+                                  "type": "string",
+                                  "format": "date"
                                 },
                                 "namaBarang": {
                                   "type": "string",
@@ -3413,16 +3442,15 @@
                                 },
                                 "noSpk": {
                                   "type": "string",
-                                  "minLength": 1,
-                                  "maxLength": 100
+                                  "maxLength": 100,
+                                  "default": ""
                                 }
                               },
                               "required": [
                                 "namaBarang",
                                 "qty",
                                 "satuan",
-                                "proyek",
-                                "noSpk"
+                                "proyek"
                               ]
                             },
                             "minItems": 1
@@ -3500,6 +3528,15 @@
                             "rejected",
                             "revision_requested"
                           ]
+                        },
+                        "purchaseStatus": {
+                          "type": "string",
+                          "enum": [
+                            "NOT_PURCHASED",
+                            "PARTIALLY_PURCHASED",
+                            "PURCHASED"
+                          ],
+                          "description": "Purchase progress based on quantities in active ISSUED purchase orders; cancelled orders do not count."
                         },
                         "mappingStatus": {
                           "type": "string",
@@ -4309,7 +4346,7 @@
           "Approval"
         ],
         "summary": "Resubmit a request after revision",
-        "description": "Only the original requester may resubmit. Restarts the workflow at the first step. For purchase-request, every items[].noSpk must be one of GET /api/v1/tracking/spk, otherwise 400 with errors keyed like items.0.noSpk.",
+        "description": "Only the original requester may resubmit. Restarts the workflow at the first step. For purchase-request, items[].noSpk is optional for the paper form; when supplied it must be one of GET /api/v1/tracking/spk, otherwise 400 with errors keyed like items.0.noSpk.",
         "security": [
           {
             "bearerAuth": []
@@ -4510,6 +4547,210 @@
       }
     },
     "/api/v1/approvals/{id}": {
+      "put": {
+        "tags": [
+          "Approval"
+        ],
+        "summary": "Edit a pending purchase request",
+        "description": "The original requester (or superadmin) with purchase-request.create can edit pending or revision_requested requests. Validates the same payload as creation, starts a new approval cycle and records the change in the audit log. Approved and rejected requests are locked.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "payload": {
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Purchase request updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
       "get": {
         "tags": [
           "Approval"
@@ -4584,6 +4825,15 @@
                                 "rejected",
                                 "revision_requested"
                               ]
+                            },
+                            "purchaseStatus": {
+                              "type": "string",
+                              "enum": [
+                                "NOT_PURCHASED",
+                                "PARTIALLY_PURCHASED",
+                                "PURCHASED"
+                              ],
+                              "description": "Purchase progress based on quantities in active ISSUED purchase orders; cancelled orders do not count."
                             },
                             "mappingStatus": {
                               "type": "string",
@@ -20420,7 +20670,8 @@
               "type": "string",
               "enum": [
                 "PRODUKSI",
-                "KLIEN"
+                "KLIEN",
+                "INTERNAL"
               ]
             },
             "required": false,
@@ -20511,7 +20762,8 @@
                                 "type": "string",
                                 "enum": [
                                   "PRODUKSI",
-                                  "KLIEN"
+                                  "KLIEN",
+                                  "INTERNAL"
                                 ]
                               },
                               "notes": {
@@ -20797,7 +21049,7 @@
           "Outbound"
         ],
         "summary": "Record goods leaving the warehouse",
-        "description": "Needs outbound.create and an Idempotency-Key header (8 to 100 characters, one per draft), with the same replay rules as POST /inbound/batch: same key and payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true and stock is not lowered again; same key with a different payload returns 409; a missing or malformed key returns 400; a failed request stores no key. spk must be one of GET /api/v1/tracking/spk (400 otherwise) and clientName is taken from there, a clientName in the body is ignored. Lowers stock for every line in one transaction and records audit logs. If any line would push stock below 0 the whole request fails with 400 and nothing is saved.",
+        "description": "Needs outbound.create and an Idempotency-Key header (8 to 100 characters, one per draft), with the same replay rules as POST /inbound/batch: same key and payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true and stock is not lowered again; same key with a different payload returns 409; a missing or malformed key returns 400; a failed request stores no key. spk must be one of GET /api/v1/tracking/spk (400 otherwise) and clientName is taken from there, a clientName in the body is ignored. Lowers stock for every line in one transaction and records audit logs. If any line would push stock below 0 the whole request fails with 400 and nothing is saved. With recipientType INTERNAL, spk stores the manually entered stock/internal ID, itemName is free text, and clientName is Internal without a tracking lookup.",
         "security": [
           {
             "bearerAuth": []
@@ -20847,7 +21099,8 @@
                     "type": "string",
                     "enum": [
                       "PRODUKSI",
-                      "KLIEN"
+                      "KLIEN",
+                      "INTERNAL"
                     ]
                   },
                   "notes": {
@@ -20949,7 +21202,8 @@
                           "type": "string",
                           "enum": [
                             "PRODUKSI",
-                            "KLIEN"
+                            "KLIEN",
+                            "INTERNAL"
                           ]
                         },
                         "notes": {
@@ -21554,7 +21808,8 @@
                           "type": "string",
                           "enum": [
                             "PRODUKSI",
-                            "KLIEN"
+                            "KLIEN",
+                            "INTERNAL"
                           ]
                         },
                         "notes": {
@@ -21863,7 +22118,8 @@
                     "type": "string",
                     "enum": [
                       "PRODUKSI",
-                      "KLIEN"
+                      "KLIEN",
+                      "INTERNAL"
                     ]
                   },
                   "notes": {
@@ -21965,7 +22221,8 @@
                           "type": "string",
                           "enum": [
                             "PRODUKSI",
-                            "KLIEN"
+                            "KLIEN",
+                            "INTERNAL"
                           ]
                         },
                         "notes": {
@@ -22605,7 +22862,8 @@
                                     "type": "string",
                                     "enum": [
                                       "PRODUKSI",
-                                      "KLIEN"
+                                      "KLIEN",
+                                      "INTERNAL"
                                     ]
                                   },
                                   "notes": {
@@ -22885,7 +23143,8 @@
                           "type": "string",
                           "enum": [
                             "PRODUKSI",
-                            "KLIEN"
+                            "KLIEN",
+                            "INTERNAL"
                           ]
                         },
                         "notes": {
@@ -23258,7 +23517,8 @@
                           "type": "string",
                           "enum": [
                             "PRODUKSI",
-                            "KLIEN"
+                            "KLIEN",
+                            "INTERNAL"
                           ]
                         },
                         "notes": {
@@ -23631,7 +23891,8 @@
                           "type": "string",
                           "enum": [
                             "PRODUKSI",
-                            "KLIEN"
+                            "KLIEN",
+                            "INTERNAL"
                           ]
                         },
                         "notes": {
@@ -24049,7 +24310,8 @@
                               "type": "string",
                               "enum": [
                                 "PRODUKSI",
-                                "KLIEN"
+                                "KLIEN",
+                                "INTERNAL"
                               ]
                             },
                             "notes": {
@@ -24150,7 +24412,8 @@
                               "type": "string",
                               "enum": [
                                 "PRODUKSI",
-                                "KLIEN"
+                                "KLIEN",
+                                "INTERNAL"
                               ]
                             },
                             "notes": {
@@ -34871,7 +35134,8 @@
               "type": "string",
               "enum": [
                 "PRODUKSI",
-                "KLIEN"
+                "KLIEN",
+                "INTERNAL"
               ]
             },
             "required": false,
@@ -34962,7 +35226,8 @@
                                 "type": "string",
                                 "enum": [
                                   "PRODUKSI",
-                                  "KLIEN"
+                                  "KLIEN",
+                                  "INTERNAL"
                                 ]
                               },
                               "notes": {
@@ -35338,7 +35603,8 @@
                           "type": "string",
                           "enum": [
                             "PRODUKSI",
-                            "KLIEN"
+                            "KLIEN",
+                            "INTERNAL"
                           ]
                         },
                         "notes": {
@@ -36225,7 +36491,8 @@
               "type": "string",
               "enum": [
                 "PRODUKSI",
-                "KLIEN"
+                "KLIEN",
+                "INTERNAL"
               ]
             },
             "required": false,

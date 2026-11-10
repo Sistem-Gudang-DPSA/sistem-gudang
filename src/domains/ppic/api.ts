@@ -111,6 +111,9 @@ export function getApprovalDetail(id: number | string) {
   return apiClient.get<{ request: ApprovalRequest; actions: ApprovalAction[] }>(`/api/v1/approvals/${id}`);
 }
 
+export const editPurchaseRequest = (id: number, payload: PurchaseRequestPayload) =>
+  apiClient.put(`/api/v1/approvals/${id}`, { payload });
+
 export const resubmitApproval = (id: number, payload: PurchaseRequestPayload) =>
   apiClient.post(`/api/v1/approvals/${id}/resubmit`, { payload });
 export const approveApproval = (id: number, note?: string) => apiClient.post(`/api/v1/approvals/${id}/approve`, note ? { note } : {});

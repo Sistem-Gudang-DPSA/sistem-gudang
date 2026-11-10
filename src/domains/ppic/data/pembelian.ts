@@ -1,15 +1,9 @@
 import { getApprovalDetail, listApprovals } from '@/domains/ppic/api';
-import type { ApprovalAction, ApprovalRequest, ApprovalStatus } from '@/domains/ppic/types';
+import type { ApprovalAction, ApprovalRequest, ApprovalStatus, PurchaseRequestItem } from '@/domains/ppic/types';
 
 export type StatusPermintaan = 'Belum Disetujui' | 'Disetujui' | 'Perlu Revisi' | 'Ditolak';
 
-export interface BarangPermintaan {
-  namaBarang: string;
-  qty: number;
-  satuan: string;
-  proyek: string;
-  noSpk: string;
-}
+export type BarangPermintaan = PurchaseRequestItem;
 
 export interface PermintaanPembelian {
   id: number;
@@ -21,6 +15,8 @@ export interface PermintaanPembelian {
   nama: string;
   jabatan: string;
   barang: BarangPermintaan[];
+  periode?: string;
+  requestedBy?: number;
   catatan?: string;
   riwayat?: ApprovalAction[];
   lampiranRekapDokubah?: string;
@@ -51,6 +47,8 @@ const toPermintaan = (req: ApprovalRequest): PermintaanPembelian => {
     nama: p?.namaPemohon ?? '-',
     jabatan: p?.jabatan ?? '-',
     barang,
+    periode: p?.periode,
+    requestedBy: req.requestedBy,
     catatan: p?.notes,
     // Lampiran belum ada di payload purchase-request, jadi selalu kosong.
   };
