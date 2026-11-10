@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { useCan } from '@/domains/auth/user-context';
+import { useCan, useAuthUser } from '@/domains/auth/user-context';
 import { Search, Plus, Calendar, Eye } from 'lucide-react';
 import Link from 'next/link';
 import { listApprovals } from '@/domains/ppic/api';
@@ -18,6 +18,8 @@ const STATUS_LABEL: Record<ApprovalStatus, { label: string; cls: string }> = {
   revision_requested: { label: 'Perlu Revisi', cls: 'bg-orange-100 text-orange-800 border-orange-200' },
 };
 
+const purchaseLabel = (request: ApprovalRequest) => request.purchaseStatus === 'PURCHASED' ? 'Sudah dibeli' : request.purchaseStatus === 'PARTIALLY_PURCHASED' ? 'Sebagian dibeli' : request.purchaseStatus === 'NOT_PURCHASED' ? 'Belum dibeli' : 'Status belum tersedia';
+
 const summarize = (req: ApprovalRequest) => {
   const p = req.payload;
   if (!p) return '-';
@@ -29,6 +31,7 @@ const summarize = (req: ApprovalRequest) => {
 
 // `basePath` keeps the Tambah link inside the division that shows this list (Gudang reuses it).
 export default function DaftarPermintaanPembelianPPIC({ basePath = permintaan_pembelian_path }: { basePath?: string }) {
+  const user = useAuthUser();
   const canCreate = useCan('purchase-request.create');
   const [searchQuery, setSearchQuery] = useState("");
   const [filterDay, setFilterDay] = useState("");
@@ -56,7 +59,7 @@ export default function DaftarPermintaanPembelianPPIC({ basePath = permintaan_pe
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       <div className="flex flex-col justify-start mb-8 gap-2">
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1 uppercase">PERMINTAAN PEMBELIAN</h1>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1 uppercase">DAFTAR PERMINTAAN PEMBELIAN</h1>
         <p className="text-gray-500 text-sm">Kelola pengajuan permintaan pembelian barang.</p>
       </div>
 
@@ -147,7 +150,7 @@ export default function DaftarPermintaanPembelianPPIC({ basePath = permintaan_pe
             <Link href={`${basePath}/tambah`} className="w-full lg:w-auto">
               <button className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0 w-full">
                 <Plus className="w-4 h-4" />
-                <span>Tambah Data</span>
+                <span>Ajukan Permintaan Pembelian</span>
               </button>
             </Link>
           )}
@@ -161,36 +164,35 @@ export default function DaftarPermintaanPembelianPPIC({ basePath = permintaan_pe
                 <th scope="col" className="px-6 py-4 w-16 text-center">No</th>
                 <th scope="col" className="px-6 py-4">Tanggal</th>
                 <th scope="col" className="px-6 py-4 text-center">Rincian Permintaan</th>
+                <th scope="col" className="px-6 py-4 text-center">Status Pembelian</th>
                 <th scope="col" className="px-6 py-4 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading && (
-                <tr><td colSpan={4} className="px-6 py-10 text-center text-gray-400">Memuat data...</td></tr>
+                <tr><td colSpan={5} className="px-6 py-10 text-center text-gray-400">Memuat data...</td></tr>
               )}
               {!loading && error && (
-                <tr><td colSpan={4} className="px-6 py-10 text-center text-red-500">{error}</td></tr>
+                <tr><td colSpan={5} className="px-6 py-10 text-center text-red-500">{error}</td></tr>
               )}
               {!loading && !error && filteredData.map((item, index) => (
                 <tr key={item.id} className="hover:bg-[#FF8A00]/5 transition-colors group">
-                  <td className="px-6 py-4 text-gray-500 text-center font-medium">{index + 1}.</td>
+                  <td className="px-6 py-4 text-gray-500 text-center font-medium">{(page - 1) * 20 + index + 1}.</td>
                   <td className="px-6 py-4 text-gray-500 font-bold">{displayDate(item.payload?.tanggalPengajuan ?? item.createdAt)}</td>
                   <td className="px-6 py-4 text-gray-700 italic max-w-md truncate">{summarize(item)}</td>
                   <td className="px-6 py-4 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      {canCreate && (
-                        <>
-                          <button className="px-4 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] font-bold rounded-lg text-xs hover:bg-[#FF8A00]/20 transition-all">
-                            Edit
-                          </button>
-                          <button className="px-4 py-1.5 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs hover:bg-blue-100 transition-all">
-                            Tambah
-                          </button>
-                        </>
+                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${item.purchaseStatus === 'PURCHASED' ? 'bg-green-100 text-green-800' : 'bg-amber-50 text-amber-800'}`}>
+                      {purchaseLabel(item)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <div className="inline-grid grid-cols-[3.5rem_auto] items-center gap-2">
+                      {canCreate && ['pending', 'revision_requested'].includes(item.status) && (!user || user.isSuperadmin || user.id === item.requestedBy) && (
+                        <Link href={`${basePath}/${item.id}/edit`} className="px-4 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] font-bold rounded-lg text-xs hover:bg-[#FF8A00]/20 transition-all">Edit</Link>
                       )}
                       <button
                         onClick={() => setDetail(item)}
-                        className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs hover:bg-blue-100 transition-all"
+                        className="col-start-2 inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs hover:bg-blue-100 transition-all"
                       >
                         <Eye className="h-3.5 w-3.5" />
                         Detail
@@ -201,7 +203,7 @@ export default function DaftarPermintaanPembelianPPIC({ basePath = permintaan_pe
               ))}
               {!loading && !error && filteredData.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-6 py-10 text-center text-gray-400 italic">
+                  <td colSpan={5} className="px-6 py-10 text-center text-gray-400 italic">
                     Data tidak ditemukan untuk filter tersebut.
                   </td>
                 </tr>
@@ -225,27 +227,37 @@ export default function DaftarPermintaanPembelianPPIC({ basePath = permintaan_pe
               <p><span className="text-gray-500 inline-block w-40">Jabatan</span>{detail.payload.jabatan ?? '-'}</p>
               <p><span className="text-gray-500 inline-block w-40">Tanggal Pengajuan</span>{displayDate(detail.payload.tanggalPengajuan ?? detail.createdAt)}</p>
               <p><span className="text-gray-500 inline-block w-40">Status</span>{STATUS_LABEL[detail.status].label}</p>
+              <p><span className="text-gray-500 inline-block w-40">Periode</span>{detail.payload.periode || '-'}</p>
+              <p><span className="text-gray-500 inline-block w-40">Status Pembelian</span>{purchaseLabel(detail)}</p>
               {detail.payload.notes && <p><span className="text-gray-500 inline-block w-40">Catatan</span>{detail.payload.notes}</p>}
             </div>
             <div className="overflow-x-auto border border-gray-200 rounded-lg">
               <table className="w-full text-left text-sm">
                 <thead className="bg-gray-50 text-gray-600 font-semibold">
                   <tr>
+                    <th className="px-4 py-3">Tanggal</th>
+                    <th className="px-4 py-3">Supplier</th>
                     <th className="px-4 py-3">Nama Barang</th>
                     <th className="px-4 py-3 text-center">QTY</th>
                     <th className="px-4 py-3 text-center">Satuan</th>
                     <th className="px-4 py-3">Proyek</th>
                     <th className="px-4 py-3">No SPK</th>
+                    <th className="px-4 py-3">Keterangan</th>
+                    <th className="px-4 py-3">Deadline Tanggal</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {(detail.payload.items ?? []).map((it, i) => (
                     <tr key={i}>
+                      <td className="px-4 py-3">{it.tanggal ? displayDate(it.tanggal) : '-'}</td>
+                      <td className="px-4 py-3">{it.supplier || '-'}</td>
                       <td className="px-4 py-3 font-medium text-gray-900">{it.namaBarang}</td>
                       <td className="px-4 py-3 text-center">{it.qty}</td>
                       <td className="px-4 py-3 text-center">{it.satuan}</td>
                       <td className="px-4 py-3">{it.proyek}</td>
                       <td className="px-4 py-3">{it.noSpk}</td>
+                      <td className="px-4 py-3">{it.keterangan || '-'}</td>
+                      <td className="px-4 py-3">{it.deadlineTanggal ? displayDate(it.deadlineTanggal) : '-'}</td>
                     </tr>
                   ))}
                 </tbody>
