@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import { importItems } from '@/domains/inventory/api';
-import type { MasterDataImportRow } from './DataBarang';
+import type { MasterDataImportRow } from '@/domains/inventory/components/data-barang/modals/ImportMasterData';
 
 type Mapping = { category: string; unit: string; locationCode: string; supplier: string };
 type Options = { suppliers: string[]; categories: string[]; units: string[]; locations: string[] };
