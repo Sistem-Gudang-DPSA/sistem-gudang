@@ -158,17 +158,17 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
             <div className="flex items-center">
               <span className="w-45 text-[15px] font-semibold text-gray-700">Bagian/Sub bagian</span>
               <span className="w-8 text-center text-gray-700 font-semibold">:</span>
-              <input aria-label="Bagian / Sub Bagian" type="text" placeholder="Contoh: Divisi Produksi / Maintenance" value={header.bagian} maxLength={100} onChange={(e) => setHeader({ ...header, bagian: e.target.value })} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200" />
+              <input aria-label="Bagian / Sub Bagian" type="text"  value={header.bagian} maxLength={100} onChange={(e) => setHeader({ ...header, bagian: e.target.value })} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200" />
             </div>
             <div className="flex items-center">
               <span className="w-45 text-[15px] font-semibold text-gray-700">Nama</span>
               <span className="w-8 text-center text-gray-700 font-semibold">:</span>
-              <input aria-label="Nama pemohon" type="text" placeholder="Masukkan nama pemohon" value={header.namaPemohon} maxLength={191} onChange={(e) => setHeader({ ...header, namaPemohon: e.target.value })} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200" />
+              <input aria-label="Nama pemohon" type="text"  value={header.namaPemohon} maxLength={191} onChange={(e) => setHeader({ ...header, namaPemohon: e.target.value })} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200" />
             </div>
             <div className="flex items-center">
               <span className="w-45 text-[15px] font-semibold text-gray-700">Jabatan</span>
               <span className="w-8 text-center text-gray-700 font-semibold">:</span>
-              <input aria-label="Jabatan" type="text" placeholder="Masukkan jabatan pemohon" value={header.jabatan} maxLength={100} onChange={(e) => setHeader({ ...header, jabatan: e.target.value })} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200" />
+              <input aria-label="Jabatan" type="text"  value={header.jabatan} maxLength={100} onChange={(e) => setHeader({ ...header, jabatan: e.target.value })} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200" />
             </div>
             <div className="flex items-center">
               <span className="w-45 text-[15px] font-semibold text-gray-700">Tanggal Pengajuan</span>
