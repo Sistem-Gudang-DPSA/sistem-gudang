@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { fileUrl } from "@/shared/lib/api-client";
 import { useApiData } from "@/shared/lib/use-api-data";
 import Pagination from "@/shared/components/Pagination";
-import { listBugReports, updateBugReportStatus } from "@/domains/superadmin/api";
+import { listBugReports, updateBugReport } from "@/domains/superadmin/api";
 import type { BugReport, BugReportStatus } from "@/domains/superadmin/types";
 import { waktuEdit } from "@/domains/inventory/components/RiwayatEditBarangKeluar";
 
@@ -20,6 +20,8 @@ export default function LaporanMasalah() {
   const [busy, setBusy] = useState<number | null>(null);
   const acting = useRef(false);
   const [actionError, setActionError] = useState("");
+  // Unsaved IT note text per report id; falls back to the saved itNote.
+  const [notes, setNotes] = useState<Record<number, string>>({});
   const { data, loading, error, reload } = useApiData(
     () => listBugReports({ page, pageSize: 20, status: status || undefined }),
     `${page}|${status}`,
@@ -34,16 +36,16 @@ export default function LaporanMasalah() {
     };
   }, [reload]);
 
-  const changeStatus = async (id: number, next: BugReportStatus) => {
+  const act = async (id: number, input: { status?: BugReportStatus; itNote?: string }, gagal: string) => {
     if (acting.current) return;
     acting.current = true;
     setBusy(id);
     setActionError("");
     try {
-      await updateBugReportStatus(id, next);
+      await updateBugReport(id, input);
       reload();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Gagal mengubah status laporan.");
+      setActionError(err instanceof Error ? err.message : gagal);
     } finally {
       acting.current = false;
       setBusy(null);
@@ -92,7 +94,7 @@ export default function LaporanMasalah() {
           <table className="w-full text-left text-sm">
             <thead className="bg-gray-50 text-gray-500">
               <tr>
-                {["Waktu", "Pelapor", "Halaman", "Deskripsi", "Screenshot", "Status", "Aksi"].map((label) => (
+                {["Waktu", "Pelapor", "Halaman", "Deskripsi", "Screenshot", "Status", "Catatan IT", "Aksi"].map((label) => (
                   <th key={label} className="px-5 py-4">
                     {label}
                   </th>
@@ -102,14 +104,14 @@ export default function LaporanMasalah() {
             <tbody className="divide-y divide-gray-100">
               {loading && (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-gray-400">
+                  <td colSpan={8} className="p-8 text-center text-gray-400">
                     Memuat laporan...
                   </td>
                 </tr>
               )}
               {!loading && error && (
                 <tr>
-                  <td role="alert" colSpan={7} className="p-8 text-center text-red-600">
+                  <td role="alert" colSpan={8} className="p-8 text-center text-red-600">
                     {error}
                   </td>
                 </tr>
@@ -141,13 +143,30 @@ export default function LaporanMasalah() {
                       )}
                     </td>
                     <td className="px-5 py-4">{statuses[r.status]}</td>
+                    <td className="px-5 py-4 min-w-56">
+                      <textarea
+                        aria-label={`Catatan IT laporan ${r.id}`}
+                        rows={3}
+                        value={notes[r.id] ?? r.itNote ?? ""}
+                        onChange={(e) => setNotes((n) => ({ ...n, [r.id]: e.target.value }))}
+                        className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                      />
+                      <button
+                        type="button"
+                        disabled={busy !== null}
+                        onClick={() => void act(r.id, { itNote: notes[r.id] ?? r.itNote ?? "" }, "Gagal menyimpan catatan.")}
+                        className="mt-2 rounded-lg border border-indigo-200 px-3 py-2 text-xs font-semibold text-indigo-600 disabled:opacity-50"
+                      >
+                        Simpan Catatan
+                      </button>
+                    </td>
                     <td className="px-5 py-4">
                       <div className="flex flex-wrap items-center gap-2">
                         {r.status !== "DIPROSES" && (
                           <button
                             type="button"
                             disabled={busy !== null}
-                            onClick={() => void changeStatus(r.id, "DIPROSES")}
+                            onClick={() => void act(r.id, { status: "DIPROSES" }, "Gagal mengubah status laporan.")}
                             className="rounded-lg border border-indigo-200 px-3 py-2 text-xs font-semibold text-indigo-600 disabled:opacity-50"
                           >
                             Diproses
@@ -157,7 +176,7 @@ export default function LaporanMasalah() {
                           <button
                             type="button"
                             disabled={busy !== null}
-                            onClick={() => void changeStatus(r.id, "SELESAI")}
+                            onClick={() => void act(r.id, { status: "SELESAI" }, "Gagal mengubah status laporan.")}
                             className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
                           >
                             Selesai
@@ -169,7 +188,7 @@ export default function LaporanMasalah() {
                 ))}
               {!loading && !error && data?.rows.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-gray-400">
+                  <td colSpan={8} className="p-8 text-center text-gray-400">
                     Tidak ada laporan.
                   </td>
                 </tr>

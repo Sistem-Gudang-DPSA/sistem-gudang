@@ -61,6 +61,12 @@ export function listBugReports(params?: { page?: number; pageSize?: number; stat
   return apiClient.get<PaginatedResult<BugReport>>(`/api/v1/bug-reports${toQuery(params)}`);
 }
 
-export function updateBugReportStatus(id: number, status: BugReportStatus) {
-  return apiClient.patch<BugReport>(`/api/v1/bug-reports/${id}/status`, { status });
+// Superadmin: change the status and/or the IT note of a report.
+export function updateBugReport(id: number, input: { status?: BugReportStatus; itNote?: string }) {
+  return apiClient.patch<BugReport>(`/api/v1/bug-reports/${id}`, input);
+}
+
+// The caller's own reports.
+export function listMyBugReports(params?: { page?: number; pageSize?: number }) {
+  return apiClient.get<PaginatedResult<BugReport>>(`/api/v1/bug-reports/mine${toQuery(params)}`);
 }
