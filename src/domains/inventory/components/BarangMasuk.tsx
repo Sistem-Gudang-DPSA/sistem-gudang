@@ -8,24 +8,31 @@ import type { InboundRow, StatusQc } from '@/domains/inventory/types';
 import { useItemSearch } from '@/domains/inventory/use-item-search';
 import { useSpkSearch } from '@/domains/ppic/use-spk-search';
 import { displayDate, todayIso, toDateRange } from '@/domains/inventory/date';
-import { toCsv } from '@/shared/lib/csv';
+import { downloadCsv } from '@/shared/lib/csv';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 import { ExportExcellButton } from '@/shared/components/Tombol';
-import { countActiveFilters, emptyBarangFilters } from './BarangFilterPanel';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
+import { useSelection } from '@/shared/lib/use-selection';
 import { usePage } from '@/shared/lib/use-page';
 import DateFilter from '@/shared/components/DateFilter';
 import SearchableSelect from '@/shared/components/SearchableSelect';
 import BarangMasukScan from './BarangMasukScan';
 import { QC_STATUS } from '@/domains/inventory/status';
+import { cetakFormulir, dokumenFormulir, lembarFormulir, lembarPerHalaman, tabelMaterial, type KopFormulir } from '@/domains/inventory/print-formulir';
+import { escapeHtml } from '@/shared/lib/escape-html';
 
 type PickedItem = { id: number; name: string; code: string | null };
 
 const emptyBaru = { item: null as PickedItem | null, tanggal: todayIso(), jumlahKedatangan: "", jumlahRekap: "", statusQc: "PASS" as StatusQc };
 const emptyKembali = { item: null as PickedItem | null, tanggal: todayIso(), jumlah: "", spk: "" };
+
+const PAGE_SIZE = 20;
+
+// Nama supplier, atau nama klien bila barang masuk dari klien.
+const namaSupplier = (r: InboundRow, kosong = '-') => r.supplierName ?? r.clientName ?? kosong;
 
 const orangeButtonClass =
   "flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed";
@@ -34,9 +41,7 @@ const orangeButtonClass =
 type BarisCetak = { name: string; code: string | null | undefined; unit?: string; qty: number };
 type DataCetakMasuk = { tanggal: string; supplier: string; baris: BarisCetak[] };
 
-const FORMAT_DOKUMEN = {
-  logo: "/logo-perusahaan.jpg",
-  logoAlternatif: "/logo-perusahaan.png",
+const FORMAT_DOKUMEN: KopFormulir = {
   judul: "SK PENERIMAAN BARANG",
   kode: "PPIC",
   nomor: "011",
@@ -45,192 +50,127 @@ const FORMAT_DOKUMEN = {
   divisi: "DPSA",
 };
 
-const escapeHtml = (value: string | number | null | undefined) =>
-  String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-
-function buatDokumenBarangMasuk(data: DataCetakMasuk, logoUrl: string): string {
-  const barisPerHalaman = 6;
-  const jumlahHalaman = Math.max(1, Math.ceil(data.baris.length / barisPerHalaman));
-  const halaman = Array.from({ length: jumlahHalaman }, (_, pageIndex) => {
-    const awal = pageIndex * barisPerHalaman;
-    const isiTabel = data.baris
-      .slice(awal, awal + barisPerHalaman)
-      .map((b, rowIndex) => `<tr>
-        <td class="tengah">${awal + rowIndex + 1}</td>
+function buatDokumenBarangMasuk(data: DataCetakMasuk): string {
+  const halaman = lembarPerHalaman(data.baris, (isi, h) =>
+    lembarFormulir(FORMAT_DOKUMEN, {
+      halaman: h,
+      informasi: `<table class="informasi">
+        <colgroup><col style="width:18%" /><col style="width:2%" /><col style="width:80%" /></colgroup>
+        <tbody>
+          <tr><td class="label">SUPPLIER</td><td>:</td><td>${escapeHtml(data.supplier)}</td></tr>
+          <tr><td class="label">TGL KEDATANGAN</td><td>:</td><td>${escapeHtml(displayDate(data.tanggal))}</td></tr>
+        </tbody>
+      </table>`,
+      material: tabelMaterial(
+        [8, 36, 10, 14, 14, 18],
+        isi
+          .map((b, rowIndex) => `<tr>
+        <td class="tengah">${h.awal + rowIndex + 1}</td>
         <td>${escapeHtml(b.name)}</td>
         <td class="tengah">${escapeHtml(b.unit)}</td>
         <td class="tengah"></td>
         <td class="tengah">${escapeHtml(b.qty)}</td>
         <td></td>
       </tr>`)
-      .join("");
-
-    return `<section class="lembar">
-      <header class="kop">
-        <img class="logo" src="${escapeHtml(logoUrl)}" alt="Logo perusahaan" />
-        <h1>${escapeHtml(FORMAT_DOKUMEN.judul)}</h1>
-        <div class="identitas-dokumen">
-          <table class="kode-dokumen">
-            <colgroup><col style="width:42%" /><col style="width:58%" /></colgroup>
-            <tbody>
-              <tr><td rowspan="2" class="tengah">${escapeHtml(FORMAT_DOKUMEN.kode)}<br />${escapeHtml(FORMAT_DOKUMEN.nomor)}</td><td>Rev:${escapeHtml(FORMAT_DOKUMEN.revisi)}</td></tr>
-              <tr><td>Terbit:${escapeHtml(FORMAT_DOKUMEN.terbit)}</td></tr>
-            </tbody>
-          </table>
-          <p class="divisi">${escapeHtml(FORMAT_DOKUMEN.divisi)}</p>
-        </div>
-      </header>
-
-      <table class="informasi">
-        <colgroup><col style="width:18%" /><col style="width:2%" /><col style="width:80%" /></colgroup>
-        <tbody>
-          <tr><td class="label">SUPPLIER</td><td>:</td><td>${escapeHtml(data.supplier)}</td></tr>
-          <tr><td class="label">TGL KEDATANGAN</td><td>:</td><td>${escapeHtml(displayDate(data.tanggal))}</td></tr>
-        </tbody>
-      </table>
-
-      <table class="material">
-        <colgroup><col style="width:8%" /><col style="width:36%" /><col style="width:10%" /><col style="width:14%" /><col style="width:14%" /><col style="width:18%" /></colgroup>
-        <thead>
-          <tr><th rowspan="2" scope="col">No</th><th rowspan="2" scope="col">Nama Material</th><th rowspan="2" scope="col">sat/vol</th><th colspan="2" scope="colgroup">Jumlah</th><th rowspan="2" scope="col">Keterangan</th></tr>
-          <tr><th scope="col">Dokubah</th><th scope="col">Pengambilan</th></tr>
-        </thead>
-        <tbody>${isiTabel}</tbody>
-      </table>
-
-      <footer class="pengesahan">
-        <p class="catatan">Ket : Rangkap 3 (untuk Gudang, PPIC &amp; Keuangan)</p>
-        <table class="tanda-tangan"><tbody><tr>
-          ${["PENERIMA", "GUDANG", "PPIC", "KEUANGAN"].map((label) => `<td>${label}<div class="ruang-tanda-tangan"></div>(____________________)</td>`).join("")}
-        </tr></tbody></table>
-        ${jumlahHalaman > 1 ? `<p class="nomor-halaman">Halaman ${pageIndex + 1} dari ${jumlahHalaman}</p>` : ""}
-      </footer>
-    </section>`;
-  }).join("");
-
-  return `<!doctype html>
-    <html lang="id">
-      <head>
-        <meta charset="utf-8" />
-        <title>${escapeHtml(FORMAT_DOKUMEN.judul)} - ${escapeHtml(data.supplier)}</title>
-        <style>
-          @page { size: A4 landscape; margin: 5mm; }
-          * { box-sizing: border-box; }
-          html, body { margin: 0; padding: 0; }
-          body { font: 7pt/1.2 Arial, sans-serif; color: #000; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .kertas { display: grid; grid-template-columns: repeat(2, 138mm); grid-auto-rows: minmax(95mm, auto); gap: 5mm; align-items: start; break-after: page; page-break-after: always; }
-          .kertas:last-child { break-after: auto; page-break-after: auto; }
-          .lembar { width: 138mm; max-width: 100%; break-inside: avoid; page-break-inside: avoid; }
-          .kop { height: 18mm; position: relative; }
-          .logo { position: absolute; top: 0; left: 0; width: 16mm; height: 16mm; object-fit: contain; }
-          h1 { margin: 0 27mm 0 17mm; padding-top: 5mm; text-align: center; font-size: 8pt; line-height: 1.2; font-weight: 700; text-decoration: underline; text-underline-offset: 0.5mm; }
-          .identitas-dokumen { position: absolute; top: 1mm; right: 0; width: 26mm; }
-          table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-          .kode-dokumen { font-size: 6pt; }
-          .kode-dokumen tr { height: 4mm; }
-          .kode-dokumen td { border: 1px solid #000; padding: 0.5mm 1mm; white-space: nowrap; }
-          .divisi { margin: 1mm 0 0; text-align: center; font-size: 6pt; font-weight: 700; }
-          .informasi { margin: 0; font-size: 6.5pt; }
-          .informasi td { height: 4.5mm; padding: 0.5mm; border-bottom: 1px solid #000; vertical-align: middle; overflow-wrap: anywhere; }
-          .informasi .label { font-weight: 700; white-space: nowrap; }
-          .material { margin-top: 1mm; font-size: 7pt; }
-          .material th, .material td { border: 1px solid #000; padding: 0.5mm; vertical-align: middle; overflow-wrap: anywhere; }
-          .material thead tr { height: 4mm; }
-          .material th { text-align: center; font-weight: 700; }
-          .material tbody tr { height: 5mm; break-inside: avoid; page-break-inside: avoid; }
-          .material thead { display: table-header-group; }
-          .tengah { text-align: center; }
-          .pengesahan { break-inside: avoid; page-break-inside: avoid; }
-          .catatan { margin: 2mm 0 1mm; font-size: 6pt; }
-          .tanda-tangan { font-size: 6pt; }
-          .tanda-tangan td { width: 25%; border: 0; padding: 0; text-align: center; vertical-align: top; }
-          .ruang-tanda-tangan { height: 8mm; }
-          .nomor-halaman { margin: 1mm 0 0; font-size: 6pt; text-align: right; }
-        </style>
-      </head>
-      <body>${halaman}</body>
-    </html>`;
+          .join(""),
+      ),
+      keterangan: "Ket : Rangkap 3 (untuk Gudang, PPIC & Keuangan)",
+      tandaTangan: ["PENERIMA", "GUDANG", "PPIC", "KEUANGAN"],
+    }),
+  );
+  return dokumenFormulir(`${FORMAT_DOKUMEN.judul} - ${data.supplier}`, halaman);
 }
 
-// Iframe tersembunyi: tidak diblokir pop-up, dan menu serta tombol halaman tidak ikut tercetak.
-function cetakBarangMasuk(data: DataCetakMasuk | DataCetakMasuk[]): Promise<void> {
-  const logoUrl = new URL(FORMAT_DOKUMEN.logo, window.location.origin).href;
-  const iframe = document.createElement("iframe");
-  iframe.title = "Cetak barang masuk";
-  iframe.setAttribute("aria-hidden", "true");
-  iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
+// Satu formulir per baris; satuan diambil dari data barang.
+async function cetakBarangMasuk(rows: InboundRow[]): Promise<void> {
+  const itemIds = [...new Set(rows.map((r) => r.itemId))];
+  const materials = await Promise.all(itemIds.map((id) => getItem(id)));
+  const units = new Map(materials.map((m) => [m.id, m.unit]));
+  await cetakFormulir(
+    rows.map((r) =>
+      buatDokumenBarangMasuk({
+        tanggal: r.date,
+        supplier: namaSupplier(r),
+        baris: [{ name: r.itemName, code: r.itemCode, unit: units.get(r.itemId), qty: r.qtyArrived }],
+      }),
+    ),
+    "barang masuk",
+  );
+}
 
-  return new Promise((resolve, reject) => {
-    iframe.onload = async () => {
-      const printWindow = iframe.contentWindow;
-      const printDocument = iframe.contentDocument;
-      if (!printWindow || !printDocument) {
-        iframe.remove();
-        reject(new Error("Dokumen cetak tidak dapat dibuka."));
-        return;
-      }
-      printWindow.addEventListener("afterprint", () => iframe.remove(), { once: true });
-      try {
-        await Promise.all(
-          Array.from(printDocument.images, (img) =>
-            img.decode().catch(async () => {
-              img.src = new URL(FORMAT_DOKUMEN.logoAlternatif, window.location.origin).href;
-              try {
-                await img.decode();
-              } catch {
-                throw new Error("Logo gagal dimuat. Letakkan logo di public/logo-perusahaan.jpg atau public/logo-perusahaan.png.");
-              }
-            }),
-          ),
-        );
-        printWindow.focus();
-        printWindow.print();
-        resolve();
-      } catch (err) {
-        iframe.remove();
-        reject(err);
-      }
-    };
-    iframe.onerror = () => {
-      iframe.remove();
-      reject(new Error("Dokumen cetak gagal dimuat."));
-    };
+function ModalShell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md transition-opacity duration-300 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-187.5 p-8 border border-white/20 relative animate-in zoom-in-95 duration-200">
+        <button
+          type="button"
+          aria-label="Tutup"
+          onClick={onClose}
+          className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+        >
+          <X className="h-4 w-4" />
+        </button>
 
-    const dokumen = (Array.isArray(data) ? data : [data]).map((d) =>
-      new DOMParser().parseFromString(buatDokumenBarangMasuk(d, logoUrl), "text/html"),
-    );
-    const gabungan = dokumen[0];
-    for (const lanjutan of dokumen.slice(1)) {
-      gabungan.body.append(...Array.from(lanjutan.body.children));
-    }
-    // Setiap formulir tetap sendiri; muat hingga empat formulir per A4.
-    const formulir = Array.from(gabungan.body.children);
-    gabungan.body.replaceChildren();
-    for (let index = 0; index < formulir.length; index += 4) {
-      const kertas = gabungan.createElement("main");
-      kertas.className = "kertas";
-      kertas.append(...formulir.slice(index, index + 4));
-      gabungan.body.append(kertas);
-    }
-    iframe.srcdoc = `<!doctype html>${gabungan.documentElement.outerHTML}`;
-    document.body.appendChild(iframe);
-  });
+        <h2 className="text-[20px] font-extrabold text-gray-900 mb-8 tracking-wide uppercase">
+          {title}
+        </h2>
+
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// Kode (otomatis dari barang terpilih) dan Nama Barang (pencarian server). Dipakai di kedua modal.
+function ItemPickerFields({ item, onChange, search }: { item: PickedItem | null; onChange: (item: PickedItem | null) => void; search: ReturnType<typeof useItemSearch> }) {
+  const label = (it: PickedItem) => (it.code ? `${it.name} (${it.code})` : it.name);
+  const pilihanBarang = [
+    ...(item && !search.items.some((it) => it.id === item.id) ? [{ value: String(item.id), label: label(item) }] : []),
+    ...search.items.map((it) => ({ value: String(it.id), label: label(it) })),
+  ];
+  const pilihBarang = (id: string): PickedItem | null => {
+    const it = search.items.find((x) => String(x.id) === id);
+    return it ? { id: it.id, name: it.name, code: it.code } : item && String(item.id) === id ? item : null;
+  };
+  return (
+    <>
+      <div className="flex-1 flex flex-col gap-2">
+        <label className="text-[15px] font-medium text-gray-900">Kode Barang</label>
+        <input
+          type="text"
+          disabled
+          placeholder="Isi Otomatis"
+          value={item?.code ?? ''}
+          className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-700 placeholder-gray-400 bg-[#f8f9fa] text-sm"
+        />
+      </div>
+      <div className="flex-1 flex flex-col gap-2">
+        <label className="text-[15px] font-medium text-gray-900">Nama Barang</label>
+        <SearchableSelect
+          value={item ? String(item.id) : ''}
+          onChange={(id) => onChange(pilihBarang(id))}
+          onSearch={search.onSearch}
+          pending={search.pending}
+          options={pilihanBarang}
+          placeholder="Isi Nama Barang"
+          emptyText="Barang tidak ditemukan"
+          aria-label="Nama Barang"
+          className="w-full border border-gray-300 rounded-md py-3 pl-4 pr-3 text-gray-700 text-sm"
+        />
+      </div>
+    </>
+  );
 }
 
 export default function BarangMasukGudang() {
   const canCreate = useCan('inbound.create');
   const { sort, toggle, params: sortParams } = useSort();
-  const [filters] = useState(emptyBarangFilters);
   const [showFilter, setShowFilter] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterDay, setFilterDay] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
   const [filterYear, setFilterYear] = useState("");
+  const jumlahFilterAktif = [filterDay, filterMonth, filterYear].filter(Boolean).length;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalData, setModalData] = useState(emptyBaru);
@@ -240,7 +180,7 @@ export default function BarangMasukGudang() {
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState("");
 
-  const [selected, setSelected] = useState<Map<number, InboundRow>>(new Map());
+  const selection = useSelection<InboundRow>();
   const [printing, setPrinting] = useState(false);
   const [actionError, setActionError] = useState("");
 
@@ -249,78 +189,42 @@ export default function BarangMasukGudang() {
   const filterKey = JSON.stringify([searchQuery, filterDay, filterMonth, filterYear, sortParams]);
   const [page, setPage] = usePage(filterKey);
   const { data: result, loading, error, reload } = useApiData(
-    () => listInbound({ page, pageSize: 20, search: searchQuery || undefined, ...dateRange, ...sortParams }),
+    () => listInbound({ page, pageSize: PAGE_SIZE, search: searchQuery || undefined, ...dateRange, ...sortParams }),
     `${filterKey}|${page}`,
     'Gagal memuat data barang masuk.',
   );
   const rows = result?.rows ?? [];
   const total = result?.total ?? 0;
 
-  const allChecked = rows.length > 0 && rows.every((r) => selected.has(r.id));
-  const toggleSelected = (row: InboundRow) =>
-    setSelected((prev) => {
-      const next = new Map(prev);
-      if (next.has(row.id)) next.delete(row.id);
-      else next.set(row.id, row);
-      return next;
-    });
-  const toggleAllSelected = () =>
-    setSelected((prev) => {
-      const next = new Map(prev);
-      rows.forEach((r) => (allChecked ? next.delete(r.id) : next.set(r.id, r)));
-      return next;
-    });
+  const allChecked = selection.allSelected(rows);
 
   const spkKembali = useSpkSearch(modalKembaliData.spk);
 
   // Barang dicari di server dan dipilih per id; yang terpilih disimpan di state modal (nama belum tentu unik).
-  const { items, onSearch: searchItems, pending: itemPending, error: itemError } = useItemSearch();
+  const itemSearch = useItemSearch();
+  const { onSearch: searchItems, error: itemError } = itemSearch;
   const itemBaru = modalData.item;
   const itemKembali = modalKembaliData.item;
-  const label = (it: PickedItem) => (it.code ? `${it.name} (${it.code})` : it.name);
-  const pilihanBarang = (picked: PickedItem | null) => [
-    ...(picked && !items.some((it) => it.id === picked.id) ? [{ value: String(picked.id), label: label(picked) }] : []),
-    ...items.map((it) => ({ value: String(it.id), label: label(it) })),
-  ];
-  const pilihBarang = (id: string, prev: PickedItem | null): PickedItem | null => {
-    const it = items.find((x) => String(x.id) === id);
-    return it ? { id: it.id, name: it.name, code: it.code } : prev && String(prev.id) === id ? prev : null;
-  };
 
   // Ekspor CSV untuk baris yang tampil di halaman ini
   const handleExportCsv = () => {
-    const csv = toCsv([
+    downloadCsv(`Data_Barang_Masuk_halaman-${page}.csv`, [
       ['No', 'Tanggal', 'Kode Barang', 'Nama Barang', 'Supplier', 'Jumlah Kedatangan', 'Jumlah Rekap'],
-      ...rows.map((r, i) => [i + 1, displayDate(r.date), r.itemCode ?? '', r.itemName, r.supplierName ?? r.clientName ?? '', r.qtyArrived, r.qtyPurchased ?? '']),
+      ...rows.map((r, i) => [i + 1, displayDate(r.date), r.itemCode ?? '', r.itemName, namaSupplier(r, ''), r.qtyArrived, r.qtyPurchased ?? '']),
     ]);
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Data_Barang_Masuk_halaman-${page}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
   };
 
   // Cetak: baris yang dicentang, atau semua baris yang tampil bila tidak ada yang dicentang.
   // Satu formulir per baris; satuan diambil dari data barang.
   const printSelected = async () => {
     if (printing) return;
-    const sumber = selected.size > 0 ? [...selected.values()] : rows;
+    const sumber = selection.size > 0 ? selection.rows : rows;
     if (sumber.length === 0) return;
 
     setPrinting(true);
     setActionError("");
     try {
-      const itemIds = [...new Set(sumber.map((r) => r.itemId))];
-      const materials = await Promise.all(itemIds.map((id) => getItem(id)));
-      const units = new Map(materials.map((m) => [m.id, m.unit]));
-      await cetakBarangMasuk(
-        sumber.map((r): DataCetakMasuk => ({
-          tanggal: r.date,
-          supplier: r.supplierName ?? r.clientName ?? "-",
-          baris: [{ name: r.itemName, code: r.itemCode, unit: units.get(r.itemId), qty: r.qtyArrived }],
-        })),
-      );
+      await cetakBarangMasuk(sumber);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Gagal menyiapkan dokumen cetak.");
     } finally {
@@ -352,12 +256,7 @@ export default function BarangMasukGudang() {
       reload();
       if (cetakSetelah) {
         try {
-          const itemDetail = await getItem(saved.itemId);
-          await cetakBarangMasuk({
-            tanggal: saved.date,
-            supplier: saved.supplierName ?? saved.clientName ?? "-",
-            baris: [{ name: saved.itemName, code: saved.itemCode, unit: itemDetail.unit, qty: saved.qtyArrived }],
-          });
+          await cetakBarangMasuk([saved]);
         } catch (err) {
           setActionError(err instanceof Error ? err.message : "Gagal menyiapkan dokumen cetak.");
         }
@@ -428,7 +327,7 @@ export default function BarangMasukGudang() {
           </div>
 
           <div className="flex flex-wrap gap-2 w-full lg:w-auto lg:justify-end">
-            <button type="button" onClick={printSelected} disabled={printing || (selected.size === 0 && (loading || !!error || rows.length === 0))} className={orangeButtonClass}>
+            <button type="button" onClick={printSelected} disabled={printing || (selection.size === 0 && (loading || !!error || rows.length === 0))} className={orangeButtonClass}>
               <Printer className="w-4 h-4" />
               <span>{printing ? "Menyiapkan cetak..." : "Print"}</span>
             </button>
@@ -455,10 +354,10 @@ export default function BarangMasukGudang() {
               type="button"
               onClick={() => setShowFilter((v) => !v)}
               aria-expanded={showFilter}
-              className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors text-sm font-medium ${showFilter || countActiveFilters(filters) > 0 ? 'bg-orange-50 border-orange-300 text-orange-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+              className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors text-sm font-medium ${showFilter || jumlahFilterAktif > 0 ? 'bg-orange-50 border-orange-300 text-orange-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
             >
               <Filter className="w-4 h-4" />
-              <span>Filter{countActiveFilters(filters) > 0 ? ` (${countActiveFilters(filters)})` : ''}</span>
+              <span>Filter{jumlahFilterAktif > 0 ? ` (${jumlahFilterAktif})` : ''}</span>
             </button>
           </div>
         </div>
@@ -481,7 +380,7 @@ export default function BarangMasukGudang() {
             <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
               <tr>
                 <th scope="col" className="px-4 py-4">
-                  <input type="checkbox" aria-label="Centang semua baris" checked={allChecked} onChange={toggleAllSelected} disabled={loading || !!error || rows.length === 0} className="w-4 h-4 accent-[#FF8A00]" />
+                  <input type="checkbox" aria-label="Centang semua baris" checked={allChecked} onChange={() => selection.toggleMany(rows)} disabled={loading || !!error || rows.length === 0} className="w-4 h-4 accent-[#FF8A00]" />
                 </th>
                 <th scope="col" className="px-6 py-4">No</th>
                 <SortableTh label="Tanggal" sortKey="date" sort={sort} onSort={toggle} />
@@ -500,9 +399,9 @@ export default function BarangMasukGudang() {
               {!loading && !error && rows.map((item, index) => (
                 <tr key={item.id} className="hover:bg-[#FF8A00]/5 transition-colors group">
                   <td className="px-4 py-4">
-                    <input type="checkbox" aria-label={`Centang ${item.itemName}`} checked={selected.has(item.id)} onChange={() => toggleSelected(item)} className="w-4 h-4 accent-[#FF8A00]" />
+                    <input type="checkbox" aria-label={`Centang ${item.itemName}`} checked={selection.isSelected(item.id)} onChange={() => selection.toggle(item)} className="w-4 h-4 accent-[#FF8A00]" />
                   </td>
-                  <td className="px-6 py-4 text-gray-500 text-center">{(page - 1) * 20 + index + 1}.</td>
+                  <td className="px-6 py-4 text-gray-500 text-center">{(page - 1) * PAGE_SIZE + index + 1}.</td>
                   <td className="px-6 py-4 text-gray-500">{displayDate(item.date)}</td>
 
                   <td className="px-6 py-4">
@@ -527,7 +426,7 @@ export default function BarangMasukGudang() {
           </table>
         </div>
 
-        <Pagination page={page} pageSize={20} total={total} onPageChange={setPage} />
+        <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
       </div>
 
       {/* Export */}
@@ -539,45 +438,10 @@ export default function BarangMasukGudang() {
 
       {/* Modal Form Barang Masuk */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md transition-opacity duration-300 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-187.5 p-8 border border-white/20 relative animate-in zoom-in-95 duration-200">
-            <button
-              onClick={() => setIsModalOpen(false)}
-              className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
-            >
-              <X className="h-4 w-4" />
-            </button>
-
-            <h2 className="text-[20px] font-extrabold text-gray-900 mb-8 tracking-wide uppercase">
-              FORM BARANG MASUK
-            </h2>
-
+        <ModalShell title="FORM BARANG MASUK" onClose={() => setIsModalOpen(false)}>
             <div className="flex flex-col gap-6 mb-10">
               <div className="flex flex-col sm:flex-row gap-6">
-                <div className="flex-1 flex flex-col gap-2">
-                  <label className="text-[15px] font-medium text-gray-900">Kode Barang</label>
-                  <input
-                    type="text"
-                    disabled
-                    placeholder="Isi Otomatis"
-                    value={itemBaru?.code ?? ''}
-                    className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-700 placeholder-gray-400 bg-[#f8f9fa] text-sm"
-                  />
-                </div>
-                <div className="flex-1 flex flex-col gap-2">
-                  <label className="text-[15px] font-medium text-gray-900">Nama Barang</label>
-                  <SearchableSelect
-                    value={itemBaru ? String(itemBaru.id) : ''}
-                    onChange={(id) => setModalData((prev) => ({ ...prev, item: pilihBarang(id, prev.item) }))}
-                    onSearch={searchItems}
-                    pending={itemPending}
-                    options={pilihanBarang(itemBaru)}
-                    placeholder="Isi Nama Barang"
-                    emptyText="Barang tidak ditemukan"
-                    aria-label="Nama Barang"
-                    className="w-full border border-gray-300 rounded-md py-3 pl-4 pr-3 text-gray-700 text-sm"
-                  />
-                </div>
+                <ItemPickerFields item={itemBaru} onChange={(item) => setModalData((prev) => ({ ...prev, item }))} search={itemSearch} />
               </div>
 
               <div className="flex flex-col sm:flex-row gap-6">
@@ -647,51 +511,15 @@ export default function BarangMasukGudang() {
                 Simpan + Cetak
               </button>
             </div>
-          </div>
-        </div>
+        </ModalShell>
       )}
 
       {/* Modal Form Barang Kembali */}
       {isModalKembaliOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md transition-opacity duration-300 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-187.5 p-8 border border-white/20 relative animate-in zoom-in-95 duration-200">
-            <button
-              onClick={() => setIsModalKembaliOpen(false)}
-              className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
-            >
-              <X className="h-4 w-4" />
-            </button>
-
-            <h2 className="text-[20px] font-extrabold text-gray-900 mb-8 tracking-wide uppercase">
-              FORM BARANG KEMBALI
-            </h2>
-
+        <ModalShell title="FORM BARANG KEMBALI" onClose={() => setIsModalKembaliOpen(false)}>
             <div className="flex flex-col gap-6 mb-10">
               <div className="flex flex-col sm:flex-row gap-6">
-                <div className="flex-1 flex flex-col gap-2">
-                  <label className="text-[15px] font-medium text-gray-900">Kode Barang</label>
-                  <input
-                    type="text"
-                    disabled
-                    placeholder="Isi Otomatis"
-                    value={itemKembali?.code ?? ''}
-                    className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-700 placeholder-gray-400 bg-[#f8f9fa] text-sm"
-                  />
-                </div>
-                <div className="flex-1 flex flex-col gap-2">
-                  <label className="text-[15px] font-medium text-gray-900">Nama Barang</label>
-                  <SearchableSelect
-                    value={itemKembali ? String(itemKembali.id) : ''}
-                    onChange={(id) => setModalKembaliData((prev) => ({ ...prev, item: pilihBarang(id, prev.item) }))}
-                    onSearch={searchItems}
-                    pending={itemPending}
-                    options={pilihanBarang(itemKembali)}
-                    placeholder="Isi Nama Barang"
-                    emptyText="Barang tidak ditemukan"
-                    aria-label="Nama Barang"
-                    className="w-full border border-gray-300 rounded-md py-3 pl-4 pr-3 text-gray-700 text-sm"
-                  />
-                </div>
+                <ItemPickerFields item={itemKembali} onChange={(item) => setModalKembaliData((prev) => ({ ...prev, item }))} search={itemSearch} />
               </div>
 
               <div className="flex flex-col sm:flex-row gap-6">
@@ -743,8 +571,7 @@ export default function BarangMasukGudang() {
                 Simpan
               </button>
             </div>
-          </div>
-        </div>
+        </ModalShell>
       )}
     </div>
   );

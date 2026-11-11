@@ -4,7 +4,7 @@ import { escapeHtml } from '@/shared/lib/escape-html';
 import React, { useState } from 'react';
 import { Search, Eye, Loader2, AlertCircle } from 'lucide-react';
 import { exportRequestsReport, getMaterialRequest, getRequestsReport } from '@/domains/inventory/api';
-import { displayDate, todayIso } from '@/domains/inventory/date';
+import { displayDate, monthStart, todayIso } from '@/domains/inventory/date';
 import type { MaterialRequestDetail, MaterialRequestStatus } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
@@ -13,14 +13,10 @@ import StatusBadge from '@/shared/components/StatusBadge';
 import { REQUEST_STATUS as STATUS_LABEL } from '@/domains/inventory/status';
 import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
+import { cetakHtml } from '@/shared/lib/print-html';
 
 const PAGE_SIZE = 20;
 
-
-const monthStart = () => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-};
 
 export default function RekapPermintaan(){
     const [searchQuery, setSearchQuery] = useState<string>('');
@@ -89,13 +85,7 @@ export default function RekapPermintaan(){
         }
     };
 
-    const handlePrintPdf = () => {
-        const win = window.open('', '_blank');
-        if (win) win.opener = null;
-        if (!win) {
-            setActionError('Pop-up diblokir browser. Izinkan pop-up untuk mencetak PDF.');
-            return;
-        }
+    const handlePrintPdf = async () => {
         setActionError('');
 
         const rowsToPrint = anySelected ? rows.filter((r) => selected.has(r.id)) : rows;
@@ -115,7 +105,7 @@ export default function RekapPermintaan(){
 
         const emptyRow = `<tr><td colspan="7" class="center">Tidak ada data permintaan.</td></tr>`;
 
-        win.document.write(`<!doctype html>
+        const html = `<!doctype html>
             <html>
             <head>
                 <title>Rekap Permintaan</title>
@@ -153,10 +143,12 @@ export default function RekapPermintaan(){
                 <tbody>${rowsToPrint.length ? bodyRows : emptyRow}</tbody>
                 </table>
             </body>
-            </html>`);
-        win.document.close();
-        win.focus();
-        win.print();
+            </html>`;
+        try {
+          await cetakHtml(html, 'rekap permintaan');
+        } catch (err) {
+          setActionError(err instanceof Error ? err.message : 'Gagal mencetak PDF.');
+        }
         };
 
     return(

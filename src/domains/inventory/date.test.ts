@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { displayDate, todayIso } from './date';
+import { displayDate, displayDateTime, monthStart, todayIso } from './date';
 
 describe('date helpers', () => {
   afterEach(() => vi.useRealTimers());
@@ -18,5 +18,19 @@ describe('date helpers', () => {
     // Midnight UTC is a date-only value: not shifted to the local day.
     expect(displayDate('2026-10-27T00:00:00.000Z')).toBe('27-10-2026');
     expect(displayDate('2026-10-27T00:00:00Z')).toBe('27-10-2026');
+  });
+
+  it('displayDateTime shows local day and time for timestamps, date only otherwise', () => {
+    process.env.TZ = 'Asia/Jakarta';
+    expect(displayDateTime('2026-10-27T17:30:00Z')).toBe('28-10-2026 00:30');
+    expect(displayDateTime('2026-10-28')).toBe('28-10-2026');
+    expect(displayDateTime('2026-10-27T00:00:00.000Z')).toBe('27-10-2026');
+  });
+
+  it('monthStart is the local first day of the current month', () => {
+    process.env.TZ = 'Asia/Jakarta';
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-31T17:30:00Z')); // 01 Nov 00:30 in Jakarta
+    expect(monthStart()).toBe('2026-11-01');
   });
 });

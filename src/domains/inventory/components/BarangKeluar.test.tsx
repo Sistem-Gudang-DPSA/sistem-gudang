@@ -99,7 +99,10 @@ function scan(code: string) {
 const rowOf = (name: string) => screen.getByText(name, { selector: 'td' }).closest('tr')!;
 const cellsOf = (name: string) => Array.from(rowOf(name).querySelectorAll('td')).map((td) => td.textContent);
 
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  document.querySelectorAll('iframe[title="Cetak barang keluar"]').forEach((frame) => frame.remove());
+});
 
 describe('BarangKeluar list', () => {
   it('prints two checked SPKs as separate forms on the same sheet with their own materials', async () => {
@@ -240,6 +243,17 @@ describe('BarangKeluar list', () => {
     expect(screen.getAllByRole('row')).toHaveLength(2);
   });
 
+  it('shows Dicatat in Asia/Jakarta time from the UTC createdAt', async () => {
+    setup({}, paged([{ ...trx(1), createdAt: '2026-03-05T03:30:00.000Z' }, { ...trx(2), createdAt: '2026-03-05T20:15:00.000Z' }]));
+    await screen.findAllByText('Klien 2');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Lihat rincian 1' })[0]);
+    expect(within(screen.getByRole('dialog', { name: 'Rincian Barang Keluar' })).getByText('05-03-2026 10:30')).toBeTruthy();
+    fireEvent.click(screen.getByLabelText('Tutup rincian'));
+    // 20:15 UTC is already the next day in Jakarta
+    fireEvent.click(screen.getAllByRole('button', { name: 'Lihat rincian 2' })[0]);
+    expect(within(screen.getByRole('dialog', { name: 'Rincian Barang Keluar' })).getByText('06-03-2026 03:15')).toBeTruthy();
+  });
+
   it('opens the rincian pop-up from the transaction number with every line and the edit status', async () => {
     setup();
     await screen.findAllByText('Klien 1');
@@ -284,6 +298,8 @@ describe('BarangKeluar list', () => {
     fireEvent.click(screen.getByText('Selanjutnya'));
     await waitFor(() => expect(lastQ(api).get('page')).toBe('2'));
     fireEvent.change(label('Cari barang keluar'), { target: { value: 'maju' } });
+    // The search is debounced: typing alone sends nothing, the request follows once typing pauses.
+    expect(api.calls('GET /api/v1/outbound').some((c) => c.query.get('search') === 'maju')).toBe(false);
     await waitFor(() => expect(lastQ(api).get('search')).toBe('maju'));
     expect(lastQ(api).get('page')).toBe('1');
     fireEvent.click(screen.getByRole('button', { name: /^Filter/ }));
@@ -700,6 +716,230 @@ describe('BarangKeluar camera', () => {
 });
 
 const who = (permissions: string[], isSuperadmin = false) => ({ id: 1, username: 'u', email: 'u@x.id', roleId: 2, roleName: 'Staff', isSuperadmin, permissions });
+
+// The print iframe holds the whole form in srcdoc
+async function printedDoc() {
+  await waitFor(() => expect(document.querySelector('iframe[title="Cetak barang keluar"]')).not.toBeNull());
+  return new DOMParser().parseFromString(document.querySelector<HTMLIFrameElement>('iframe[title="Cetak barang keluar"]')!.srcdoc, 'text/html');
+}
+
+// Holds the answer of one by-code request until release() so a scan stays pending
+function holdScan(api: ReturnType<typeof installFakeApi>, code: string) {
+  const real = api.fetchMock.getMockImplementation()!;
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  api.fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input).includes(`/items/by-code/${code}`)) await gate;
+    return real(input, init);
+  });
+  return release;
+}
+
+describe('BarangKeluar safety paths', () => {
+  it('saves and prints after Konfirmasi + Cetak with the units, pengambil and SPK of the draft', async () => {
+    const api = setup({ 'POST /api/v1/outbound': { id: 5 } });
+    await openForm(api);
+    await fillHeader();
+    scan('BRG-1');
+    await screen.findByText('Triplex', { selector: 'td' });
+    fireEvent.click(screen.getByText('Simpan + Cetak'));
+    fireEvent.click(await screen.findByText('Konfirmasi + Cetak'));
+    await waitFor(() => expect(api.calls('POST /api/v1/outbound')).toHaveLength(1));
+    const printed = await printedDoc();
+    expect(printed.body.textContent).toContain('SPK-9');
+    expect(printed.body.textContent).toContain('PT Maju');
+    expect(printed.body.textContent).toContain('Lemari');
+    expect(printed.body.textContent).toContain('Triplex');
+    expect(printed.body.textContent).toContain('lembar');
+    expect(printed.body.textContent).toContain('Rudi');
+    await waitFor(() => expect(screen.queryByText('Form Barang Keluar SPK')).toBeNull());
+  });
+
+  it('tells the user the data is saved when the print dialog fails after Konfirmasi + Cetak', async () => {
+    const api = setup({ 'POST /api/v1/outbound': { id: 5 } });
+    await openForm(api);
+    await fillHeader();
+    scan('BRG-1');
+    await screen.findByText('Triplex', { selector: 'td' });
+    fireEvent.click(screen.getByText('Simpan + Cetak'));
+    const confirm = await screen.findByText('Konfirmasi + Cetak');
+    const spy = vi.spyOn(HTMLIFrameElement.prototype, 'contentWindow', 'get').mockReturnValue(null);
+    try {
+      fireEvent.click(confirm);
+      expect(await screen.findByText('Data sudah tersimpan, tetapi dialog cetak gagal dibuka. Dokumen cetak tidak dapat dibuka.')).toBeTruthy();
+      expect(api.calls('POST /api/v1/outbound')).toHaveLength(1);
+      expect(screen.queryByText('Form Barang Keluar SPK')).toBeNull();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('saves an edit and prints it with Simpan + Cetak', async () => {
+    const api = setup({
+      'PUT /api/v1/outbound/1': { id: 1 },
+      'GET /api/v1/items/1': item(1, 'BRG-1', 'Triplex', 'lembar', 25),
+      'GET /api/v1/items/2': item(2, 'BRG-2', 'Paku', 'kg', 140),
+    }, paged([disetujui()]));
+    await screen.findAllByText('Klien 1');
+    await waitFor(() => expect(api.calls('GET /api/v1/items').length).toBeGreaterThan(0));
+    fireEvent.click(screen.getByLabelText('Edit barang keluar 1 Triplex'));
+    fireEvent.change(label('Jumlah'), { target: { value: '5' } });
+    fireEvent.click(screen.getByText('Simpan + Cetak'));
+    await waitFor(() => expect(api.calls('PUT /api/v1/outbound/1')).toHaveLength(1));
+    const printed = await printedDoc();
+    expect(printed.body.textContent).toContain('SPK-1');
+    expect(printed.body.textContent).toContain('Triplex');
+    expect(printed.body.textContent).toContain('Paku');
+    expect(printed.body.textContent).toContain('lembar');
+    expect(printed.body.textContent).toContain('kg');
+    expect(printed.body.textContent).toContain('Andi');
+  });
+
+  it('shows the edit save as done but reports a failed print dialog', async () => {
+    const api = setup({
+      'PUT /api/v1/outbound/1': { id: 1 },
+      'GET /api/v1/items/1': item(1, 'BRG-1', 'Triplex', 'lembar', 25),
+      'GET /api/v1/items/2': item(2, 'BRG-2', 'Paku', 'kg', 140),
+    }, paged([disetujui()]));
+    await screen.findAllByText('Klien 1');
+    await waitFor(() => expect(api.calls('GET /api/v1/items').length).toBeGreaterThan(0));
+    fireEvent.click(screen.getByLabelText('Edit barang keluar 1 Triplex'));
+    const spy = vi.spyOn(HTMLIFrameElement.prototype, 'contentWindow', 'get').mockReturnValue(null);
+    try {
+      fireEvent.click(screen.getByText('Simpan + Cetak'));
+      expect(await screen.findByText('Perubahan sudah tersimpan, tetapi dialog cetak gagal dibuka. Dokumen cetak tidak dapat dibuka.')).toBeTruthy();
+      expect(screen.queryByText('Edit Barang Keluar')).toBeNull();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('warns "Tidak Bisa Diedit" and closes the form when the approval no longer belongs to the user', async () => {
+    const api = installFakeApi({ 'GET /api/v1/outbound': paged([disetujui()]), 'GET /api/v1/items': items, ...tracking });
+    const { rerender } = render(<AuthUserProvider user={{ ...who(['outbound.update']), id: 1 }}><BarangKeluar /></AuthUserProvider>);
+    fireEvent.click(await screen.findByLabelText('Edit barang keluar 1 Triplex'));
+    expect(screen.getByText('Edit Barang Keluar')).toBeTruthy();
+    rerender(<AuthUserProvider user={{ ...who(['outbound.update']), id: 9 }}><BarangKeluar /></AuthUserProvider>);
+    fireEvent.click(screen.getByText('Simpan'));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Tidak Bisa Diedit' });
+    expect(within(dialog).getByText(/Ajukan edit ke superadmin dan tunggu persetujuan/)).toBeTruthy();
+    expect(screen.queryByText('Edit Barang Keluar')).toBeNull();
+    expect(api.calls('PUT /api/v1/outbound/1')).toHaveLength(0);
+    fireEvent.click(within(dialog).getByText('Mengerti'));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+  });
+
+  it('blocks a quantity above the stock and names the material', async () => {
+    const api = setup();
+    await openForm(api);
+    await fillHeader();
+    scan('BRG-1');
+    await screen.findByText('Triplex', { selector: 'td' });
+    fireEvent.change(label('Pengambilan Triplex'), { target: { value: '26' } });
+    fireEvent.click(screen.getByText('Simpan'));
+    expect(screen.getByText('Jumlah Triplex melebihi stok 25 lembar.')).toBeTruthy();
+    expect(screen.queryByRole('dialog', { name: 'Preview Barang Keluar' })).toBeNull();
+    expect(api.calls('POST /api/v1/outbound')).toHaveLength(0);
+  });
+
+  it('disables Simpan while a scan is pending and refuses a submit that slips through', async () => {
+    const api = setup();
+    const release = holdScan(api, 'HPL-01');
+    await openForm(api);
+    await fillHeader();
+    scan('HPL-01');
+    expect((await screen.findByRole('status')).textContent).toBe('Membaca 1 scan barang...');
+    expect((screen.getByText('Simpan') as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByText('Simpan + Cetak') as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.submit(label('Nama Pengambil').closest('form')!);
+    expect(screen.getByText('Tunggu proses scan barang selesai sebelum menyimpan.')).toBeTruthy();
+    release();
+    await screen.findByText('HPL Putih', { selector: 'td' });
+    expect(screen.queryByRole('status')).toBeNull();
+    expect((screen.getByText('Simpan') as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('ignores a scan that comes back after the form was closed and reopened', async () => {
+    const api = setup();
+    const release = holdScan(api, 'HPL-01');
+    await openForm(api);
+    typePengambil();
+    scan('HPL-01');
+    await screen.findByRole('status');
+    fireEvent.click(screen.getByLabelText('Tutup form'));
+    fireEvent.click(screen.getByText('Barang Keluar SPK'));
+    await screen.findByText('Form Barang Keluar SPK');
+    release();
+    await waitFor(() => expect(api.calls('GET /api/v1/items/by-code/HPL-01')).toHaveLength(1));
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)); });
+    expect(screen.queryByText('HPL Putih', { selector: 'td' })).toBeNull();
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('ignores a failed scan that comes back after the form was closed', async () => {
+    const api = setup();
+    const release = holdScan(api, 'NOPE');
+    await openForm(api);
+    typePengambil();
+    scan('NOPE');
+    await screen.findByRole('status');
+    fireEvent.click(screen.getByLabelText('Tutup form'));
+    release();
+    await waitFor(() => expect(api.calls('GET /api/v1/items/by-code/NOPE')).toHaveLength(1));
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)); });
+    expect(screen.queryByText('Kode "NOPE" tidak dikenal.')).toBeNull();
+  });
+
+  it('exports with the current search and shows the API message when the export fails', async () => {
+    const created = vi.fn(() => 'blob:export');
+    Object.assign(URL, { createObjectURL: created, revokeObjectURL: vi.fn() });
+    const api = installFakeApi({ 'GET /api/v1/outbound': paged([trx(1)]), 'GET /api/v1/items': items, ...tracking, 'GET /api/v1/reports/outbound/export': { ok: true } });
+    render(<AuthUserProvider user={who(['report.view'])}><BarangKeluar /></AuthUserProvider>);
+    await screen.findAllByText('Klien 1');
+    fireEvent.change(label('Cari barang keluar'), { target: { value: 'maju' } });
+    fireEvent.click(screen.getByText('Export'));
+    await waitFor(() => expect(created).toHaveBeenCalledTimes(1));
+    expect(api.calls('GET /api/v1/reports/outbound/export')[0].query.get('q')).toBe('maju');
+    expect(screen.queryByText('Mengekspor...')).toBeNull();
+  });
+
+  it('shows the export failure message', async () => {
+    installFakeApi({ 'GET /api/v1/outbound': paged([trx(1)]), 'GET /api/v1/items': items, ...tracking, 'GET /api/v1/reports/outbound/export': fail(500, 'Server ekspor mati') });
+    render(<AuthUserProvider user={who(['report.view'])}><BarangKeluar /></AuthUserProvider>);
+    await screen.findAllByText('Klien 1');
+    fireEvent.click(screen.getByText('Export'));
+    expect(await screen.findByText('Server ekspor mati')).toBeTruthy();
+  });
+
+  it('prints the unit of a line whose item is outside the item search results', async () => {
+    const api = setup({
+      'PUT /api/v1/outbound/1': { id: 1 },
+      'GET /api/v1/items': paged([{ id: 2, code: 'BRG-2', name: 'Paku', unit: 'kg', stock: 140 }]),
+      'GET /api/v1/items/1': item(1, 'BRG-1', 'Triplex', 'lembar', 25),
+    }, paged([disetujui()]));
+    await screen.findAllByText('Klien 1');
+    await waitFor(() => expect(api.calls('GET /api/v1/items').length).toBeGreaterThan(0));
+    fireEvent.click(screen.getByLabelText('Edit barang keluar 1 Triplex'));
+    fireEvent.click(screen.getByText('Simpan + Cetak'));
+    const printed = await printedDoc();
+    expect(printed.body.textContent).toContain('lembar');
+    expect(printed.body.textContent).toContain('kg');
+    expect(api.calls('GET /api/v1/items/2')).toHaveLength(0);
+  });
+
+  it('rejects an edit that picks the same material on two lines', async () => {
+    const api = setup({ 'PUT /api/v1/outbound/1': { id: 1 } }, paged([disetujui()]));
+    await screen.findAllByText('Klien 1');
+    await waitFor(() => expect(api.calls('GET /api/v1/items').length).toBeGreaterThan(0));
+    fireEvent.click(screen.getByRole('button', { name: 'Buka rincian barang 1' }));
+    fireEvent.click(screen.getByLabelText('Edit barang keluar 1 Paku'));
+    await choose(label('Nama Barang'), 'Triplex');
+    fireEvent.click(screen.getByText('Simpan'));
+    expect(screen.getByText('Barang ini sudah ada pada baris lain di transaksi yang sama.')).toBeTruthy();
+    expect(api.calls('PUT /api/v1/outbound/1')).toHaveLength(0);
+  });
+});
 
 describe('permissions', () => {
   const open = async (user: ReturnType<typeof who>) => {

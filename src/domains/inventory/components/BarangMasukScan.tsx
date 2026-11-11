@@ -2,7 +2,7 @@
 
 import { useAuthUser } from '@/domains/auth/user-context';
 import React, { useEffect, useRef, useState } from 'react';
-import { Camera, Minus, PackageCheck, Plus, Printer, ScanLine, Trash2, Undo2 } from 'lucide-react';
+import { Camera, Minus, PackageCheck, Plus, ScanLine, Trash2, Undo2 } from 'lucide-react';
 import { createInboundScanBatch, getItemByCode, listItems } from '@/domains/inventory/api';
 import { todayIso } from '@/domains/inventory/date';
 import { ApiError } from '@/shared/lib/api-client';
@@ -433,14 +433,6 @@ export default function BarangMasukScan({ onClose, onSaved }: { onClose: () => v
               <button type="button" onClick={submit} disabled={saving} className={btnPrimary}>
                 {saving ? 'Menyimpan...' : 'Konfirmasi simpan'}
               </button>
-              {/* <button
-                onClick={() => handleSimpan(true)}
-                disabled={saving}
-                className="flex items-center gap-2 px-8 py-2.5 bg-[#ff8a00] text-white rounded-md hover:bg-[#e07b00] transition-colors font-medium text-[15px] shadow-sm"
-              >
-                <Printer className="w-4 h-4" />
-                Simpan + Cetak
-              </button> */}
             </div>
           </>
         )}
