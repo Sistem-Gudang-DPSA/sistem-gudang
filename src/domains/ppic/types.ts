@@ -178,7 +178,8 @@ export interface PurchaseRequestItem {
   qty: number;
   satuan: string;
   proyek: string;
-  noSpk: string;
+  // Optional: a purchase request item need not belong to an SPK.
+  noSpk?: string;
 }
 
 export interface PurchaseRequestPayload {
