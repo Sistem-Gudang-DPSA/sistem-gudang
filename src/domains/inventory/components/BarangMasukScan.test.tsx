@@ -18,7 +18,7 @@ vi.mock('qr-scanner', () => ({
   },
 }));
 
-const item = (id: number, code: string, name: string) => ({ id, code, name, unit: 'lbr', stock: 10, category: 'Lembaran', price: 0, locationId: 1, supplierId: 7 });
+const item = (id: number, code: string, name: string) => ({ id, code, name, unit: 'lbr', stock: 10, category: 'Lembaran', price: 0, locationId: 1, supplierId: 7, supplierName: 'PT Kayu' });
 const routes = {
   'GET /api/v1/items/by-code/A1-01': item(1, 'A1-01', 'BB 18 MM'),
   'GET /api/v1/items/by-code/A1-02': item(2, 'A1-02', 'MP 15 MM'),
@@ -241,5 +241,15 @@ describe('BarangMasukScan camera', () => {
     fireEvent.click(screen.getByText('Kamera'));
     expect(await screen.findByText(/HTTPS atau localhost/)).not.toBeNull();
     expect(qr.start).not.toHaveBeenCalled();
+  });
+});
+
+describe('BarangMasukScan retur supplier', () => {
+  it('shows the supplier name that comes with the scanned item, without extra requests', async () => {
+    const { api } = setup();
+    fireEvent.click(screen.getByText('Barang Retur'));
+    scan('A1-01');
+    expect(await screen.findByText('PT Kayu')).not.toBeNull();
+    expect(api.calls('GET /api/v1/items')).toHaveLength(0);
   });
 });
