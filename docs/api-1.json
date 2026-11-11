@@ -40545,6 +40545,318 @@
           }
         }
       }
+    },
+    "/api/v1/suppliers/bulk": {
+      "post": {
+        "tags": [
+          "Supplier"
+        ],
+        "summary": "Bulk-create suppliers (add-only)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 191
+                  },
+                  "bank": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "npwp": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 50
+                  },
+                  "phone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 30
+                  },
+                  "address": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "pajak": {
+                    "type": "string",
+                    "enum": [
+                      "PKP",
+                      "NON_PKP"
+                    ],
+                    "default": "NON_PKP"
+                  }
+                },
+                "required": [
+                  "code",
+                  "name",
+                  "bank",
+                  "npwp",
+                  "phone",
+                  "address"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Supplier created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "bank": {
+                          "type": "string"
+                        },
+                        "npwp": {
+                          "type": "string"
+                        },
+                        "phone": {
+                          "type": "string"
+                        },
+                        "address": {
+                          "type": "string"
+                        },
+                        "pajak": {
+                          "type": "string",
+                          "enum": [
+                            "PKP",
+                            "NON_PKP"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "code",
+                        "name",
+                        "bank",
+                        "npwp",
+                        "phone",
+                        "address",
+                        "pajak"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A unique field already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "description": "Creates the rows whose code is new; existing codes and duplicates in the payload are skipped with a reason. Returns { created, skipped: [{ row, code, reason }] }."
+      }
     }
   }
 }
