@@ -101,7 +101,7 @@ export default function PermintaanPembelianPPIC({ backPath = rekap_pembelian_pat
                   <td className={`${cellClass} text-center`}>{formatAngka(b.qty)}</td>
                   <td className={`${cellClass} text-center`}>{b.satuan}</td>
                   <td className={`${cellClass} text-center`}>{b.proyek}</td>
-                  <td className={`${cellClass} text-center`}>{b.noSpk}</td>
+                  <td className={`${cellClass} text-center`}>{b.noSpk || '-'}</td>
                 </tr>
               ))}
               {permintaan.barang.length === 0 && (
