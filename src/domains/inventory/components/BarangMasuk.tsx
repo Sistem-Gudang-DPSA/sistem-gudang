@@ -20,6 +20,7 @@ import { usePage } from '@/shared/lib/use-page';
 import DateFilter from '@/shared/components/DateFilter';
 import SearchableSelect from '@/shared/components/SearchableSelect';
 import BarangMasukScan from './BarangMasukScan';
+import { BadgeDibatalkan } from './BatalkanTransaksi';
 import { QC_STATUS } from '@/domains/inventory/status';
 
 type PickedItem = { id: number; name: string; code: string | null };
@@ -509,6 +510,7 @@ export default function BarangMasukGudang() {
                     <div className="flex flex-col">
                       <span className="font-bold text-gray-900">{item.itemName}</span>
                       <span className="text-xs font-mono text-gray-500 mt-0.5">{item.itemCode ?? '-'}</span>
+                      <BadgeDibatalkan row={item} />
                     </div>
                   </td>
 

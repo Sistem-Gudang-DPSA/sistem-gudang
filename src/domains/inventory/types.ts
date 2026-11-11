@@ -108,6 +108,9 @@ export interface InboundRow {
   notes: string | null;
   createdBy: number;
   createdAt: string;
+  cancelledAt: string | null;
+  cancelledByName: string | null;
+  cancelReason: string | null;
 }
 
 export interface InboundListParams {
@@ -196,6 +199,9 @@ export interface OutboundRow {
   createdAt: string;
   lines: OutboundLine[];
   editRequest?: OutboundEditRequest | null;
+  cancelledAt: string | null;
+  cancelledByName: string | null;
+  cancelReason: string | null;
 }
 
 export interface OutboundListParams {
