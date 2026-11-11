@@ -117,6 +117,9 @@ export const editPurchaseRequest = (id: number, payload: PurchaseRequestPayload)
 export const resubmitApproval = (id: number, payload: PurchaseRequestPayload) =>
   apiClient.post(`/api/v1/approvals/${id}/resubmit`, { payload });
 export const approveApproval = (id: number, note?: string) => apiClient.post(`/api/v1/approvals/${id}/approve`, note ? { note } : {});
+// Requester or superadmin, while pending or revision_requested. The reason is optional (max 500).
+export const cancelApproval = (id: number, reason?: string) =>
+  apiClient.post<ApprovalRequest>(`/api/v1/approvals/${id}/cancel`, reason ? { reason } : {});
 export const rejectApproval = (id: number, note: string) => apiClient.post(`/api/v1/approvals/${id}/reject`, { note });
 export const requestApprovalRevision = (id: number, note: string) =>
   apiClient.post(`/api/v1/approvals/${id}/request-revision`, { note });

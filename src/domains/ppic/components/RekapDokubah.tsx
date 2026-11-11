@@ -11,6 +11,7 @@ import { listDokubahRows, STATUS_TO_UI, statusToApi } from '@/domains/ppic/api';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';
+import { cetakHtml } from '@/shared/lib/print-html';
 
 const cellClass = 'px-4 py-3 border-b border-r border-gray-300';
 const cardClass = 'bg-white rounded-sm border border-gray-100 shadow-md p-6 min-h-32';
@@ -102,13 +103,7 @@ export default function RekapDokubah() {
   };
 
   // Buka jendela berisi tabel saja lalu panggil dialog print (pilih "Save as PDF")
-  const handlePrintPdf = () => {
-    const win = window.open('', '_blank');
-    if (win) win.opener = null;
-    if (!win) {
-      alert('Pop-up diblokir browser. Izinkan pop-up untuk mencetak PDF.');
-      return;
-    }
+  const handlePrintPdf = async () => {
     const bodyRows = rowsToExport.map((item, index) => `
       <tr>
         <td class="center">${index + 1}</td>
@@ -119,7 +114,7 @@ export default function RekapDokubah() {
         <td class="right">${formatRupiah(item.sisa)}</td>
         <td>${escapeHtml(item.status)}</td>
       </tr>`).join('');
-    win.document.write(`<!doctype html>
+    const html = `<!doctype html>
       <html>
         <head>
           <title>Rekap Dokubah PPIC</title>
@@ -142,10 +137,12 @@ export default function RekapDokubah() {
             <tbody>${bodyRows}</tbody>
           </table>
         </body>
-      </html>`);
-    win.document.close();
-    win.focus();
-    win.print();
+      </html>`;
+    try {
+      await cetakHtml(html, 'rekap dokubah');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Gagal mencetak PDF.');
+    }
   };
 
   return (

@@ -149,3 +149,51 @@ describe('purchase status and edit links', () => {
     expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull();
   });
 });
+
+describe('Batalkan', () => {
+  const perms = ['purchase-request.create'];
+
+  it('shows only for pending/revision rows of the requester', async () => {
+    installFakeApi({ 'GET /api/v1/approvals': paged([
+      row(1, 'pending'), row(2, 'revision_requested'), row(3, 'approved'), row(4, 'pending', { requestedBy: 42 }),
+    ]) });
+    render(withUser(<DaftarPermintaanPembelianPPIC />, perms));
+    await screen.findAllByText('Detail');
+    expect(screen.getAllByRole('button', { name: 'Batalkan' })).toHaveLength(2);
+  });
+
+  it('posts the reason and reloads the list', async () => {
+    const api = installFakeApi({
+      'GET /api/v1/approvals': paged([row(1, 'pending')]),
+      'POST /api/v1/approvals/1/cancel': () => row(1, 'cancelled'),
+    });
+    render(withUser(<DaftarPermintaanPembelianPPIC />, perms));
+    fireEvent.click(await screen.findByRole('button', { name: 'Batalkan' }));
+    fireEvent.change(screen.getByLabelText(/Alasan pembatalan/), { target: { value: 'Salah input' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Batalkan Permintaan' }));
+    await waitFor(() => expect(api.calls('POST /api/v1/approvals/1/cancel')).toHaveLength(1));
+    expect(api.calls('POST /api/v1/approvals/1/cancel')[0].body).toEqual({ reason: 'Salah input' });
+    await waitFor(() => expect(api.calls('GET /api/v1/approvals').length).toBeGreaterThan(1));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('shows the server error and keeps the dialog open', async () => {
+    installFakeApi({
+      'GET /api/v1/approvals': paged([row(1, 'pending')]),
+      'POST /api/v1/approvals/1/cancel': fail(409, 'Sudah diproses'),
+    });
+    render(withUser(<DaftarPermintaanPembelianPPIC />, perms));
+    fireEvent.click(await screen.findByRole('button', { name: 'Batalkan' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Batalkan Permintaan' }));
+    expect((await screen.findByRole('alert')).textContent).toContain('Sudah diproses');
+    expect(screen.getByRole('dialog')).toBeTruthy();
+  });
+
+  it('shows Dibatalkan without actions', async () => {
+    installFakeApi({ 'GET /api/v1/approvals': paged([row(1, 'cancelled')]) });
+    render(withUser(<DaftarPermintaanPembelianPPIC />, perms));
+    expect(await screen.findByText('Dibatalkan')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Batalkan' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull();
+  });
+});

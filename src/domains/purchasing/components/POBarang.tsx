@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Filter, Plus, Search } from 'lucide-react';
 import Pagination from '@/shared/components/Pagination';
+import { downloadBlob } from '@/shared/lib/download';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { usePage } from '@/shared/lib/use-page';
 import { formatTanggal } from '@/domains/ppic/data/dokubah';
@@ -44,14 +45,7 @@ export default function POBarang() {
     );
     const csvString = [...headers, ...csvData].join('\n');
 
-    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', 'Data_Barang_Purchasing.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadBlob(new Blob([csvString], { type: 'text/csv;charset=utf-8;' }), 'Data_Barang_Purchasing.csv');
   };
 
   return (
