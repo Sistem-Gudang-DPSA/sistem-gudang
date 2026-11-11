@@ -6,7 +6,7 @@ import { useCan } from '@/domains/auth/user-context';
 import { Plus, Edit2, Trash2, Filter, MoreHorizontal, Images } from 'lucide-react';
 import { createItem, deleteItem, updateItem } from '@/domains/inventory/api';
 import type { ItemListRow } from '@/domains/inventory/types';
-import { toCsv } from '@/shared/lib/csv';
+import { downloadCsv } from '@/shared/lib/csv';
 import { ApiError } from '@/shared/lib/api-client';
 import Pagination from '@/shared/components/Pagination';
 import { ExportExcellButton } from '@/shared/components/Tombol';
@@ -113,16 +113,7 @@ export default function DataBarangPPIC() {
   const handleExportCSV = () => {
     const rows: unknown[][] = [['No', 'Kode Barang', 'Kode Bawaan', 'Nama Barang', 'Supplier', 'Jumlah Stok', 'Satuan', 'Kategori', 'Harga', 'Lokasi']];
     dataBarang.forEach((item, index) => rows.push([index + 1, item.code ?? '-', item.externalCode ?? '-', item.name, supplierName(item.supplierId), item.stock, item.unit, item.category, item.price, locationCode(item.locationId)]));
-    const csvString = toCsv(rows);
-
-    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `Data_Barang_PPIC_halaman-${page}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadCsv(`Data_Barang_PPIC_halaman-${page}.csv`, rows);
   };
 
   // Kolom "Stok & Satuan" hanya kepala: di tabel PPIC asli ada dua header Stok tapi satu sel stok. Dipertahankan apa adanya.

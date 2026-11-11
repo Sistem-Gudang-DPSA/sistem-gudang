@@ -6,7 +6,7 @@ import { listItems, listLocations, updateItem } from '@/domains/inventory/api';
 import type { ItemListRow, Location } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
 import type { Supplier } from '@/domains/purchasing/types';
-import { toCsv } from '@/shared/lib/csv';
+import { downloadCsv } from '@/shared/lib/csv';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { digitsOnly, INTEGER_INPUT } from '@/shared/lib/input';
@@ -89,16 +89,7 @@ export default function DataBarangPurchasing() {
     setExporting(true);
     const rows: unknown[][] = [['No', 'Kode Barang', 'Kode Bawaan', 'Nama Barang', 'Supplier', 'Jumlah Stok', 'Satuan', 'Kategori', 'Harga', 'Lokasi']];
     dataBarang.forEach((item, index) => rows.push([index + 1, item.code ?? '-', item.externalCode ?? '-', item.name, supplierName(item.supplierId), item.stock, item.unit, item.category, item.price, locationCode(item.locationId)]));
-    const csvString = toCsv(rows);
-
-    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `Data_Barang_Purchasing_halaman-${page}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadCsv(`Data_Barang_Purchasing_halaman-${page}.csv`, rows);
   };
 
   const getCategoryColor = (kategori: string) => {

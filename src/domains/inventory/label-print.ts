@@ -1,4 +1,5 @@
 import { escapeHtml } from '@/shared/lib/escape-html';
+import { cetakHtml } from '@/shared/lib/print-html';
 
 type LabelItem = { code: string | null; name: string; externalCode?: string | null; locationCode?: string | null };
 
@@ -33,20 +34,19 @@ export async function buildLabelsHtml(items: LabelItem[]): Promise<string> {
 <body>${labels.join('')}</body></html>`;
 }
 
-// Returns an error message, or null when the print window opened.
+// Returns an error message, or null when the print dialog opened.
 export async function printItemLabels(items: LabelItem[]): Promise<string | null> {
   if (!items.some((it) => it.code)) return 'Tidak ada barang berkode untuk dicetak.';
-  // Open the window before the async QR work so the browser does not treat it as a blocked pop-up.
-  const win = window.open('', '_blank');
-  if (win) win.opener = null;
-  if (!win) return 'Pop-up diblokir browser. Izinkan pop-up untuk mencetak label.';
+  let html: string;
   try {
-    win.document.write(await buildLabelsHtml(items));
-    win.document.close();
-    win.onload = () => win.print();
-    return null;
+    html = await buildLabelsHtml(items);
   } catch {
-    win.close();
     return 'Gagal membuat label QR.';
+  }
+  try {
+    await cetakHtml(html, 'label barang');
+    return null;
+  } catch (err) {
+    return err instanceof Error ? err.message : 'Gagal mencetak label.';
   }
 }

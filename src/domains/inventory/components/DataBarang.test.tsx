@@ -131,15 +131,16 @@ describe('DataBarang assign location', () => {
 const who = (permissions: string[], isSuperadmin = false) => ({ id: 1, username: 'u', email: 'u@x.id', roleId: 2, roleName: 'Staff', isSuperadmin, permissions });
 
 describe('DataBarang QR labels', () => {
-  const openSpy = () => {
-    const doc = { write: vi.fn(), close: vi.fn() };
-    const win = { document: doc, print: vi.fn(), close: vi.fn(), onload: null as null | (() => void) };
-    vi.spyOn(window, 'open').mockReturnValue(win as unknown as Window);
-    return { doc, win };
+  // Printing goes through a hidden iframe; fire its load so cetakHtml proceeds to print().
+  const labelFrame = async () => {
+    await waitFor(() => expect(document.querySelector('iframe[title="Cetak label barang"]')).not.toBeNull());
+    const frame = document.querySelector<HTMLIFrameElement>('iframe[title="Cetak label barang"]')!;
+    frame.dispatchEvent(new Event('load'));
+    return frame;
   };
 
   it('prints labels only for the selected items that have a code', async () => {
-    const { doc } = openSpy();
+    const open = vi.spyOn(window, 'open');
     const api = setup();
     await ready(api);
     expect((screen.getByText('Cetak Label QR').closest('button') as HTMLButtonElement).disabled).toBe(true);
@@ -147,27 +148,31 @@ describe('DataBarang QR labels', () => {
     expect((screen.getByText('Cetak Label QR').closest('button') as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByLabelText('Pilih Barang 1'));
     fireEvent.click(screen.getByText(/Cetak Label QR \(1\)/));
-    await waitFor(() => expect(doc.write).toHaveBeenCalledTimes(1));
-    const html = doc.write.mock.calls[0][0] as string;
+    const frame = await labelFrame();
+    const html = frame.srcdoc;
     expect(html).toContain('BRG-1');
     expect(html).toContain('<svg');
     expect(html).not.toContain('Barang 2');
+    expect(open).not.toHaveBeenCalled();
+    frame.remove();
   });
 
   it('prints a single label from the row button', async () => {
-    const { doc } = openSpy();
     const api = setup();
     await ready(api);
     fireEvent.click(screen.getByTitle('Cetak label QR'));
-    await waitFor(() => expect(doc.write).toHaveBeenCalledTimes(1));
+    const frame = await labelFrame();
+    expect(frame.srcdoc).toContain('<svg');
+    frame.remove();
   });
 
-  it('tells the user when the browser blocks the pop-up', async () => {
-    vi.spyOn(window, 'open').mockReturnValue(null);
+  it('tells the user when the print document cannot be opened', async () => {
+    vi.spyOn(HTMLIFrameElement.prototype, 'contentWindow', 'get').mockReturnValue(null);
     const api = setup();
     await ready(api);
     fireEvent.click(screen.getByTitle('Cetak label QR'));
-    expect(await screen.findByText(/Pop-up diblokir/)).not.toBeNull();
+    expect(await screen.findByText(/Dokumen cetak tidak dapat dibuka/)).not.toBeNull();
+    expect(document.querySelector('iframe[title="Cetak label barang"]')).toBeNull();
   });
 });
 

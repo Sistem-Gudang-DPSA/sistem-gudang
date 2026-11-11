@@ -1,3 +1,4 @@
+import { downloadBlob } from "./download";
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
 
 export class ApiError extends Error {
@@ -110,12 +111,7 @@ export async function downloadFile(path: string, fallbackName: string, retryOn40
   }
 
   const name = /filename="?([^";]+)"?/.exec(res.headers.get("Content-Disposition") ?? "")?.[1] ?? fallbackName;
-  const url = URL.createObjectURL(await res.blob());
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadBlob(await res.blob(), name);
 }
 
 export const apiClient = {
