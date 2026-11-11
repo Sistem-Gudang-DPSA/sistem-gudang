@@ -1,7 +1,7 @@
 import { getApprovalDetail, listApprovals } from '@/domains/ppic/api';
 import type { ApprovalAction, ApprovalRequest, ApprovalStatus, PurchaseRequestItem } from '@/domains/ppic/types';
 
-export type StatusPermintaan = 'Belum Disetujui' | 'Disetujui' | 'Perlu Revisi' | 'Ditolak';
+export type StatusPermintaan = 'Belum Disetujui' | 'Disetujui' | 'Perlu Revisi' | 'Ditolak' | 'Dibatalkan';
 
 export type BarangPermintaan = PurchaseRequestItem;
 
@@ -32,6 +32,7 @@ export const STATUS_LABEL: Record<ApprovalStatus, StatusPermintaan> = {
   approved: 'Disetujui',
   revision_requested: 'Perlu Revisi',
   rejected: 'Ditolak',
+  cancelled: 'Dibatalkan',
 };
 
 const toPermintaan = (req: ApprovalRequest): PermintaanPembelian => {
@@ -72,4 +73,5 @@ export const AKSI_LABEL: Record<string, string> = {
   approved: 'Disetujui',
   rejected: 'Ditolak',
   revision_requested: 'Minta Revisi',
+  cancelled: 'Dibatalkan',
 };
