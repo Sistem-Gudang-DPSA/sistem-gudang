@@ -166,7 +166,7 @@ export interface StockOpnameSummary {
   totalAdjustmentNilai: number;
 }
 
-export type ApprovalStatus = "pending" | "approved" | "rejected" | "revision_requested";
+export type ApprovalStatus = "pending" | "approved" | "rejected" | "revision_requested" | "cancelled";
 
 export interface PurchaseRequestItem {
   itemId?: number;
