@@ -3142,6 +3142,15 @@
                                   "revision_requested"
                                 ]
                               },
+                              "purchaseStatus": {
+                                "type": "string",
+                                "enum": [
+                                  "NOT_PURCHASED",
+                                  "PARTIALLY_PURCHASED",
+                                  "PURCHASED"
+                                ],
+                                "description": "Purchase progress based on quantities in active ISSUED purchase orders; cancelled orders do not count."
+                              },
                               "mappingStatus": {
                                 "type": "string",
                                 "nullable": true,
@@ -3339,7 +3348,7 @@
           "Approval"
         ],
         "summary": "Submit an approval request",
-        "description": "The workflow step matching the requester's own domain is auto-approved immediately. For purchase-request, every items[].noSpk must be one of GET /api/v1/tracking/spk, otherwise 400 with errors keyed like items.0.noSpk. items[].itemId is optional and links the line to the catalog; an unknown id is a 400 keyed items.0.itemId, and a line without itemId stays free text. The same check applies on resubmit.",
+        "description": "The workflow step matching the requester's own domain is auto-approved immediately. For purchase-request, items[].noSpk is optional for the paper form; when supplied it must be one of GET /api/v1/tracking/spk, otherwise 400 with errors keyed like items.0.noSpk. items[].itemId is optional and links the line to the catalog; an unknown id is a 400 keyed items.0.itemId, and a line without itemId stays free text. The same check applies on edit and resubmit.",
         "security": [
           {
             "bearerAuth": []
@@ -3381,6 +3390,10 @@
                             "type": "string",
                             "format": "date"
                           },
+                          "periode": {
+                            "type": "string",
+                            "maxLength": 100
+                          },
                           "items": {
                             "type": "array",
                             "items": {
@@ -3390,6 +3403,22 @@
                                   "type": "integer",
                                   "minimum": 0,
                                   "exclusiveMinimum": true
+                                },
+                                "tanggal": {
+                                  "type": "string",
+                                  "format": "date"
+                                },
+                                "supplier": {
+                                  "type": "string",
+                                  "maxLength": 191
+                                },
+                                "keterangan": {
+                                  "type": "string",
+                                  "maxLength": 500
+                                },
+                                "deadlineTanggal": {
+                                  "type": "string",
+                                  "format": "date"
                                 },
                                 "namaBarang": {
                                   "type": "string",
@@ -3413,16 +3442,15 @@
                                 },
                                 "noSpk": {
                                   "type": "string",
-                                  "minLength": 1,
-                                  "maxLength": 100
+                                  "maxLength": 100,
+                                  "default": ""
                                 }
                               },
                               "required": [
                                 "namaBarang",
                                 "qty",
                                 "satuan",
-                                "proyek",
-                                "noSpk"
+                                "proyek"
                               ]
                             },
                             "minItems": 1
@@ -3500,6 +3528,15 @@
                             "rejected",
                             "revision_requested"
                           ]
+                        },
+                        "purchaseStatus": {
+                          "type": "string",
+                          "enum": [
+                            "NOT_PURCHASED",
+                            "PARTIALLY_PURCHASED",
+                            "PURCHASED"
+                          ],
+                          "description": "Purchase progress based on quantities in active ISSUED purchase orders; cancelled orders do not count."
                         },
                         "mappingStatus": {
                           "type": "string",
@@ -4309,7 +4346,7 @@
           "Approval"
         ],
         "summary": "Resubmit a request after revision",
-        "description": "Only the original requester may resubmit. Restarts the workflow at the first step. For purchase-request, every items[].noSpk must be one of GET /api/v1/tracking/spk, otherwise 400 with errors keyed like items.0.noSpk.",
+        "description": "Only the original requester may resubmit. Restarts the workflow at the first step. For purchase-request, items[].noSpk is optional for the paper form; when supplied it must be one of GET /api/v1/tracking/spk, otherwise 400 with errors keyed like items.0.noSpk.",
         "security": [
           {
             "bearerAuth": []
@@ -4510,6 +4547,210 @@
       }
     },
     "/api/v1/approvals/{id}": {
+      "put": {
+        "tags": [
+          "Approval"
+        ],
+        "summary": "Edit a pending purchase request",
+        "description": "The original requester (or superadmin) with purchase-request.create can edit pending or revision_requested requests. Validates the same payload as creation, starts a new approval cycle and records the change in the audit log. Approved and rejected requests are locked.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "payload": {
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Purchase request updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
       "get": {
         "tags": [
           "Approval"
@@ -4584,6 +4825,15 @@
                                 "rejected",
                                 "revision_requested"
                               ]
+                            },
+                            "purchaseStatus": {
+                              "type": "string",
+                              "enum": [
+                                "NOT_PURCHASED",
+                                "PARTIALLY_PURCHASED",
+                                "PURCHASED"
+                              ],
+                              "description": "Purchase progress based on quantities in active ISSUED purchase orders; cancelled orders do not count."
                             },
                             "mappingStatus": {
                               "type": "string",
@@ -20420,7 +20670,8 @@
               "type": "string",
               "enum": [
                 "PRODUKSI",
-                "KLIEN"
+                "KLIEN",
+                "INTERNAL"
               ]
             },
             "required": false,
@@ -20511,7 +20762,8 @@
                                 "type": "string",
                                 "enum": [
                                   "PRODUKSI",
-                                  "KLIEN"
+                                  "KLIEN",
+                                  "INTERNAL"
                                 ]
                               },
                               "notes": {
@@ -20797,7 +21049,7 @@
           "Outbound"
         ],
         "summary": "Record goods leaving the warehouse",
-        "description": "Needs outbound.create and an Idempotency-Key header (8 to 100 characters, one per draft), with the same replay rules as POST /inbound/batch: same key and payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true and stock is not lowered again; same key with a different payload returns 409; a missing or malformed key returns 400; a failed request stores no key. spk must be one of GET /api/v1/tracking/spk (400 otherwise) and clientName is taken from there, a clientName in the body is ignored. Lowers stock for every line in one transaction and records audit logs. If any line would push stock below 0 the whole request fails with 400 and nothing is saved.",
+        "description": "Needs outbound.create and an Idempotency-Key header (8 to 100 characters, one per draft), with the same replay rules as POST /inbound/batch: same key and payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true and stock is not lowered again; same key with a different payload returns 409; a missing or malformed key returns 400; a failed request stores no key. spk must be one of GET /api/v1/tracking/spk (400 otherwise) and clientName is taken from there, a clientName in the body is ignored. Lowers stock for every line in one transaction and records audit logs. If any line would push stock below 0 the whole request fails with 400 and nothing is saved. With recipientType INTERNAL, spk stores the manually entered stock/internal ID, itemName is free text, and clientName is Internal without a tracking lookup.",
         "security": [
           {
             "bearerAuth": []
@@ -20847,7 +21099,8 @@
                     "type": "string",
                     "enum": [
                       "PRODUKSI",
-                      "KLIEN"
+                      "KLIEN",
+                      "INTERNAL"
                     ]
                   },
                   "notes": {
@@ -20949,7 +21202,8 @@
                           "type": "string",
                           "enum": [
                             "PRODUKSI",
-                            "KLIEN"
+                            "KLIEN",
+                            "INTERNAL"
                           ]
                         },
                         "notes": {
@@ -21554,7 +21808,8 @@
                           "type": "string",
                           "enum": [
                             "PRODUKSI",
-                            "KLIEN"
+                            "KLIEN",
+                            "INTERNAL"
                           ]
                         },
                         "notes": {
@@ -21863,7 +22118,8 @@
                     "type": "string",
                     "enum": [
                       "PRODUKSI",
-                      "KLIEN"
+                      "KLIEN",
+                      "INTERNAL"
                     ]
                   },
                   "notes": {
@@ -21965,7 +22221,8 @@
                           "type": "string",
                           "enum": [
                             "PRODUKSI",
-                            "KLIEN"
+                            "KLIEN",
+                            "INTERNAL"
                           ]
                         },
                         "notes": {
@@ -22605,7 +22862,8 @@
                                     "type": "string",
                                     "enum": [
                                       "PRODUKSI",
-                                      "KLIEN"
+                                      "KLIEN",
+                                      "INTERNAL"
                                     ]
                                   },
                                   "notes": {
@@ -22885,7 +23143,8 @@
                           "type": "string",
                           "enum": [
                             "PRODUKSI",
-                            "KLIEN"
+                            "KLIEN",
+                            "INTERNAL"
                           ]
                         },
                         "notes": {
@@ -23258,7 +23517,8 @@
                           "type": "string",
                           "enum": [
                             "PRODUKSI",
-                            "KLIEN"
+                            "KLIEN",
+                            "INTERNAL"
                           ]
                         },
                         "notes": {
@@ -23631,7 +23891,8 @@
                           "type": "string",
                           "enum": [
                             "PRODUKSI",
-                            "KLIEN"
+                            "KLIEN",
+                            "INTERNAL"
                           ]
                         },
                         "notes": {
@@ -24049,7 +24310,8 @@
                               "type": "string",
                               "enum": [
                                 "PRODUKSI",
-                                "KLIEN"
+                                "KLIEN",
+                                "INTERNAL"
                               ]
                             },
                             "notes": {
@@ -24150,7 +24412,8 @@
                               "type": "string",
                               "enum": [
                                 "PRODUKSI",
-                                "KLIEN"
+                                "KLIEN",
+                                "INTERNAL"
                               ]
                             },
                             "notes": {
@@ -34871,7 +35134,8 @@
               "type": "string",
               "enum": [
                 "PRODUKSI",
-                "KLIEN"
+                "KLIEN",
+                "INTERNAL"
               ]
             },
             "required": false,
@@ -34962,7 +35226,8 @@
                                 "type": "string",
                                 "enum": [
                                   "PRODUKSI",
-                                  "KLIEN"
+                                  "KLIEN",
+                                  "INTERNAL"
                                 ]
                               },
                               "notes": {
@@ -35338,7 +35603,8 @@
                           "type": "string",
                           "enum": [
                             "PRODUKSI",
-                            "KLIEN"
+                            "KLIEN",
+                            "INTERNAL"
                           ]
                         },
                         "notes": {
@@ -36225,7 +36491,8 @@
               "type": "string",
               "enum": [
                 "PRODUKSI",
-                "KLIEN"
+                "KLIEN",
+                "INTERNAL"
               ]
             },
             "required": false,
@@ -37707,6 +37974,11 @@
                             "SELESAI"
                           ]
                         },
+                        "itNote": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "IT's note to the reporter, null when none"
+                        },
                         "reporterName": {
                           "type": "string"
                         },
@@ -37733,6 +38005,7 @@
                         "userAgent",
                         "screenshot",
                         "status",
+                        "itNote",
                         "reporterName",
                         "reporterRole",
                         "handledByName",
@@ -38000,6 +38273,11 @@
                                   "SELESAI"
                                 ]
                               },
+                              "itNote": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "IT's note to the reporter, null when none"
+                              },
                               "reporterName": {
                                 "type": "string"
                               },
@@ -38026,6 +38304,7 @@
                               "userAgent",
                               "screenshot",
                               "status",
+                              "itNote",
                               "reporterName",
                               "reporterRole",
                               "handledByName",
@@ -38304,6 +38583,11 @@
                             "SELESAI"
                           ]
                         },
+                        "itNote": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "IT's note to the reporter, null when none"
+                        },
                         "reporterName": {
                           "type": "string"
                         },
@@ -38330,6 +38614,7 @@
                         "userAgent",
                         "screenshot",
                         "status",
+                        "itNote",
                         "reporterName",
                         "reporterRole",
                         "handledByName",
@@ -38482,6 +38767,1575 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/bug-reports/mine": {
+      "get": {
+        "tags": [
+          "Bug Report"
+        ],
+        "summary": "List my bug reports",
+        "description": "Any logged-in user. Only the caller's own reports, last changed first. Same row shape as the superadmin list.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Own bug report list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "rows": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "number"
+                              },
+                              "description": {
+                                "type": "string"
+                              },
+                              "pageUrl": {
+                                "type": "string"
+                              },
+                              "userAgent": {
+                                "type": "string"
+                              },
+                              "screenshot": {
+                                "type": "object",
+                                "nullable": true,
+                                "properties": {
+                                  "thumb": {
+                                    "type": "string",
+                                    "example": "/uploads/bug-reports/<uuid>-thumb.webp"
+                                  },
+                                  "display": {
+                                    "type": "string",
+                                    "example": "/uploads/bug-reports/<uuid>-display.webp"
+                                  }
+                                },
+                                "required": [
+                                  "thumb",
+                                  "display"
+                                ],
+                                "description": "Relative URLs under /uploads (WebP), null when no screenshot"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "OPEN",
+                                  "DIPROSES",
+                                  "SELESAI"
+                                ]
+                              },
+                              "itNote": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "IT's note to the reporter, null when none"
+                              },
+                              "reporterName": {
+                                "type": "string"
+                              },
+                              "reporterRole": {
+                                "type": "string"
+                              },
+                              "handledByName": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "createdAt": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "updatedAt": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "description",
+                              "pageUrl",
+                              "userAgent",
+                              "screenshot",
+                              "status",
+                              "itNote",
+                              "reporterName",
+                              "reporterRole",
+                              "handledByName",
+                              "createdAt",
+                              "updatedAt"
+                            ]
+                          }
+                        },
+                        "total": {
+                          "type": "number"
+                        },
+                        "page": {
+                          "type": "number"
+                        },
+                        "pageSize": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "rows",
+                        "total",
+                        "page",
+                        "pageSize"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/bug-reports/{id}": {
+      "patch": {
+        "tags": [
+          "Bug Report"
+        ],
+        "summary": "Update a bug report's status and IT note (superadmin)",
+        "description": "Superadmin only, 403 otherwise. At least one of status or itNote is required (400 for an empty body). An itNote that is empty after trimming clears the note. Records the caller as handledBy. The reporter gets a BUG_REPORT_UPDATED notification when status or itNote changed and they did not make the change. 404 when the report does not exist.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "OPEN",
+                      "DIPROSES",
+                      "SELESAI"
+                    ]
+                  },
+                  "itNote": {
+                    "type": "string",
+                    "maxLength": 2000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Report updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "pageUrl": {
+                          "type": "string"
+                        },
+                        "userAgent": {
+                          "type": "string"
+                        },
+                        "screenshot": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "thumb": {
+                              "type": "string",
+                              "example": "/uploads/bug-reports/<uuid>-thumb.webp"
+                            },
+                            "display": {
+                              "type": "string",
+                              "example": "/uploads/bug-reports/<uuid>-display.webp"
+                            }
+                          },
+                          "required": [
+                            "thumb",
+                            "display"
+                          ],
+                          "description": "Relative URLs under /uploads (WebP), null when no screenshot"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "OPEN",
+                            "DIPROSES",
+                            "SELESAI"
+                          ]
+                        },
+                        "itNote": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "IT's note to the reporter, null when none"
+                        },
+                        "reporterName": {
+                          "type": "string"
+                        },
+                        "reporterRole": {
+                          "type": "string"
+                        },
+                        "handledByName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "description",
+                        "pageUrl",
+                        "userAgent",
+                        "screenshot",
+                        "status",
+                        "itNote",
+                        "reporterName",
+                        "reporterRole",
+                        "handledByName",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/unread-count": {
+      "get": {
+        "tags": [
+          "Notification"
+        ],
+        "summary": "Unread notification count",
+        "description": "Any logged-in user. Counts only the caller's unread notifications.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Unread count",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "count": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "count"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications": {
+      "get": {
+        "tags": [
+          "Notification"
+        ],
+        "summary": "List my notifications",
+        "description": "Any logged-in user. Only the caller's notifications, newest first. unreadCount is the caller's total unread, not just this page.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notification list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "rows": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "number"
+                              },
+                              "type": {
+                                "type": "string"
+                              },
+                              "title": {
+                                "type": "string"
+                              },
+                              "body": {
+                                "type": "string"
+                              },
+                              "link": {
+                                "type": "string",
+                                "description": "In-app path to open"
+                              },
+                              "readAt": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "createdAt": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "type",
+                              "title",
+                              "body",
+                              "link",
+                              "readAt",
+                              "createdAt"
+                            ]
+                          }
+                        },
+                        "total": {
+                          "type": "number"
+                        },
+                        "page": {
+                          "type": "number"
+                        },
+                        "pageSize": {
+                          "type": "number"
+                        },
+                        "unreadCount": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "rows",
+                        "total",
+                        "page",
+                        "pageSize",
+                        "unreadCount"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/{id}/read": {
+      "post": {
+        "tags": [
+          "Notification"
+        ],
+        "summary": "Mark one notification as read",
+        "description": "Any logged-in user. Sets readAt on the caller's own notification (already read ones are returned unchanged). 404 when the id is not one of the caller's notifications.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notification",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "type": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "body": {
+                          "type": "string"
+                        },
+                        "link": {
+                          "type": "string",
+                          "description": "In-app path to open"
+                        },
+                        "readAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "type",
+                        "title",
+                        "body",
+                        "link",
+                        "readAt",
+                        "createdAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/read-all": {
+      "post": {
+        "tags": [
+          "Notification"
+        ],
+        "summary": "Mark all my notifications as read",
+        "description": "Any logged-in user. Only the caller's unread notifications are changed.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Number of notifications marked as read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "updated": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "updated"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/outbound/{id}/cancel": {
+      "post": {
+        "tags": [
+          "Outbound"
+        ],
+        "summary": "Cancel a outbound transaction (superadmin only)",
+        "description": "Body: reason (1-500 chars). Returns the updated transaction with cancelledAt, cancelledByName and cancelReason. 404 not found, 409 already cancelled (or stock already used for inbound).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Transaction cancelled"
+          }
+        }
+      }
+    },
+    "/api/v1/inbound/{id}/cancel": {
+      "post": {
+        "tags": [
+          "Inbound"
+        ],
+        "summary": "Cancel a inbound transaction (superadmin only)",
+        "description": "Body: reason (1-500 chars). Returns the updated transaction with cancelledAt, cancelledByName and cancelReason. 404 not found, 409 already cancelled (or stock already used for inbound).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Transaction cancelled"
           }
         }
       }

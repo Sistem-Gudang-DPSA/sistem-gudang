@@ -29,6 +29,7 @@ import {
   listOutbound,
   updateOutbound,
   requestOutboundEdit,
+  cancelOutbound,
 } from "@/domains/inventory/api";
 import { getTrackingSpk } from "@/domains/ppic/api";
 import type { TrackingSpkDetail } from "@/domains/ppic/types";
@@ -48,7 +49,7 @@ import { useClientSearch, useSpkSearch } from "@/domains/ppic/use-spk-search";
 import { beepFail, beepOk } from "@/domains/inventory/beep";
 import RiwayatEditBarangKeluar from "./RiwayatEditBarangKeluar";
 import ImportBarangKeluarModal from "./ImportBarangKeluarModal";
-import RealTimeClock from "@/shared/components/RealTIme";
+import BatalkanTransaksi, { BadgeDibatalkan, InfoPembatalan } from "./BatalkanTransaksi";
 
 // Satu baris barang hasil scan. SPK dan Nama Produk/Proyek diisi sekali di atas untuk seluruh transaksi.
 // Baris input manual dibuat kosong (itemId null) sampai materialnya dipilih dari dropdown.
@@ -81,10 +82,6 @@ const MAX_JUMLAH = 999_999_999;
 const jumlahValid = (value: string) =>
   /^\d{1,9}$/.test(value) && Number(value) > 0;
 // Pilihan tambahan di Nama Produk/Proyek untuk barang yang keluar bukan untuk produk SPK tertentu
-
-// ID Stok: nomor untuk barang yang diproduksi beberapa satuan sekaligus (bukan per biji) demi efisiensi.
-// ponytail: ID Stok resmi akan dibuat oleh PPIC; sementara diisi manual dengan STOCK-{yyyy-mm-dd}.
-const stockIdManual = () => `STOCK-${todayIso()}`;
 
 const formKosong = () => ({
   namaPengambil: "",
@@ -153,6 +150,7 @@ export type DataCetak = {
   client: string;
   spk: string;
   namaItem: string;
+  referenceLabel?: string;
   jumlahProduksi?: string | number;
   unitProduksi?: string;
   baris: {
@@ -234,7 +232,7 @@ function buatDokumenBarangKeluar(data: DataCetak, logoUrl: string): string {
           <tr><td class="label">ITEM PRODUKSI</td><td>:</td><td colspan="6">${escapeHtml(data.namaItem)}</td></tr>
           <tr><td class="label">PROYEK</td><td>:</td><td colspan="6">${escapeHtml(data.client)}</td></tr>
           <tr><td class="label">TGL / JAM</td><td>:</td><td>${escapeHtml(tanggalJam)}</td><td class="label">JML PROD</td><td>:</td><td>${escapeHtml(data.jumlahProduksi)}</td><td class="label">UNIT</td><td>${escapeHtml(data.unitProduksi)}</td></tr>
-          <tr><td class="label">GRUP / TUKANG</td><td>:</td><td>${escapeHtml(pengambil)}</td><td class="label">NO. SPK</td><td>:</td><td colspan="3">${escapeHtml(data.spk)}</td></tr>
+          <tr><td class="label">GRUP / TUKANG</td><td>:</td><td>${escapeHtml(pengambil)}</td><td class="label">${escapeHtml(data.referenceLabel ?? "NO. SPK")}</td><td>:</td><td colspan="3">${escapeHtml(data.spk)}</td></tr>
         </tbody>
       </table>
 
@@ -581,6 +579,7 @@ export default function BarangKeluarGudang() {
         tanggal: trx.date,
         client: trx.clientName,
         spk: trx.spk,
+        referenceLabel: trx.recipientType === "INTERNAL" ? "ID STOK/INTERNAL" : undefined,
         namaItem: trx.itemName,
         baris: trx.lines.map((line) => ({
           name: line.itemName,
@@ -605,7 +604,7 @@ export default function BarangKeluarGudang() {
     value: t.noSpk,
     label: t.noSpk,
   }));
-  const spkEdit = useSpkSearch(editForm?.spk ?? "");
+  const spkEdit = useSpkSearch(editTarget?.trx.recipientType === "INTERNAL" ? "" : editForm?.spk ?? "");
   const clientOf = (spk: string) =>
     spkEdit.options.find((t) => t.noSpk === spk)?.client ?? "";
 
@@ -717,7 +716,7 @@ export default function BarangKeluarGudang() {
   };
 
   const tombolEdit = (trx: OutboundRow, lineIndex: number, onBuka?: () => void) => {
-    if (!canUpdate || !trx.lines[lineIndex] || !bisaEdit(trx, user?.id)) return null;
+    if (trx.cancelledAt || !canUpdate || !trx.lines[lineIndex] || !bisaEdit(trx, user?.id)) return null;
     return (
       <button
         type="button"
@@ -736,7 +735,7 @@ export default function BarangKeluarGudang() {
 
   const aksiPengajuan = (trx: OutboundRow) => (
     <div className="flex flex-col items-center gap-2">
-      {canUpdate && !trx.editRequest && (
+      {canUpdate && !trx.cancelledAt && !trx.editRequest && (
         <WithNow deadline={batasEdit(trx)}>
           {(now) =>
             now < batasEdit(trx) ? (
@@ -808,7 +807,7 @@ export default function BarangKeluarGudang() {
     const { tanggal, spk, namaItem, lines } = editForm;
     if (
       !tanggal ||
-      !spk ||
+      !spk.trim() ||
       !namaItem.trim() ||
       lines.some((line) => !Number.isSafeInteger(Number(line.itemId)) || Number(line.itemId) <= 0 || !jumlahValid(line.qty))
     ) {
@@ -832,7 +831,7 @@ export default function BarangKeluarGudang() {
       // Seluruh koreksi barang disimpan bersama agar izin edit hanya dipakai satu kali.
       await updateOutbound(trx.id, {
         date: tanggal,
-        spk,
+        spk: spk.trim(),
         itemName: namaItem.trim(),
         recipientType: trx.recipientType,
         notes: trx.notes ?? undefined,
@@ -844,9 +843,9 @@ export default function BarangKeluarGudang() {
         try {
           await cetakBarangKeluar({
             tanggal,
-            client:
-              clientOf(spk) || (spk === trx.spk ? trx.clientName : "") || "-",
+            client: trx.recipientType === "INTERNAL" ? "Internal" : clientOf(spk) || (spk === trx.spk ? trx.clientName : "") || "-",
             spk,
+            referenceLabel: trx.recipientType === "INTERNAL" ? "ID STOK/INTERNAL" : undefined,
             namaItem: namaItem.trim(),
             baris: lines.map((line, index) => ({
               name: line.picked?.name ?? trx.lines[index].itemName,
@@ -881,22 +880,24 @@ export default function BarangKeluarGudang() {
       setModalError("Tunggu proses scan barang selesai sebelum menyimpan.");
       return;
     }
-    if (modeKeluar === "stok") {
-      setModalError("Data stok belum tersedia. Barang keluar stok belum dapat disimpan.");
-      return;
-    }
     const submitter = (e.nativeEvent as SubmitEvent).submitter;
     setPreviewCetak(submitter instanceof HTMLButtonElement && submitter.value === "cetak");
 
-    // Validasi yang sama dengan sebelumnya (salin dari handleSimpan lama, tanpa bagian kirim)
-    const { namaPengambil, tanggal, client, spk, namaItem, baris } = form;
-    if (!tanggal || !client || !spk || !namaPengambil.trim() || !namaItem.trim()) {
-      setModalError("Lengkapi tanggal, client, SPK, nama pengambil, dan nama produk/proyek.");
-      return;
-    }
-    if (!spkPilihan.some((p) => p.value === spk) || !produkTracking.some((p) => p.name === namaItem)) {
-      setModalError("Pilih SPK milik client dan item yang tersedia pada SPK tersebut.");
-      return;
+    const { namaPengambil, tanggal, client, spk, stockId, namaItem, baris } = form;
+    if (modeKeluar === "stok") {
+      if (!tanggal || !stockId.trim() || !namaPengambil.trim() || !namaItem.trim()) {
+        setModalError("Lengkapi tanggal, ID stok/internal, nama pengambil, dan nama item.");
+        return;
+      }
+    } else {
+      if (!tanggal || !client || !spk || !namaPengambil.trim() || !namaItem.trim()) {
+        setModalError("Lengkapi tanggal, client, SPK, nama pengambil, dan nama produk/proyek.");
+        return;
+      }
+      if (!spkPilihan.some((p) => p.value === spk) || !produkTracking.some((p) => p.name === namaItem)) {
+        setModalError("Pilih SPK milik client dan item yang tersedia pada SPK tersebut.");
+        return;
+      }
     }
     const terisi = baris.filter((b) => b.itemId !== null);
     if (terisi.length === 0) {
@@ -962,11 +963,7 @@ export default function BarangKeluarGudang() {
     pengambilRef.current = "";
     draftKey.current = { key: "", payload: "" };
     setModeKeluar(mode);
-    setForm(
-      mode === "stok"
-        ? { ...formKosong(), stockId: stockIdManual() }
-        : formKosong(),
-    );
+    setForm(formKosong());
     setModalError("");
     setScanOpen(false);
     setScanValue("");
@@ -1150,7 +1147,11 @@ export default function BarangKeluarGudang() {
 
   const konfirmasiSimpan = async () => {
     if (submittingRef.current) return;
-    const { namaPengambil, tanggal, client, spk, namaItem, recipientType, baris } = form;
+    const { namaPengambil, tanggal, namaItem, baris } = form;
+    const internal = modeKeluar === "stok";
+    const spk = internal ? form.stockId.trim() : form.spk;
+    const client = internal ? "Internal" : form.client;
+    const recipientType: RecipientType = internal ? "INTERNAL" : form.recipientType;
     const terisi = baris.filter((b) => b.itemId !== null);
     submittingRef.current = true;
     setSaving(true);
@@ -1180,6 +1181,7 @@ export default function BarangKeluarGudang() {
             tanggal,
             client,
             spk,
+            referenceLabel: internal ? "ID STOK/INTERNAL" : undefined,
             namaItem: namaItem.trim(),
             baris: terisi.map((b) => ({
               name: b.name, code: b.code, unit: b.unit, dokubah: b.dokubah,
@@ -1277,7 +1279,7 @@ export default function BarangKeluarGudang() {
                   className={orangeButtonClass}
                 >
                   <Plus className="w-4 h-4" />
-                  <span>Barang Keluar Stok</span>
+                  <span>Barang Keluar Stok / Internal</span>
                 </button>
               </>
             )}
@@ -1460,6 +1462,7 @@ export default function BarangKeluarGudang() {
                             <span className="text-xs text-gray-500">
                               {displayDate(trx.date)}
                             </span>
+                            <BadgeDibatalkan row={trx} />
                           </div>
                         </td>
 
@@ -1579,10 +1582,10 @@ export default function BarangKeluarGudang() {
                   {([
                     ["Tanggal", displayDate(form.tanggal)],
                     ["Nama Pengambil", form.namaPengambil],
-                    ["Client", form.client],
-                    ["No. SPK", form.spk],
+                    ["Client", modeKeluar === "stok" ? "Internal" : form.client],
+                    [modeKeluar === "stok" ? "ID Stok / Internal" : "No. SPK", modeKeluar === "stok" ? form.stockId : form.spk],
                     ["Nama Item/Projek", form.namaItem],
-                    ["Tujuan", "Tukang / Produksi"],
+                    ["Tujuan", modeKeluar === "stok" ? "Stok / Internal" : "Tukang / Produksi"],
                   ] as const).map(([k, v]) => (
                     <div key={k} className="flex flex-col">
                       <dt className="text-gray-500">{k}</dt>
@@ -1691,7 +1694,7 @@ export default function BarangKeluarGudang() {
 
                 <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 mb-6 pr-10">
                   <h2 className="text-[18px] font-extrabold text-black tracking-wide uppercase">
-                    Form Barang Keluar {modeKeluar === "stok" ? "Stok" : "SPK"}
+                    Form Barang Keluar {modeKeluar === "stok" ? "Stok / Internal" : "SPK"}
                   </h2>
 
                   <p className="px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm text-gray-800">
@@ -1702,10 +1705,7 @@ export default function BarangKeluarGudang() {
                 {/* Nama Pengambil / Tanggal, Client / Nama Item, lalu SPK. */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-4 mb-8">
                   <div className={rowClass}>
-                    <label
-                      htmlFor="form-bk-pengambil"
-                      className={rowLabelClass}
-                    >
+                    <label htmlFor="form-bk-pengambil" className={rowLabelClass}>
                       Nama Pengambil
                     </label>
                     <input
@@ -1754,25 +1754,21 @@ export default function BarangKeluarGudang() {
                   </div>
                   {modeKeluar === "stok" ? (
                     <div className={rowClass}>
-                      <label
-                        htmlFor="form-bk-stock-id"
-                        className={rowLabelClass}
-                      >
-                        ID Stok
+                      <label htmlFor="form-bk-stock-id" className={rowLabelClass}>
+                        ID Stok / Internal
                       </label>
                       <input
                         id="form-bk-stock-id"
                         type="text"
                         value={form.stockId}
-                        maxLength={191}
+                        maxLength={100}
                         onChange={(e) =>
                           setForm((prev) => ({
                             ...prev,
                             stockId: e.target.value,
-                            namaItem: "",
                           }))
                         }
-                        placeholder="Isi ID Stok"
+                        placeholder="Isi ID stok atau internal"
                         className={fieldClass}
                       />
                     </div>
@@ -1791,36 +1787,42 @@ export default function BarangKeluarGudang() {
                     </div>
                   )}
                   <div className={rowClass}>
-                    <span className={rowLabelClass}>Nama Item</span>
+                    <label
+                      htmlFor={modeKeluar === "stok" ? "form-bk-nama-item" : undefined}
+                      className={rowLabelClass}
+                    >
+                      Nama Item
+                    </label>
                     <div className="min-w-0">
-                      <SearchableSelect
-                        value={form.namaItem}
-                        onChange={(namaItem) =>
-                          setForm((prev) => ({ ...prev, namaItem }))
-                        }
-                        options={modeKeluar === "stok" ? [] : pilihanProduk}
-                        disabled={modeKeluar === "stok" && !form.stockId.trim()}
-                        placeholder={
-                          modeKeluar === "stok" && !form.stockId
-                            ? "Pilih Item"
-                            : "Pilih Item"
-                        }
-                        emptyText={
-                          modeKeluar === "stok"
-                            ? "Tidak ada item pada stok ini"
-                            : !form.spk
+                      {modeKeluar === "stok" ? (
+                        <input
+                          id="form-bk-nama-item"
+                          type="text"
+                          value={form.namaItem}
+                          maxLength={191}
+                          onChange={(e) => setForm((prev) => ({ ...prev, namaItem: e.target.value }))}
+                          placeholder="Isi nama item"
+                          className={fieldClass}
+                        />
+                      ) : (
+                        <SearchableSelect
+                          value={form.namaItem}
+                          onChange={(namaItem) => setForm((prev) => ({ ...prev, namaItem }))}
+                          options={pilihanProduk}
+                          placeholder="Pilih Item"
+                          emptyText={
+                            !form.spk
                               ? "Pilih SPK dulu"
                               : detailMemuat
                                 ? "Memuat item..."
                                 : "Tidak ada item pada SPK ini"
-                        }
-                        aria-label="Nama Item"
-                        className={selectClass}
-                      />
+                          }
+                          aria-label="Nama Item"
+                          className={selectClass}
+                        />
+                      )}
                       {modeKeluar === "spk" && detailMemuat && (
-                        <p className="mt-1 text-xs text-gray-400">
-                          Memuat produk...
-                        </p>
+                        <p className="mt-1 text-xs text-gray-400">Memuat produk...</p>
                       )}
                       {modeKeluar === "spk" && detailGagal && (
                         <p className="mt-1 text-xs text-red-600">
@@ -1838,11 +1840,7 @@ export default function BarangKeluarGudang() {
                         onSearch={spkForm.onSearch}
                         options={spkPilihan}
                         placeholder={form.client ? "Pilih SPK" : "Pilih SPK"}
-                        emptyText={
-                          form.client
-                            ? "Tidak ada SPK untuk client ini"
-                            : "Pilih SPK"
-                        }
+                        emptyText={form.client ? "Tidak ada SPK untuk client ini" : "Pilih SPK"}
                         aria-label="SPK"
                         className={selectClass}
                       />
@@ -2143,11 +2141,6 @@ export default function BarangKeluarGudang() {
                 )}
 
                 <div className="flex flex-wrap items-center justify-between gap-4 mt-3">
-                  {modeKeluar === "stok" && (
-                    <p role="status" className="text-sm text-gray-500">
-                      Data stok belum tersedia.
-                    </p>
-                  )}
                   <div className="text-xs">
                     Waktu Sekarang :
                     <span className="font-mono font-semibold text-gray-800 ml-1 ">
@@ -2160,7 +2153,7 @@ export default function BarangKeluarGudang() {
                       name="aksi"
                       value="simpan"
                       disabled={
-                        saving || pendingScans > 0 || modeKeluar === "stok"
+                        saving || pendingScans > 0
                       }
                       className="px-5 py-2.5 text-[#FF8A00] bg-white border-2 border-[#FF8A00] hover:bg-orange-50 font-semibold rounded-xl transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -2171,7 +2164,7 @@ export default function BarangKeluarGudang() {
                       name="aksi"
                       value="cetak"
                       disabled={
-                        saving || pendingScans > 0 || modeKeluar === "stok"
+                        saving || pendingScans > 0
                       }
                       className={orangeButtonClass}
                     >
@@ -2232,9 +2225,7 @@ export default function BarangKeluarGudang() {
                         id="edit-bk-tanggal"
                         type="date"
                         value={editForm.tanggal}
-                        onChange={(e) =>
-                          updateEdit({ tanggal: e.target.value })
-                        }
+                        onChange={(e) => updateEdit({ tanggal: e.target.value })}
                         className={`${fieldClass} [&::-webkit-calendar-picker-indicator]:hidden`}
                       />
                       <button
@@ -2256,28 +2247,43 @@ export default function BarangKeluarGudang() {
                       type="text"
                       readOnly
                       value={
-                        clientOf(editForm.spk) ||
-                        (editForm.spk === editTarget.trx.spk
-                          ? editTarget.trx.clientName
-                          : "")
+                        editTarget.trx.recipientType === "INTERNAL"
+                          ? "Internal"
+                          : clientOf(editForm.spk) ||
+                            (editForm.spk === editTarget.trx.spk ? editTarget.trx.clientName : "")
                       }
                       className={fieldClass}
                     />
                   </div>
                   <div>
-                    <span className={labelClass}>SPK</span>
-                    <SearchableSelect
-                      value={editForm.spk}
-                      onChange={(spk) => updateEdit({ spk })}
-                      onSearch={spkEdit.onSearch}
-                      options={spkEdit.options.map((t) => ({
-                        value: t.noSpk,
-                        label: t.noSpk,
-                      }))}
-                      placeholder="Pilih SPK"
-                      aria-label="SPK"
-                      className={fieldClass}
-                    />
+                    {editTarget.trx.recipientType === "INTERNAL" ? (
+                      <>
+                        <label htmlFor="edit-bk-internal-id" className={labelClass}>
+                          ID Stok / Internal
+                        </label>
+                        <input
+                          id="edit-bk-internal-id"
+                          type="text"
+                          maxLength={100}
+                          value={editForm.spk}
+                          onChange={(e) => updateEdit({ spk: e.target.value })}
+                          className={fieldClass}
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <span className={labelClass}>SPK</span>
+                        <SearchableSelect
+                          value={editForm.spk}
+                          onChange={(spk) => updateEdit({ spk })}
+                          onSearch={spkEdit.onSearch}
+                          options={spkEdit.options.map((entry) => ({ value: entry.noSpk, label: entry.noSpk }))}
+                          placeholder="Pilih SPK"
+                          aria-label="SPK"
+                          className={fieldClass}
+                        />
+                      </>
+                    )}
                   </div>
                   <div>
                     <label htmlFor="edit-bk-item" className={labelClass}>
@@ -2441,13 +2447,14 @@ export default function BarangKeluarGudang() {
                 Rincian Barang Keluar
               </h2>
 
+              <InfoPembatalan row={detailTrx} />
               <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 mb-6 text-sm">
                 {(
                   [
                     ["No. Transaksi", detailTrx.noTransaksi ?? detailTrx.id],
                     ["Tanggal", displayDate(detailTrx.date)],
                     ["Client", detailTrx.clientName],
-                    ["SPK", detailTrx.spk],
+                    [detailTrx.recipientType === "INTERNAL" ? "ID Stok / Internal" : "SPK", detailTrx.spk],
                     ["Nama Item/Projek", detailTrx.itemName],
                     ["Pengambil", detailTrx.lines[0]?.pic ?? "-"],
                     [
@@ -2512,9 +2519,17 @@ export default function BarangKeluarGudang() {
                 </table>
               </div>
 
-              <p className="mt-4 text-sm text-gray-600">
+              <div className="mt-4">
+                <BatalkanTransaksi
+                  row={detailTrx}
+                  cancel={cancelOutbound}
+                  label="barang keluar"
+                  onDone={(updated) => { setDetailTrx(updated); reload(); }}
+                />
+              </div>
+              {!detailTrx.cancelledAt && <p className="mt-4 text-sm text-gray-600">
                 {bisaEdit(detailTrx, user?.id) ? "Disetujui superadmin. Transaksi dapat diedit satu kali." : PESAN_TIDAK_BISA_EDIT}
-              </p>
+              </p>}
               {aksiPengajuan(detailTrx)}
             </div>
           </div>,

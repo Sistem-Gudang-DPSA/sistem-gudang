@@ -9,6 +9,7 @@ import SidebarNav from '@/domains/auth/components/SidebarNav';
 import AccessDenied from '@/domains/auth/components/AccessDenied';
 import { canAccess } from '@/domains/auth/nav';
 import { AuthUserProvider } from '@/domains/auth/user-context';
+import NotificationBell from '@/domains/notification/components/NotificationBell';
 
 export default function DashboardLayout({
   children,
@@ -151,6 +152,7 @@ export default function DashboardLayout({
           </div>
 
           <div className="flex items-center gap-4">
+             <NotificationBell />
              <div className=" flex-col items-end hidden md:flex">
                 <span className="text-sm font-semibold text-gray-800">{userName || "User"}</span>
                 <span className="text-xs text-gray-500">{user.isSuperadmin ? "Super Admin" : user.roleName || "Guest"}</span>

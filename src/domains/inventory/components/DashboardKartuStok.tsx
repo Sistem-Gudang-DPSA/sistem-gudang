@@ -130,7 +130,7 @@ export default function KartuStok() {
                 <th scope="col" className="px-6 py-4 w-16">No</th>
                 <th scope="col" className="px-6 py-4">Kode Barang</th>
                 <th scope="col" className="px-6 py-4">Kode Bawaan</th>
-                <th scope="col" className="px-6 py-4">Nama Barang</th>
+                <th scope="col" className="px-6 py-4">Material</th>
                 <th scope="col" className="px-6 py-4 text-right">Stok Saat Ini</th>
                 <th scope="col" className="px-6 py-4 text-right">Masuk</th>
                 <th scope="col" className="px-6 py-4 text-right">Keluar</th>

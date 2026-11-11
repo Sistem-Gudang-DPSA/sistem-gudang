@@ -1,22 +1,19 @@
 "use client";
 
+import { useState } from 'react';
 import { useCan } from '@/domains/auth/user-context';
-import React, { useEffect, useState } from 'react';
-import { Search, Plus, Filter, Edit2, QrCode } from 'lucide-react';
-import { assignItemLocation, bulkAssignItemLocation, listItemCategories, listItems, listItemUnits, listLocations } from '@/domains/inventory/api';
-import type { ItemListRow, Location } from '@/domains/inventory/types';
-import { listSuppliers } from '@/domains/purchasing/api';
-import type { Supplier } from '@/domains/purchasing/types';
+import { Plus, Edit2, QrCode } from 'lucide-react';
+import { assignItemLocation, bulkAssignItemLocation } from '@/domains/inventory/api';
+import type { ItemListRow } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
-import { useClampPage } from '@/shared/lib/use-page';
 import Pagination from '@/shared/components/Pagination';
-import { useApiData } from '@/shared/lib/use-api-data';
-import { useDebouncedValue } from '@/shared/lib/use-debounced-value';
 import { ExportExcellButton } from '@/shared/components/Tombol';
-import BarangFilterPanel, { countActiveFilters, emptyBarangFilters, toItemFilterParams } from './BarangFilterPanel';
-import SortableTh, { useSort } from '@/shared/components/SortableTh';
-import ItemPhoto from './ItemPhoto';
 import { printItemLabels } from '@/domains/inventory/label-print';
+import BarangFilterPanel, { countActiveFilters } from './BarangFilterPanel';
+import { useDataBarang } from './data-barang/useDataBarang';
+import DataBarangTable, { type BarangColumn, KategoriBadge, StokCell, SupplierCell } from './data-barang/DataBarangTable';
+import DataBarangToolbar, { FilterToggle } from './data-barang/DataBarangToolbar';
+import { LokasiBulkModal, LokasiModal } from './data-barang/modals/LokasiModal';
 
 export default function DataBarangGudang({
   paginationActiveClass,
@@ -24,50 +21,18 @@ export default function DataBarangGudang({
   paginationActiveClass?: string;
 }) {
   const canAssign = useCan('item.assign-location');
-  const { sort, toggle, params: sortParams } = useSort();
-  const [filters, setFilters] = useState(emptyBarangFilters);
-  const [showFilter, setShowFilter] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const debouncedSearch = useDebouncedValue(searchQuery);
+  const d = useDataBarang();
+  const { dataBarang, total, page, pageSize, setPage, selected, setSelected, supplierName, locationCode, reload } = d;
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeItem, setActiveItem] = useState<ItemListRow | null>(null);
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
-  const [units, setUnits] = useState<string[]>([]);
   const [modalLocationId, setModalLocationId] = useState("");
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState("");
-  // keyed by id and holding the row, so a selection can span pages
-  const [selected, setSelected] = useState<Map<number, ItemListRow>>(new Map());
   const [printError, setPrintError] = useState("");
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkLocationId, setBulkLocationId] = useState("");
   const [notice, setNotice] = useState("");
-
-
-  const filterKey = JSON.stringify([debouncedSearch, filters, sortParams]);
-  const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
-  const page = pageState.key === filterKey ? pageState.page : 1;
-  const setPage = (next: number) => setPageState({ key: filterKey, page: next });
-  const { data: loaded, loading, error, reload } = useApiData(
-    () => listItems({ page, pageSize: 20, search: debouncedSearch || undefined, ...toItemFilterParams(filters), ...sortParams }),
-    `${filterKey}|${page}`,
-    "Gagal memuat data barang.",
-  );
-  const dataBarang = loaded?.rows ?? [];
-  const total = loaded?.total ?? 0;
-  useClampPage(page, total, 20, setPage);
-
-  useEffect(() => {
-    listLocations().then((res) => setLocations(res.rows)).catch(() => {});
-    listSuppliers().then((res) => setSuppliers(res.rows)).catch(() => {});
-    listItemCategories().then((res) => setCategories(res.map((c) => c.name))).catch(() => {});
-    listItemUnits().then((res) => setUnits(res.map((u) => u.name))).catch(() => {});
-  }, []);
-
-  const supplierName = (id: number | null) => suppliers.find((s) => s.id === id)?.name ?? '-';
-  const locationCode = (id: number | null) => (id === null ? '-' : locations.find((loc) => loc.id === id)?.code ?? `#${id}`);
 
   const openAssignModal = (item: ItemListRow) => {
     setActiveItem(item);
@@ -94,33 +59,8 @@ export default function DataBarangGudang({
     }
   };
 
-  const getCategoryColor = (kategori: string) => {
-    if (!kategori) return 'bg-gray-100 text-gray-700 border-gray-200/50';
-    switch(kategori.toLowerCase()) {
-      case 'lembaran': return 'bg-blue-100 text-blue-700 border-blue-200/50';
-      case 'kayu solid': return 'bg-amber-100 text-amber-700 border-amber-200/50';
-      case 'logam': return 'bg-slate-100 text-slate-700 border-slate-200/50';
-      case 'finishing': return 'bg-teal-100 text-teal-700 border-teal-200/50';
-      case 'aksesoris': return 'bg-pink-100 text-pink-700 border-pink-200/50';
-      default: return 'bg-purple-100 text-purple-700 border-purple-200/50';
-    }
-  };
-
-  const toggleSelected = (item: ItemListRow) =>
-    setSelected((prev) => {
-      const next = new Map(prev);
-      if (next.has(item.id)) next.delete(item.id); else next.set(item.id, item);
-      return next;
-    });
-  const allPageSelected = dataBarang.length > 0 && dataBarang.every((it) => selected.has(it.id));
-  const toggleAllOnPage = () =>
-    setSelected((prev) => {
-      const next = new Map(prev);
-      for (const it of dataBarang) { if (allPageSelected) next.delete(it.id); else next.set(it.id, it); }
-      return next;
-    });
-  const selectedItems = [...selected.values()];
   // only items with a code have a label to print
+  const selectedItems = [...selected.values()];
   const selectedPrintable = selectedItems.filter((it) => it.code);
   const selectedWithLocation = selectedItems.filter((it) => it.locationId !== null).length;
   const printLabels = async (items: ItemListRow[]) => setPrintError(await printItemLabels(items) ?? "");
@@ -164,6 +104,53 @@ export default function DataBarangGudang({
     document.body.removeChild(link);
   };
 
+  const columns: BarangColumn[] = [
+    { label: 'Kode Barang', tdClassName: 'px-6 py-4 font-mono text-xs text-gray-500', cell: (item) => item.code ?? '-' },
+    { label: 'Informasi Barang', sortKey: 'name', tdClassName: 'px-6 py-4 font-bold text-gray-900', cell: (item) => item.name },
+    { label: 'Kode Bawaan', tdClassName: 'px-6 py-4 text-gray-600', cell: (item) => item.externalCode || '-' },
+    { label: 'Supplier', sortKey: 'supplierName', cell: (item) => <SupplierCell name={supplierName(item.supplierId)} /> },
+    { label: 'Stok', sortKey: 'stock', cell: (item) => <StokCell stock={item.stock} /> },
+    { label: 'Satuan', tdClassName: 'px-6 py-4 text-gray-600', cell: (item) => item.unit },
+    { label: 'Kategori', sortKey: 'category', cell: (item) => <KategoriBadge category={item.category} /> },
+    { label: 'Lokasi', sortKey: 'locationCode', cell: (item) => (
+      <span className="inline-flex items-center gap-1 text-gray-600 font-medium">
+        <div className="w-1.5 h-1.5 rounded-full bg-[#FF8A00]"></div>
+        {locationCode(item.locationId)}
+      </span>
+    ) },
+    { label: 'Keterangan', sortKey: 'detail', tdClassName: 'px-6 py-4 text-gray-600', cell: (item) => item.detail || '-' },
+  ];
+
+  const renderRowActions = (item: ItemListRow) => (
+    <div className="flex items-center justify-center gap-2">
+      {item.locationId === null && canAssign ? (
+        <button
+          onClick={() => openAssignModal(item)}
+          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] text-xs font-bold rounded-lg hover:bg-[#FF8A00]/20 transition-all duration-200 opacity-90 group-hover:opacity-100"
+        >
+          <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
+          Tambah Lokasi
+        </button>
+      ) : canAssign && (
+        <button
+          onClick={() => openAssignModal(item)}
+          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] text-xs font-bold rounded-lg hover:bg-[#FF8A00]/20 transition-all duration-200 opacity-90 group-hover:opacity-100"
+        >
+          <Edit2 className="w-3.5 h-3.5" strokeWidth={2.5} />
+          Edit Lokasi
+        </button>
+      )}
+      {item.code && <button
+        onClick={() => printLabels([item])}
+        className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gray-50 text-gray-600 text-xs font-bold rounded-lg hover:bg-gray-100 transition-all duration-200 opacity-90 group-hover:opacity-100"
+        title="Cetak label QR"
+      >
+        <QrCode className="w-3.5 h-3.5" strokeWidth={2.5} />
+        QR
+      </button>}
+    </div>
+  );
+
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
@@ -174,22 +161,10 @@ export default function DataBarangGudang({
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
-        {/* Table Toolbar */}
-        <div className="p-5 border-b border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="relative max-w-md w-full">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-4 w-4 text-gray-400" />
-            </div>
-            <input
-              type="text"
-              value={searchQuery}
-              maxLength={100}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] sm:text-sm transition-all"
-              placeholder="Cari kode atau nama barang..."
-            />
-          </div>
-          <div className="flex items-center gap-2">
+        <DataBarangToolbar
+          searchValue={d.searchQuery}
+          onSearchChange={d.setSearchQuery}
+          bulkActions={<>
             <button
               type="button"
               onClick={printSelected}
@@ -211,26 +186,18 @@ export default function DataBarangGudang({
               </button>
             )}
             <ExportExcellButton onClick={handleExportExcel} />
-            <button
-              type="button"
-              onClick={() => setShowFilter((v) => !v)}
-              aria-expanded={showFilter}
-              className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors text-sm font-medium ${showFilter || countActiveFilters(filters) > 0 ? 'bg-orange-50 border-orange-300 text-orange-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-            >
-              <Filter className="w-4 h-4" />
-              <span>Filter{countActiveFilters(filters) > 0 ? ` (${countActiveFilters(filters)})` : ''}</span>
-            </button>     
-          </div>
-        </div>
+          </>}
+          filter={<FilterToggle open={d.showFilter} count={countActiveFilters(d.filters)} onToggle={() => d.setShowFilter((v) => !v)} />}
+        />
 
-        {showFilter && (
+        {d.showFilter && (
           <BarangFilterPanel
-            value={filters}
-            onChange={setFilters}
-            categories={categories}
-            units={units}
-            suppliers={suppliers}
-            locations={locations}
+            value={d.filters}
+            onChange={d.setFilters}
+            categories={d.categories}
+            units={d.units}
+            suppliers={d.suppliers}
+            locations={d.locations}
           />
         )}
 
@@ -241,228 +208,58 @@ export default function DataBarangGudang({
           </div>
         )}
 
-        {(error || printError) && (
-          <div className="mx-5 mt-5 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error || printError}</div>
+        {(d.error || printError) && (
+          <div className="mx-5 mt-5 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{d.error || printError}</div>
         )}
 
-        {/* Table Container */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
-              <tr>
-                <th scope="col" className="px-4 py-4">
-                  <input type="checkbox" aria-label="Pilih semua barang di halaman ini" checked={allPageSelected} disabled={dataBarang.length === 0} onChange={toggleAllOnPage} />
-                </th>
-                <th scope="col" className="px-6 py-4">No</th>
-                <th scope="col" className="px-6 py-4">Foto</th>
-                <th scope="col" className="px-6 py-4">Kode Barang</th>
-                <SortableTh label="Informasi Barang" sortKey="name" sort={sort} onSort={toggle} />
-                <th scope="col" className="px-6 py-4">Kode Bawaan</th>
-                <SortableTh label="Supplier" sortKey="supplierName" sort={sort} onSort={toggle} />
-                <SortableTh label="Stok" sortKey="stock" sort={sort} onSort={toggle} />
-                <th scope="col" className="px-6 py-4">Satuan</th>
-                <SortableTh label="Kategori" sortKey="category" sort={sort} onSort={toggle} />
-                <SortableTh label="Lokasi" sortKey="locationCode" sort={sort} onSort={toggle} />
-                <SortableTh label="Keterangan" sortKey="detail" sort={sort} onSort={toggle} />
-                <th scope="col" className="px-6 py-4 text-center">Aksi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {loading && (
-                <tr><td colSpan={13} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
-              )}
-              {!loading && dataBarang.length === 0 && (
-                <tr><td colSpan={13} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
-              )}
-              {!loading && dataBarang.map((item, index) => (
-                <tr key={item.id} className="hover:bg-[#FF8A00]/5 transition-colors group">
-                  <td className="px-4 py-4">
-                    <input type="checkbox" aria-label={`Pilih ${item.name}`} checked={selected.has(item.id)} onChange={() => toggleSelected(item)} />
-                  </td>
-                  <td className="px-6 py-4 text-gray-500">{index + 1}</td>
+        <DataBarangTable
+          rows={dataBarang}
+          loading={d.loading}
+          colSpan={13}
+          columns={columns}
+          sort={d.sort}
+          onSort={d.toggle}
+          photo={{ canUpload: false }}
+          selection={{
+            selected,
+            allOnPage: d.pageAllSelected,
+            onToggleRow: d.toggleRow,
+            onToggleAll: d.togglePage,
+            disableAllWhenEmpty: true,
+          }}
+          rowActions={renderRowActions}
+          rowClassName={() => 'hover:bg-[#FF8A00]/5 transition-colors group'}
+          tbodyClassName="divide-y divide-gray-50"
+        />
 
-                  {/* Foto */}
-                  <td className="px-6 py-4">
-                    <ItemPhoto item={item} />
-                  </td>
-
-                  {/* Kode Barang */}
-                  <td className="px-6 py-4 font-mono text-xs text-gray-500">{item.code ?? '-'}</td>
-
-                  {/* Informasi Barang */}
-                  <td className="px-6 py-4 font-bold text-gray-900">{item.name}</td>
-
-                  {/* Kode Bawaan */}
-                  <td className="px-6 py-4 text-gray-600">{item.externalCode || '-'}</td>
-
-                  {/* Supplier */}
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <div className="w-6 h-6 rounded-md bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500">
-                        {supplierName(item.supplierId).charAt(0)}
-                      </div>
-                      <span>{supplierName(item.supplierId)}</span>
-                    </div>
-                  </td>
-
-                  {/* Stok */}
-                  <td className="px-6 py-4">
-                       <span className={`font-bold ${item.stock < 20 ? 'text-red-600' : item.stock < 50 ? 'text-amber-600' : 'text-gray-800'}`}>
-                         {item.stock}
-                       </span>
-                  </td>
-
-                  {/* Satuan */}
-                  <td className="px-6 py-4 text-gray-600">
-                    {item.unit}
-                  </td>
-
-                  {/* Kategori */}
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getCategoryColor(item.category)}`}>
-                      {item.category || '-'}
-                    </span> 
-                  </td>
-
-                  {/* Lokasi */}
-                  <td className="px-6 py-4">
-                    <span className="inline-flex items-center gap-1 text-gray-600 font-medium">
-                      <div className="w-1.5 h-1.5 rounded-full bg-[#FF8A00]"></div>
-                      {locationCode(item.locationId)}
-                    </span>
-                  </td>
-
-                  {/* Keterangan */}
-                  <td className="px-6 py-4 text-gray-600">{item.detail || '-'}</td>
-
-                  {/* Aksi */}
-                  <td className="px-6 py-4 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      {item.locationId === null && canAssign ? (
-                        <button
-                          onClick={() => openAssignModal(item)}
-                          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] text-xs font-bold rounded-lg hover:bg-[#FF8A00]/20 transition-all duration-200 opacity-90 group-hover:opacity-100"
-                        >
-                          <Plus className="w-3.5 h-3.5" strokeWidth={2.5} />
-                          Tambah Lokasi
-                        </button>
-                      ) : canAssign && (
-                        <button
-                          onClick={() => openAssignModal(item)}
-                          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] text-xs font-bold rounded-lg hover:bg-[#FF8A00]/20 transition-all duration-200 opacity-90 group-hover:opacity-100"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" strokeWidth={2.5} />
-                          Edit Lokasi
-                        </button>
-                      )}
-                      {item.code && <button
-                        onClick={() => printLabels([item])}
-                        className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gray-50 text-gray-600 text-xs font-bold rounded-lg hover:bg-gray-100 transition-all duration-200 opacity-90 group-hover:opacity-100"
-                        title="Cetak label QR"
-                      >
-                        <QrCode className="w-3.5 h-3.5" strokeWidth={2.5} />
-                        QR
-                      </button>}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <Pagination page={page} pageSize={20} total={total} onPageChange={setPage} activeClass={paginationActiveClass} />
+        <Pagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} activeClass={paginationActiveClass} />
       </div>
 
-      {/* Modal Atur Lokasi untuk barang terpilih */}
       {bulkOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl w-full max-w-lg p-6 sm:p-8 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-900 uppercase tracking-wide">ATUR LOKASI · {selected.size} BARANG</h2>
-              <button onClick={() => setBulkOpen(false)} aria-label="Tutup" className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors">×</button>
-            </div>
-            <label htmlFor="bulk-lokasi" className="block text-sm font-semibold text-gray-700 mb-2">Lokasi</label>
-            <select
-              id="bulk-lokasi"
-              className="w-full border border-gray-200 bg-gray-50/50 rounded-xl py-2.5 pl-4 pr-10 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] focus:bg-white text-sm mb-3"
-              value={bulkLocationId}
-              onChange={(e) => setBulkLocationId(e.target.value)}
-            >
-              <option value="" disabled>Pilih Lokasi</option>
-              {locations.map((loc) => (
-                <option key={loc.id} value={loc.id}>{loc.code}</option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500 mb-4">Kode tiap barang dibuat otomatis dari lokasi ini.</p>
-            {selectedWithLocation > 0 && (
-              <div className="mb-4 p-3 bg-amber-50 text-amber-700 text-sm rounded-lg">
-                {selectedWithLocation} barang sudah punya lokasi. Kodenya akan diganti, label QR lama perlu dicetak ulang.
-              </div>
-            )}
-            {modalError && <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{modalError}</div>}
-            <div className="flex justify-end">
-              <button
-                onClick={handleBulkAssign}
-                disabled={saving}
-                className="px-6 py-2.5 bg-[#FF8A00] text-white font-medium rounded-xl hover:bg-[#E67A00] shadow-sm transition-all text-sm disabled:opacity-60"
-              >
-                {saving ? "Menyimpan..." : `Simpan ${selected.size} barang`}
-              </button>
-            </div>
-          </div>
-        </div>
+        <LokasiBulkModal
+          count={selected.size}
+          withLocation={selectedWithLocation}
+          locations={d.locations}
+          value={bulkLocationId}
+          onChange={setBulkLocationId}
+          onSave={handleBulkAssign}
+          onClose={() => setBulkOpen(false)}
+          saving={saving}
+          error={modalError}
+        />
       )}
 
-      {/* Modal Tambah Lokasi */}
       {isModalOpen && activeItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl w-full max-w-lg p-6 sm:p-8 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-900 uppercase tracking-wide">
-                TAMBAH LOKASI · {activeItem.name}
-              </h2>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-6 mb-6">
-              <div className="flex-1">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Lokasi</label>
-                <select
-                  className="w-full border border-gray-200 bg-gray-50/50 rounded-xl py-2.5 pl-4 pr-10 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] focus:bg-white appearance-none text-sm transition-all duration-200"
-                  value={modalLocationId}
-                  onChange={(e) => setModalLocationId(e.target.value)}
-                >
-                  <option value="" disabled>Pilih Lokasi</option>
-                  {locations.map((loc) => (
-                    <option key={loc.id} value={loc.id}>{loc.code}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {modalError && (
-              <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{modalError}</div>
-            )}
-
-            <div className="flex justify-end gap-3 mt-4">
-              <button
-                onClick={handleSimpanLokasi}
-                disabled={saving}
-                className="px-6 py-2.5 bg-[#FF8A00] text-white font-medium rounded-xl hover:bg-[#E67A00] shadow-sm shadow-[#FF8A00]/20 transition-all text-sm disabled:opacity-60"
-              >
-                {saving ? "Menyimpan..." : "Simpan"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <LokasiModal
+          itemName={activeItem.name}
+          locations={d.locations}
+          value={modalLocationId}
+          onChange={setModalLocationId}
+          onSave={handleSimpanLokasi}
+          onClose={() => setIsModalOpen(false)}
+          saving={saving}
+          error={modalError}
+        />
       )}
     </div>
   );
