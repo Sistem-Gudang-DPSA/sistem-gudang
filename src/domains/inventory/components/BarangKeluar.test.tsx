@@ -474,21 +474,47 @@ describe('BarangKeluar create', () => {
       .toEqual([{ itemId: 1, qty: 1, pic: 'Rudi' }, { itemId: 2, qty: 7, pic: 'Rudi' }]);
   });
 
-  // BE has no stock outbound yet (POST /outbound needs a known SPK), so the Stok form cannot save
-  it('opens a Stok form whose Simpan stays disabled', async () => {
+  it('saves a stock/internal outbound with a manually entered ID and item name', async () => {
+    const api = setup({ 'POST /api/v1/outbound': { id: 9 } });
+    await screen.findAllByText('Klien 1');
+    fireEvent.click(screen.getByText('Barang Keluar Stok / Internal'));
+    await screen.findByText('Form Barang Keluar Stok / Internal');
+    expect(screen.queryByLabelText('SPK')).toBeNull();
+    const id = screen.getByRole('textbox', { name: 'ID Stok / Internal' }) as HTMLInputElement;
+    const name = screen.getByRole('textbox', { name: 'Nama Item' }) as HTMLInputElement;
+    expect(id.value).toBe('');
+    expect(name.disabled).toBe(false);
+    expect(id.maxLength).toBe(100);
+    expect(name.maxLength).toBe(191);
+    fireEvent.change(id, { target: { value: ' OPS-0911 ' } });
+    fireEvent.change(name, { target: { value: ' Rak kerja bengkel ' } });
+    // Updating the manual ID must not erase an independently typed item name.
+    fireEvent.change(id, { target: { value: ' OPS-0912 ' } });
+    expect(name.value).toBe(' Rak kerja bengkel ');
+    typePengambil();
+    scan('BRG-1');
+    await screen.findByText('Triplex', { selector: 'td' });
+    fireEvent.click(screen.getByText('Simpan'));
+    const preview = await screen.findByRole('dialog', { name: 'Preview Barang Keluar' });
+    expect(within(preview).getByText('OPS-0912')).toBeTruthy();
+    fireEvent.click(within(preview).getByText('Konfirmasi Simpan'));
+    await waitFor(() => expect(api.calls('POST /api/v1/outbound')).toHaveLength(1));
+    expect(api.calls('POST /api/v1/outbound')[0].body).toMatchObject({ spk: 'OPS-0912', itemName: 'Rak kerja bengkel', recipientType: 'INTERNAL', lines: [{ itemId: 1, qty: 1, pic: 'Rudi' }] });
+    expect(api.calls('GET /api/v1/tracking/spk/OPS-0912')).toHaveLength(0);
+  });
+
+  it('requires a manual stock/internal ID and item before opening the preview', async () => {
     const api = setup();
     await screen.findAllByText('Klien 1');
-    fireEvent.click(screen.getByText('Barang Keluar Stok'));
-    await screen.findByText('Form Barang Keluar Stok');
-    expect(screen.queryByLabelText('SPK')).toBeNull();
-    // Until PPIC issues stock IDs the field starts with a manual STOCK-{yyyy-mm-dd}
-    expect(label('ID Stok').value).toMatch(/^STOCK-\d{4}-\d{2}-\d{2}$/);
-    expect((screen.getByLabelText('Nama Item') as HTMLButtonElement).disabled).toBe(false);
-    fireEvent.change(label('ID Stok'), { target: { value: '' } });
-    expect((screen.getByLabelText('Nama Item') as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByText('Simpan') as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getByText('Data stok belum tersedia.')).not.toBeNull();
-    expect(api.calls('POST /api/v1/outbound').length).toBe(0);
+    fireEvent.click(screen.getByText('Barang Keluar Stok / Internal'));
+    fireEvent.click(screen.getByText('Simpan'));
+    expect(screen.getByText('Lengkapi tanggal, ID stok/internal, nama pengambil, dan nama item.')).toBeTruthy();
+    fireEvent.change(label('ID Stok / Internal'), { target: { value: '  ' } });
+    fireEvent.change(label('Nama Item'), { target: { value: 'Meja internal' } });
+    typePengambil();
+    fireEvent.click(screen.getByText('Simpan'));
+    expect(screen.queryByRole('dialog', { name: 'Preview Barang Keluar' })).toBeNull();
+    expect(api.calls('POST /api/v1/outbound')).toHaveLength(0);
   });
 
   it('shows backend error, keeps form open, disables Simpan while saving', async () => {
@@ -508,6 +534,18 @@ describe('BarangKeluar create', () => {
 });
 
 describe('BarangKeluar edit', () => {
+  it('edits the manually typed stock/internal reference after superadmin approval', async () => {
+    const api = setup({ 'PUT /api/v1/outbound/1': { id: 1 } }, paged([{ ...disetujui(), spk: 'OPS-1', clientName: 'Internal', recipientType: 'INTERNAL' }]));
+    await screen.findByText('Internal');
+    fireEvent.click(screen.getByLabelText('Edit barang keluar 1 Triplex'));
+    expect(screen.queryByLabelText('SPK')).toBeNull();
+    fireEvent.change(label('ID Stok / Internal'), { target: { value: 'OPS-2' } });
+    fireEvent.change(label('Nama Item/Projek'), { target: { value: 'Rak internal baru' } });
+    fireEvent.click(screen.getByText('Simpan'));
+    await waitFor(() => expect(api.calls('PUT /api/v1/outbound/1')).toHaveLength(1));
+    expect(api.calls('PUT /api/v1/outbound/1')[0].body).toMatchObject({ spk: 'OPS-2', itemName: 'Rak internal baru', recipientType: 'INTERNAL' });
+  });
+
   it('saves all materials together using a single approval', async () => {
     const api = setup({ 'PUT /api/v1/outbound/1': { id: 1 } }, paged([disetujui()]));
     await screen.findAllByText('Klien 1');
@@ -690,5 +728,41 @@ describe('permissions', () => {
   it('shows them to a superadmin', async () => {
     await open(who([], true));
     expect(screen.getByText('Barang Keluar SPK')).not.toBeNull();
+  });
+});
+
+describe('cancel transaction', () => {
+  const batal = { cancelledAt: '2026-03-06T03:00:00.000Z', cancelledByName: 'Admin Utama', cancelReason: 'Salah input' };
+  const openDetail = async (user: ReturnType<typeof who>, row: unknown, extra: Record<string, unknown> = {}) => {
+    const api = installFakeApi({ 'GET /api/v1/outbound': paged([row]), 'GET /api/v1/items': items, ...tracking, ...extra });
+    render(<AuthUserProvider user={user}><BarangKeluar /></AuthUserProvider>);
+    await screen.findAllByText('Klien 1');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Lihat rincian 1' })[0]);
+    return { api, dialog: screen.getByRole('dialog', { name: 'Rincian Barang Keluar' }) };
+  };
+
+  it('lets a superadmin cancel with a reason and refreshes the list', async () => {
+    const { api, dialog } = await openDetail(who([], true), trx(1), { 'POST /api/v1/outbound/1/cancel': { ...trx(1), ...batal } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Batalkan' }));
+    fireEvent.change(screen.getByLabelText('Alasan pembatalan'), { target: { value: '  Salah input  ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Batalkan Transaksi' }));
+    await screen.findByRole('status');
+    expect(api.calls('POST /api/v1/outbound/1/cancel')[0].body).toEqual({ reason: 'Salah input' });
+    expect(within(dialog).getByText(/Alasan: Salah input/)).toBeTruthy();
+    expect(within(dialog).queryByRole('button', { name: 'Batalkan' })).toBeNull();
+  });
+
+  it('hides the button from a non-superadmin', async () => {
+    const { dialog } = await openDetail(who(['outbound.update']), trx(1));
+    expect(within(dialog).queryByRole('button', { name: 'Batalkan' })).toBeNull();
+  });
+
+  it('shows the badge in the list, the reason in the detail, and no edit actions for a cancelled row', async () => {
+    const { dialog } = await openDetail(who(['outbound.update'], true), { ...disetujui(), ...batal });
+    expect(screen.getAllByText('Dibatalkan superadmin').length).toBeGreaterThan(1);
+    expect(within(dialog).getByText(/Admin Utama/)).toBeTruthy();
+    expect(within(dialog).queryByRole('button', { name: 'Batalkan' })).toBeNull();
+    expect(screen.queryByLabelText('Edit barang keluar 1 Triplex')).toBeNull();
+    expect(screen.queryByLabelText('Ajukan edit barang keluar 1')).toBeNull();
   });
 });

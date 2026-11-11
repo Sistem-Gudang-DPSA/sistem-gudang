@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Search, Plus } from 'lucide-react';
+import { Search, Plus, FileUp } from 'lucide-react';
 import Link from 'next/link';
 import { createSupplier, deleteSupplier, listSuppliers, updateSupplier } from '@/domains/purchasing/api';
 import type { Pajak, Supplier } from '@/domains/purchasing/types';
@@ -11,6 +11,9 @@ import { useCan } from '@/domains/auth/user-context';
 import { useClampPage, usePage } from '@/shared/lib/use-page';
 import Pagination from '@/shared/components/Pagination';
 import SortableTh, { useSort } from '@/shared/components/SortableTh'
+import type { SupplierImportRow } from '@/domains/purchasing/modal/supplier';
+import ImportSupplierModal from '@/domains/purchasing/components/ImportSupplierModal';
+import ImportSupplierMapping from '@/domains/purchasing/components/ImportSupplierMapping';
 
 const emptyForm: { code: string; name: string; bank: string; npwp: string; phone: string; address: string; pajak: Pajak } = {
   code: '', name: '', bank: '', npwp: '', phone: '', address: '', pajak: 'NON_PKP',
@@ -26,6 +29,8 @@ export default function DataSupplierPurchasing() {
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState("");
   const { sort, toggle, params: sortParams } = useSort();
+  const [importOpen, setImportOpen] = useState(false);
+  const [pendingSupplier, setPendingSupplier] = useState<SupplierImportRow[] | null>(null);
 
   const [actionError, setActionError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -114,13 +119,46 @@ export default function DataSupplierPurchasing() {
             </div>
           </div>
 
-          {canCreate && <button
-            onClick={handleMulaiTambah}
-            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0 w-full lg:w-auto"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Tambah Data</span>
-          </button>}
+          {canCreate && (
+            <div className="flex flex-col lg:flex-row items-center gap-2 w-full lg:w-auto shrink-0">
+              <button
+                type="button"
+                onClick={() => setImportOpen(true)}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-[#FF8A00] text-[#FF8A00] font-semibold rounded-xl hover:bg-orange-50 transition-colors text-sm w-full lg:w-auto"
+              >
+                <FileUp className="w-4 h-4" />
+                <span>Import Excel</span>
+              </button>
+              
+              {pendingSupplier && (
+                <ImportSupplierMapping
+                  rows={pendingSupplier}
+                  onClose={() => setPendingSupplier(null)}
+                  onDone={() => { setPendingSupplier(null); reload(); }}
+                />
+              )}
+
+              <button
+                type="button"
+                onClick={handleMulaiTambah}
+                className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm w-full lg:w-auto"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Tambah Data</span>
+              </button>
+            </div>
+          )}
+
+          {importOpen && (
+            <ImportSupplierModal
+              onClose={() => setImportOpen(false)}
+              onNext={(rows) => {
+                setImportOpen(false);
+                setPendingSupplier(rows);
+              }}
+            />
+          )}
+
         </div>
 
         {error && (
@@ -147,7 +185,7 @@ export default function DataSupplierPurchasing() {
                 <tr><td colSpan={8} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
               )}
               {!loading && dataSupplier.length === 0 && (
-                <tr><td colSpan={7} className="px-6 py-6 text-center text-gray-400">Belum ada data supplier.</td></tr>
+                <tr><td colSpan={8} className="px-6 py-6 text-center text-gray-400">Belum ada data supplier.</td></tr>
               )}
               {!loading && dataSupplier.map((item) => (
                 <tr key={item.id} className="hover:bg-[#FF8A00]/5 transition-colors group">

@@ -13,6 +13,7 @@ const row = {
   reporterName: "Admin Gudang",
   reporterRole: "Staf Gudang",
   handledByName: null,
+  itNote: null,
   createdAt: "2026-11-09T02:00:00Z",
   updatedAt: "2026-11-09T02:00:00Z",
 };
@@ -21,7 +22,7 @@ describe("Laporan Masalah (superadmin)", () => {
   it("lists open reports and marks one as done", async () => {
     const api = installFakeApi({
       "GET /api/v1/bug-reports": paged([row]),
-      "PATCH /api/v1/bug-reports/3/status": { ...row, status: "SELESAI" },
+      "PATCH /api/v1/bug-reports/3": { ...row, status: "SELESAI" },
     });
     render(<LaporanMasalah />);
     expect(await screen.findByText("Tabel barang keluar kosong")).toBeTruthy();
@@ -30,8 +31,22 @@ describe("Laporan Masalah (superadmin)", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Selesai" }));
     await waitFor(() =>
-      expect(api.calls("PATCH /api/v1/bug-reports/3/status")[0]?.body).toEqual({ status: "SELESAI" }),
+      expect(api.calls("PATCH /api/v1/bug-reports/3")[0]?.body).toEqual({ status: "SELESAI" }),
     );
-    expect(api.calls("PATCH /api/v1/bug-reports/3/status")).toHaveLength(1);
+    expect(api.calls("PATCH /api/v1/bug-reports/3")).toHaveLength(1);
+  });
+
+  it("saves the IT note typed in the textarea", async () => {
+    const api = installFakeApi({
+      "GET /api/v1/bug-reports": paged([{ ...row, itNote: "Catatan awal" }]),
+      "PATCH /api/v1/bug-reports/3": { ...row, itNote: "Sudah dicek" },
+    });
+    render(<LaporanMasalah />);
+    const note = (await screen.findByLabelText("Catatan IT laporan 3")) as HTMLTextAreaElement;
+    expect(note.value).toBe("Catatan awal");
+
+    fireEvent.change(note, { target: { value: "Sudah dicek" } });
+    fireEvent.click(screen.getByRole("button", { name: "Simpan Catatan" }));
+    await waitFor(() => expect(api.calls("PATCH /api/v1/bug-reports/3")[0]?.body).toEqual({ itNote: "Sudah dicek" }));
   });
 });
