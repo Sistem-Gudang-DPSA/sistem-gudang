@@ -4,7 +4,8 @@ import { escapeHtml } from '@/shared/lib/escape-html';
 import React, { useState } from 'react';
 import { Search, Eye, Loader2, AlertCircle } from 'lucide-react';
 import { todayIso } from '@/domains/inventory/date';
-import { exportOutboundReport, getOutboundReport } from '@/domains/inventory/api';
+import { cancelOutbound, exportOutboundReport, getOutboundReport } from '@/domains/inventory/api';
+import BatalkanTransaksi, { BadgeDibatalkan, InfoPembatalan } from './BatalkanTransaksi';
 import type { OutboundRow, RecipientType } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
@@ -51,7 +52,7 @@ export default function LaporanBarangKeluar() {
     const page = pageState.key === filterKey ? pageState.page : 1;
     const setPage = (next: number) => setPageState({ key: filterKey, page: next });
 
-    const { data: report, loading, error } = useApiData(
+    const { data: report, loading, error, reload } = useApiData(
         () => getOutboundReport({ ...filters, ...sortParams, page, pageSize: PAGE_SIZE }),
         `${filterKey}|${page}`,
         'Gagal memuat laporan barang keluar.',
@@ -294,7 +295,7 @@ export default function LaporanBarangKeluar() {
                                         <span className="font-medium text-gray-900">{RECIPIENT_LABEL[trx.recipientType]}</span>
                                         <span className="block text-xs text-gray-500">{trx.clientName}{line.pic ? ` - PIC ${line.pic}` : ''}</span>
                                     </td>
-                                    <td className="px-4 py-3 text-right font-mono font-semibold text-blue-600">{trx.spk}</td>
+                                    <td className="px-4 py-3 text-right font-mono font-semibold text-blue-600">{trx.spk}{firstLine && <span className="block"><BadgeDibatalkan row={trx} /></span>}</td>
                                     <td className="px-4 py-3 text-center text-gray-700">{displayDate(trx.date)}</td>
                                     <td className="px-4 py-3 text-center font-bold text-gray-800">{line.qty}</td>
                                     <td className="px-4 py-3 text-center print:hidden">
@@ -327,6 +328,7 @@ export default function LaporanBarangKeluar() {
                                 ✕
                             </button>
                         </div>
+                        <InfoPembatalan row={selectedDetail} />
                         <div className="space-y-3 text-sm">
                             <div className="flex justify-between py-1 border-b border-gray-50">
                                 <span className="text-gray-500">SPK</span>
@@ -362,7 +364,13 @@ export default function LaporanBarangKeluar() {
                                 </div>
                             )}
                         </div>
-                        <div className="mt-6 text-right">
+                        <div className="mt-6 flex items-center justify-end gap-2">
+                            <BatalkanTransaksi
+                                row={selectedDetail}
+                                cancel={cancelOutbound}
+                                label="barang keluar"
+                                onDone={(updated) => { setSelectedDetail(updated); reload(); }}
+                            />
                             <button
                                 onClick={() => setSelectedDetail(null)}
                                 className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
