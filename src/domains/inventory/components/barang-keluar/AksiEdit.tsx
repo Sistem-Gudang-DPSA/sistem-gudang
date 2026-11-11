@@ -32,7 +32,7 @@ export function TombolEdit({
   // Dipanggil sebelum form edit dibuka, mis. untuk menutup pop-up rincian.
   onBuka?: () => void;
 }) {
-  if (!canUpdate || !trx.lines[lineIndex] || !bisaEdit(trx, userId)) return null;
+  if (trx.cancelledAt || !canUpdate || !trx.lines[lineIndex] || !bisaEdit(trx, userId)) return null;
   return (
     <button
       type="button"
@@ -66,7 +66,7 @@ export function AksiPengajuan({
 }) {
   return (
     <div className="flex flex-col items-center gap-2">
-      {canUpdate && !trx.editRequest && (
+      {canUpdate && !trx.cancelledAt && !trx.editRequest && (
         <WithNow deadline={batasEdit(trx)}>
           {(now) =>
             now < batasEdit(trx) ? (

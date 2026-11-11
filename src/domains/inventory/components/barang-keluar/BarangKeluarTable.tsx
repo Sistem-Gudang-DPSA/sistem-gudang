@@ -3,6 +3,7 @@ import { ChevronRight } from "lucide-react";
 import type { OutboundRow } from "@/domains/inventory/types";
 import { displayDate } from "@/domains/inventory/date";
 import SortableTh, { type Sort } from "@/shared/components/SortableTh";
+import { BadgeDibatalkan } from "../BatalkanTransaksi";
 import { AksiPengajuan, TombolEdit } from "./AksiEdit";
 
 type Props = {
@@ -178,6 +179,7 @@ export default function BarangKeluarTable({
                         <span className="text-xs text-gray-500">
                           {displayDate(trx.date)}
                         </span>
+                        <BadgeDibatalkan row={trx} />
                       </div>
                     </td>
 

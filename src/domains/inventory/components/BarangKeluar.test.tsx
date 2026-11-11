@@ -970,3 +970,39 @@ describe('permissions', () => {
     expect(screen.getByText('Barang Keluar SPK')).not.toBeNull();
   });
 });
+
+describe('cancel transaction', () => {
+  const batal = { cancelledAt: '2026-03-06T03:00:00.000Z', cancelledByName: 'Admin Utama', cancelReason: 'Salah input' };
+  const openDetail = async (user: ReturnType<typeof who>, row: unknown, extra: Record<string, unknown> = {}) => {
+    const api = installFakeApi({ 'GET /api/v1/outbound': paged([row]), 'GET /api/v1/items': items, ...tracking, ...extra });
+    render(<AuthUserProvider user={user}><BarangKeluar /></AuthUserProvider>);
+    await screen.findAllByText('Klien 1');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Lihat rincian 1' })[0]);
+    return { api, dialog: screen.getByRole('dialog', { name: 'Rincian Barang Keluar' }) };
+  };
+
+  it('lets a superadmin cancel with a reason and refreshes the list', async () => {
+    const { api, dialog } = await openDetail(who([], true), trx(1), { 'POST /api/v1/outbound/1/cancel': { ...trx(1), ...batal } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Batalkan' }));
+    fireEvent.change(screen.getByLabelText('Alasan pembatalan'), { target: { value: '  Salah input  ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Batalkan Transaksi' }));
+    await screen.findByRole('status');
+    expect(api.calls('POST /api/v1/outbound/1/cancel')[0].body).toEqual({ reason: 'Salah input' });
+    expect(within(dialog).getByText(/Alasan: Salah input/)).toBeTruthy();
+    expect(within(dialog).queryByRole('button', { name: 'Batalkan' })).toBeNull();
+  });
+
+  it('hides the button from a non-superadmin', async () => {
+    const { dialog } = await openDetail(who(['outbound.update']), trx(1));
+    expect(within(dialog).queryByRole('button', { name: 'Batalkan' })).toBeNull();
+  });
+
+  it('shows the badge in the list, the reason in the detail, and no edit actions for a cancelled row', async () => {
+    const { dialog } = await openDetail(who(['outbound.update'], true), { ...disetujui(), ...batal });
+    expect(screen.getAllByText('Dibatalkan superadmin').length).toBeGreaterThan(1);
+    expect(within(dialog).getByText(/Admin Utama/)).toBeTruthy();
+    expect(within(dialog).queryByRole('button', { name: 'Batalkan' })).toBeNull();
+    expect(screen.queryByLabelText('Edit barang keluar 1 Triplex')).toBeNull();
+    expect(screen.queryByLabelText('Ajukan edit barang keluar 1')).toBeNull();
+  });
+});

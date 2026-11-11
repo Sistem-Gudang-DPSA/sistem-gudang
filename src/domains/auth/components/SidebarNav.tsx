@@ -173,7 +173,7 @@ export default function SidebarNav({ user, pathname, onNavigate }: Props) {
 
       {!user.isSuperadmin && (
         <Suspense fallback={null}>
-          <LaporMasalahButton />
+          <LaporMasalahButton onNavigate={onNavigate} />
         </Suspense>
       )}
     </nav>

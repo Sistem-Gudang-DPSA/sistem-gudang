@@ -5,7 +5,8 @@ import React, { useState } from 'react';
 import { Search, Eye, Loader2, AlertCircle } from 'lucide-react';
 import { displayDate, displayDateTime, monthStart, todayIso } from '@/domains/inventory/date';
 import { cetakHtml } from '@/shared/lib/print-html';
-import { exportInboundReport, getInboundReport } from '@/domains/inventory/api';
+import { cancelInbound, exportInboundReport, getInboundReport } from '@/domains/inventory/api';
+import BatalkanTransaksi, { BadgeDibatalkan, InfoPembatalan } from './BatalkanTransaksi';
 import type { InboundRow, InboundSource } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
@@ -72,6 +73,7 @@ export default function LaporanBarangMasuk() {
     data: report,
     loading,
     error,
+    reload,
   } = useApiData(
     () => getInboundReport({ ...filters, ...sortParams, page, pageSize: PAGE_SIZE }),
     `${filterKey}|${page}`,
@@ -337,6 +339,7 @@ export default function LaporanBarangMasuk() {
                   <td className="px-4 py-3">
                     <span className="font-medium text-gray-900">{sumberName(item)}</span>
                     <span className="block text-xs text-gray-500">({SUMBER_LABEL[item.source]})</span>
+                    <BadgeDibatalkan row={item} />
                   </td>
                   <td className="px-4 py-3 text-right font-bold text-gray-800">{item.qtyArrived}</td>
                   <td className="px-4 py-3 text-center">
@@ -379,6 +382,7 @@ export default function LaporanBarangMasuk() {
                 ✕
               </button>
             </div>
+            <InfoPembatalan row={selectedDetail} />
             <div className="space-y-3 text-sm">
               <DetailRow label="No. Referensi / PO">
                 <span className="font-mono font-bold text-blue-600">{selectedDetail.referenceNo ?? '-'}</span>
@@ -431,7 +435,13 @@ export default function LaporanBarangMasuk() {
                 </div>
               )}
             </div>
-            <div className="mt-6 text-right">
+            <div className="mt-6 flex items-center justify-end gap-2">
+              <BatalkanTransaksi
+                row={selectedDetail}
+                cancel={cancelInbound}
+                label="barang masuk"
+                onDone={(updated) => { setSelectedDetail(updated); reload(); }}
+              />
               <button
                 onClick={() => setSelectedDetail(null)}
                 className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
