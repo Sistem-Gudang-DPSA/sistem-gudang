@@ -16,6 +16,7 @@ import { listDokubah, statusToApi } from '@/domains/ppic/api';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';
+import { cetakHtml } from '@/shared/lib/print-html';
 
 export const STATUS_OPTIONS: StatusDokubah[] = ['Draft', 'Pending', 'Approved', 'Rejected'];
 
@@ -114,13 +115,7 @@ export default function DokubahPPIC() {
   };
 
   // Buka jendela berisi tabel saja lalu panggil dialog print (pilih "Save as PDF")
-  const handlePrintPdf = () => {
-    const win = window.open('', '_blank');
-    if (win) win.opener = null;
-    if (!win) {
-      alert('Pop-up diblokir browser. Izinkan pop-up untuk mencetak PDF.');
-      return;
-    }
+  const handlePrintPdf = async () => {
     const bodyRows = rowsToExport.map((item, index) => `
       <tr>
         <td class="center">${(page - 1) * 20 + index + 1}</td>
@@ -130,7 +125,7 @@ export default function DokubahPPIC() {
         <td>${escapeHtml(formatTanggal(item.tanggalSelesai))}</td>
         <td>${escapeHtml(item.status)}</td>
       </tr>`).join('');
-    win.document.write(`<!doctype html>
+    const html = `<!doctype html>
       <html>
         <head>
           <title>Dokubah PPIC</title>
@@ -152,10 +147,12 @@ export default function DokubahPPIC() {
             <tbody>${bodyRows}</tbody>
           </table>
         </body>
-      </html>`);
-    win.document.close();
-    win.focus();
-    win.print();
+      </html>`;
+    try {
+      await cetakHtml(html, 'dokubah');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Gagal mencetak PDF.');
+    }
   };
 
   return (

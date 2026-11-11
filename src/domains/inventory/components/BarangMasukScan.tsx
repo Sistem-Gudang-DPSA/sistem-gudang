@@ -2,8 +2,8 @@
 
 import { useAuthUser } from '@/domains/auth/user-context';
 import React, { useEffect, useRef, useState } from 'react';
-import { Camera, Minus, PackageCheck, Plus, Printer, ScanLine, Trash2, Undo2 } from 'lucide-react';
-import { createInboundScanBatch, getItemByCode, listItems } from '@/domains/inventory/api';
+import { Camera, Minus, PackageCheck, Plus, ScanLine, Trash2, Undo2 } from 'lucide-react';
+import { createInboundScanBatch, getItemByCode } from '@/domains/inventory/api';
 import { todayIso } from '@/domains/inventory/date';
 import { ApiError } from '@/shared/lib/api-client';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
@@ -12,7 +12,7 @@ import QrCameraScanner from '@/domains/inventory/components/QrCameraScanner';
 
 type Kind = 'pass' | 'retur';
 type Step = 'hub' | Kind | 'review';
-type Line = { itemId: number; code: string; name: string; unit: string; stock: number; supplierId: number | null; qty: string; reason: string };
+type Line = { itemId: number; code: string; name: string; unit: string; stock: number; supplierId: number | null; supplierName?: string | null; qty: string; reason: string };
 type Draft = { key: string; date: string; pass: Line[]; retur: Line[] };
 
 const storageKey = (userId?: number) => `barang-masuk-scan-draft:${userId ?? 'anon'}`;
@@ -57,8 +57,6 @@ export default function BarangMasukScan({ onClose, onSaved }: { onClose: () => v
   const [scanError, setScanError] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  // Nama supplier per id, diambil dari barang milik supplier itu (satu permintaan per supplier), bukan dari daftar 100 supplier.
-  const [supplierNames, setSupplierNames] = useState<Record<number, string>>({});
   const inputRef = useRef<HTMLInputElement>(null);
   const draftRef = useRef(draft);
   const [cameraOn, setCameraOn] = useState(false);
@@ -67,18 +65,8 @@ export default function BarangMasukScan({ onClose, onSaved }: { onClose: () => v
 
   useEffect(() => { draftRef.current = draft; saveDraft(draft.pass.length + draft.retur.length > 0 ? draft : null, draftKey); }, [draft, draftKey]);
   useEffect(() => { stepRef.current = step; if (step === 'pass' || step === 'retur') inputRef.current?.focus(); }, [step]);
-  const [supplierError, setSupplierError] = useState('');
-  const supplierIds = [...new Set([...draft.pass, ...draft.retur].flatMap((l) => (l.supplierId === null ? [] : [l.supplierId])))].filter((id) => !(id in supplierNames));
-  const missingKey = supplierIds.join(',');
-  useEffect(() => {
-    for (const id of missingKey ? missingKey.split(',').map(Number) : []) {
-      listItems({ supplierId: id, pageSize: 1 })
-        .then((res) => setSupplierNames((m) => ({ ...m, [id]: res.rows[0]?.supplierName ?? `#${id}` })))
-        .catch((err) => setSupplierError(err instanceof ApiError ? err.message : 'Gagal memuat nama supplier.'));
-    }
-  }, [missingKey]);
 
-  const supplierName = (id: number | null) => id === null ? '-' : supplierNames[id] ?? `#${id}`;
+  const supplierName = (l: Line) => l.supplierId === null ? '-' : l.supplierName ?? `#${l.supplierId}`;
   const goTo = (next: Step) => { setCameraOn(false); setScanError(''); setError(''); setStep(next); };
   const setList = (kind: Kind, fn: (ls: Line[]) => Line[]) => setDraft((d) => ({ ...d, [kind]: fn(d[kind]) }));
   const patchLine = (kind: Kind, itemId: number, patch: Partial<Line>) => setList(kind, (ls) => ls.map((l) => (l.itemId === itemId ? { ...l, ...patch } : l)));
@@ -99,7 +87,7 @@ export default function BarangMasukScan({ onClose, onSaved }: { onClose: () => v
           ? bump(ls, (l) => l.itemId === item.id)
           : [...ls, {
             itemId: item.id, code, name: item.name, unit: item.unit, stock: item.stock,
-            supplierId: item.supplierId ?? null, qty: '1', reason: '',
+            supplierId: item.supplierId ?? null, supplierName: item.supplierName, qty: '1', reason: '',
           }],
       );
     } catch (err) {
@@ -274,7 +262,7 @@ export default function BarangMasukScan({ onClose, onSaved }: { onClose: () => v
                   onFail={(message) => { setScanError(message); setCameraOn(false); }}
                 />
               )}
-              {(scanError || supplierError) && <p className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg" role="alert">{scanError || supplierError}</p>}
+              {scanError && <p className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg" role="alert">{scanError}</p>}
 
               <div className="border border-gray-200 rounded-xl overflow-x-auto mb-6 mt-4">
                 <table className="w-full text-left text-sm">
@@ -318,7 +306,7 @@ export default function BarangMasukScan({ onClose, onSaved }: { onClose: () => v
                         </td>
                         {isRetur && (
                           <td className={`px-4 py-3 ${l.supplierId === null ? 'text-red-600' : 'text-gray-600'}`}>
-                            {l.supplierId === null ? 'Belum ada supplier' : supplierName(l.supplierId)}
+                            {l.supplierId === null ? 'Belum ada supplier' : supplierName(l)}
                           </td>
                         )}
                         {isRetur && (
@@ -410,7 +398,7 @@ export default function BarangMasukScan({ onClose, onSaved }: { onClose: () => v
                             <td className="px-4 py-3 text-right">{qtyOf(l).toLocaleString('id-ID')} {l.unit}</td>
                             {isRetur ? (
                               <>
-                                <td className="px-4 py-3 text-gray-600">{supplierName(l.supplierId)}</td>
+                                <td className="px-4 py-3 text-gray-600">{supplierName(l)}</td>
                                 <td className="px-4 py-3 text-gray-600">{l.reason}</td>
                               </>
                             ) : (
@@ -427,20 +415,12 @@ export default function BarangMasukScan({ onClose, onSaved }: { onClose: () => v
               );
             })}
 
-            {(error || supplierError) && <p className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg" role="alert">{error || supplierError}</p>}
+            {error && <p className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg" role="alert">{error}</p>}
             <div className="flex justify-end gap-3">
               <button type="button" onClick={() => goTo('hub')} disabled={saving} className={btnGhost}>Kembali</button>
               <button type="button" onClick={submit} disabled={saving} className={btnPrimary}>
                 {saving ? 'Menyimpan...' : 'Konfirmasi simpan'}
               </button>
-              {/* <button
-                onClick={() => handleSimpan(true)}
-                disabled={saving}
-                className="flex items-center gap-2 px-8 py-2.5 bg-[#ff8a00] text-white rounded-md hover:bg-[#e07b00] transition-colors font-medium text-[15px] shadow-sm"
-              >
-                <Printer className="w-4 h-4" />
-                Simpan + Cetak
-              </button> */}
             </div>
           </>
         )}

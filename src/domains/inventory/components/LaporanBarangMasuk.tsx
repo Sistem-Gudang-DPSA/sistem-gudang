@@ -1,9 +1,10 @@
-"use client";
+'use client';
 
 import { escapeHtml } from '@/shared/lib/escape-html';
 import React, { useState } from 'react';
 import { Search, Eye, Loader2, AlertCircle } from 'lucide-react';
-import { todayIso } from '@/domains/inventory/date';
+import { displayDate, displayDateTime, monthStart, todayIso } from '@/domains/inventory/date';
+import { cetakHtml } from '@/shared/lib/print-html';
 import { cancelInbound, exportInboundReport, getInboundReport } from '@/domains/inventory/api';
 import BatalkanTransaksi, { BadgeDibatalkan, InfoPembatalan } from './BatalkanTransaksi';
 import type { InboundRow, InboundSource } from '@/domains/inventory/types';
@@ -24,103 +25,104 @@ const SUMBER_LABEL: Record<InboundSource, string> = {
   KLIEN: 'Barang Kembali (Klien)',
 };
 
-const displayDateTime = (iso: string) => {
-  const [d, t] = iso.slice(0, 16).split(/[T ]/);
-  return `${d.split('-').reverse().join('-')}${t ? ` ${t}` : ''}`;
+const sumberName = (item: InboundRow) => item.supplierName ?? item.clientName ?? '-';
+
+function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex justify-between py-1 border-b border-gray-50">
+      <span className="text-gray-500">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+const emptySummary = {
+  total: 0,
+  supplier: 0,
+  produksi: 0,
+  klien: 0,
+  qtyTotal: 0,
+  qtySupplier: 0,
+  qtyProduksi: 0,
+  qtyKlien: 0,
 };
-
-const monthStart = () => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-};
-
-
-const formatTanggalCetak = (iso: string) => {
-  if (!iso) return '-';
-  const [y, m, d] = iso.split('-');
-  return `${d}-${m}-${y}`;
-};
-
-const emptySummary = { total: 0, supplier: 0, produksi: 0, klien: 0, qtyTotal: 0, qtySupplier: 0, qtyProduksi: 0, qtyKlien: 0 };
 
 export default function LaporanBarangMasuk() {
-    const [filterSumber, setFilterSumber] = useState<'ALL' | InboundSource>('ALL');
-    const [startDate, setStartDate] = useState<string>(monthStart());
-    const [endDate, setEndDate] = useState<string>(todayIso());
-    const [searchQuery, setSearchQuery] = useState<string>('');
-    const [selectedDetail, setSelectedDetail] = useState<InboundRow | null>(null);
+  const [filterSumber, setFilterSumber] = useState<'ALL' | InboundSource>('ALL');
+  const [startDate, setStartDate] = useState<string>(monthStart());
+  const [endDate, setEndDate] = useState<string>(todayIso());
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [selectedDetail, setSelectedDetail] = useState<InboundRow | null>(null);
 
-    const { sort, toggle, params: sortParams } = useSort();
+  const { sort, toggle, params: sortParams } = useSort();
 
-    const [actionError, setActionError] = useState('');
-    const [exporting, setExporting] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const [exporting, setExporting] = useState(false);
 
-    const filters = {
-      q: searchQuery || undefined,
-      startDate: startDate || undefined,
-      endDate: endDate || undefined,
-      source: filterSumber === 'ALL' ? undefined : filterSumber,
-    };
+  const filters = {
+    q: searchQuery || undefined,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+    source: filterSumber === 'ALL' ? undefined : filterSumber,
+  };
 
-    const filterKey = JSON.stringify([filters, sortParams]);
-    const [page, setPage] = usePage(filterKey);
+  const filterKey = JSON.stringify([filters, sortParams]);
+  const [page, setPage] = usePage(filterKey);
 
-    const { data: report, loading, error, reload } = useApiData(
-      () => getInboundReport({ ...filters, ...sortParams, page, pageSize: PAGE_SIZE }),
-      `${filterKey}|${page}`,
-      'Gagal memuat laporan barang masuk.',
-    );
+  const {
+    data: report,
+    loading,
+    error,
+    reload,
+  } = useApiData(
+    () => getInboundReport({ ...filters, ...sortParams, page, pageSize: PAGE_SIZE }),
+    `${filterKey}|${page}`,
+    'Gagal memuat laporan barang masuk.',
+  );
 
-    const handleExport = async () => {
-      setExporting(true);
-      setActionError('');
-      try {
-        await exportInboundReport(filters);
-      } catch (err) {
-        setActionError(err instanceof ApiError ? err.message : 'Gagal mengekspor laporan.');
-      } finally {
-        setExporting(false);
-      }
-    };
+  const handleExport = async () => {
+    setExporting(true);
+    setActionError('');
+    try {
+      await exportInboundReport(filters);
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : 'Gagal mengekspor laporan.');
+    } finally {
+      setExporting(false);
+    }
+  };
 
-    const handlePrintPdf = () => {
-      const win = window.open('', '_blank');
-      if (win) win.opener = null;
-      if (!win) {
-        setActionError('Pop-up diblokir browser. Izinkan pop-up untuk mencetak PDF.');
-        return;
-      }
-      setActionError('');
+  const handlePrintPdf = async () => {
+    setActionError('');
 
-      const sumberText = filterSumber === 'ALL' ? 'Semua Sumber' : SUMBER_LABEL[filterSumber];
-      const periodeText = `${formatTanggalCetak(startDate)} s/d ${formatTanggalCetak(endDate)}`;
+    const sumberText = filterSumber === 'ALL' ? 'Semua Sumber' : SUMBER_LABEL[filterSumber];
+    const periodeText = `${startDate ? displayDate(startDate) : '-'} s/d ${endDate ? displayDate(endDate) : '-'}`;
 
-      const bodyRows = rows.map((item, index) => {
+    const bodyRows = rows
+      .map((item, index) => {
         const referensi =
           escapeHtml(item.referenceNo ?? '-') +
-          (item.supplierDeliveryNo
-            ? `<div class="sub">(SJ: ${escapeHtml(item.supplierDeliveryNo)})</div>`
-            : '');
+          (item.supplierDeliveryNo ? `<div class="sub">(SJ: ${escapeHtml(item.supplierDeliveryNo)})</div>` : '');
         const sumber =
-          escapeHtml(item.supplierName ?? item.clientName ?? '-') +
-          `<div class="sub">(${escapeHtml(SUMBER_LABEL[item.source])})</div>`;
+          escapeHtml(sumberName(item)) + `<div class="sub">(${escapeHtml(SUMBER_LABEL[item.source])})</div>`;
         const qc = item.statusQc ? QC_STATUS[item.statusQc].label : '-';
 
         return `
           <tr>
             <td class="center">${index + 1}</td>
-            <td>${escapeHtml(displayDateTime(item.date))}</td>
+            <td>${escapeHtml(displayDateTime(item.date, item.createdAt))}</td>
             <td>${referensi}</td>
             <td>${sumber}</td>
             <td class="right">${item.qtyArrived.toLocaleString('id-ID')}</td>
             <td class="center">${escapeHtml(qc)}</td>
             <td class="center">${escapeHtml(item.locationCode ?? '-')}</td>
           </tr>`;
-      }).join('');
+      })
+      .join('');
 
-      const emptyRow = `<tr><td colspan="7" class="center">Tidak ada data penerimaan barang masuk.</td></tr>`;
+    const emptyRow = `<tr><td colspan="7" class="center">Tidak ada data penerimaan barang masuk.</td></tr>`;
 
-      win.document.write(`<!doctype html>
+    const html = `<!doctype html>
         <html>
           <head>
             <title>Rekap Barang Masuk</title>
@@ -166,113 +168,129 @@ export default function LaporanBarangMasuk() {
               <tbody>${rows.length ? bodyRows : emptyRow}</tbody>
             </table>
           </body>
-        </html>`);
-      win.document.close();
-      win.focus();
-      win.print();
-    };
+        </html>`;
 
-    const rows = report?.rows ?? [];
-    const summary = report?.summary ?? emptySummary;
+    try {
+      await cetakHtml(html, 'rekap barang masuk');
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Gagal mencetak laporan.');
+    }
+  };
 
+  const rows = report?.rows ?? [];
+  const summary = report?.summary ?? emptySummary;
 
-    return (
+  return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
-        <div className="flex flex-col justify-start mb-8 gap-2">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1 uppercase">REKAP BARANG MASUK</h1>
-            <p className="text-gray-500 text-sm">Arsip pencatatan riwayat penerimaan fisik barang dari supplier dan hasil produksi.</p>
+      <div className="flex flex-col justify-start mb-8 gap-2">
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1 uppercase">
+          REKAP BARANG MASUK
+        </h1>
+        <p className="text-gray-500 text-sm">
+          Arsip pencatatan riwayat penerimaan fisik barang dari supplier dan hasil produksi.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
+          <p className="text-xs font-semibold text-gray-500 uppercase">Total Inbound Periode Ini</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">
+            {summary.qtyTotal.toLocaleString('id-ID')} Qty / {summary.total.toLocaleString('id-ID')} Transaksi
+          </p>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
-            <p className="text-xs font-semibold text-gray-500 uppercase">Total Inbound Bulan Ini</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">
-                {summary.qtyTotal.toLocaleString('id-ID')} Qty / {summary.total.toLocaleString('id-ID')} Transaksi
-            </p>
-            </div>
-            <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
-            <p className="text-xs font-semibold text-gray-500 uppercase">Penerimaan Supplier (PO)</p>
-            <p className="text-2xl font-bold text-blue-600 mt-1">
-                {summary.qtySupplier.toLocaleString('id-ID')} Qty ({summary.supplier.toLocaleString('id-ID')} Transaksi)
-            </p>
-            </div>
-            <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
-            <p className="text-xs font-semibold text-gray-500 uppercase">Barang Jadi Produksi (QC Pass)</p>
-            <p className="text-2xl font-bold text-green-600 mt-1">
-                {summary.qtyProduksi.toLocaleString('id-ID')} Qty ({summary.produksi.toLocaleString('id-ID')} Transaksi)
-            </p>
-            </div>
+        <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
+          <p className="text-xs font-semibold text-gray-500 uppercase">Penerimaan Supplier (PO)</p>
+          <p className="text-2xl font-bold text-blue-600 mt-1">
+            {summary.qtySupplier.toLocaleString('id-ID')} Qty ({summary.supplier.toLocaleString('id-ID')} Transaksi)
+          </p>
         </div>
+        <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
+          <p className="text-xs font-semibold text-gray-500 uppercase">Barang Jadi Produksi (QC Pass)</p>
+          <p className="text-2xl font-bold text-green-600 mt-1">
+            {summary.qtyProduksi.toLocaleString('id-ID')} Qty ({summary.produksi.toLocaleString('id-ID')} Transaksi)
+          </p>
+        </div>
+      </div>
 
-        <div className="flex flex-wrap justify-between items-center bg-white p-4 border border-gray-200 rounded-lg shadow-sm gap-4 mt-5">
-            <div className="flex flex-wrap gap-3 items-center print:hidden">
-            <div>
-                <label className="block text-xs text-black mb-1">Sumber Inbound</label>
-                <select
-                value={filterSumber}
-                onChange={(e) => setFilterSumber(e.target.value as 'ALL' | InboundSource)}
-                className="border border-gray-300 rounded-md px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500c text-black"
-                >
-                <option value="ALL" className='text-black'>Semua Sumber (Supplier / Produksi)</option>
-                <option value="SUPPLIER" className='text-black'>Supplier (PO)</option>
-                <option value="PRODUKSI" className='text-black'>Barang Jadi Produksi</option>
-                <option value="KLIEN" className='text-black'>Barang Kembali</option>
-                </select>
-            </div>
+      <div className="flex flex-wrap justify-between items-center bg-white p-4 border border-gray-200 rounded-lg shadow-sm gap-4 mt-5">
+        <div className="flex flex-wrap gap-3 items-center print:hidden">
+          <div>
+            <label className="block text-xs text-black mb-1">Sumber Inbound</label>
+            <select
+              value={filterSumber}
+              onChange={(e) => setFilterSumber(e.target.value as 'ALL' | InboundSource)}
+              className="border border-gray-300 rounded-md px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+            >
+              <option value="ALL" className="text-black">
+                Semua Sumber (Supplier / Produksi)
+              </option>
+              <option value="SUPPLIER" className="text-black">
+                Supplier (PO)
+              </option>
+              <option value="PRODUKSI" className="text-black">
+                Barang Jadi Produksi
+              </option>
+              <option value="KLIEN" className="text-black">
+                Barang Kembali
+              </option>
+            </select>
+          </div>
 
-            <div>
-                <label className="block text-xs text-black mb-1">Periode Tanggal</label>
-                <div className="flex gap-2 items-center">
-                <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="border border-gray-300 rounded-md px-2 py-1 text-sm bg-white text-black"
-                />
-                <span className="text-xs text-black font-medium">s/d</span>
-                <input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="border border-gray-300 rounded-md px-2 py-1 text-sm bg-white text-black"
-                />
-                </div>
+          <div>
+            <label className="block text-xs text-black mb-1">Periode Tanggal</label>
+            <div className="flex gap-2 items-center">
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="border border-gray-300 rounded-md px-2 py-1 text-sm bg-white text-black"
+              />
+              <span className="text-xs text-black font-medium">s/d</span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="border border-gray-300 rounded-md px-2 py-1 text-sm bg-white text-black"
+              />
             </div>
+          </div>
 
-            <div>
-                <label className="block text-xs text-black mb-1">Pencarian</label>
-                <span className="relative flex items-center w-60">
-                  <input
-                    type="text"
-                    placeholder="Cari No. PO / SJ / SKU..."
-                    value={searchQuery}
-                    maxLength={100}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="border border-gray-300 rounded-md pl-3 pr-10 py-1.5 text-sm w-full bg-white text-black placeholder:text-gray focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <button className="absolute right-2 flex items-center justify-center">
-                    <Search className="text-black w-4 h-4" />
-                  </button>
-                </span>
-            </div>
+          <div>
+            <label className="block text-xs text-black mb-1">Pencarian</label>
+            <span className="relative flex items-center w-60">
+              <input
+                type="text"
+                placeholder="Cari No. PO / SJ / SKU..."
+                value={searchQuery}
+                maxLength={100}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="border border-gray-300 rounded-md pl-3 pr-10 py-1.5 text-sm w-full bg-white text-black placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button type="button" aria-label="Cari" className="absolute right-2 flex items-center justify-center">
+                <Search className="text-black w-4 h-4" />
+              </button>
+            </span>
+          </div>
         </div>
       </div>
 
       <div className="overflow-x-auto border border-gray-200 rounded-lg bg-white shadow-sm mt-5">
         <div className="flex gap-2 items-end justify-between">
-            <div className="flex gap-2 items-end m-2">
-                <p className="text-xs font-semibold text-gray-500 uppercase m-2">Tabel Rekap Barang Masuk</p>
-            </div>
-            <div className="flex gap-2 items-end m-2 print:hidden">
-                <ExportExcellButton onClick={handleExport} disabled={exporting || loading || rows.length === 0} />
-                <PrintPdfButton onClick={handlePrintPdf} disabled={loading || rows.length === 0} />  
-            </div>
+          <div className="flex gap-2 items-end m-2">
+            <p className="text-xs font-semibold text-gray-500 uppercase m-2">Tabel Rekap Barang Masuk</p>
+          </div>
+          <div className="flex gap-2 items-end m-2 print:hidden">
+            <ExportExcellButton onClick={handleExport} disabled={exporting || loading || rows.length === 0} />
+            <PrintPdfButton onClick={handlePrintPdf} disabled={loading || rows.length === 0} />
+          </div>
         </div>
         {actionError && <p className="px-4 pb-2 text-sm text-red-500">{actionError}</p>}
         <table className="min-w-full divide-y divide-gray-200 text-sm">
           <thead className="bg-gray-100 font-semibold text-gray-700">
             <tr>
-              <th scope="col" className="px-4 py-3 text-center w-12">No</th>
+              <th scope="col" className="px-4 py-3 text-center w-12">
+                No
+              </th>
               <SortableTh label="Tanggal & Jam Penerimaan" sortKey="date" sort={sort} onSort={toggle} />
               <SortableTh label="No. Referensi" sortKey="referenceNo" sort={sort} onSort={toggle} />
               <SortableTh label="Sumber / Pemasok" sortKey="supplierName" sort={sort} onSort={toggle} />
@@ -311,27 +329,25 @@ export default function LaporanBarangMasuk() {
               rows.map((item, index) => (
                 <tr key={item.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 text-center text-gray-500">{index + 1}</td>
-                  <td className="px-4 py-3 text-gray-700 font-medium">{displayDateTime(item.date)}</td>
+                  <td className="px-4 py-3 text-gray-700 font-medium">{displayDateTime(item.date, item.createdAt)}</td>
                   <td className="px-4 py-3 font-mono font-semibold text-blue-600">
                     {item.referenceNo ?? '-'}
                     {item.supplierDeliveryNo && (
-                      <span className="block text-xs font-normal text-gray-500">
-                        (SJ: {item.supplierDeliveryNo})
-                      </span>
+                      <span className="block text-xs font-normal text-gray-500">(SJ: {item.supplierDeliveryNo})</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <span className="font-medium text-gray-900">{item.supplierName ?? item.clientName ?? '-'}</span>
+                    <span className="font-medium text-gray-900">{sumberName(item)}</span>
                     <span className="block text-xs text-gray-500">({SUMBER_LABEL[item.source]})</span>
                     <BadgeDibatalkan row={item} />
                   </td>
-                  <td className="px-4 py-3 text-right font-bold text-gray-800">
-                    {item.qtyArrived}
-                  </td>
+                  <td className="px-4 py-3 text-right font-bold text-gray-800">{item.qtyArrived}</td>
                   <td className="px-4 py-3 text-center">
-                    {item.statusQc
-                      ? <StatusBadge tone={QC_STATUS[item.statusQc].tone}>{QC_STATUS[item.statusQc].label}</StatusBadge>
-                      : <span className="text-gray-400">-</span>}
+                    {item.statusQc ? (
+                      <StatusBadge tone={QC_STATUS[item.statusQc].tone}>{QC_STATUS[item.statusQc].label}</StatusBadge>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className="font-medium text-gray-900">{item.locationCode ?? '-'}</span>
@@ -341,7 +357,7 @@ export default function LaporanBarangMasuk() {
                       onClick={() => setSelectedDetail(item)}
                       className="flex-1 lg:flex-none flex items-center justify-center gap-2 text-blue-600 hover:text-blue-800 font-medium text-xs bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded border border-blue-200 transition-colors"
                     >
-                      <Eye className='h-4 w-4'></Eye>
+                      <Eye className="h-4 w-4"></Eye>
                       <span>View Detail</span>
                     </button>
                   </td>
@@ -368,56 +384,54 @@ export default function LaporanBarangMasuk() {
             </div>
             <InfoPembatalan row={selectedDetail} />
             <div className="space-y-3 text-sm">
-              <div className="flex justify-between py-1 border-b border-gray-50">
-                <span className="text-gray-500">No. Referensi / PO</span>
+              <DetailRow label="No. Referensi / PO">
                 <span className="font-mono font-bold text-blue-600">{selectedDetail.referenceNo ?? '-'}</span>
-              </div>
+              </DetailRow>
               {selectedDetail.supplierDeliveryNo && (
-                <div className="flex justify-between py-1 border-b border-gray-50">
-                  <span className="text-gray-500">No. Surat Jalan</span>
+                <DetailRow label="No. Surat Jalan">
                   <span className="font-mono font-medium text-gray-800">{selectedDetail.supplierDeliveryNo}</span>
-                </div>
+                </DetailRow>
               )}
-              <div className="flex justify-between py-1 border-b border-gray-50">
-                <span className="text-gray-500">Tgl & Jam</span>
-                <span className="font-medium text-gray-800">{displayDateTime(selectedDetail.date)}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-gray-50">
-                <span className="text-gray-500">Barang</span>
+              <DetailRow label="Tgl & Jam">
+                <span className="font-medium text-gray-800">{displayDateTime(selectedDetail.date, selectedDetail.createdAt)}</span>
+              </DetailRow>
+              <DetailRow label="Barang">
                 <span className="font-medium text-gray-800">
-                  {selectedDetail.itemCode ? `${selectedDetail.itemCode} - ` : ''}{selectedDetail.itemName}
+                  {selectedDetail.itemCode ? `${selectedDetail.itemCode} - ` : ''}
+                  {selectedDetail.itemName}
                 </span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-gray-50">
-                <span className="text-gray-500">Sumber / Pemasok</span>
-                <span className="font-medium text-gray-800">{selectedDetail.supplierName ?? selectedDetail.clientName ?? '-'}</span>
-              </div>
+              </DetailRow>
+              <DetailRow label="Sumber / Pemasok">
+                <span className="font-medium text-gray-800">{sumberName(selectedDetail)}</span>
+              </DetailRow>
               {selectedDetail.spk && (
-                <div className="flex justify-between py-1 border-b border-gray-50">
-                  <span className="text-gray-500">SPK</span>
+                <DetailRow label="SPK">
                   <span className="font-medium text-gray-800">{selectedDetail.spk}</span>
-                </div>
+                </DetailRow>
               )}
-              <div className="flex justify-between py-1 border-b border-gray-50">
-                <span className="text-gray-500">Jumlah Kedatangan</span>
+              <DetailRow label="Jumlah Kedatangan">
                 <span className="font-bold text-gray-900">{selectedDetail.qtyArrived}</span>
-              </div>
+              </DetailRow>
               {selectedDetail.qtyPurchased !== null && (
-                <div className="flex justify-between py-1 border-b border-gray-50">
-                  <span className="text-gray-500">Jumlah Rekap Pembelian</span>
+                <DetailRow label="Jumlah Rekap Pembelian">
                   <span className="font-bold text-gray-900">{selectedDetail.qtyPurchased}</span>
-                </div>
+                </DetailRow>
               )}
-              <div className="flex justify-between py-1 border-b border-gray-50">
-                <span className="text-gray-500">Status QC</span>
-                {selectedDetail.statusQc
-                  ? <StatusBadge tone={QC_STATUS[selectedDetail.statusQc].tone}>{QC_STATUS[selectedDetail.statusQc].label}</StatusBadge>
-                  : <span className="text-gray-400">-</span>}
-              </div>
+              <DetailRow label="Status QC">
+                {selectedDetail.statusQc ? (
+                  <StatusBadge tone={QC_STATUS[selectedDetail.statusQc].tone}>
+                    {QC_STATUS[selectedDetail.statusQc].label}
+                  </StatusBadge>
+                ) : (
+                  <span className="text-gray-400">-</span>
+                )}
+              </DetailRow>
               {selectedDetail.notes && (
                 <div className="py-1">
                   <span className="text-gray-500 block mb-1">Catatan:</span>
-                  <p className="bg-gray-50 p-2.5 rounded border border-gray-100 text-xs text-gray-700">{selectedDetail.notes}</p>
+                  <p className="bg-gray-50 p-2.5 rounded border border-gray-100 text-xs text-gray-700">
+                    {selectedDetail.notes}
+                  </p>
                 </div>
               )}
             </div>
@@ -438,7 +452,6 @@ export default function LaporanBarangMasuk() {
           </div>
         </div>
       )}
-
     </div>
-    )
+  );
 }

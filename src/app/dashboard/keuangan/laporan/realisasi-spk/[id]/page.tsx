@@ -1,1 +1,1 @@
-export { default } from "@/domains/Keuangan/components/DetailRealisasiSPK";
+export { default } from "@/domains/keuangan/components/DetailRealisasiSPK";
