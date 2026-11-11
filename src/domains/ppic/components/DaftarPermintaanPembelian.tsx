@@ -255,7 +255,7 @@ export default function DaftarPermintaanPembelianPPIC({ basePath = permintaan_pe
                       <td className="px-4 py-3 text-center">{it.qty}</td>
                       <td className="px-4 py-3 text-center">{it.satuan}</td>
                       <td className="px-4 py-3">{it.proyek}</td>
-                      <td className="px-4 py-3">{it.noSpk}</td>
+                      <td className="px-4 py-3">{it.noSpk || '-'}</td>
                       <td className="px-4 py-3">{it.keterangan || '-'}</td>
                       <td className="px-4 py-3">{it.deadlineTanggal ? displayDate(it.deadlineTanggal) : '-'}</td>
                     </tr>

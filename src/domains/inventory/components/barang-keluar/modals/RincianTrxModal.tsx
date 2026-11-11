@@ -2,6 +2,8 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import type { OutboundRow } from "@/domains/inventory/types";
 import { displayDate } from "@/domains/inventory/date";
+import { cancelOutbound } from "@/domains/inventory/api";
+import BatalkanTransaksi, { InfoPembatalan } from "../../BatalkanTransaksi";
 import { AksiPengajuan, TombolEdit } from "../AksiEdit";
 import { bisaEdit, PESAN_TIDAK_BISA_EDIT, tampilWaktu } from "../edit-rules";
 
@@ -15,6 +17,7 @@ export default function RincianTrxModal({
   onEdit,
   onAjukan,
   onRiwayat,
+  onCancelled,
 }: {
   trx: OutboundRow;
   canUpdate: boolean;
@@ -24,6 +27,7 @@ export default function RincianTrxModal({
   onEdit: (trx: OutboundRow, lineIndex: number) => void;
   onAjukan: (trx: OutboundRow) => void;
   onRiwayat: (id: number) => void;
+  onCancelled: (updated: OutboundRow) => void;
 }) {
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md transition-opacity duration-300 p-4">
@@ -46,6 +50,7 @@ export default function RincianTrxModal({
           Rincian Barang Keluar
         </h2>
 
+        <InfoPembatalan row={trx} />
         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 mb-6 text-sm">
           {(
             [
@@ -94,9 +99,14 @@ export default function RincianTrxModal({
           </table>
         </div>
 
-        <p className="mt-4 text-sm text-gray-600">
-          {bisaEdit(trx, userId) ? "Disetujui superadmin. Transaksi dapat diedit satu kali." : PESAN_TIDAK_BISA_EDIT}
-        </p>
+        <div className="mt-4">
+          <BatalkanTransaksi row={trx} cancel={cancelOutbound} label="barang keluar" onDone={onCancelled} />
+        </div>
+        {!trx.cancelledAt && (
+          <p className="mt-4 text-sm text-gray-600">
+            {bisaEdit(trx, userId) ? "Disetujui superadmin. Transaksi dapat diedit satu kali." : PESAN_TIDAK_BISA_EDIT}
+          </p>
+        )}
         <AksiPengajuan trx={trx} canUpdate={canUpdate} userId={userId} requesting={requesting} onAjukan={onAjukan} onRiwayat={onRiwayat} />
       </div>
     </div>,

@@ -19,6 +19,8 @@ const rows: Row[] = [
   ['bulkAssignItemLocation', [{ itemIds: [1, 2], locationId: 9 }], 'POST /api/v1/items/assign-location/bulk', {}, { itemIds: [1, 2], locationId: 9 }],
   ['assignItemLocation', [1, { locationId: 9 }], 'PUT /api/v1/items/1/assign-location', {}, { locationId: 9 }],
   ['adjustItemStock', [1, { delta: -2, reason: 'rusak' }], 'PATCH /api/v1/items/1/stock', {}, { delta: -2, reason: 'rusak' }],
+  ['cancelOutbound', [7, 'salah input'], 'POST /api/v1/outbound/7/cancel', {}, { reason: 'salah input' }],
+  ['cancelInbound', [8, 'salah input'], 'POST /api/v1/inbound/8/cancel', {}, { reason: 'salah input' }],
   // Multipart body (FormData) is not parsed by the fake API; ItemPhoto.test checks its contents.
   ['uploadItemPhoto', [1, new File(['x'], 'a.png', { type: 'image/png' })], 'POST /api/v1/items/1/photo', {}, undefined],
   ['uploadItemPhotosBulk', [[{ itemId: 1, file: new File(['x'], 'a.png', { type: 'image/png' }) }]], 'POST /api/v1/items/photos/bulk', {}, undefined],

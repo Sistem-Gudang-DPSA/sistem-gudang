@@ -333,3 +333,12 @@ export function approveOutboundEdit(id: number) {
 export function rejectOutboundEdit(id: number) {
   return apiClient.post<OutboundRow>(`/api/v1/outbound/${id}/edit-request/reject`);
 }
+
+// Superadmin only. The backend adjusts stock; an already cancelled or used-stock transaction answers 409.
+export function cancelOutbound(id: number, reason: string) {
+  return apiClient.post<OutboundRow>(`/api/v1/outbound/${id}/cancel`, { reason });
+}
+
+export function cancelInbound(id: number, reason: string) {
+  return apiClient.post<InboundRow>(`/api/v1/inbound/${id}/cancel`, { reason });
+}

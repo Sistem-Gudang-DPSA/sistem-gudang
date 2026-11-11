@@ -15,6 +15,7 @@ import { useClampPage } from "@/shared/lib/use-page";
 import Pagination from "@/shared/components/Pagination";
 import SortableTh, { useSort } from "@/shared/components/SortableTh";
 
+
 const emptyForm = { username: "", email: "", password: "", roleId: "" };
 
 export default function UserManagementPage() {
@@ -44,7 +45,7 @@ export default function UserManagementPage() {
   const loadError = actionError || fetchError;
 
   useEffect(() => {
-    listRoles().then(setRoles).catch(() => {});
+    listRoles().then(setRoles).catch(() => { });
   }, []);
 
   const handleMulaiTambah = () => {
@@ -223,7 +224,15 @@ export default function UserManagementPage() {
                       {user.roleName}
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-gray-500 text-xs">{user.createdAt ?? '-'}</td>
+                  <td className="px-6 py-4 text-gray-500 text-xs">
+                    {user.createdAt
+                      ? new Date(user.createdAt).toLocaleDateString('id-ID', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                      })
+                      : '-'}
+                  </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-1">
                       {canUpdate && <button
@@ -247,7 +256,7 @@ export default function UserManagementPage() {
             </tbody>
           </table>
         </div>
-          <Pagination page={page} pageSize={20} total={loaded?.total ?? 0} onPageChange={setPage} activeClass="bg-blue-500 text-white border-blue-500" />
+        <Pagination page={page} pageSize={20} total={loaded?.total ?? 0} onPageChange={setPage} activeClass="bg-blue-500 text-white border-blue-500" />
       </div>
 
       {/* Add/Edit Modal */}
@@ -279,7 +288,7 @@ export default function UserManagementPage() {
                     placeholder="johndoe"
                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
                     value={formData.username}
-                    onChange={(e) => setFormData({...formData, username: e.target.value.toLowerCase().replace(/\s/g, '')})}
+                    onChange={(e) => setFormData({ ...formData, username: e.target.value.toLowerCase().replace(/\s/g, '') })}
                   />
                 </div>
 
@@ -292,7 +301,7 @@ export default function UserManagementPage() {
                     placeholder="john@example.com"
                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
                     value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   />
                 </div>
 
@@ -308,7 +317,7 @@ export default function UserManagementPage() {
                     placeholder="Min. 8 karakter"
                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
                     value={formData.password}
-                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   />
                 </div>
 
@@ -319,12 +328,11 @@ export default function UserManagementPage() {
                       <button
                         key={r.id}
                         type="button"
-                        onClick={() => setFormData({...formData, roleId: String(r.id)})}
-                        className={`px-3 py-2 rounded-xl text-xs font-bold capitalize border-2 transition-all ${
-                          formData.roleId === String(r.id)
-                            ? "bg-blue-50 border-blue-500 text-blue-600"
-                            : "bg-white border-gray-100 text-gray-400 hover:border-gray-200"
-                        }`}
+                        onClick={() => setFormData({ ...formData, roleId: String(r.id) })}
+                        className={`px-3 py-2 rounded-xl text-xs font-bold capitalize border-2 transition-all ${formData.roleId === String(r.id)
+                          ? "bg-blue-50 border-blue-500 text-blue-600"
+                          : "bg-white border-gray-100 text-gray-400 hover:border-gray-200"
+                          }`}
                       >
                         {r.name}
                       </button>

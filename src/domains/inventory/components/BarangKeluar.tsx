@@ -142,6 +142,10 @@ export default function BarangKeluarGudang() {
           userId={userId}
           requesting={requesting}
           onClose={() => setDetailTrx(null)}
+          onCancelled={(updated) => {
+            setDetailTrx(updated);
+            list.reload();
+          }}
           onEdit={edit.open}
           onAjukan={ajukanEdit}
           onRiwayat={setHistoryId}
