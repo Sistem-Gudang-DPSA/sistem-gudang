@@ -40241,6 +40241,104 @@
           }
         }
       }
+    },
+    "/api/v1/outbound/{id}/cancel": {
+      "post": {
+        "tags": [
+          "Outbound"
+        ],
+        "summary": "Cancel a outbound transaction (superadmin only)",
+        "description": "Body: reason (1-500 chars). Returns the updated transaction with cancelledAt, cancelledByName and cancelReason. 404 not found, 409 already cancelled (or stock already used for inbound).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Transaction cancelled"
+          }
+        }
+      }
+    },
+    "/api/v1/inbound/{id}/cancel": {
+      "post": {
+        "tags": [
+          "Inbound"
+        ],
+        "summary": "Cancel a inbound transaction (superadmin only)",
+        "description": "Body: reason (1-500 chars). Returns the updated transaction with cancelledAt, cancelledByName and cancelReason. 404 not found, 409 already cancelled (or stock already used for inbound).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Transaction cancelled"
+          }
+        }
+      }
     }
   }
 }

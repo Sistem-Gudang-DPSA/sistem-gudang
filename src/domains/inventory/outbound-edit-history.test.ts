@@ -4,6 +4,9 @@ import type { OutboundRow } from "./types";
 
 const before: OutboundRow = {
   id: 8,
+  cancelledAt: null,
+  cancelledByName: null,
+  cancelReason: null,
   date: "2026-11-09",
   clientName: "PT Jaya",
   spk: "SPK-1",

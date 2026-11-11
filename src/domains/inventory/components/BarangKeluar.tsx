@@ -29,6 +29,7 @@ import {
   listOutbound,
   updateOutbound,
   requestOutboundEdit,
+  cancelOutbound,
 } from "@/domains/inventory/api";
 import { getTrackingSpk } from "@/domains/ppic/api";
 import type { TrackingSpkDetail } from "@/domains/ppic/types";
@@ -48,6 +49,7 @@ import { useClientSearch, useSpkSearch } from "@/domains/ppic/use-spk-search";
 import { beepFail, beepOk } from "@/domains/inventory/beep";
 import RiwayatEditBarangKeluar from "./RiwayatEditBarangKeluar";
 import ImportBarangKeluarModal from "./ImportBarangKeluarModal";
+import BatalkanTransaksi, { BadgeDibatalkan, InfoPembatalan } from "./BatalkanTransaksi";
 
 // Satu baris barang hasil scan. SPK dan Nama Produk/Proyek diisi sekali di atas untuk seluruh transaksi.
 // Baris input manual dibuat kosong (itemId null) sampai materialnya dipilih dari dropdown.
@@ -714,7 +716,7 @@ export default function BarangKeluarGudang() {
   };
 
   const tombolEdit = (trx: OutboundRow, lineIndex: number, onBuka?: () => void) => {
-    if (!canUpdate || !trx.lines[lineIndex] || !bisaEdit(trx, user?.id)) return null;
+    if (trx.cancelledAt || !canUpdate || !trx.lines[lineIndex] || !bisaEdit(trx, user?.id)) return null;
     return (
       <button
         type="button"
@@ -733,7 +735,7 @@ export default function BarangKeluarGudang() {
 
   const aksiPengajuan = (trx: OutboundRow) => (
     <div className="flex flex-col items-center gap-2">
-      {canUpdate && !trx.editRequest && (
+      {canUpdate && !trx.cancelledAt && !trx.editRequest && (
         <WithNow deadline={batasEdit(trx)}>
           {(now) =>
             now < batasEdit(trx) ? (
@@ -1460,6 +1462,7 @@ export default function BarangKeluarGudang() {
                             <span className="text-xs text-gray-500">
                               {displayDate(trx.date)}
                             </span>
+                            <BadgeDibatalkan row={trx} />
                           </div>
                         </td>
 
@@ -2444,6 +2447,7 @@ export default function BarangKeluarGudang() {
                 Rincian Barang Keluar
               </h2>
 
+              <InfoPembatalan row={detailTrx} />
               <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 mb-6 text-sm">
                 {(
                   [
@@ -2515,9 +2519,17 @@ export default function BarangKeluarGudang() {
                 </table>
               </div>
 
-              <p className="mt-4 text-sm text-gray-600">
+              <div className="mt-4">
+                <BatalkanTransaksi
+                  row={detailTrx}
+                  cancel={cancelOutbound}
+                  label="barang keluar"
+                  onDone={(updated) => { setDetailTrx(updated); reload(); }}
+                />
+              </div>
+              {!detailTrx.cancelledAt && <p className="mt-4 text-sm text-gray-600">
                 {bisaEdit(detailTrx, user?.id) ? "Disetujui superadmin. Transaksi dapat diedit satu kali." : PESAN_TIDAK_BISA_EDIT}
-              </p>
+              </p>}
               {aksiPengajuan(detailTrx)}
             </div>
           </div>,
