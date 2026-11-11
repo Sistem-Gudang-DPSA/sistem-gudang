@@ -10,12 +10,14 @@ import type { ApprovalRequest, ApprovalStatus } from '@/domains/ppic/types';
 import { permintaan_pembelian_path } from '@/domains/ppic/data/pembelian';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
+import BatalkanPermintaan from './BatalkanPermintaan';
 
 const STATUS_LABEL: Record<ApprovalStatus, { label: string; cls: string }> = {
   pending: { label: 'Menunggu', cls: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
   approved: { label: 'Disetujui', cls: 'bg-green-100 text-green-800 border-green-200' },
   rejected: { label: 'Ditolak', cls: 'bg-red-100 text-red-800 border-red-200' },
   revision_requested: { label: 'Perlu Revisi', cls: 'bg-orange-100 text-orange-800 border-orange-200' },
+  cancelled: { label: 'Dibatalkan', cls: 'bg-gray-100 text-gray-600 border-gray-200' },
 };
 
 const purchaseLabel = (request: ApprovalRequest) => request.purchaseStatus === 'PURCHASED' ? 'Sudah dibeli' : request.purchaseStatus === 'PARTIALLY_PURCHASED' ? 'Sebagian dibeli' : request.purchaseStatus === 'NOT_PURCHASED' ? 'Belum dibeli' : 'Status belum tersedia';
@@ -46,7 +48,7 @@ export default function DaftarPermintaanPembelianPPIC({ basePath = permintaan_pe
   const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
   const page = pageState.key === filterKey ? pageState.page : 1;
   const setPage = (next: number) => setPageState({ key: filterKey, page: next });
-  const { data: result, loading, error } = useApiData(
+  const { data: result, loading, error, reload } = useApiData(
     () => listApprovals({ page, pageSize: 20, type: 'purchase-request', search: searchQuery.trim() || undefined, ...dateRange }),
     `${filterKey}|${page}`,
     'Gagal memuat permintaan pembelian.',
@@ -181,18 +183,25 @@ export default function DaftarPermintaanPembelianPPIC({ basePath = permintaan_pe
                   <td className="px-6 py-4 text-gray-500 font-bold">{displayDate(item.payload?.tanggalPengajuan ?? item.createdAt)}</td>
                   <td className="px-6 py-4 text-gray-700 italic max-w-md truncate">{summarize(item)}</td>
                   <td className="px-6 py-4 text-center">
-                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${item.purchaseStatus === 'PURCHASED' ? 'bg-green-100 text-green-800' : 'bg-amber-50 text-amber-800'}`}>
-                      {purchaseLabel(item)}
-                    </span>
+                    {item.status === 'cancelled' ? (
+                      <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${STATUS_LABEL.cancelled.cls}`}>{STATUS_LABEL.cancelled.label}</span>
+                    ) : (
+                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${item.purchaseStatus === 'PURCHASED' ? 'bg-green-100 text-green-800' : 'bg-amber-50 text-amber-800'}`}>
+                        {purchaseLabel(item)}
+                      </span>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <div className="inline-grid grid-cols-[3.5rem_auto] items-center gap-2">
+                    <div className="inline-grid grid-cols-[3.5rem_5.75rem_auto] items-center gap-2">
                       {canCreate && ['pending', 'revision_requested'].includes(item.status) && (!user || user.isSuperadmin || user.id === item.requestedBy) && (
-                        <Link href={`${basePath}/${item.id}/edit`} className="px-4 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] font-bold rounded-lg text-xs hover:bg-[#FF8A00]/20 transition-all">Edit</Link>
+                        <>
+                          <Link href={`${basePath}/${item.id}/edit`} className="px-4 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] font-bold rounded-lg text-xs hover:bg-[#FF8A00]/20 transition-all">Edit</Link>
+                          <BatalkanPermintaan id={item.id} onDone={reload} />
+                        </>
                       )}
                       <button
                         onClick={() => setDetail(item)}
-                        className="col-start-2 inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs hover:bg-blue-100 transition-all"
+                        className="col-start-3 inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs hover:bg-blue-100 transition-all"
                       >
                         <Eye className="h-3.5 w-3.5" />
                         Detail
