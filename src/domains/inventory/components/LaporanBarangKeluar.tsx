@@ -3,7 +3,7 @@
 import { escapeHtml } from '@/shared/lib/escape-html';
 import React, { useState } from 'react';
 import { Search, Eye, Loader2, AlertCircle } from 'lucide-react';
-import { todayIso } from '@/domains/inventory/date';
+import { monthStart, todayIso } from '@/domains/inventory/date';
 import { cancelOutbound, exportOutboundReport, getOutboundReport } from '@/domains/inventory/api';
 import BatalkanTransaksi, { BadgeDibatalkan, InfoPembatalan } from './BatalkanTransaksi';
 import type { OutboundRow, RecipientType } from '@/domains/inventory/types';
@@ -12,6 +12,7 @@ import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';
+import { cetakHtml } from '@/shared/lib/print-html';
 
 const PAGE_SIZE = 20;
 
@@ -22,11 +23,6 @@ const RECIPIENT_LABEL: Record<RecipientType, string> = {
 };
 
 const displayDate = (iso: string) => iso.slice(0, 10).split('-').reverse().join('-');
-
-const monthStart = () => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-};
 
 export default function LaporanBarangKeluar() {
     const [searchQuery, setSearchQuery] = useState<string>('');
@@ -70,13 +66,7 @@ export default function LaporanBarangKeluar() {
         }
     };
 
-    const handlePrintPdf = () => {
-        const win = window.open('', '_blank');
-        if (win) win.opener = null;
-        if (!win) {
-            setActionError('Pop-up diblokir browser. Izinkan pop-up untuk mencetak PDF.');
-            return;
-        }
+    const handlePrintPdf = async () => {
         setActionError('');
 
         const penerimaText = filterPenerima === 'ALL' ? 'Semua Penerima' : RECIPIENT_LABEL[filterPenerima];
@@ -105,7 +95,7 @@ export default function LaporanBarangKeluar() {
 
         const emptyRow = `<tr><td colspan="7" class="center">Tidak ada data barang keluar.</td></tr>`;
 
-        win.document.write(`<!doctype html>
+        const html = `<!doctype html>
             <html>
             <head>
                 <title>Rekap Barang Keluar</title>
@@ -146,10 +136,12 @@ export default function LaporanBarangKeluar() {
                 <tbody>${tableRows.length ? bodyRows : emptyRow}</tbody>
                 </table>
             </body>
-            </html>`);
-        win.document.close();
-        win.focus();
-        win.print();
+            </html>`;
+        try {
+          await cetakHtml(html, 'rekap barang keluar');
+        } catch (err) {
+          setActionError(err instanceof Error ? err.message : 'Gagal mencetak PDF.');
+        }
     };
 
     const rows = report?.rows ?? [];

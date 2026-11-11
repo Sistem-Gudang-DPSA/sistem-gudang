@@ -13,6 +13,7 @@ import Pagination from '@/shared/components/Pagination';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import DateFilter from '@/shared/components/DateFilter';
 import { ExportExcellButton } from '@/shared/components/Tombol';
+import { cetakHtml } from "@/shared/lib/print-html";
 
 const cell = (value: unknown) => escapeHtml(value ?? '-');
 
@@ -158,16 +159,6 @@ export default function StockOpnameMasterGudang() {
       return;
     }
 
-    const win = window.open("", "_blank");
-    if (win) win.opener = null;
-
-    if (!win) {
-      setActionError(
-        "Pop-up diblokir browser. Izinkan pop-up untuk mencetak PDF."
-      );
-      return;
-    }
-
     setActionError("");
 
     try {
@@ -197,7 +188,7 @@ export default function StockOpnameMasterGudang() {
         </tr>
       `).join("");
 
-      win.document.write(`<!doctype html>
+      const html = `<!doctype html>
         <html lang="id">
         <head>
           <meta charset="utf-8">
@@ -259,18 +250,16 @@ export default function StockOpnameMasterGudang() {
             </tbody>
           </table>
         </body>
-        </html>`);
+        </html>`;
 
-      win.document.close();
-
-      // Cetak setelah dokumen selesai dimuat
-      win.onload = () => win.print();
+      await cetakHtml(html, "stok opname");
     } catch (err) {
-      win.close();
       setActionError(
         err instanceof ApiError
           ? err.message
-          : "Gagal menyiapkan dokumen cetak stok opname."
+          : err instanceof Error
+            ? err.message
+            : "Gagal menyiapkan dokumen cetak stok opname."
       );
     }
   };

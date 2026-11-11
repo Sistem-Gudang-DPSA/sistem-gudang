@@ -79,6 +79,16 @@ describe('BarangMasuk list', () => {
     expect(lastList(api).get('page')).toBe('1');
   });
 
+  it('counts active date filters on the Filter button', async () => {
+    setup();
+    await screen.findByText('Triplex 1');
+    fireEvent.click(screen.getByRole('button', { name: 'Filter' }));
+    fireEvent.change(dateSelect('Tahun'), { target: { value: '2026' } });
+    expect(screen.getByRole('button', { name: 'Filter (1)' })).not.toBeNull();
+    fireEvent.change(dateSelect('Bulan'), { target: { value: '03' } });
+    expect(screen.getByRole('button', { name: 'Filter (2)' })).not.toBeNull();
+  });
+
   it('search input has maxLength 100', async () => {
     setup();
     expect((screen.getByPlaceholderText(/Cari kode/) as HTMLInputElement).maxLength).toBe(100);

@@ -36,6 +36,7 @@ const UNUSED_ALLOWLIST: Record<string, string> = {
   "post /api/v1/auth/refresh": "called with raw fetch in api-client (shared refresh promise), not via apiClient",
   "get /api/v1/approvals/{param}/actions": "not needed yet (actions come with approval detail)",
   "get /api/v1/locations/{param}": "not needed yet",
+  "post /api/v1/outbound/import": "Barang Keluar import UI removed (was unreachable); BE endpoint kept",
   "put /api/v1/locations/{param}": "not needed yet (no location edit UI)",
   "get /api/v1/suppliers/{param}": "not needed yet (list row used for detail)",
   "get /api/v1/approvals/mapping-summary": "used by the supplier mapping page on branch mapping-supplier, not merged into dev yet",

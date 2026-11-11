@@ -7,6 +7,7 @@ import { countActiveFilters, emptyBarangFilters } from "@/domains/inventory/comp
 import DateFilter from "@/shared/components/DateFilter";
 import Pagination from "@/shared/components/Pagination";
 import { ExportExcellButton } from "@/shared/components/Tombol";
+import { downloadBlob } from "@/shared/lib/download";
 import { useApiData } from "@/shared/lib/use-api-data";
 import { Filter, Plus, Search } from "lucide-react"
 import Link from "next/link";
@@ -46,14 +47,7 @@ export default function EstimasiPenawaranHarga() {
         );
         const csvString = [...headers, ...csvData].join('\n');
 
-        const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', 'Penawaran_Harga.csv');
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        downloadBlob(new Blob([csvString], { type: 'text/csv;charset=utf-8;' }), 'Penawaran_Harga.csv');
     };
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">

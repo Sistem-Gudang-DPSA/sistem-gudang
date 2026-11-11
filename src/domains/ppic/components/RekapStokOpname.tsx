@@ -7,6 +7,7 @@ import { getStockOpnameSummary, listMutations } from '@/domains/ppic/api';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';
+import { cetakHtml } from '@/shared/lib/print-html';
 
 type TipeMutasi = 'Masuk' | 'Keluar';
 
@@ -119,13 +120,7 @@ export default function RekapStokOpnameMutasiStok() {
   };
 
   // Buka jendela berisi tabel saja lalu panggil dialog print (pilih "Save as PDF")
-  const handlePrintPdf = () => {
-    const win = window.open('', '_blank');
-    if (win) win.opener = null;
-    if (!win) {
-      alert('Pop-up diblokir browser. Izinkan pop-up untuk mencetak PDF.');
-      return;
-    }
+  const handlePrintPdf = async () => {
     const bodyRows = rowsToExport.map((item, index) => `
       <tr>
         <td class="center">${index + 1}</td>
@@ -136,7 +131,7 @@ export default function RekapStokOpnameMutasiStok() {
         <td>${escapeHtml(item.tipe)}</td>
         <td class="right">${formatAngka(item.qty)}</td>
       </tr>`).join('');
-    win.document.write(`<!doctype html>
+    const html = `<!doctype html>
       <html>
         <head>
           <title>Rekap Stok Opname &amp; Mutasi Stok</title>
@@ -159,10 +154,12 @@ export default function RekapStokOpnameMutasiStok() {
             <tbody>${bodyRows}</tbody>
           </table>
         </body>
-      </html>`);
-    win.document.close();
-    win.focus();
-    win.print();
+      </html>`;
+    try {
+      await cetakHtml(html, 'rekap stok opname');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Gagal mencetak PDF.');
+    }
   };
 
   const adjustment = ringkasan.totalAdjustmentNilai;
