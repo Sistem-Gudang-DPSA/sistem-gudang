@@ -24,7 +24,7 @@ const divisions = [
     icon: PackageCheck,
     color: "from-rose-500 to-pink-500",
     bgColor: "bg-rose-50",
-    description: "Penyimpanan barang jadi hasil produksi, barang masuk/keluar, dan stok opname."
+    description: "Penyimpanan barang hasil produksi, barang masuk/keluar."
   },
   { 
     name: "PPIC", 
@@ -82,7 +82,7 @@ export default function SuperAdminDashboard() {
               <div className={`w-16 h-16 rounded-2xl bg-linear-to-br ${div.color} flex items-center justify-center text-white mb-6 group-hover:scale-110 transition-transform`}>
                 <Icon className="w-8 h-8" />
               </div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2">{div.name} Dashboard</h3>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">{div.name}</h3>
               <p className="text-gray-500 text-sm leading-relaxed mb-6">
                 {div.description}
               </p>
