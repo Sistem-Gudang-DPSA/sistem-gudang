@@ -6,6 +6,7 @@ import { Plus, Edit2, QrCode } from 'lucide-react';
 import { assignItemLocation, bulkAssignItemLocation } from '@/domains/inventory/api';
 import type { ItemListRow } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
+import { downloadBlob } from '@/shared/lib/download';
 import Pagination from '@/shared/components/Pagination';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import { printItemLabels } from '@/domains/inventory/label-print';
@@ -94,14 +95,7 @@ export default function DataBarangGudang({
     );
     const csvString = [...headers, ...csvData].join('\n');
 
-    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', 'Data_Barang_Gudang.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadBlob(new Blob([csvString], { type: 'text/csv;charset=utf-8;' }), 'Data_Barang_Gudang.csv');
   };
 
   const columns: BarangColumn[] = [

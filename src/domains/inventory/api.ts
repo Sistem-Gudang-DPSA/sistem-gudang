@@ -126,7 +126,7 @@ export async function importItems(body: { defaults: { category?: string; unit?: 
 
 // Exact match on items.code (what a scanned QR holds); 404 when no item has that code.
 export function getItemByCode(code: string) {
-  return apiClient.get<Item>(`/api/v1/items/by-code/${encodeURIComponent(code)}`);
+  return apiClient.get<Item & { supplierName: string | null }>(`/api/v1/items/by-code/${encodeURIComponent(code)}`);
 }
 
 export function getItem(id: number) {
@@ -250,13 +250,6 @@ export function listOutbound(params?: OutboundListParams) {
 // Idempotency-Key is required: one per draft, reused on retry so the stock is not cut twice.
 export function createOutbound(input: CreateOutboundInput, idempotencyKey: string) {
   return apiClient.post<OutboundRow>("/api/v1/outbound", input, { "Idempotency-Key": idempotencyKey });
-}
-
-// Multipart field `file`: one .xlsx in the rekap layout. A 400 with bad rows carries errors as [{ row, message }].
-export function importOutbound(file: File) {
-  const form = new FormData();
-  form.append("file", file);
-  return apiClient.upload<{ created: number }>("/api/v1/outbound/import", form);
 }
 
 export function updateOutbound(id: number, input: CreateOutboundInput) {

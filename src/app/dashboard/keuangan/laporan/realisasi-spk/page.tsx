@@ -1,1 +1,1 @@
-export { default } from "@/domains/Keuangan/components/DashboardRealisasiSpk";
+export { default } from "@/domains/keuangan/components/DashboardRealisasiSpk";

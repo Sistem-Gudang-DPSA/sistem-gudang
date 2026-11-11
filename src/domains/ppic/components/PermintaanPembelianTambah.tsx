@@ -42,7 +42,7 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
 
   const [tableData, setTableData] = useState<Row[]>(() => {
     const rows = (permintaan?.barang ?? []).map((b) => ({ ...emptyRow, ...b, noSpk: b.noSpk ?? "", supplier: b.supplier ?? "", keterangan: b.keterangan ?? "", tanggal: b.tanggal ?? "", deadlineTanggal: b.deadlineTanggal ?? "", qty: String(b.qty) }));
-    return [...rows, ...Array.from({ length: Math.max(8 - rows.length, 0) }, () => ({ ...emptyRow }))];
+    return rows.length > 0 ? rows : [{ ...emptyRow }];
   });
   const submitting = useRef(false);
   const [saving, setSaving] = useState(false);

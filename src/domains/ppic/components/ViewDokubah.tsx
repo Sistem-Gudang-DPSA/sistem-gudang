@@ -21,6 +21,7 @@ import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import SearchableSelect from '@/shared/components/SearchableSelect';
 import { useDokubahSearch } from '@/domains/ppic/use-dokubah-search';
+import { cetakHtml } from '@/shared/lib/print-html';
 
 const cellClass = 'px-4 py-3 border-b border-r border-gray-200';
 const fieldClass = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors';
@@ -112,13 +113,7 @@ export default function ViewDokubahPPIC() {
   };
 
   // Buka jendela berisi dokubah saja lalu panggil dialog print (pilih "Save as PDF")
-  const handlePrintPdf = () => {
-    const win = window.open('', '_blank');
-    if (win) win.opener = null;
-    if (!win) {
-      alert('Pop-up diblokir browser. Izinkan pop-up untuk mencetak Dokubah.');
-      return;
-    }
+  const handlePrintPdf = async () => {
     const bodyRows = dokubah.bahan.map((b, index) => `
       <tr>
         <td class="center">${index + 1}</td>
@@ -128,7 +123,7 @@ export default function ViewDokubahPPIC() {
         <td class="right">${formatAngka(b.realisasi)} ${escapeHtml(b.satuan)}</td>
         <td class="right">${formatAngka(b.kuota - b.realisasi)} ${escapeHtml(b.satuan)}</td>
       </tr>`).join('');
-    win.document.write(`<!doctype html>
+    const html = `<!doctype html>
       <html>
         <head>
           <title>Dokubah ${escapeHtml(dokubah.noSpk)}</title>
@@ -164,10 +159,12 @@ export default function ViewDokubahPPIC() {
             <tbody>${bodyRows}</tbody>
           </table>
         </body>
-      </html>`);
-    win.document.close();
-    win.focus();
-    win.print();
+      </html>`;
+    try {
+      await cetakHtml(html, 'dokubah');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Gagal mencetak PDF.');
+    }
   };
 
   return (
