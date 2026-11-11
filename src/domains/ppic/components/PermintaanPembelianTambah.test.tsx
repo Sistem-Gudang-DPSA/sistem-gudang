@@ -104,6 +104,15 @@ describe('purchase request form', () => {
     expect(Object.keys((payload.items as object[])[0])).toEqual(['namaBarang', 'satuan', 'proyek', 'qty']);
   });
 
+  it('starts with one row and adds more with Tambah Baris', () => {
+    installFakeApi(routes);
+    render(<Form basePath={basePath} />);
+    expect(screen.getByLabelText('Nama Barang baris 1')).toBeTruthy();
+    expect(screen.queryByLabelText('Nama Barang baris 2')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '+ Tambah Baris' }));
+    expect(screen.getByLabelText('Nama Barang baris 2')).toBeTruthy();
+  });
+
   it('keeps noSpk when the edited row has one', async () => {
     const api = installFakeApi({ ...routes, 'PUT /api/v1/approvals/7': null });
     render(<Form permintaan={existing} basePath={basePath} editing />);
@@ -116,6 +125,8 @@ describe('purchase request form', () => {
     installFakeApi({ ...routes, 'POST /api/v1/approvals': fail(400, 'Input Validation Error!', { 'items.0.namaBarang': ['Nama barang tidak valid'] }) });
     render(<Form basePath={basePath} />);
     fillHeader();
+    fireEvent.click(screen.getByRole('button', { name: '+ Tambah Baris' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Tambah Baris' }));
     change('Nama Barang baris 3', 'Paku');
     change('QTY baris 3', '5');
     change('Satuan baris 3', 'Kg');
