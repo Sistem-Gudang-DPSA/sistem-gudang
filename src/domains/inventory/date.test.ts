@@ -20,11 +20,9 @@ describe('date helpers', () => {
     expect(displayDate('2026-10-27T00:00:00Z')).toBe('27-10-2026');
   });
 
-  it('displayDateTime shows local day and time for timestamps, date only otherwise', () => {
-    process.env.TZ = 'Asia/Jakarta';
-    expect(displayDateTime('2026-10-27T17:30:00Z')).toBe('28-10-2026 00:30');
-    expect(displayDateTime('2026-10-28')).toBe('28-10-2026');
-    expect(displayDateTime('2026-10-27T00:00:00.000Z')).toBe('27-10-2026');
+  it('displayDateTime shows the business date with the recorded time in Asia/Jakarta', () => {
+    expect(displayDateTime('2026-10-27', '2026-10-27T03:30:00Z')).toBe('27-10-2026 10:30');
+    expect(displayDateTime('2026-10-27', '2026-10-27T18:05:00.000Z')).toBe('27-10-2026 01:05');
   });
 
   it('monthStart is the local first day of the current month', () => {

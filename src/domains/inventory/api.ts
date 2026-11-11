@@ -126,7 +126,7 @@ export async function importItems(body: { defaults: { category?: string; unit?: 
 
 // Exact match on items.code (what a scanned QR holds); 404 when no item has that code.
 export function getItemByCode(code: string) {
-  return apiClient.get<Item>(`/api/v1/items/by-code/${encodeURIComponent(code)}`);
+  return apiClient.get<Item & { supplierName: string | null }>(`/api/v1/items/by-code/${encodeURIComponent(code)}`);
 }
 
 export function getItem(id: number) {

@@ -19,13 +19,10 @@ export const displayDate = (iso: string) => {
   return day.split('-').reverse().join('-');
 };
 
-// DD-MM-YYYY HH:mm (local time) for timestamps; date-only values show just the date.
-export const displayDateTime = (iso: string) => {
-  const date = displayDate(iso);
-  if (!isMoment(iso)) return date;
-  const d = new Date(iso);
-  return `${date} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-};
+// Business date (date-only column) plus the time it was recorded. createdAt is
+// UTC from the API; business time is Asia/Jakarta, same as the backend.
+export const displayDateTime = (date: string, createdAt: string) =>
+  `${displayDate(date)} ${new Date(createdAt).toLocaleTimeString('en-GB', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' })}`;
 
 // Turn the Tgl/Bulan/Tahun selects into the API's startDate/endDate range.
 export function toDateRange(day: string, month: string, year: string) {

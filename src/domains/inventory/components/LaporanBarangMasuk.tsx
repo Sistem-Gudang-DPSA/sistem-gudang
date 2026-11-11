@@ -110,7 +110,7 @@ export default function LaporanBarangMasuk() {
         return `
           <tr>
             <td class="center">${index + 1}</td>
-            <td>${escapeHtml(displayDateTime(item.date))}</td>
+            <td>${escapeHtml(displayDateTime(item.date, item.createdAt))}</td>
             <td>${referensi}</td>
             <td>${sumber}</td>
             <td class="right">${item.qtyArrived.toLocaleString('id-ID')}</td>
@@ -329,7 +329,7 @@ export default function LaporanBarangMasuk() {
               rows.map((item, index) => (
                 <tr key={item.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 text-center text-gray-500">{index + 1}</td>
-                  <td className="px-4 py-3 text-gray-700 font-medium">{displayDateTime(item.date)}</td>
+                  <td className="px-4 py-3 text-gray-700 font-medium">{displayDateTime(item.date, item.createdAt)}</td>
                   <td className="px-4 py-3 font-mono font-semibold text-blue-600">
                     {item.referenceNo ?? '-'}
                     {item.supplierDeliveryNo && (
@@ -393,7 +393,7 @@ export default function LaporanBarangMasuk() {
                 </DetailRow>
               )}
               <DetailRow label="Tgl & Jam">
-                <span className="font-medium text-gray-800">{displayDateTime(selectedDetail.date)}</span>
+                <span className="font-medium text-gray-800">{displayDateTime(selectedDetail.date, selectedDetail.createdAt)}</span>
               </DetailRow>
               <DetailRow label="Barang">
                 <span className="font-medium text-gray-800">
