@@ -181,7 +181,7 @@ export default function RealisasiSpk() {
               {rows.map((r, i) => (
                 <tr
                   key={r.id}
-                  className={`cursor-pointer transition-colors ${selected.has(r.id) ? 'bg-orange-50/60' : 'hover:bg-orange-50/20'}`}
+                  className={`transition-colors ${selected.has(r.id) ? 'bg-orange-50/60' : 'hover:bg-orange-50/20'}`}
                 >
                   <td className={cellClass}>{(page - 1) * PAGE_SIZE + i + 1}</td>
                   <td className={`${cellClass} font-semibold text-gray-900`}>{r.noSpk}</td>
