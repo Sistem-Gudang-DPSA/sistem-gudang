@@ -74,7 +74,7 @@ export default function ImportSupplierMapping({ rows, onClose, onDone }: {
             const payload: Mapped[] = rows.map((r, i) => ({ ...r, ...mapped[i], code: mapped[i].code.trim(), phone: mapped[i].phone.trim() }));
             const res = await importSupplierData(payload);
             const dilewati = res.skipped.length > 0
-                ? `, ${res.skipped.length} dilewati karena kode duplikat: ${res.skipped.map((s) => s.code).join(', ')}`
+                ? `, ${res.skipped.length} dilewati karena duplikat: ${res.skipped.map((s) => s.code || s.name).join(', ')}`
                 : '';
             onDone(`${res.created} supplier ditambahkan${dilewati}`);
         } catch (e) {
