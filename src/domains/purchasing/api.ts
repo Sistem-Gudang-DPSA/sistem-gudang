@@ -46,7 +46,7 @@ export function exportPurchaseOrder(id: number | string) {
   return downloadFile(`/api/v1/purchase-orders/${id}/export`, `purchase-order-${id}.xlsx`);
 }
 
-export type BulkSupplierResult = { created: number; skipped: { row: number; code: string; reason: string }[] };
+export type BulkSupplierResult = { created: number; skipped: { row: number; code: string | null; name: string; reason: string }[] };
 
 export function importSupplierData(rows: SupplierImportRow[]) {
   return apiClient.post<BulkSupplierResult>("/api/v1/suppliers/bulk", { rows });

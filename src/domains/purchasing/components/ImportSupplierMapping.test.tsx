@@ -8,12 +8,12 @@ const row = { name: 'PT Kayu', address: 'Jl', npwp: '1', npwpPerorangan: '', nik
 describe('ImportSupplierMapping', () => {
   it('reports created and skipped counts to onDone', async () => {
     installFakeApi({
-      'POST /api/v1/suppliers/bulk': { created: 1, skipped: [{ row: 2, code: 'S2', reason: 'Kode sudah ada' }] },
+      'POST /api/v1/suppliers/bulk': { created: 1, skipped: [{ row: 1, code: 'S2', name: 'A', reason: 'duplicate_in_db' }, { row: 2, code: null, name: 'Toko B', reason: 'duplicate_in_payload' }] },
     });
     const onDone = vi.fn();
     render(<ImportSupplierMapping rows={[row, row]} onClose={vi.fn()} onDone={onDone} />);
     fireEvent.click(screen.getByRole('button', { name: 'Simpan 2 Supplier' }));
     await waitFor(() => expect(onDone).toHaveBeenCalled());
-    expect(onDone).toHaveBeenCalledWith('1 supplier ditambahkan, 1 dilewati karena kode duplikat: S2');
+    expect(onDone).toHaveBeenCalledWith('1 supplier ditambahkan, 2 dilewati karena duplikat: S2, Toko B');
   });
 });
