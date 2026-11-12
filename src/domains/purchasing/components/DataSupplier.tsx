@@ -31,6 +31,7 @@ export default function DataSupplierPurchasing() {
   const { sort, toggle, params: sortParams } = useSort();
   const [importOpen, setImportOpen] = useState(false);
   const [pendingSupplier, setPendingSupplier] = useState<SupplierImportRow[] | null>(null);
+  const [importNote, setImportNote] = useState('');
 
   const [actionError, setActionError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -123,7 +124,7 @@ export default function DataSupplierPurchasing() {
             <div className="flex flex-col lg:flex-row items-center gap-2 w-full lg:w-auto shrink-0">
               <button
                 type="button"
-                onClick={() => setImportOpen(true)}
+                onClick={() => { setImportNote(''); setImportOpen(true); }}
                 className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-[#FF8A00] text-[#FF8A00] font-semibold rounded-xl hover:bg-orange-50 transition-colors text-sm w-full lg:w-auto"
               >
                 <FileUp className="w-4 h-4" />
@@ -134,7 +135,7 @@ export default function DataSupplierPurchasing() {
                 <ImportSupplierMapping
                   rows={pendingSupplier}
                   onClose={() => setPendingSupplier(null)}
-                  onDone={() => { setPendingSupplier(null); reload(); }}
+                  onDone={(note) => { setPendingSupplier(null); setImportNote(note); reload(); }}
                 />
               )}
 
@@ -160,6 +161,10 @@ export default function DataSupplierPurchasing() {
           )}
 
         </div>
+
+        {importNote && (
+          <div className="mx-5 mt-5 p-3 bg-green-50 text-green-700 text-sm rounded-lg">{importNote}</div>
+        )}
 
         {error && (
           <div className="mx-5 mt-5 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>
