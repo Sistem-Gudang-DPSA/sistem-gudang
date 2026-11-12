@@ -43,13 +43,14 @@ layar memakai komponen yang sama.
 
 Simpan mengirim seluruh baris ke `POST /api/v1/suppliers/bulk` dalam
 satu request. Endpoint ini hanya menambah: supplier yang sudah ada tidak
-diubah, dan baris dengan kode yang sudah ada di database atau terulang di
-file dilewati. Maksimal 1000 baris per request. Baris yang tidak valid
+diubah. Semua kolom boleh kosong, dan kode kosong disimpan sebagai NULL.
+Baris dicocokkan lewat kode, atau lewat nama bila kodenya kosong. Baris
+yang sudah ada di database atau terulang di file dilewati. Maksimal 1000 baris per request. Baris yang tidak valid
 membuat seluruh request ditolak (400) tanpa ada yang tersimpan.
 
 Setelah berhasil, layar menampilkan jumlah yang ditambahkan dan yang
-dilewati, misalnya "3 supplier ditambahkan, 1 dilewati karena kode
-duplikat: S7". Daftar tabel ikut diperbarui.
+dilewati, misalnya "3 supplier ditambahkan, 2 dilewati karena duplikat:
+S7, Toko B". Baris tanpa kode ditampilkan dengan namanya. Daftar tabel ikut diperbarui.
 
 ## Status dan Langkah Berikutnya
 
