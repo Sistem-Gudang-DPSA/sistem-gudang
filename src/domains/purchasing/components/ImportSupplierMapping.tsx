@@ -18,7 +18,7 @@ const selTabel = 'min-w-36 px-2 py-1.5 border border-gray-300 rounded-md text-xs
 export default function ImportSupplierMapping({ rows, onClose, onDone }: {
     rows: SupplierImportRow[];
     onClose: () => void;
-    onDone: (created: number) => void;
+    onDone: (note: string) => void;
 }) {
     const [mapped, setMapped] = useState<Map_[]>(() => rows.map(() => ({ bank: '', pajak: 'NON_PKP', phone: '', code: '' })));
     const [checked, setChecked] = useState<Set<number>>(new Set());
@@ -73,7 +73,10 @@ export default function ImportSupplierMapping({ rows, onClose, onDone }: {
         try {
             const payload: Mapped[] = rows.map((r, i) => ({ ...r, ...mapped[i], code: mapped[i].code.trim(), phone: mapped[i].phone.trim() }));
             const res = await importSupplierData(payload);
-            onDone(res.created);
+            const dilewati = res.skipped.length > 0
+                ? `, ${res.skipped.length} dilewati karena kode duplikat: ${res.skipped.map((s) => s.code).join(', ')}`
+                : '';
+            onDone(`${res.created} supplier ditambahkan${dilewati}`);
         } catch (e) {
             setError(e instanceof ApiError ? e.message : 'Gagal menyimpan data supplier.');
         } finally {
