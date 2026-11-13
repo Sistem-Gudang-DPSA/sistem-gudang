@@ -28,8 +28,9 @@ contoh dan tombol simpannya hanya menampilkan alert.
 
 ## Histori Harga Supplier
 
-- Detail Data Barang pindah ke `/dashboard/purchasing/master/data-supplier/{id}/detail`
-  karena halaman lama tidak tahu supplier mana yang dibuka.
+- Detail Data Barang ada di `/dashboard/purchasing/master/data-supplier/{id}/detail`
+  karena halaman lama tidak tahu supplier mana yang dibuka. Superadmin memakai
+  `/dashboard/superadmin/master/data-supplier/{id}/detail?from=superadmin` dengan komponen yang sama.
 - Grid membaca `GET /suppliers/{id}/prices?tahun=` dan menyimpan lewat
   `PUT /suppliers/{id}/prices`. Pemilih tahun menentukan tahun yang diedit.
   Rata-rata tahun terpilih dan tahun sebelumnya dihitung backend.
