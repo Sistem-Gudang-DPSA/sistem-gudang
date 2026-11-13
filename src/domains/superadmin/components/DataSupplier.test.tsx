@@ -35,6 +35,6 @@ describe('superadmin DataSupplier', () => {
   it('links the detail button back to the superadmin screen', async () => {
     await setup(userWith([]));
     const link = screen.getByRole('link', { name: 'Detail Barang' });
-    expect(link.getAttribute('href')).toContain('from=superadmin');
+    expect(link.getAttribute('href')).toBe('/dashboard/superadmin/master/data-supplier/1/detail?from=superadmin');
   });
 });
