@@ -1,34 +1,23 @@
 "use client";
 
 import { useCan } from '@/domains/auth/user-context';
-import React, { useState } from 'react';
-import { Search, Plus, Filter, ScanLine, Printer, X } from 'lucide-react';
-import { createInbound, createInboundReturn, getItem, listInbound } from '@/domains/inventory/api';
-import type { InboundRow, StatusQc } from '@/domains/inventory/types';
-import { useItemSearch } from '@/domains/inventory/use-item-search';
-import { useSpkSearch } from '@/domains/ppic/use-spk-search';
-import { displayDate, todayIso, toDateRange } from '@/domains/inventory/date';
+import { useState } from 'react';
+import { Search, Plus, Filter, Printer, X } from 'lucide-react';
+import { createInboundBatch, getItem, listInbound } from '@/domains/inventory/api';
+import type { CreateInboundBatchInput, InboundRow } from '@/domains/inventory/types';
+import { displayDate, toDateRange } from '@/domains/inventory/date';
 import { downloadCsv } from '@/shared/lib/csv';
-import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
-import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import { useSelection } from '@/shared/lib/use-selection';
 import { usePage } from '@/shared/lib/use-page';
 import DateFilter from '@/shared/components/DateFilter';
-import SearchableSelect from '@/shared/components/SearchableSelect';
-import BarangMasukScan from './BarangMasukScan';
 import { BadgeDibatalkan } from './BatalkanTransaksi';
-import { QC_STATUS } from '@/domains/inventory/status';
+import FormBarangMasukModal from './barang-masuk/FormBarangMasukModal';
 import { cetakFormulir, dokumenFormulir, lembarFormulir, lembarPerHalaman, tabelMaterial, type KopFormulir } from '@/domains/inventory/print-formulir';
 import { escapeHtml } from '@/shared/lib/escape-html';
-
-type PickedItem = { id: number; name: string; code: string | null };
-
-const emptyBaru = { item: null as PickedItem | null, tanggal: todayIso(), jumlahKedatangan: "", jumlahRekap: "", statusQc: "PASS" as StatusQc };
-const emptyKembali = { item: null as PickedItem | null, tanggal: todayIso(), jumlah: "", spk: "" };
 
 const PAGE_SIZE = 20;
 
@@ -99,70 +88,6 @@ async function cetakBarangMasuk(rows: InboundRow[]): Promise<void> {
   );
 }
 
-function ModalShell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md transition-opacity duration-300 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-187.5 p-8 border border-white/20 relative animate-in zoom-in-95 duration-200">
-        <button
-          type="button"
-          aria-label="Tutup"
-          onClick={onClose}
-          className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
-        >
-          <X className="h-4 w-4" />
-        </button>
-
-        <h2 className="text-[20px] font-extrabold text-gray-900 mb-8 tracking-wide uppercase">
-          {title}
-        </h2>
-
-        {children}
-      </div>
-    </div>
-  );
-}
-
-// Kode (otomatis dari barang terpilih) dan Nama Barang (pencarian server). Dipakai di kedua modal.
-function ItemPickerFields({ item, onChange, search }: { item: PickedItem | null; onChange: (item: PickedItem | null) => void; search: ReturnType<typeof useItemSearch> }) {
-  const label = (it: PickedItem) => (it.code ? `${it.name} (${it.code})` : it.name);
-  const pilihanBarang = [
-    ...(item && !search.items.some((it) => it.id === item.id) ? [{ value: String(item.id), label: label(item) }] : []),
-    ...search.items.map((it) => ({ value: String(it.id), label: label(it) })),
-  ];
-  const pilihBarang = (id: string): PickedItem | null => {
-    const it = search.items.find((x) => String(x.id) === id);
-    return it ? { id: it.id, name: it.name, code: it.code } : item && String(item.id) === id ? item : null;
-  };
-  return (
-    <>
-      <div className="flex-1 flex flex-col gap-2">
-        <label className="text-[15px] font-medium text-gray-900">Kode Barang</label>
-        <input
-          type="text"
-          disabled
-          placeholder="Isi Otomatis"
-          value={item?.code ?? ''}
-          className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-700 placeholder-gray-400 bg-[#f8f9fa] text-sm"
-        />
-      </div>
-      <div className="flex-1 flex flex-col gap-2">
-        <label className="text-[15px] font-medium text-gray-900">Nama Barang</label>
-        <SearchableSelect
-          value={item ? String(item.id) : ''}
-          onChange={(id) => onChange(pilihBarang(id))}
-          onSearch={search.onSearch}
-          pending={search.pending}
-          options={pilihanBarang}
-          placeholder="Isi Nama Barang"
-          emptyText="Barang tidak ditemukan"
-          aria-label="Nama Barang"
-          className="w-full border border-gray-300 rounded-md py-3 pl-4 pr-3 text-gray-700 text-sm"
-        />
-      </div>
-    </>
-  );
-}
-
 export default function BarangMasukGudang() {
   const canCreate = useCan('inbound.create');
   const { sort, toggle, params: sortParams } = useSort();
@@ -174,12 +99,6 @@ export default function BarangMasukGudang() {
   const jumlahFilterAktif = [filterDay, filterMonth, filterYear].filter(Boolean).length;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalData, setModalData] = useState(emptyBaru);
-  const [isModalKembaliOpen, setIsModalKembaliOpen] = useState(false);
-  const [modalKembaliData, setModalKembaliData] = useState(emptyKembali);
-  const [isScanOpen, setIsScanOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [modalError, setModalError] = useState("");
 
   const selection = useSelection<InboundRow>();
   const [printing, setPrinting] = useState(false);
@@ -198,14 +117,6 @@ export default function BarangMasukGudang() {
   const total = result?.total ?? 0;
 
   const allChecked = selection.allSelected(rows);
-
-  const spkKembali = useSpkSearch(modalKembaliData.spk);
-
-  // Barang dicari di server dan dipilih per id; yang terpilih disimpan di state modal (nama belum tentu unik).
-  const itemSearch = useItemSearch();
-  const { onSearch: searchItems, error: itemError } = itemSearch;
-  const itemBaru = modalData.item;
-  const itemKembali = modalKembaliData.item;
 
   // Ekspor CSV untuk baris yang tampil di halaman ini
   const handleExportCsv = () => {
@@ -233,64 +144,18 @@ export default function BarangMasukGudang() {
     }
   };
 
-  const openModal = () => { searchItems(''); setModalData({ ...emptyBaru, tanggal: todayIso() }); setModalError(""); setIsModalOpen(true); };
-  const openModalKembali = () => { searchItems(''); setModalKembaliData({ ...emptyKembali, tanggal: todayIso() }); setModalError(""); setIsModalKembaliOpen(true); };
+  const openModal = () => setIsModalOpen(true);
 
-  const handleSimpan = async (cetakSetelah = false) => {
-    const itemId = itemBaru?.id;
-    const { tanggal, jumlahKedatangan, jumlahRekap, statusQc } = modalData;
-    if (!itemId || !tanggal || !jumlahKedatangan || jumlahRekap === "") {
-      setModalError("Lengkapi semua isian.");
-      return;
-    }
-    setSaving(true);
-    setModalError("");
-    try {
-      const saved = await createInbound({
-        itemId,
-        date: tanggal,
-        qtyArrived: Number(jumlahKedatangan),
-        qtyPurchased: Number(jumlahRekap),
-        statusQc,
-      });
-      setIsModalOpen(false);
-      reload();
-      if (cetakSetelah) {
-        try {
-          await cetakBarangMasuk([saved]);
-        } catch (err) {
-          setActionError(err instanceof Error ? err.message : "Gagal menyiapkan dokumen cetak.");
-        }
+  const handleSimpan = async (input: CreateInboundBatchInput, key: string, cetakSetelah: boolean) => {
+    const saved = await createInboundBatch(input, key);
+    setIsModalOpen(false);
+    reload();
+    if (cetakSetelah) {
+      try {
+        await cetakBarangMasuk(saved.items);
+      } catch (err) {
+        setActionError(err instanceof Error ? err.message : "Gagal menyiapkan dokumen cetak.");
       }
-    } catch (err) {
-      setModalError(err instanceof ApiError ? err.message : "Gagal menyimpan barang masuk.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleSimpanKembali = async () => {
-    const itemId = itemKembali?.id;
-    const { tanggal, jumlah, spk } = modalKembaliData;
-    if (!itemId || !tanggal || !jumlah) {
-      setModalError("Barang, tanggal, dan jumlah wajib diisi.");
-      return;
-    }
-    setSaving(true);
-    setModalError("");
-    try {
-      await createInboundReturn({
-        itemId,
-        date: tanggal,
-        qty: Number(jumlah),
-        spk: spk || undefined,
-      });
-      setIsModalKembaliOpen(false);
-      reload();
-    } catch (err) {
-      setModalError(err instanceof ApiError ? err.message : "Gagal menyimpan barang kembali.");
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -338,18 +203,6 @@ export default function BarangMasukGudang() {
                 <span>Barang Baru</span>
               </button>
             )}
-            {canCreate && (
-              <button type="button" onClick={() => setIsScanOpen(true)} className={orangeButtonClass}>
-                <ScanLine className="w-4 h-4" />
-                <span>Scan Barang</span>
-              </button>
-            )}
-            {canCreate && (
-              <button type="button" onClick={openModalKembali} className={orangeButtonClass}>
-                <Plus className="w-4 h-4" />
-                <span>Barang Kembali</span>
-              </button>
-            )}
 
             <button
               type="button"
@@ -386,16 +239,17 @@ export default function BarangMasukGudang() {
                 <th scope="col" className="px-6 py-4">No</th>
                 <SortableTh label="Tanggal" sortKey="date" sort={sort} onSort={toggle} />
                 <SortableTh label="Informasi Barang" sortKey="itemName" sort={sort} onSort={toggle} />
+                <th scope="col" className="px-6 py-4">Supplier</th>
                 <th scope="col" className="px-6 py-4 text-center">Jml Kedatangan</th>
                 <th scope="col" className="px-6 py-4 text-center">Jml Rekap</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading && (
-                <tr><td colSpan={6} className="px-6 py-10 text-center text-gray-400">Memuat data...</td></tr>
+                <tr><td colSpan={7} className="px-6 py-10 text-center text-gray-400">Memuat data...</td></tr>
               )}
               {!loading && error && (
-                <tr><td colSpan={6} className="px-6 py-10 text-center text-red-500">{error}</td></tr>
+                <tr><td colSpan={7} className="px-6 py-10 text-center text-red-500">{error}</td></tr>
               )}
               {!loading && !error && rows.map((item, index) => (
                 <tr key={item.id} className="hover:bg-[#FF8A00]/5 transition-colors group">
@@ -413,13 +267,14 @@ export default function BarangMasukGudang() {
                     </div>
                   </td>
 
+                  <td className="px-6 py-4 text-gray-600">{item.supplierName ?? '-'}</td>
                   <td className="px-6 py-4 text-center font-bold text-gray-800">{item.qtyArrived}</td>
                   <td className="px-6 py-4 text-center font-bold text-[#FF8A00]">{item.qtyPurchased ?? '-'}</td>
                 </tr>
               ))}
               {!loading && !error && rows.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-gray-400 italic">
+                  <td colSpan={7} className="px-6 py-10 text-center text-gray-400 italic">
                     Data tidak ditemukan untuk filter tersebut.
                   </td>
                 </tr>
@@ -436,145 +291,7 @@ export default function BarangMasukGudang() {
         <ExportExcellButton onClick={handleExportCsv} />
       </div>
 
-      {isScanOpen && <BarangMasukScan onClose={() => setIsScanOpen(false)} onSaved={reload} />}
-
-      {/* Modal Form Barang Masuk */}
-      {isModalOpen && (
-        <ModalShell title="FORM BARANG MASUK" onClose={() => setIsModalOpen(false)}>
-            <div className="flex flex-col gap-6 mb-10">
-              <div className="flex flex-col sm:flex-row gap-6">
-                <ItemPickerFields item={itemBaru} onChange={(item) => setModalData((prev) => ({ ...prev, item }))} search={itemSearch} />
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-6">
-                <div className="flex-1 flex flex-col gap-2">
-                  <label className="text-[15px] font-medium text-gray-900">Jumlah Sesuai Kedatangan</label>
-                  <input
-                    {...INTEGER_INPUT}
-                    maxLength={9}
-                    placeholder="0"
-                    value={modalData.jumlahKedatangan}
-                    onChange={(e) => setModalData({ ...modalData, jumlahKedatangan: digitsOnly(e.target.value) })}
-                    className="w-full border border-gray-200 bg-gray-50/50 rounded-lg py-3 px-4 text-gray-700 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white transition-all duration-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                </div>
-                <div className="flex-1 flex flex-col gap-2">
-                  <label className="text-[15px] font-medium text-gray-900">Jumlah Sesuai Rekap Pembelian</label>
-                  <input
-                    {...INTEGER_INPUT}
-                    maxLength={9}
-                    placeholder="0"
-                    value={modalData.jumlahRekap}
-                    onChange={(e) => setModalData({ ...modalData, jumlahRekap: digitsOnly(e.target.value) })}
-                    className="w-full border border-gray-200 bg-gray-50/50 rounded-lg py-3 px-4 text-gray-700 placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white transition-all duration-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-6">
-                <div className="flex-1 flex flex-col gap-2">
-                  <label className="text-[15px] font-medium text-gray-900">Tanggal</label>
-                  <input
-                    type="date"
-                    value={modalData.tanggal}
-                    onChange={(e) => setModalData({ ...modalData, tanggal: e.target.value })}
-                    className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white text-sm"
-                  />
-                </div>
-                <div className="flex-1 flex flex-col gap-2">
-                  <label className="text-[15px] font-medium text-gray-900">Status QC</label>
-                  <select
-                    value={modalData.statusQc}
-                    onChange={(e) => setModalData({ ...modalData, statusQc: e.target.value as StatusQc })}
-                    className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400 bg-white text-sm"
-                  >
-                    <option value="PASS">{QC_STATUS.PASS.label}</option>
-                    <option value="PARTIAL_RETUR">{QC_STATUS.PARTIAL_RETUR.label}</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {(modalError || itemError) && <p className="text-sm text-red-500 mb-2 text-right">{modalError || itemError}</p>}
-            <div className="flex justify-end gap-2 mt-2">
-              <button
-                onClick={() => handleSimpan(false)}
-                disabled={saving}
-                className="px-8 py-2.5 bg-white text-[#ff8a00] border border-[#ff8a00] rounded-md hover:bg-orange-50 transition-colors font-medium text-[15px] shadow-sm"
-              >
-                Simpan
-              </button>
-              <button
-                onClick={() => handleSimpan(true)}
-                disabled={saving}
-                className="flex items-center gap-2 px-8 py-2.5 bg-[#ff8a00] text-white rounded-md hover:bg-[#e07b00] transition-colors font-medium text-[15px] shadow-sm"
-              >
-                <Printer className="w-4 h-4" />
-                Simpan + Cetak
-              </button>
-            </div>
-        </ModalShell>
-      )}
-
-      {/* Modal Form Barang Kembali */}
-      {isModalKembaliOpen && (
-        <ModalShell title="FORM BARANG KEMBALI" onClose={() => setIsModalKembaliOpen(false)}>
-            <div className="flex flex-col gap-6 mb-10">
-              <div className="flex flex-col sm:flex-row gap-6">
-                <ItemPickerFields item={itemKembali} onChange={(item) => setModalKembaliData((prev) => ({ ...prev, item }))} search={itemSearch} />
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-6">
-                <div className="flex-1 flex flex-col gap-2">
-                  <label className="text-[15px] font-medium text-gray-900">Tanggal</label>
-                  <input
-                    type="date"
-                    value={modalKembaliData.tanggal}
-                    onChange={(e) => setModalKembaliData({ ...modalKembaliData, tanggal: e.target.value })}
-                    className="w-full border border-gray-300 rounded-md py-3 pl-4 pr-10 text-gray-700 placeholder-gray-400 text-sm"
-                  />
-                </div>
-                <div className="flex-1 flex flex-col gap-2">
-                  <label className="text-[15px] font-medium text-gray-900">Jumlah</label>
-                  <input
-                    {...INTEGER_INPUT}
-                    maxLength={9}
-                    placeholder="0"
-                    value={modalKembaliData.jumlah}
-                    onChange={(e) => setModalKembaliData({ ...modalKembaliData, jumlah: digitsOnly(e.target.value) })}
-                    className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-700 placeholder-gray-400 text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-6">
-                <div className="flex-1 flex flex-col gap-2">
-                  <label className="text-[15px] font-medium text-gray-900">SPK (opsional)</label>
-                  <SearchableSelect
-                    value={modalKembaliData.spk}
-                    onChange={(spk) => setModalKembaliData({ ...modalKembaliData, spk })}
-                    onSearch={spkKembali.onSearch}
-                    options={[{ value: '', label: 'Tanpa SPK' }, ...spkKembali.options.map((t) => ({ value: t.noSpk, label: `${t.noSpk} - ${t.client}` }))]}
-                    placeholder="Tanpa SPK"
-                    aria-label="SPK"
-                    className="w-full border border-gray-300 rounded-md py-3 px-4 text-gray-700 bg-white text-sm"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {(modalError || itemError) && <p className="text-sm text-red-500 mb-2 text-right">{modalError || itemError}</p>}
-            <div className="flex justify-end mt-2">
-              <button
-                onClick={handleSimpanKembali}
-                disabled={saving}
-                className="px-8 py-2.5 bg-[#ff8a00] text-white rounded-md hover:bg-[#e07b00] transition-colors font-medium text-[15px] shadow-sm"
-              >
-                Simpan
-              </button>
-            </div>
-        </ModalShell>
-      )}
+      {isModalOpen && <FormBarangMasukModal onClose={() => setIsModalOpen(false)} onSave={handleSimpan} />}
     </div>
   );
 }
