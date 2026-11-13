@@ -15,7 +15,7 @@ Permintaan. Sebelumnya semua halaman ini memakai data dummy.
 |---|---|
 | Nama field mengikuti backend (`source`, `referenceNo`, `qtyArrived`, dan seterusnya), bukan istilah lama di UI | Backend membangkitkan spec dari skema validasinya, jadi tipe frontend yang mengikuti spec tidak bisa menyimpang diam-diam. |
 | Harga di Stock Opname read-only, diambil dari harga master barang | Harga ditetapkan Purchasing. Petugas gudang hanya menghitung jumlah fisik. Backend mengisi `systemPrice` dan `physicalPrice` dari `items.price`. |
-| Status QC (`PASS`, `PARTIAL_RETUR`) diisi saat barang tiba, di form Barang Masuk | Status ini hasil pengecekan manual quality assessor, bukan hasil hitung dari selisih jumlah. |
+| Form Barang Masuk hanya untuk barang yang sudah lolos QC (`statusQc` `PASS`) | Pengecekan QC dilakukan sebelum input. Form tidak punya pilihan Status QC. |
 | Filter tanggal berupa rentang `startDate` dan `endDate` di semua halaman | Sepakat dengan backend. Berlaku juga untuk `GET /approvals`. |
 | Export Excel dibuat backend, cetak PDF memakai `window.print()` | Data laporan dipaginasi, jadi export harus dari server. PDF cukup dari cetak browser. |
 | Rekap Permintaan memakai tabel `material-requests` sendiri, bukan `approvals` | Kolomnya (SPK, klien, item produksi, group tukang, status) tidak cocok dengan `purchase-request`. |
@@ -44,7 +44,7 @@ berubah dan mengabaikan respons yang sudah kedaluwarsa.
 
 | Halaman | Endpoint | Catatan |
 |---|---|---|
-| Barang Masuk | `/inbound`, `/inbound/returns` | Barang dan supplier dipilih dari dropdown (mengirim `itemId`, `supplierId`). Form Barang Baru punya input Status QC. Form Barang Kembali punya klien dan SPK opsional. |
+| Barang Masuk | `/inbound`, `POST /inbound/batch` | Pilih supplier dulu, lalu tambah barang lewat Scan Barang (scanner atau kamera) atau Input Manual. Barang dengan supplier berbeda ditandai merah. Semua baris tampil di Preview, lalu disimpan sekali lewat `/inbound/batch` dengan header `Idempotency-Key`. Tabel menampilkan kolom Supplier. Form Barang Kembali tidak ada. |
 | Barang Keluar | `/outbound` | Form punya Asal Gudang dan Tujuan/Penerima (wajib). Tabel diratakan satu baris per barang. |
 | Stock Opname | `/stock-opname` | Daftar dengan filter bulan dan tahun dari server, dan detail berisi stok sistem, fisik, dan selisih. Form konfirmasi sebelum menyimpan karena stok disetel ke jumlah fisik. |
 | Laporan Barang Masuk dan Keluar | `/reports/inbound`, `/reports/outbound` | Kartu total memakai `summary` dari backend (jumlah transaksi). Ada kolom Lokasi. |
