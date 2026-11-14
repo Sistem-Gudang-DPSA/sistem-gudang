@@ -441,14 +441,14 @@ describe('BarangKeluar create', () => {
     await screen.findByText('Triplex', { selector: 'td' });
     const q = label('Pengambilan Triplex');
     fireEvent.change(q, { target: { value: 'e-1.5' } });
-    expect(q.value).toBe('e-1.5');
+    expect(q.value).toBe('1');
     expect(q.getAttribute('aria-invalid')).toBe('true');
     expect(screen.getByRole('alert').textContent).toContain('Gunakan angka saja');
     expect(q.inputMode).toBe('decimal');
-    expect(q.maxLength).toBe(12);
+    expect(q.hasAttribute('maxlength')).toBe(false);
   });
 
-  it.each(['abc', '1..5', '1.234', '0', '-1', '1000000000', ''])('warns and prevents saving invalid quantity %s until corrected', async (value) => {
+  it.each(['0', '1000000000', ''])('warns and prevents saving invalid quantity %s until corrected', async (value) => {
     const api = setup({ 'POST /api/v1/outbound': { id: 5 } });
     await openForm(api);
     await fillHeader();
@@ -468,41 +468,80 @@ describe('BarangKeluar create', () => {
     expect(await screen.findByText('Konfirmasi Simpan')).toBeTruthy();
   });
 
-  it('saves decimal quantities from scanned and manual rows, accepting commas and dots', async () => {
+  it('blocks letters and dots from the keyboard and paste, preserving the last quantity', async () => {
+    const api = setup();
+    await openForm(api);
+    typePengambil();
+    scan('BRG-1');
+    await screen.findByText('Triplex', { selector: 'td' });
+    const q = label('Pengambilan Triplex');
+    for (const key of ['a', '.', 'e', '-']) {
+      expect(fireEvent.keyDown(q, { key })).toBe(false);
+      expect(q.value).toBe('1');
+      expect(screen.getByRole('alert').textContent).toContain('Huruf dan titik tidak diperbolehkan');
+    }
+    expect(fireEvent.keyDown(q, { key: 'a', ctrlKey: true })).toBe(true);
+    expect(fireEvent.keyDown(q, { key: 'Backspace' })).toBe(true);
+    expect(fireEvent.keyDown(q, { key: ',' })).toBe(true);
+    fireEvent.change(q, { target: { value: '1,25' } });
+    expect(q.value).toBe('1,25');
+    expect(screen.queryByRole('alert')).toBeNull();
+    for (const value of ['abc', '1.25', '1,2,5', '1,2345']) {
+      fireEvent.change(q, { target: { value } });
+      expect(q.value).toBe('1,25');
+      expect(screen.getByRole('alert')).toBeTruthy();
+    }
+    expect(screen.getByRole('alert').textContent).toContain('maksimal 3 angka di belakang koma');
+    expect(fireEvent.paste(q, { clipboardData: { getData: () => '1.5' } })).toBe(false);
+    expect(q.value).toBe('1,25');
+    fireEvent.change(q, { target: { value: '0,75' } });
+    expect(q.getAttribute('aria-invalid')).toBe('false');
+    fireEvent.click(screen.getByLabelText('Tambah Triplex'));
+    expect(q.value).toBe('1,75');
+    fireEvent.click(screen.getByLabelText('Kurangi Triplex'));
+    expect(q.value).toBe('1');
+  });
+
+  it('saves decimal quantities from scanned and manual rows, displaying commas', async () => {
     const api = setup({ 'POST /api/v1/outbound': { id: 5 } });
     await openForm(api);
     await fillHeader();
     scan('BRG-1');
     await screen.findByText('Triplex', { selector: 'td' });
-    fireEvent.change(label('Pengambilan Triplex'), { target: { value: '0,5' } });
-    expect(label('Pengambilan Triplex').value).toBe('0.5');
+    fireEvent.change(label('Pengambilan Triplex'), { target: { value: '0,123' } });
+    expect(label('Pengambilan Triplex').value).toBe('0,123');
     fireEvent.click(screen.getByText('Input Manual'));
     await choose(label('Nama material baris 2'), 'Paku (BRG-2)');
-    fireEvent.change(label('Pengambilan Paku'), { target: { value: '1.25' } });
+    fireEvent.change(label('Pengambilan Paku'), { target: { value: '1,234' } });
+    expect(label('Pengambilan Paku').value).toBe('1,234');
     fireEvent.click(screen.getByText('Simpan'));
     fireEvent.click(await screen.findByText('Konfirmasi Simpan'));
     await waitFor(() => expect(api.calls('POST /api/v1/outbound')).toHaveLength(1));
     expect(api.calls('POST /api/v1/outbound')[0].body).toMatchObject({
-      lines: [{ itemId: 1, qty: 0.5, pic: 'Rudi' }, { itemId: 2, qty: 1.25, pic: 'Rudi' }],
+      lines: [{ itemId: 1, qty: 0.123, pic: 'Rudi' }, { itemId: 2, qty: 1.234, pic: 'Rudi' }],
     });
   });
 
   it('saves a decimal quantity when editing an approved transaction', async () => {
-    const api = setup({ 'PUT /api/v1/outbound/1': { id: 1 } }, paged([disetujui()]));
+    const approved = disetujui();
+    approved.lines[0].qty = 1.5;
+    const api = setup({ 'PUT /api/v1/outbound/1': { id: 1 } }, paged([approved]));
     await screen.findAllByText('Klien 1');
     fireEvent.click(screen.getByLabelText('Edit barang keluar 1 Triplex'));
+    expect(label('Jumlah').value).toBe('1,5');
+    fireEvent.change(label('Jumlah'), { target: { value: '' } });
     fireEvent.change(label('Jumlah'), { target: { value: 'abc' } });
     expect(label('Jumlah').getAttribute('aria-invalid')).toBe('true');
     expect(screen.getByRole('alert').textContent).toContain('Gunakan angka saja');
     fireEvent.click(screen.getByText('Simpan'));
     expect(api.calls('PUT /api/v1/outbound/1')).toHaveLength(0);
-    fireEvent.change(label('Jumlah'), { target: { value: '0,75' } });
+    fireEvent.change(label('Jumlah'), { target: { value: '0,123' } });
     expect(label('Jumlah').getAttribute('aria-invalid')).toBe('false');
-    expect(label('Jumlah').value).toBe('0.75');
+    expect(label('Jumlah').value).toBe('0,123');
     fireEvent.click(screen.getByText('Simpan'));
     await waitFor(() => expect(api.calls('PUT /api/v1/outbound/1')).toHaveLength(1));
     expect(api.calls('PUT /api/v1/outbound/1')[0].body).toMatchObject({
-      lines: [{ itemId: 1, qty: 0.75, pic: 'Andi' }, { itemId: 2, qty: 9, pic: 'Andi' }],
+      lines: [{ itemId: 1, qty: 0.123, pic: 'Andi' }, { itemId: 2, qty: 9, pic: 'Andi' }],
     });
   });
 

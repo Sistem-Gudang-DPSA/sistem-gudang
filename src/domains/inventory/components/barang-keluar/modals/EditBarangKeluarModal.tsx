@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { AlertCircle, Calendar, X } from "lucide-react";
 import type { useItemSearch } from "@/domains/inventory/use-item-search";
 import SearchableSelect from "@/shared/components/SearchableSelect";
-import { JUMLAH_INPUT, inputJumlah, peringatanJumlah } from "../form-utils";
+import JumlahPengambilanInput from "./JumlahPengambilanInput";
 import type { useEditBarangKeluar } from "../useEditBarangKeluar";
 import { fieldClass, labelClass } from "../styles";
 
@@ -135,7 +135,6 @@ export default function EditBarangKeluarModal({
           </div>
           <div className="mt-5 space-y-4">
             {editForm.lines.map((line, index) => {
-              const warning = peringatanJumlah(line.qty);
               const utama = index === editTarget.lineIndex;
               const nama = editTarget.trx.lines[index].itemName;
               return (
@@ -183,20 +182,12 @@ export default function EditBarangKeluarModal({
                       <label htmlFor={`edit-bk-jumlah-${index}`} className={labelClass}>
                         {utama ? "Jumlah" : `Jumlah Barang ${index + 1}`}
                       </label>
-                      <input
-                        {...JUMLAH_INPUT}
+                      <JumlahPengambilanInput
                         id={`edit-bk-jumlah-${index}`}
                         value={line.qty}
-                        aria-invalid={!!warning}
-                        aria-describedby={warning ? `edit-bk-warning-${index}` : undefined}
-                        onChange={(e) => edit.updateLine(index, { qty: inputJumlah(e.target.value) })}
-                        className={`${fieldClass} text-right ${warning ? "border-red-400 bg-red-50" : ""}`}
+                        onValueChange={(qty) => edit.updateLine(index, { qty })}
+                        className={`${fieldClass} text-right`}
                       />
-                      {warning && (
-                        <p id={`edit-bk-warning-${index}`} role="alert" className="mt-1 text-xs text-red-600">
-                          {warning}
-                        </p>
-                      )}
                     </div>
                   </div>
                 </div>
