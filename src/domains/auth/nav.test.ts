@@ -24,13 +24,32 @@ describe("visibleNav", () => {
     expect(visibleNav({ ...finance, permissions: [] })).toEqual([]);
   });
 
+  it("shows production reports in blue only to production users with report permission", () => {
+    const production = withDomain(user(["report.view"]), "produksi");
+    const nav = visibleNav(production);
+    expect(nav.map((division) => division.key)).toEqual(["produksi"]);
+    expect(nav[0].theme).toBe("blue");
+    expect(nav[0].groups[0].items.map((item) => item.href)).toEqual([
+      "/dashboard/produksi/laporan/data-barang",
+      "/dashboard/produksi/laporan/realisasi-spk",
+    ]);
+    for (const item of nav[0].groups[0].items) {
+      expect(canAccess(production, item.href)).toBe(true);
+      expect(canAccess(withDomain(user(["report.view"]), "keuangan"), item.href)).toBe(false);
+    }
+    expect(canAccess(production, "/dashboard/produksi/laporan/realisasi-spk/123")).toBe(true);
+    expect(canAccess(production, "/dashboard/keuangan/laporan/data-barang")).toBe(false);
+    expect(visibleNav({ ...production, permissions: [] })).toEqual([]);
+    expect(canAccess({ ...production, permissions: [] }, "/dashboard/produksi/laporan/data-barang")).toBe(false);
+  });
+
   it("keeps keuangan away from ppic and purchasing users who also hold report.view", () => {
     expect(labels(withDomain(user(SEEDED.ppic), "ppic"))).toEqual(["ppic"]);
     expect(labels(withDomain(user(SEEDED.kPurchasing), "purchasing"))).toEqual(["purchasing"]);
   });
 
   it("shows every division to a superadmin", () => {
-    expect(labels(user([], true))).toEqual(["superadmin", "gudang", "gudang-barang-jadi", "ppic", "purchasing", "keuangan"]);
+    expect(labels(user([], true))).toEqual(["superadmin", "gudang", "gudang-barang-jadi", "ppic", "purchasing", "keuangan", "produksi"]);
   });
 
   it("keeps the Super Admin division away from non-superadmins, whatever their permissions", () => {
@@ -61,8 +80,8 @@ describe("visibleNav", () => {
   });
 
   it("falls back to permissions only when the user has no domainCode", () => {
-    expect(labels(withDomain(user(SEEDED.ppic), null))).toEqual(["ppic", "keuangan"]);
-    expect(labels(withDomain(user(SEEDED.kInventory), null))).toEqual(["gudang", "gudang-barang-jadi", "keuangan"]);
+    expect(labels(withDomain(user(SEEDED.ppic), null))).toEqual(["ppic", "keuangan", "produksi"]);
+    expect(labels(withDomain(user(SEEDED.kInventory), null))).toEqual(["gudang", "gudang-barang-jadi", "keuangan", "produksi"]);
   });
 
   it("puts permintaan pembelian under ppic, and also under gudang", () => {

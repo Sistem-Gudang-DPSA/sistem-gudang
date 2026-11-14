@@ -1,6 +1,6 @@
 import { apiClient, toQuery } from "@/shared/lib/api-client";
 import type { PaginatedResult, ListParams, SortParams } from "@/domains/inventory/types";
-import type { BugReport, BugReportStatus, CreatedUser, CreateRoleInput, CreateUserInput, Domain, Permission, Role, UpdateRoleInput, UpdateUserInput, UserAccount } from "./types";
+import type { AuditLog, AuditLogParams, BugReport, BugReportStatus, CreatedUser, CreateRoleInput, CreateUserInput, Domain, Permission, Role, UpdateRoleInput, UpdateUserInput, UserAccount } from "./types";
 
 export function listRoles() {
   return apiClient.get<Role[]>("/api/v1/superadmin/roles");
@@ -69,4 +69,13 @@ export function updateBugReport(id: number, input: { status?: BugReportStatus; i
 // The caller's own reports.
 export function listMyBugReports(params?: { page?: number; pageSize?: number }) {
   return apiClient.get<PaginatedResult<BugReport>>(`/api/v1/bug-reports/mine${toQuery(params)}`);
+}
+
+// Superadmin only.
+export function listAuditLogs(params?: AuditLogParams) {
+  return apiClient.get<PaginatedResult<AuditLog>>(`/api/v1/audit-logs${toQuery(params)}`);
+}
+
+export function listAuditTables() {
+  return apiClient.get<string[]>("/api/v1/audit-logs/tables");
 }
