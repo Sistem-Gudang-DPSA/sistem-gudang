@@ -1,4 +1,4 @@
-import { PackageCheck, ShieldCheck, ShoppingCart, UserCog, Warehouse, Wallet, type LucideIcon } from "lucide-react";
+import { Factory, PackageCheck, ShieldCheck, ShoppingCart, UserCog, Warehouse, Wallet, type LucideIcon } from "lucide-react";
 import type { AuthUser } from "./types";
 
 export interface NavItem {
@@ -13,7 +13,7 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-export type NavTheme = "orange" | "rose" | "purple" | "teal" | "indigo" | "emerald";
+export type NavTheme = "orange" | "rose" | "purple" | "teal" | "indigo" | "emerald" | "blue";
 
 export interface NavDivision {
   key: string;
@@ -226,6 +226,21 @@ export const NAV_DIVISIONS: NavDivision[] = [
         { href: "/dashboard/keuangan/laporan/realisasi-spk", label: "Realisasi SPK", anyOf: ["report.view"] },
         // { href: "/dashboard/keuangan/laporan/rekap-permintaan", label: "Rekap Permintaan", anyOf: ["report.view"] },
         // { href: "/dashboard/keuangan/laporan/stock-opname", label: "Rekap Stok Opname", anyOf: ["report.view"] },
+      ],
+    }],
+  },
+  {
+    key: "produksi",
+    label: "Produksi",
+    icon: Factory,
+    theme: "blue",
+    domains: ["produksi"],
+    anyOf: ["report.view"],
+    groups: [{
+      title: "Laporan",
+      items: [
+        { href: "/dashboard/produksi/laporan/data-barang", label: "Data Barang", anyOf: ["report.view"] },
+        { href: "/dashboard/produksi/laporan/realisasi-spk", label: "Realisasi SPK", anyOf: ["report.view"] },
       ],
     }],
   },
