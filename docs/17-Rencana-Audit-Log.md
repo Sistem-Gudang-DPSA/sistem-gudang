@@ -12,7 +12,7 @@ Master data barang, lokasi, dan supplier juga sudah tercatat. Belum tercatat: us
 
 ## Layar Log Aktivitas
 
-Menu "Log Aktivitas" di sidebar hanya tampil untuk superadmin dan membuka `/dashboard/superadmin/log-aktivitas` (`src/domains/superadmin/components/LogAktivitas.tsx`). Tabelnya menampilkan waktu, pengguna, aksi, tabel, dan id data, urut terbaru dulu, 20 baris per halaman. Filter yang tersedia: tabel, aksi, id data, dan rentang tanggal. Tombol Detail membuka nilai sebelum dan sesudah dalam bentuk JSON.
+Menu "Log Aktivitas" di sidebar hanya tampil untuk superadmin dan membuka `/dashboard/superadmin/log-aktivitas` (`src/domains/superadmin/components/LogAktivitas.tsx`). Tabelnya menampilkan waktu, pengguna, aksi sebagai badge berwarna, dan data yang berubah dengan nama yang mudah dibaca (misalnya `items` tampil sebagai Barang) beserta id-nya, urut terbaru dulu, 20 baris per halaman. Filter yang tersedia: data, aksi, id data, dan rentang tanggal, dengan tombol Hapus filter. Klik baris untuk membuka tabel perubahan per kolom: nilai sebelum dan sesudah berdampingan, dan kolom yang berubah disorot.
 
 Endpoint yang dipakai: `GET /api/v1/audit-logs` untuk daftar dan `GET /api/v1/audit-logs/tables` untuk pilihan filter tabel. Keduanya khusus superadmin; peran lain mendapat 403 karena izin `audit.view` belum dibuat.
 
