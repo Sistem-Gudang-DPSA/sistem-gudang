@@ -1,6 +1,6 @@
 # Rencana Audit Log dan Layar Log Aktivitas
 
-Dokumen ini adalah catatan untuk pekerjaan berikutnya. Belum ada yang dikerjakan di sisi frontend maupun backend. Isinya hasil analisis backend tentang apa yang sudah dan belum tercatat, ditambah pembagian tugas antara backend dan frontend.
+Dokumen ini mencatat kondisi audit log dan sisa pekerjaannya. Tugas 1, 2, dan 4 sudah selesai: master data tercatat, backend punya `GET /audit-logs`, dan superadmin punya layar Log Aktivitas.
 
 ## Kondisi Saat Ini
 
@@ -8,9 +8,13 @@ Tabel `audit_logs` di backend menyimpan user, aksi (CREATE, UPDATE, DELETE), nam
 
 Sudah tercatat: stock opname, penyesuaian stok, inbound, outbound, material request, Dokubah, SPK internal, penawaran harga, purchase order, harga supplier, dan seluruh langkah persetujuan. Pengecualian: ubah bahan Dokubah, update penawaran, dan harga supplier hanya menyimpan nilai sesudah.
 
-Belum tercatat: tambah, ubah, dan hapus barang, pengaturan lokasi barang, kategori dan satuan termasuk ubah nama, lokasi, supplier, user, peran, izin, serta login, logout, refresh, dan login gagal. Import barang hanya dicatat satu baris per permintaan, dengan id barang pertama sebagai penanda dan tanpa daftar barang.
+Master data barang, lokasi, dan supplier juga sudah tercatat. Belum tercatat: user, peran, izin, serta login, logout, refresh, dan login gagal. Import barang hanya dicatat satu baris per permintaan, dengan id barang pertama sebagai penanda dan tanpa daftar barang.
 
-Tidak ada endpoint untuk membaca log, tidak ada izin untuk itu, dan tidak ada layar frontend. Log hanya bisa dilihat langsung di database.
+## Layar Log Aktivitas
+
+Menu "Log Aktivitas" di sidebar hanya tampil untuk superadmin dan membuka `/dashboard/superadmin/log-aktivitas` (`src/domains/superadmin/components/LogAktivitas.tsx`). Tabelnya menampilkan waktu, pengguna, aksi sebagai badge berwarna, dan data yang berubah dengan nama yang mudah dibaca (misalnya `items` tampil sebagai Barang) beserta id-nya, urut terbaru dulu, 20 baris per halaman. Filter yang tersedia: data, aksi, id data, dan rentang tanggal, dengan tombol Hapus filter. Klik baris untuk membuka tabel perubahan per kolom: nilai sebelum dan sesudah berdampingan, dan kolom yang berubah disorot.
+
+Endpoint yang dipakai: `GET /api/v1/audit-logs` untuk daftar dan `GET /api/v1/audit-logs/tables` untuk pilihan filter tabel. Keduanya khusus superadmin; peran lain mendapat 403 karena izin `audit.view` belum dibuat.
 
 ## Pembagian Tugas
 
@@ -33,10 +37,10 @@ Izin `audit.view` hanya dibuat saat seed bersih. Untuk database yang sudah berja
 
 Catatan keputusan produk yang masih terbuka: apakah login dan perubahan akun perlu dicatat, dan siapa yang boleh membaca log selain superadmin.
 
-## Kontrak Rencana GET /audit-logs
+## Kontrak GET /audit-logs
 
-Kontrak ini hasil rencana backend dan belum ada kodenya. Dokumen backend yang setara adalah `docs/44-Rencana-Audit-Log.md` di repo backend.
+Dokumen backend yang setara ada di bagian Audit Log pada `docs/01-Overview.md` di repo backend.
 
-Izin yang dipakai adalah `audit.view`, dan superadmin melewati pengecekan izin. Parameternya `page`, `pageSize` (maksimal 100), `userId`, `tableName`, `recordId`, `action` (CREATE, UPDATE, atau DELETE), `startDate` dan `endDate` (format YYYY-MM-DD, keduanya inklusif), serta `sortDir` yang bawaannya `desc` sehingga yang terbaru tampil dulu. Parameter kosong dianggap tidak dikirim, dan nilai yang tidak valid menghasilkan 400.
+Hanya superadmin yang boleh membaca; peran lain mendapat 403. Parameternya `page`, `pageSize` (maksimal 100), `userId`, `tableName`, `recordId`, `action` (CREATE, UPDATE, DELETE, atau CANCEL), `startDate` dan `endDate` (format YYYY-MM-DD, keduanya inklusif), serta `sortDir` yang bawaannya `desc` sehingga yang terbaru tampil dulu. Parameter kosong dianggap tidak dikirim. Nilai yang tidak valid atau `startDate` setelah `endDate` menghasilkan 400.
 
-Respons berbentuk `data { rows, total, page, pageSize }`. Tiap baris memuat `id`, `userId`, `username` (kosong bila pelaku tidak ada), `action`, `tableName`, `recordId`, `oldValues`, `newValues` (kosong bila tidak disimpan), dan `createdAt`. Layar Log Aktivitas di frontend bisa dibangun langsung dari bentuk ini setelah tugas 2 selesai.
+Respons berbentuk `data { rows, total, page, pageSize }`. Tiap baris memuat `id`, `userId`, `username` (kosong bila pelaku tidak ada), `action`, `tableName`, `recordId`, `oldValues`, `newValues` (kosong bila tidak disimpan), dan `createdAt`. `GET /audit-logs/tables` mengembalikan daftar nama tabel yang punya entri, urut A sampai Z.

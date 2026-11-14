@@ -4,7 +4,7 @@ import React, { Suspense } from "react";
 import Link from "next/link";
 import { visibleNav, type NavTheme } from "../nav";
 import type { AuthUser } from "../types";
-import { ChevronDown, KeyRound, LayoutDashboard, ShieldCheck, Users, Folder, MessageSquareWarning } from "lucide-react";
+import { ChevronDown, KeyRound, LayoutDashboard, ShieldCheck, Users, Folder, MessageSquareWarning, ScrollText } from "lucide-react";
 import LaporMasalahButton from "./LaporMasalahButton";
 
 // Tailwind needs full class names, so each theme lists them literally.
@@ -16,6 +16,14 @@ const THEME: Record<NavTheme, { summary: string; icon: string; border: string; h
     heading: "finance-nav-heading",
     active: "finance-nav-active font-medium shadow-sm",
     idle: "finance-nav-idle",
+  },
+  blue: {
+    summary: "hover:bg-blue-50 hover:text-blue-600 hover:border-blue-100",
+    icon: "bg-blue-100 text-blue-600",
+    border: "border-blue-50",
+    heading: "hover:text-blue-600",
+    active: "bg-blue-500 text-white font-medium shadow-sm",
+    idle: "text-gray-500 hover:text-blue-600 hover:bg-blue-50",
   },
   orange: {
     summary: "hover:bg-orange-50 hover:text-orange-600 hover:border-orange-100",
@@ -93,6 +101,10 @@ export default function SidebarNav({ user, pathname, onNavigate }: Props) {
         <Link href="/dashboard/superadmin/laporan-masalah" onClick={onNavigate} className={topLink(checkActive(pathname, "/dashboard/superadmin/laporan-masalah"))}>
           <MessageSquareWarning className="w-5 h-5" />
           <span className="font-medium">Laporan Masalah</span>
+        </Link>
+        <Link href="/dashboard/superadmin/log-aktivitas" onClick={onNavigate} className={topLink(checkActive(pathname, "/dashboard/superadmin/log-aktivitas"))}>
+          <ScrollText className="w-5 h-5" />
+          <span className="font-medium">Log Aktivitas</span>
         </Link>
         </>
       )}
