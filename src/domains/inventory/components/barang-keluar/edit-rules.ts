@@ -34,7 +34,7 @@ export function validasiEdit({ tanggal, spk, namaItem, lines }: EditForm): strin
     !namaItem.trim() ||
     lines.some((line) => !Number.isSafeInteger(Number(line.itemId)) || Number(line.itemId) <= 0 || !jumlahValid(line.qty))
   )
-    return "Isi tanggal, SPK, nama item/projek, nama barang, dan jumlah berupa bilangan bulat positif maksimal 9 digit.";
+    return "Isi tanggal, SPK, nama item/projek, nama barang, dan jumlah lebih dari 0, maksimal 999999999, dengan paling banyak 2 angka desimal.";
   if (new Set(lines.map((line) => line.itemId)).size !== lines.length)
     return "Barang ini sudah ada pada baris lain di transaksi yang sama.";
   return "";

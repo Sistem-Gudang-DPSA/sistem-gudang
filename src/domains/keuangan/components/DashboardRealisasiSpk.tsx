@@ -27,6 +27,10 @@ const statusBadge = (s: StatusRealisasi | null) => s === null ? <span className=
 );
 
 export default function RealisasiSpk() {
+  return <RealisasiSpkReport />;
+}
+
+export function RealisasiSpkReport({ detailBasePath }: { detailBasePath?: string }) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebouncedValue(searchQuery);
@@ -183,7 +187,7 @@ export default function RealisasiSpk() {
               {rows.map((r, i) => (
                 <tr
                   key={r.id}
-                  onClick={() => router.push(realisasiSpkDetailPath(r.id))}
+                  onClick={() => router.push(detailBasePath ? `${detailBasePath}/${encodeURIComponent(r.id)}` : realisasiSpkDetailPath(r.id))}
                   className={`cursor-pointer transition-colors ${selected.has(r.id) ? 'bg-orange-50/60' : 'hover:bg-orange-50/20'}`}
                 >
                   <td className={cellClass}>{(page - 1) * PAGE_SIZE + i + 1}</td>
