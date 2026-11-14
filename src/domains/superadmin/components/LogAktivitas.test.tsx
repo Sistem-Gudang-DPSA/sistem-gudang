@@ -34,9 +34,11 @@ describe("Log Aktivitas (superadmin)", () => {
     expect(screen.getByRole("cell", { name: "Ubah" })).toBeTruthy();
     expect(screen.queryByText(/Baut M8/)).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "Detail" }));
+    fireEvent.click(screen.getByRole("button", { name: "Detail log 9" }));
     expect(screen.getByText(/Baut M8/)).toBeTruthy();
     expect(screen.getByText(/Baut M10/)).toBeTruthy();
+    expect(screen.getByRole("cell", { name: "Barang #42" })).toBeTruthy();
+    expect(screen.getByText("Nama")).toBeTruthy();
   });
 
   it("sends the chosen filters to the API", async () => {
@@ -45,12 +47,12 @@ describe("Log Aktivitas (superadmin)", () => {
       "GET /api/v1/audit-logs/tables": ["items", "suppliers"],
     });
     render(<LogAktivitas />);
-    await screen.findByRole("option", { name: "suppliers" });
+    await screen.findByRole("option", { name: "Supplier" });
 
-    fireEvent.change(screen.getByLabelText("Tabel"), { target: { value: "suppliers" } });
+    fireEvent.change(screen.getByLabelText("Data"), { target: { value: "suppliers" } });
     fireEvent.change(screen.getByLabelText("Aksi"), { target: { value: "DELETE" } });
-    fireEvent.change(screen.getByLabelText("Dari"), { target: { value: "2026-11-01" } });
-    fireEvent.change(screen.getByLabelText("Sampai"), { target: { value: "2026-11-14" } });
+    fireEvent.change(screen.getByLabelText("Dari tanggal"), { target: { value: "2026-11-01" } });
+    fireEvent.change(screen.getByLabelText("Sampai tanggal"), { target: { value: "2026-11-14" } });
 
     await waitFor(() => {
       const query = api.calls("GET /api/v1/audit-logs").at(-1)!.query;
