@@ -1,8 +1,8 @@
+import JumlahPengambilanInput from "./JumlahPengambilanInput";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import type { useItemSearch } from "@/domains/inventory/use-item-search";
 import SearchableSelect from "@/shared/components/SearchableSelect";
-import { INTEGER_INPUT, digitsOnly } from "@/shared/lib/input";
-import { MAX_JUMLAH, tambahSatu } from "../form-utils";
+import { peringatanJumlah, MAX_JUMLAH, tambahSatu } from "../form-utils";
 import { formCellClass, formHeadClass } from "../styles";
 import type { BarisForm } from "../types";
 
@@ -72,6 +72,7 @@ export default function BarisBarangKeluarTable({
             const nama = b.name || `baris ${i + 1}`;
             const lebihStok =
               b.itemId !== null && Number(b.qty) > b.stock;
+            const warning = peringatanJumlah(b.qty) || (lebihStok ? `Jumlah melebihi stok ${b.stock} ${b.unit}.` : "");
             return (
               <tr
                 key={b.key}
@@ -143,7 +144,7 @@ export default function BarisBarangKeluarTable({
                     <button
                       type="button"
                       aria-label={`Kurangi ${nama}`}
-                      disabled={Number(b.qty) <= 1}
+                      disabled={!!peringatanJumlah(b.qty) || Number(b.qty) <= 1}
                       onClick={() =>
                         patchBaris(b.key, {
                           qty: String(
@@ -155,27 +156,22 @@ export default function BarisBarangKeluarTable({
                     >
                       <Minus className="w-4 h-4" />
                     </button>
-                    <input
-                      {...INTEGER_INPUT}
-                      maxLength={9}
+                    <JumlahPengambilanInput
                       value={b.qty}
                       aria-label={`Pengambilan ${nama}`}
+                      warning={warning}
                       title={
                         b.itemId === null
                           ? undefined
                           : `Stok ${b.stock} ${b.unit}`
                       }
-                      onChange={(e) =>
-                        patchBaris(b.key, {
-                          qty: digitsOnly(e.target.value),
-                        })
-                      }
-                      className={`w-16 border rounded-md py-1.5 px-2 text-center text-sm ${lebihStok ? "border-red-400 bg-red-50" : "border-gray-300"}`}
+                      onValueChange={(qty) => patchBaris(b.key, { qty })}
+                      className={`w-16 border rounded-md py-1.5 px-2 text-center text-sm ${warning ? "border-red-400 bg-red-50" : "border-gray-300"}`}
                     />
                     <button
                       type="button"
                       aria-label={`Tambah ${nama}`}
-                      disabled={Number(b.qty) >= MAX_JUMLAH}
+                      disabled={!!peringatanJumlah(b.qty) || Number(b.qty) >= MAX_JUMLAH}
                       onClick={() =>
                         setBaris((bs) => tambahSatu(bs, b.key))
                       }
