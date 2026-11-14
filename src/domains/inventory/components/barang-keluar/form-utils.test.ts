@@ -11,9 +11,9 @@ describe("jumlah pengambilan", () => {
     (value) => expect(jumlahValid(value)).toBe(false),
   );
 
-  it("normalizes comma separators and filters unsupported characters", () => {
+  it("normalizes commas and preserves invalid input for validation", () => {
     expect(inputJumlah("0,75")).toBe("0.75");
     expect(inputJumlah("1.25")).toBe("1.25");
-    expect(inputJumlah("e-1.5")).toBe("1.5");
+    expect(inputJumlah("e-1.5")).toBe("e-1.5");
   });
 });
