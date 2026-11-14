@@ -32,6 +32,26 @@ memanggil `deleteSupplier()` setelah konfirmasi `window.confirm`, sama
 seperti pola konfirmasi hapus yang sudah dipakai di halaman Data Barang
 PPIC.
 
+## Import Excel
+
+Tombol "Import Excel" ada di Data Supplier Purchasing dan Data Supplier
+Superadmin, tampil hanya untuk user dengan permission `supplier.create`.
+Alurnya: pilih file `.xlsx` atau `.xls` (maksimal 5 MB) dengan kolom
+sesuai template yang bisa diunduh, cek pratinjau, lalu mapping kode,
+bank, pajak, dan telepon per baris di `ImportSupplierMapping`. Kedua
+layar memakai komponen yang sama.
+
+Simpan mengirim seluruh baris ke `POST /api/v1/suppliers/bulk` dalam
+satu request. Endpoint ini hanya menambah: supplier yang sudah ada tidak
+diubah. Semua kolom boleh kosong, dan kode kosong disimpan sebagai NULL.
+Baris dicocokkan lewat kode, atau lewat nama bila kodenya kosong. Baris
+yang sudah ada di database atau terulang di file dilewati. Maksimal 1000 baris per request. Baris yang tidak valid
+membuat seluruh request ditolak (400) tanpa ada yang tersimpan.
+
+Setelah berhasil, layar menampilkan jumlah yang ditambahkan dan yang
+dilewati, misalnya "3 supplier ditambahkan, 2 dilewati karena duplikat:
+S7, Toko B". Baris tanpa kode ditampilkan dengan namanya. Daftar tabel ikut diperbarui.
+
 ## Status dan Langkah Berikutnya
 
 Selesai untuk cakupan CRUD Supplier. `DataSupplierDetail.tsx` (rincian

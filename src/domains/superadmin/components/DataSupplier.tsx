@@ -1,10 +1,13 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Search, Plus } from 'lucide-react';
+import { Search, Plus, FileUp } from 'lucide-react';
 import Link from 'next/link';
 import { createSupplier, deleteSupplier, listSuppliers, updateSupplier } from '@/domains/purchasing/api';
 import type { Pajak } from '@/domains/purchasing/types';
+import type { SupplierImportRow } from '@/domains/purchasing/modal/supplier';
+import ImportSupplierModal from '@/domains/purchasing/components/ImportSupplierModal';
+import ImportSupplierMapping from '@/domains/purchasing/components/ImportSupplierMapping';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { useCan } from '@/domains/auth/user-context';
@@ -29,6 +32,9 @@ export default function DataSupplierPurchasing() {
   const edit = useBatchEdit();
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState("");
+  const [importOpen, setImportOpen] = useState(false);
+  const [pendingSupplier, setPendingSupplier] = useState<SupplierImportRow[] | null>(null);
+  const [importNote, setImportNote] = useState('');
 
 
   const [actionError, setActionError] = useState("");
@@ -129,6 +135,14 @@ export default function DataSupplierPurchasing() {
           <div className="flex items-center gap-2">
             {canUpdate && <EditModeBar editing={edit.editing} dirty={edit.dirty} saving={edit.saving} onToggle={edit.toggle} onSave={simpanSemua} onCancel={edit.cancel} />}
             {canCreate && <button
+              type="button"
+              onClick={() => { setImportNote(''); setImportOpen(true); }}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-[#FF8A00] text-[#FF8A00] font-semibold rounded-xl hover:bg-orange-50 transition-colors text-sm shrink-0 w-full lg:w-auto"
+            >
+              <FileUp className="w-4 h-4" />
+              <span>Import Excel</span>
+            </button>}
+            {canCreate && <button
               onClick={handleMulaiTambah}
               className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0 w-full lg:w-auto"
             >
@@ -137,6 +151,10 @@ export default function DataSupplierPurchasing() {
             </button>}
           </div>
         </div>
+
+        {importNote && (
+          <div className="mx-5 mt-5 p-3 bg-green-50 text-green-700 text-sm rounded-lg">{importNote}</div>
+        )}
 
         {error && (
           <div className="mx-5 mt-5 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>
@@ -192,7 +210,7 @@ export default function DataSupplierPurchasing() {
                     <td className="px-6 py-4 max-w-xs truncate" title={item.address}>{text('address', 255)}</td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex items-center justify-center gap-2">
-                        <Link href={`/dashboard/purchasing/master/data-supplier/${item.id}/detail?from=superadmin`} className="px-3 py-1 bg-green-50 text-green-600 font-bold rounded-lg text-xs hover:bg-green-100 transition-all border border-green-100">
+                        <Link href={`/dashboard/superadmin/master/data-supplier/${item.id}/detail?from=superadmin`} className="px-3 py-1 bg-green-50 text-green-600 font-bold rounded-lg text-xs hover:bg-green-100 transition-all border border-green-100">
                           Detail Barang
                         </Link>
                         {canDelete && <button onClick={() => handleHapus(item.id)} className="px-3 py-1 bg-red-50 text-red-600 font-bold rounded-lg text-xs hover:bg-red-100 transition-all border border-red-100">
@@ -208,6 +226,21 @@ export default function DataSupplierPurchasing() {
         </div>
         <Pagination page={page} pageSize={20} total={loaded?.total ?? 0} onPageChange={setPage} activeClass="bg-indigo-500 text-white border-indigo-500" />
       </div>
+
+      {importOpen && (
+        <ImportSupplierModal
+          onClose={() => setImportOpen(false)}
+          onNext={(rows) => { setImportOpen(false); setPendingSupplier(rows); }}
+        />
+      )}
+
+      {pendingSupplier && (
+        <ImportSupplierMapping
+          rows={pendingSupplier}
+          onClose={() => setPendingSupplier(null)}
+          onDone={(note) => { setPendingSupplier(null); setImportNote(note); reload(); }}
+        />
+      )}
 
       {/* Modal Tambah/Edit Data */}
       {isModalOpen && (
