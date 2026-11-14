@@ -4,18 +4,18 @@ import { randomId } from "@/shared/lib/random-id";
 import type { BarisForm, FormBarangKeluar, ModeKeluar } from "./types";
 
 export const MAX_JUMLAH = 999_999_999;
-export const JUMLAH_INPUT = { type: "text", inputMode: "decimal", autoComplete: "off", maxLength: 12 } as const;
+export const JUMLAH_INPUT = { type: "text", inputMode: "decimal", autoComplete: "off" } as const;
 export const inputJumlah = (value: string) => value.replace(/,/g, ".");
 export const jumlahValid = (value: string) =>
-  /^(?:\d{1,9}(?:\.\d{1,2})?|\.\d{1,2})$/.test(value) &&
+  /^(?:\d{1,9}(?:\.\d{1,3})?|\.\d{1,3})$/.test(value) &&
   Number(value) > 0 && Number(value) <= MAX_JUMLAH;
 
 // Pertahankan input yang salah agar pengguna dapat melihat dan memperbaikinya.
 export function peringatanJumlah(value: string): string {
   if (!value) return "Jumlah pengambilan wajib diisi.";
-  if (/[^\d.]/.test(value)) return "Gunakan angka saja, dengan koma atau titik untuk desimal.";
+  if (/[^\d.]/.test(value)) return "Gunakan angka saja, dengan koma untuk desimal.";
   if (!jumlahValid(value))
-    return "Masukkan jumlah lebih dari 0, maksimal 999999999, dan maksimal 2 angka desimal.";
+    return "Masukkan jumlah lebih dari 0, ";
   return "";
 }
 
@@ -73,7 +73,7 @@ export function validasiForm(
   const terisi = barisTerisi(baris);
   if (terisi.length === 0) return "Scan atau pilih minimal satu barang yang keluar.";
   if (terisi.some((b) => !jumlahValid(b.qty)))
-    return "Jumlah pengambilan harus lebih dari 0, maksimal 999999999, dengan paling banyak 2 angka desimal.";
+    return "Jumlah pengambilan harus lebih dari 0, maksimal 999999999, dengan maksimal 3 angka di belakang koma.";
   if (new Set(terisi.map((b) => b.itemId)).size !== terisi.length)
     return "Material yang sama cukup diisi pada satu baris. Tambahkan jumlahnya di baris tersebut.";
   const melebihiStok = terisi.find((b) => Number(b.qty) > b.stock);
