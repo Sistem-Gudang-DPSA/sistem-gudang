@@ -79,3 +79,27 @@ export interface BugReport {
   createdAt: string;
   updatedAt: string;
 }
+
+export type AuditAction = "CREATE" | "UPDATE" | "DELETE" | "CANCEL";
+
+export interface AuditLog {
+  id: number;
+  userId: number | null;
+  username: string | null;
+  action: AuditAction;
+  tableName: string;
+  recordId: number;
+  oldValues: unknown;
+  newValues: unknown;
+  createdAt: string;
+}
+
+export interface AuditLogParams {
+  page?: number;
+  pageSize?: number;
+  tableName?: string;
+  recordId?: number;
+  action?: AuditAction;
+  startDate?: string;
+  endDate?: string;
+}
