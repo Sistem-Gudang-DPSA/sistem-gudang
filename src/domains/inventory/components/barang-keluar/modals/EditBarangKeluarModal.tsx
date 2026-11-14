@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { AlertCircle, Calendar, X } from "lucide-react";
 import type { useItemSearch } from "@/domains/inventory/use-item-search";
 import SearchableSelect from "@/shared/components/SearchableSelect";
-import { INTEGER_INPUT, digitsOnly } from "@/shared/lib/input";
+import JumlahPengambilanInput from "./JumlahPengambilanInput";
 import type { useEditBarangKeluar } from "../useEditBarangKeluar";
 import { fieldClass, labelClass } from "../styles";
 
@@ -182,12 +182,10 @@ export default function EditBarangKeluarModal({
                       <label htmlFor={`edit-bk-jumlah-${index}`} className={labelClass}>
                         {utama ? "Jumlah" : `Jumlah Barang ${index + 1}`}
                       </label>
-                      <input
-                        {...INTEGER_INPUT}
+                      <JumlahPengambilanInput
                         id={`edit-bk-jumlah-${index}`}
-                        maxLength={9}
                         value={line.qty}
-                        onChange={(e) => edit.updateLine(index, { qty: digitsOnly(e.target.value) })}
+                        onValueChange={(qty) => edit.updateLine(index, { qty })}
                         className={`${fieldClass} text-right`}
                       />
                     </div>
