@@ -441,9 +441,31 @@ describe('BarangKeluar create', () => {
     await screen.findByText('Triplex', { selector: 'td' });
     const q = label('Pengambilan Triplex');
     fireEvent.change(q, { target: { value: 'e-1.5' } });
-    expect(q.value).toBe('1.5');
+    expect(q.value).toBe('e-1.5');
+    expect(q.getAttribute('aria-invalid')).toBe('true');
+    expect(screen.getByRole('alert').textContent).toContain('Gunakan angka saja');
     expect(q.inputMode).toBe('decimal');
     expect(q.maxLength).toBe(12);
+  });
+
+  it.each(['abc', '1..5', '1.234', '0', '-1', '1000000000', ''])('warns and prevents saving invalid quantity %s until corrected', async (value) => {
+    const api = setup({ 'POST /api/v1/outbound': { id: 5 } });
+    await openForm(api);
+    await fillHeader();
+    scan('BRG-1');
+    await screen.findByText('Triplex', { selector: 'td' });
+    const q = label('Pengambilan Triplex');
+    fireEvent.change(q, { target: { value } });
+    expect(q.getAttribute('aria-invalid')).toBe('true');
+    expect(document.getElementById(q.getAttribute('aria-describedby')!)?.textContent).toBeTruthy();
+    fireEvent.click(screen.getByText('Simpan'));
+    expect(screen.queryByText('Konfirmasi Simpan')).toBeNull();
+    expect(api.calls('POST /api/v1/outbound')).toHaveLength(0);
+    fireEvent.change(q, { target: { value: '0,75' } });
+    expect(q.getAttribute('aria-invalid')).toBe('false');
+    expect(q.hasAttribute('aria-describedby')).toBe(false);
+    fireEvent.click(screen.getByText('Simpan'));
+    expect(await screen.findByText('Konfirmasi Simpan')).toBeTruthy();
   });
 
   it('saves decimal quantities from scanned and manual rows, accepting commas and dots', async () => {
@@ -469,7 +491,13 @@ describe('BarangKeluar create', () => {
     const api = setup({ 'PUT /api/v1/outbound/1': { id: 1 } }, paged([disetujui()]));
     await screen.findAllByText('Klien 1');
     fireEvent.click(screen.getByLabelText('Edit barang keluar 1 Triplex'));
+    fireEvent.change(label('Jumlah'), { target: { value: 'abc' } });
+    expect(label('Jumlah').getAttribute('aria-invalid')).toBe('true');
+    expect(screen.getByRole('alert').textContent).toContain('Gunakan angka saja');
+    fireEvent.click(screen.getByText('Simpan'));
+    expect(api.calls('PUT /api/v1/outbound/1')).toHaveLength(0);
     fireEvent.change(label('Jumlah'), { target: { value: '0,75' } });
+    expect(label('Jumlah').getAttribute('aria-invalid')).toBe('false');
     expect(label('Jumlah').value).toBe('0.75');
     fireEvent.click(screen.getByText('Simpan'));
     await waitFor(() => expect(api.calls('PUT /api/v1/outbound/1')).toHaveLength(1));

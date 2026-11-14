@@ -1,7 +1,7 @@
 import { Minus, Plus, Trash2 } from "lucide-react";
 import type { useItemSearch } from "@/domains/inventory/use-item-search";
 import SearchableSelect from "@/shared/components/SearchableSelect";
-import { JUMLAH_INPUT, inputJumlah, MAX_JUMLAH, tambahSatu } from "../form-utils";
+import { JUMLAH_INPUT, inputJumlah, peringatanJumlah, MAX_JUMLAH, tambahSatu } from "../form-utils";
 import { formCellClass, formHeadClass } from "../styles";
 import type { BarisForm } from "../types";
 
@@ -71,6 +71,8 @@ export default function BarisBarangKeluarTable({
             const nama = b.name || `baris ${i + 1}`;
             const lebihStok =
               b.itemId !== null && Number(b.qty) > b.stock;
+            const warning = peringatanJumlah(b.qty) || (lebihStok ? `Jumlah melebihi stok ${b.stock} ${b.unit}.` : "");
+            const warningId = `bk-jumlah-warning-${b.key}`;
             return (
               <tr
                 key={b.key}
@@ -142,7 +144,7 @@ export default function BarisBarangKeluarTable({
                     <button
                       type="button"
                       aria-label={`Kurangi ${nama}`}
-                      disabled={Number(b.qty) <= 1}
+                      disabled={!!peringatanJumlah(b.qty) || Number(b.qty) <= 1}
                       onClick={() =>
                         patchBaris(b.key, {
                           qty: String(
@@ -158,6 +160,8 @@ export default function BarisBarangKeluarTable({
                       {...JUMLAH_INPUT}
                       value={b.qty}
                       aria-label={`Pengambilan ${nama}`}
+                      aria-invalid={!!warning}
+                      aria-describedby={warning ? warningId : undefined}
                       title={
                         b.itemId === null
                           ? undefined
@@ -168,12 +172,12 @@ export default function BarisBarangKeluarTable({
                           qty: inputJumlah(e.target.value),
                         })
                       }
-                      className={`w-16 border rounded-md py-1.5 px-2 text-center text-sm ${lebihStok ? "border-red-400 bg-red-50" : "border-gray-300"}`}
+                      className={`w-16 border rounded-md py-1.5 px-2 text-center text-sm ${warning ? "border-red-400 bg-red-50" : "border-gray-300"}`}
                     />
                     <button
                       type="button"
                       aria-label={`Tambah ${nama}`}
-                      disabled={Number(b.qty) >= MAX_JUMLAH}
+                      disabled={!!peringatanJumlah(b.qty) || Number(b.qty) >= MAX_JUMLAH}
                       onClick={() =>
                         setBaris((bs) => tambahSatu(bs, b.key))
                       }
@@ -182,6 +186,11 @@ export default function BarisBarangKeluarTable({
                       <Plus className="w-4 h-4" />
                     </button>
                   </div>
+                  {warning && (
+                    <p id={warningId} role="alert" className="mt-1 text-center text-xs text-red-600">
+                      {warning}
+                    </p>
+                  )}
                   {b.itemId !== null && (
                     <p
                       className={`mt-0.5 text-center text-xs ${lebihStok ? "text-red-600" : "text-gray-400"}`}
