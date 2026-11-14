@@ -1,10 +1,15 @@
 import type { CreateOutboundInput, RecipientType } from "@/domains/inventory/types";
 import { todayIso } from "@/domains/inventory/date";
+import { decimalOnly } from "@/shared/lib/input";
 import { randomId } from "@/shared/lib/random-id";
 import type { BarisForm, FormBarangKeluar, ModeKeluar } from "./types";
 
 export const MAX_JUMLAH = 999_999_999;
-export const jumlahValid = (value: string) => /^\d{1,9}$/.test(value) && Number(value) > 0;
+export const JUMLAH_INPUT = { type: "text", inputMode: "decimal", autoComplete: "off", maxLength: 12 } as const;
+export const inputJumlah = (value: string) => decimalOnly(value.replace(/,/g, "."));
+export const jumlahValid = (value: string) =>
+  /^(?:\d{1,9}(?:\.\d{1,2})?|\.\d{1,2})$/.test(value) &&
+  Number(value) > 0 && Number(value) <= MAX_JUMLAH;
 
 export const barisManual = (): BarisForm => ({
   key: randomId(),
@@ -60,7 +65,7 @@ export function validasiForm(
   const terisi = barisTerisi(baris);
   if (terisi.length === 0) return "Scan atau pilih minimal satu barang yang keluar.";
   if (terisi.some((b) => !jumlahValid(b.qty)))
-    return "Jumlah pengambilan harus berupa bilangan bulat positif maksimal 9 digit.";
+    return "Jumlah pengambilan harus lebih dari 0, maksimal 999999999, dengan paling banyak 2 angka desimal.";
   if (new Set(terisi.map((b) => b.itemId)).size !== terisi.length)
     return "Material yang sama cukup diisi pada satu baris. Tambahkan jumlahnya di baris tersebut.";
   const melebihiStok = terisi.find((b) => Number(b.qty) > b.stock);

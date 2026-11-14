@@ -441,8 +441,41 @@ describe('BarangKeluar create', () => {
     await screen.findByText('Triplex', { selector: 'td' });
     const q = label('Pengambilan Triplex');
     fireEvent.change(q, { target: { value: 'e-1.5' } });
-    expect(q.value).toBe('15');
-    expect(q.maxLength).toBe(9);
+    expect(q.value).toBe('1.5');
+    expect(q.inputMode).toBe('decimal');
+    expect(q.maxLength).toBe(12);
+  });
+
+  it('saves decimal quantities from scanned and manual rows, accepting commas and dots', async () => {
+    const api = setup({ 'POST /api/v1/outbound': { id: 5 } });
+    await openForm(api);
+    await fillHeader();
+    scan('BRG-1');
+    await screen.findByText('Triplex', { selector: 'td' });
+    fireEvent.change(label('Pengambilan Triplex'), { target: { value: '0,5' } });
+    expect(label('Pengambilan Triplex').value).toBe('0.5');
+    fireEvent.click(screen.getByText('Input Manual'));
+    await choose(label('Nama material baris 2'), 'Paku (BRG-2)');
+    fireEvent.change(label('Pengambilan Paku'), { target: { value: '1.25' } });
+    fireEvent.click(screen.getByText('Simpan'));
+    fireEvent.click(await screen.findByText('Konfirmasi Simpan'));
+    await waitFor(() => expect(api.calls('POST /api/v1/outbound')).toHaveLength(1));
+    expect(api.calls('POST /api/v1/outbound')[0].body).toMatchObject({
+      lines: [{ itemId: 1, qty: 0.5, pic: 'Rudi' }, { itemId: 2, qty: 1.25, pic: 'Rudi' }],
+    });
+  });
+
+  it('saves a decimal quantity when editing an approved transaction', async () => {
+    const api = setup({ 'PUT /api/v1/outbound/1': { id: 1 } }, paged([disetujui()]));
+    await screen.findAllByText('Klien 1');
+    fireEvent.click(screen.getByLabelText('Edit barang keluar 1 Triplex'));
+    fireEvent.change(label('Jumlah'), { target: { value: '0,75' } });
+    expect(label('Jumlah').value).toBe('0.75');
+    fireEvent.click(screen.getByText('Simpan'));
+    await waitFor(() => expect(api.calls('PUT /api/v1/outbound/1')).toHaveLength(1));
+    expect(api.calls('PUT /api/v1/outbound/1')[0].body).toMatchObject({
+      lines: [{ itemId: 1, qty: 0.75, pic: 'Andi' }, { itemId: 2, qty: 9, pic: 'Andi' }],
+    });
   });
 
   it('saves one transaction with the header SPK/produk and every scanned item', async () => {

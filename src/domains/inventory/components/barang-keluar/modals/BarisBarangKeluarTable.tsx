@@ -1,8 +1,7 @@
 import { Minus, Plus, Trash2 } from "lucide-react";
 import type { useItemSearch } from "@/domains/inventory/use-item-search";
 import SearchableSelect from "@/shared/components/SearchableSelect";
-import { INTEGER_INPUT, digitsOnly } from "@/shared/lib/input";
-import { MAX_JUMLAH, tambahSatu } from "../form-utils";
+import { JUMLAH_INPUT, inputJumlah, MAX_JUMLAH, tambahSatu } from "../form-utils";
 import { formCellClass, formHeadClass } from "../styles";
 import type { BarisForm } from "../types";
 
@@ -156,8 +155,7 @@ export default function BarisBarangKeluarTable({
                       <Minus className="w-4 h-4" />
                     </button>
                     <input
-                      {...INTEGER_INPUT}
-                      maxLength={9}
+                      {...JUMLAH_INPUT}
                       value={b.qty}
                       aria-label={`Pengambilan ${nama}`}
                       title={
@@ -167,7 +165,7 @@ export default function BarisBarangKeluarTable({
                       }
                       onChange={(e) =>
                         patchBaris(b.key, {
-                          qty: digitsOnly(e.target.value),
+                          qty: inputJumlah(e.target.value),
                         })
                       }
                       className={`w-16 border rounded-md py-1.5 px-2 text-center text-sm ${lebihStok ? "border-red-400 bg-red-50" : "border-gray-300"}`}
