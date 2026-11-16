@@ -686,3 +686,16 @@ describe('permissions', () => {
     expect(screen.getByText('Barang Baru')).not.toBeNull();
   });
 });
+
+describe('BarangMasuk search', () => {
+  it('sends one request for several quick keystrokes', async () => {
+    const { api } = setup();
+    await screen.findByText('Triplex 1');
+    const before = api.calls('GET /api/v1/inbound').length;
+    const input = screen.getByPlaceholderText(/Cari kode/);
+    for (const v of ['T', 'Tr', 'Tri']) fireEvent.change(input, { target: { value: v } });
+    expect(api.calls('GET /api/v1/inbound').length).toBe(before);
+    await waitFor(() => expect(lastList(api).get('search')).toBe('Tri'));
+    expect(api.calls('GET /api/v1/inbound').length).toBe(before + 1);
+  });
+});
