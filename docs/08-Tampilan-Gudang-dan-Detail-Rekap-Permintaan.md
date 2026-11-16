@@ -55,6 +55,11 @@ memakai `GET /stock-opname` dengan filter `search`, `month`, dan `year`,
 serta modal detail berisi stok sistem, fisik, dan selisih. Rekap Dokubah
 dibahas di `07-Integrasi-PPIC-Dokubah-dan-SPK-Internal.md`.
 
+Tampilan Rekap Dokubah Gudang dan PPIC memakai satu komponen,
+`src/domains/ppic/components/RekapDokubahView.tsx`. `RekapDokubah.tsx` di tiap
+domain hanya mengisi props: path detail per divisi, kolom Anggaran (PPIC), dan
+header yang bisa diurutkan (Gudang).
+
 ### `DetailRekapPermintaan.tsx` dan `quota.ts`
 
 Halaman baru di `gudang/laporan/rekap-permintaan/detail-rekap-permintaan`.
