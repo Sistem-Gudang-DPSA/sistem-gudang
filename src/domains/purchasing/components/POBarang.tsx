@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Filter, Plus, Search } from 'lucide-react';
 import Pagination from '@/shared/components/Pagination';
-import { downloadBlob } from '@/shared/lib/download';
+import { downloadCsv } from '@/shared/lib/csv';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { usePage } from '@/shared/lib/use-page';
 import { formatTanggal } from '@/domains/ppic/data/dokubah';
@@ -23,7 +23,6 @@ export default function POBarang() {
   const filterKey = searchQuery.trim();
   const { sort, toggle, params: sortParams } = useSort();
   const [page, setPage] = usePage(`${filterKey}|${JSON.stringify(sortParams)}`);
-  const [Exporting, setExporting] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
   const [filters] = useState(emptyBarangFilters);
   const [filterDay, setFilterDay] = useState("");
@@ -38,14 +37,9 @@ export default function POBarang() {
   const total = result?.total ?? 0;
 
   const handleExportCSV = () => {
-    setExporting(true);
-    const headers = ['No,Kode Barang,Nama Barang,Supplier,Jumlah Stok,Satuan,Kategori,Harga,Lokasi'];
-    const csvData = filteredData.map((item, index) =>
-      `${index + 1},${item.tanggal ?? '-'},"${item.nama}"`
-    );
-    const csvString = [...headers, ...csvData].join('\n');
-
-    downloadBlob(new Blob([csvString], { type: 'text/csv;charset=utf-8;' }), 'Data_Barang_Purchasing.csv');
+    const rows: unknown[][] = [['No', 'Tanggal', 'Permintaan', 'Status']];
+    filteredData.forEach((item, index) => rows.push([(page - 1) * 20 + index + 1, item.tanggal, item.permintaan, item.status]));
+    downloadCsv(`Rekap_Pembelian_halaman-${page}.csv`, rows);
   };
 
   return (
@@ -72,7 +66,7 @@ export default function POBarang() {
           </div>
 
           <div className="flex items-center gap-2">
-            <ExportExcellButton onClick={handleExportCSV} disabled={Exporting || loading || filteredData.length === 0} />
+            <ExportExcellButton onClick={handleExportCSV} disabled={loading || filteredData.length === 0} />
             <button
               type="button"
               onClick={() => setShowFilter((v) => !v)}

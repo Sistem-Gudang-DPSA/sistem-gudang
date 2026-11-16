@@ -31,7 +31,6 @@ export default function DataBarangPurchasing() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [categories] = useState<string[]>([]);
   const [units] = useState<string[]>([]);
-  const [Exporting, setExporting] = useState(false);
   const [filters, setFilters] = useState(emptyBarangFilters);
   const [showFilter, setShowFilter] = useState(false);
 
@@ -90,9 +89,8 @@ export default function DataBarangPurchasing() {
   };
 
   const handleExportCSV = () => {
-    setExporting(true);
     const rows: unknown[][] = [['No', 'Kode Barang', 'Kode Bawaan', 'Nama Barang', 'Supplier', 'Jumlah Stok', 'Satuan', 'Kategori', 'Harga', 'Lokasi']];
-    dataBarang.forEach((item, index) => rows.push([index + 1, item.code ?? '-', item.externalCode ?? '-', item.name, supplierName(item.supplierId), item.stock, item.unit, item.category, item.price, locationCode(item.locationId)]));
+    dataBarang.forEach((item, index) => rows.push([(page - 1) * 20 + index + 1, item.code ?? '-', item.externalCode ?? '-', item.name, supplierName(item.supplierId), item.stock, item.unit, item.category, item.price, locationCode(item.locationId)]));
     downloadCsv(`Data_Barang_Purchasing_halaman-${page}.csv`, rows);
   };
 
@@ -140,7 +138,7 @@ export default function DataBarangPurchasing() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <ExportExcellButton onClick={handleExportCSV} disabled={Exporting || loading || dataBarang.length === 0} />
+            <ExportExcellButton onClick={handleExportCSV} disabled={loading || dataBarang.length === 0} />
             <button
               type="button"
               onClick={() => setShowFilter((v) => !v)}
