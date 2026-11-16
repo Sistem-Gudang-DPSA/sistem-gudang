@@ -221,3 +221,26 @@ describe('permissions', () => {
     expect(screen.queryByTitle('Sesuaikan stok')).toBeNull();
   });
 });
+
+describe('DataBarang export', () => {
+  it('exports every filtered row across pages as a quoted CSV', async () => {
+    const csv = await import('@/shared/lib/csv');
+    const spy = vi.spyOn(csv, 'downloadCsv').mockImplementation(() => {});
+    const all = Array.from({ length: 25 }, (_, i) => item(i + 1, { name: i === 0 ? 'Barang 1' : `Barang ${i + 1}`, externalCode: i === 0 ? '=Meja, "besar"' : null }));
+    const api = setup({
+      'GET /api/v1/items': (req: { query: URLSearchParams }) => {
+        const pageSize = Number(req.query.get('pageSize'));
+        const page = Number(req.query.get('page'));
+        return { rows: all.slice((page - 1) * pageSize, page * pageSize), total: 25, page, pageSize };
+      },
+    });
+    await ready(api);
+    fireEvent.click(screen.getByTitle('Export Excel'));
+    await waitFor(() => expect(spy).toHaveBeenCalled());
+    const [name, rows] = spy.mock.calls[0];
+    expect(name).toBe('Data_Barang_Gudang.csv');
+    expect(rows).toHaveLength(26);
+    expect(csv.toCsv(rows)).toContain("\"'=Meja, \"\"besar\"\"\"");
+    spy.mockRestore();
+  });
+});
