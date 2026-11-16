@@ -1,3 +1,5 @@
+import { roundQty } from '@/shared/lib/input';
+
 export type MutasiTipe = 'MASUK' | 'KELUAR' | 'PENYESUAIAN';
 
 export type KartuEntry = {
@@ -29,10 +31,10 @@ export function buildKartu(data: KartuStokData) {
   );
   let saldo = data.openingBalance;
   const rows: KartuRow[] = sorted.map((e) => {
-    saldo += e.qtyIn - e.qtyOut;
+    saldo = roundQty(saldo + e.qtyIn - e.qtyOut);
     return { ...e, saldo };
   });
-  return { rows, saldoAkhir: saldo, totalIn: rows.reduce((s, r) => s + r.qtyIn, 0), totalOut: rows.reduce((s, r) => s + r.qtyOut, 0) };
+  return { rows, saldoAkhir: saldo, totalIn: roundQty(rows.reduce((s, r) => s + r.qtyIn, 0)), totalOut: roundQty(rows.reduce((s, r) => s + r.qtyOut, 0)) };
 }
 
 // Sesuaikan dengan route Anda

@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { fail, installFakeApi } from '@/test/fake-api';
 import { exportKartuExcel, printKartuPdf } from '@/shared/components/ExportStok';
 import { todayIso } from '../date';
-import type { KartuEntry, KartuStokData } from './KartuStok';
+import { buildKartu, type KartuEntry, type KartuStokData } from './KartuStok';
 import DetailKartuStok from './DetailKartuStok';
 
 vi.mock('next/navigation', () => ({ useParams: () => ({ id: '7' }) }));
@@ -46,6 +46,20 @@ async function openFilters() {
 }
 
 beforeEach(() => vi.clearAllMocks());
+
+describe('Kartu Stok decimal balance', () => {
+  const desimal: KartuStokData = { item: { ...data.item, stock: 0.3 }, openingBalance: 0.1, entries: [entry('in-1', 1, { type: 'MASUK', qtyIn: 0.2 })] };
+
+  it('rounds the running balance of 0.1 + 0.2 to 0.3', () => {
+    expect(buildKartu(desimal)).toMatchObject({ saldoAkhir: 0.3, totalIn: 0.2 });
+  });
+
+  it('shows no out-of-sync warning when the decimal balance equals the stock', async () => {
+    setup(desimal);
+    await screen.findByText('IN-1');
+    expect(screen.queryByText(/berbeda dari stok barang/)).toBeNull();
+  });
+});
 
 describe('Kartu Stok detail filters', () => {
   it('starts with all dates and separates text filters from the date period', async () => {

@@ -1,5 +1,6 @@
 import { createPortal } from "react-dom";
 import { displayDate } from "@/domains/inventory/date";
+import { roundQty } from "@/shared/lib/input";
 import { orangeButtonClass } from "../styles";
 import type { FormBarangKeluar, ModeKeluar } from "../types";
 
@@ -72,9 +73,9 @@ export default function PreviewBarangKeluarModal({
                     <td className="px-4 py-2.5 font-mono text-xs text-gray-600">{b.code}</td>
                     <td className="px-4 py-2.5 text-gray-600">{b.unit}</td>
                     <td className="px-4 py-2.5 text-gray-600">{b.dokubah.replace(/\./g, ",") || "-"}</td>
-                    <td className="px-4 py-2.5 text-right font-bold text-gray-800">{qty}</td>
+                    <td className="px-4 py-2.5 text-right font-bold text-gray-800">{roundQty(qty)}</td>
                     <td className="px-4 py-2.5 text-right text-gray-600">{b.stock}</td>
-                    <td className="px-4 py-2.5 text-right font-semibold text-gray-900">{b.stock - qty}</td>
+                    <td className="px-4 py-2.5 text-right font-semibold text-gray-900">{roundQty(b.stock - qty)}</td>
                   </tr>
                 );
               })}
@@ -83,7 +84,7 @@ export default function PreviewBarangKeluarModal({
               <tr>
                 <td colSpan={5} className="px-4 py-2.5">Total</td>
                 <td className="px-4 py-2.5 text-right">
-                  {form.baris.reduce((n, b) => n + (b.itemId !== null ? Number(b.qty) || 0 : 0), 0)}
+                  {roundQty(form.baris.reduce((n, b) => n + (b.itemId !== null ? Number(b.qty) || 0 : 0), 0))}
                 </td>
                 <td colSpan={2} />
               </tr>
