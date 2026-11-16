@@ -185,6 +185,8 @@ export default function LaporanBarangMasuk() {
 
   const rows = report?.rows ?? [];
   const summary = report?.summary ?? emptySummary;
+  // the total card follows the source filter like the table; the other cards stay per category
+  const totalSummary = report?.filteredSummary ?? summary;
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -199,9 +201,9 @@ export default function LaporanBarangMasuk() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
-          <p className="text-xs font-semibold text-gray-500 uppercase">Total Inbound Periode Ini (semua sumber)</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase">Total Inbound Periode Ini</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">
-            {summary.qtyTotal.toLocaleString('id-ID')} Qty / {summary.total.toLocaleString('id-ID')} Transaksi
+            {totalSummary.qtyTotal.toLocaleString('id-ID')} Qty / {totalSummary.total.toLocaleString('id-ID')} Transaksi
           </p>
         </div>
         <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
