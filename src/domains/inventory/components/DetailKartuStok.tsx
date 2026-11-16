@@ -8,6 +8,7 @@ import { getStockCard } from '@/domains/inventory/api';
 import { buildKartu } from '@/domains/inventory/components/KartuStok';
 import { exportKartuExcel, printKartuPdf } from '@/shared/components/ExportStok';
 import { displayDate, todayIso } from '@/domains/inventory/date';
+import { roundQty } from '@/shared/lib/input';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 
@@ -50,13 +51,13 @@ export default function KartuStokDetail() {
     const filteredKartu = kartu ? {
         ...kartu,
         rows: matchingRows,
-        totalIn: matchingRows.reduce((sum, row) => sum + row.qtyIn, 0),
-        totalOut: matchingRows.reduce((sum, row) => sum + row.qtyOut, 0),
+        totalIn: roundQty(matchingRows.reduce((sum, row) => sum + row.qtyIn, 0)),
+        totalOut: roundQty(matchingRows.reduce((sum, row) => sum + row.qtyOut, 0)),
     } : null;
     const exportData = periodData ? { ...periodData, entries: matchingRows } : null;
     const exportDisabled = loading || !!error || !exportData || !filteredKartu;
     const sampaiSekarang = rentangTerbalik || !endDate || endDate >= todayIso();
-    const tidakSinkron = data && kartu && sampaiSekarang ? kartu.saldoAkhir !== data.item.stock : false;
+    const tidakSinkron = data && kartu && sampaiSekarang ? Math.abs(kartu.saldoAkhir - data.item.stock) >= 1e-9 : false;
 
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
