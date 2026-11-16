@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { ChevronRight } from "lucide-react";
 import type { OutboundRow } from "@/domains/inventory/types";
 import { displayDate } from "@/domains/inventory/date";
+import { roundQty } from "@/shared/lib/input";
 import SortableTh, { type Sort } from "@/shared/components/SortableTh";
 import { BadgeDibatalkan } from "../BatalkanTransaksi";
 import { AksiPengajuan, TombolEdit } from "./AksiEdit";
@@ -128,7 +129,7 @@ export default function BarangKeluarTable({
               const terbuka = expanded.has(trx.id);
               const banyak = trx.lines.length > 1;
               const pertama = trx.lines[0];
-              const jumlah = trx.lines.reduce((sum, l) => sum + l.qty, 0);
+              const jumlah = roundQty(trx.lines.reduce((sum, l) => sum + l.qty, 0));
               // Nama yang bisa diklik membuka pop-up rincian transaksi
               const tombolRincian = (
                 teks: React.ReactNode,
