@@ -32668,7 +32668,8 @@
                         "physicalQty": {
                           "type": "number",
                           "minimum": 0,
-                          "maximum": 1000000
+                          "maximum": 1000000,
+                          "multipleOf": 0.001
                         },
                         "note": {
                           "type": "string",
