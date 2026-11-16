@@ -199,14 +199,58 @@ describe('BarangMasuk create inbound', () => {
     expect(api.calls(BATCH)).toHaveLength(0);
   });
 
-  it('keeps digits only in quantity fields with maxLength 9', async () => {
+  it('accepts comma decimals and rejects invalid characters and excess precision without changing quantities', async () => {
     setup();
     await openBaru();
-    for (const input of screen.getAllByPlaceholderText('0') as HTMLInputElement[]) {
-      fireEvent.change(input, { target: { value: '1e-2.5' } });
-      expect(input.value).toBe('125');
-      expect(input.maxLength).toBe(9);
+    await fillBaru();
+    for (const input of [arrived(), purchased()]) {
+      expect(input.inputMode).toBe('decimal');
+      fireEvent.change(input, { target: { value: '1,125' } });
+      expect(input.value).toBe('1,125');
+      for (const value of ['1e2', '-2', '1.5', '1,2,3', '1,1234']) {
+        fireEvent.change(input, { target: { value } });
+        expect(input.value).toBe('1,125');
+        expect(input.getAttribute('aria-invalid')).toBe('true');
+      }
+      fireEvent.change(input, { target: { value: '0,5' } });
+      expect(input.getAttribute('aria-invalid')).toBe('false');
     }
+  });
+
+  it('previews comma decimals and sends numeric decimal quantities in the batch', async () => {
+    const { api } = setup();
+    await openBaru();
+    await fillBaru();
+    fireEvent.change(arrived(), { target: { value: '0,125' } });
+    fireEvent.change(purchased(), { target: { value: '2,375' } });
+    fireEvent.click(screen.getByText('Simpan'));
+    expect(within(tableRow('BRG-1')).getByText('0,125')).not.toBeNull();
+    expect(within(tableRow('BRG-1')).getByText('2,375')).not.toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Kembali Edit' }));
+    expect(arrived().value).toBe('0,125');
+    fireEvent.click(screen.getByText('Simpan'));
+    confirm();
+    await waitFor(() => expect(api.calls(BATCH)).toHaveLength(1));
+    expect(api.calls(BATCH)[0].body).toMatchObject({ lines: [{ itemId: 1, qtyArrived: 0.125, qtyPurchased: 2.375 }] });
+  });
+
+  it('increments decimals by one and clamps buttons and repeated scans at the arrival limit', async () => {
+    setup();
+    await openBaru();
+    await fillBaru();
+    fireEvent.change(arrived(), { target: { value: '1,125' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Tambah Triplex 1' }));
+    expect(arrived().value).toBe('2,125');
+    fireEvent.click(screen.getByRole('button', { name: 'Kurangi Triplex 1' }));
+    expect(arrived().value).toBe('1,125');
+    fireEvent.change(arrived(), { target: { value: '99999,5' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Tambah Triplex 1' }));
+    expect(arrived().value).toBe('100000');
+    fireEvent.change(arrived(), { target: { value: '99999,5' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Scan Barang' }));
+    scan('BRG-1');
+    expect(arrived().value).toBe('100000');
+    expect((screen.getByRole('button', { name: 'Tambah Triplex 1' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('previews every field before posting one batch with QC PASS and closes on confirmation', async () => {
@@ -323,7 +367,7 @@ describe('BarangMasuk preview', () => {
     await fillBaru();
     fireEvent.change(arrived(), { target: { value } });
     fireEvent.click(screen.getByText('Simpan'));
-    expect(screen.getByRole('alert').textContent).toContain('jumlah kedatangan harus antara 1 dan 100.000.');
+    expect(screen.getByText(`Baris 1 (Triplex 1): ${value === '0' ? 'Harus lebih dari 0.' : 'Maksimal 100.000.'}`)).not.toBeNull();
     expect(screen.queryByRole('dialog', { name: 'PREVIEW BARANG MASUK' })).toBeNull();
     expect(api.calls(BATCH)).toHaveLength(0);
   });
@@ -338,7 +382,7 @@ describe('BarangMasuk preview', () => {
     fireEvent.change(screen.getByLabelText('Tanggal'), { target: { value: '2026-11-12' } });
     fireEvent.change(purchased(), { target: { value: '' } });
     fireEvent.click(screen.getByText('Simpan + Cetak'));
-    expect(screen.getByRole('alert').textContent).toContain('isi jumlah rekap pembelian');
+    expect(screen.getByText(/Baris 1.*Isi jumlah rekap pembelian/)).not.toBeNull();
     expect(screen.queryByRole('dialog', { name: 'PREVIEW BARANG MASUK' })).toBeNull();
     expect(api.calls(BATCH)).toHaveLength(0);
   });
@@ -536,7 +580,7 @@ describe('BarangMasuk multiple materials and suppliers', () => {
     await fillBaru();
     fireEvent.click(screen.getByRole('button', { name: 'Input Manual' }));
     await pickItem('Triplex 1 (BRG-1)', 1);
-    expect(screen.getByRole('alert').textContent).toContain('sudah ada di baris 1');
+    expect(screen.getByText('Barang "Triplex 1" sudah ada di baris 1. Ubah jumlah di baris tersebut.').getAttribute('role')).toBe('alert');
     fireEvent.click(screen.getByRole('button', { name: 'Hapus baris 2' }));
     fireEvent.change(arrived(), { target: { value: '1' } });
     expect((screen.getByRole('button', { name: 'Kurangi Triplex 1' }) as HTMLButtonElement).disabled).toBe(true);
@@ -575,7 +619,7 @@ describe('BarangMasuk multiple materials and suppliers', () => {
     expect(screen.queryByLabelText('Jumlah Sesuai Kedatangan Paku')).toBeNull();
     fireEvent.change(screen.getByLabelText('Hasil scan'), { target: { value: '' } });
     await pickItem('Paku (BRG-3)');
-    expect(screen.getByRole('alert').textContent).toContain('bukan dari supplier yang dipilih');
+    expect(screen.getByText('Barang "Paku" bukan dari supplier yang dipilih.').getAttribute('role')).toBe('alert');
     expect(screen.queryByLabelText('Jumlah Sesuai Kedatangan Paku')).toBeNull();
     expect(api.calls(BATCH)).toHaveLength(0);
   });

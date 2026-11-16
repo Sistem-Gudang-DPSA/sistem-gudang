@@ -1,5 +1,8 @@
 "use client";
 
+import StockNotificationDetail from '@/domains/inventory/components/data-barang/StockNotificationDetail';
+
+import StokMinimumCell from '@/domains/inventory/components/data-barang/StokMinimumCell';
 import { useState } from 'react';
 import { useCan } from '@/domains/auth/user-context';
 import { Plus, Edit2, QrCode } from 'lucide-react';
@@ -104,6 +107,7 @@ export default function DataBarangGudang({
     { label: 'Kode Bawaan', tdClassName: 'px-6 py-4 text-gray-600', cell: (item) => item.externalCode || '-' },
     { label: 'Supplier', sortKey: 'supplierName', cell: (item) => <SupplierCell name={supplierName(item.supplierId)} /> },
     { label: 'Stok', sortKey: 'stock', cell: (item) => <StokCell stock={item.stock} /> },
+    { label: 'Stok Minimum', cell: (item) => <StokMinimumCell item={item} onSaved={reload} /> },
     { label: 'Satuan', tdClassName: 'px-6 py-4 text-gray-600', cell: (item) => item.unit },
     { label: 'Kategori', sortKey: 'category', cell: (item) => <KategoriBadge category={item.category} /> },
     { label: 'Lokasi', sortKey: 'locationCode', cell: (item) => (
@@ -147,6 +151,7 @@ export default function DataBarangGudang({
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <StockNotificationDetail />
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1">Data Barang</h1>

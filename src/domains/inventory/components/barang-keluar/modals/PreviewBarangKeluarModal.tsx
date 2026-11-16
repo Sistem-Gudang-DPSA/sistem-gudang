@@ -69,7 +69,7 @@ export default function PreviewBarangKeluarModal({
                     <td className="px-4 py-2.5 font-medium text-gray-900">{b.name}</td>
                     <td className="px-4 py-2.5 font-mono text-xs text-gray-600">{b.code}</td>
                     <td className="px-4 py-2.5 text-gray-600">{b.unit}</td>
-                    <td className="px-4 py-2.5 text-gray-600">{b.dokubah || "-"}</td>
+                    <td className="px-4 py-2.5 text-gray-600">{b.dokubah.replace(/\./g, ",") || "-"}</td>
                     <td className="px-4 py-2.5 text-right font-bold text-gray-800">{qty}</td>
                     <td className="px-4 py-2.5 text-right text-gray-600">{b.stock}</td>
                     <td className="px-4 py-2.5 text-right font-semibold text-gray-900">{b.stock - qty}</td>

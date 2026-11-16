@@ -1,5 +1,8 @@
 "use client";
 
+import StockNotificationDetail from '@/domains/inventory/components/data-barang/StockNotificationDetail';
+
+import StokMinimumCell from '@/domains/inventory/components/data-barang/StokMinimumCell';
 import React, { useEffect, useState } from 'react';
 import { Search, Plus, Filter } from 'lucide-react';
 import { listItems, listLocations, updateItem } from '@/domains/inventory/api';
@@ -109,6 +112,7 @@ export default function DataBarangPurchasing() {
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <StockNotificationDetail />
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1">Data Barang</h1>
@@ -175,6 +179,7 @@ export default function DataBarangPurchasing() {
                 <th scope="col" className="px-6 py-4">Kode Bawaan</th>
                 <SortableTh label="Supplier" sortKey="supplierName" sort={sort} onSort={toggle} />
                 <SortableTh label="Stok" sortKey="stock" sort={sort} onSort={toggle} />
+                <th scope="col" className="px-6 py-4">Stok Minimum</th>
                 <th scope="col" className="px-6 py-4">Satuan</th>
                 <SortableTh label="Kategori" sortKey="category" sort={sort} onSort={toggle} />
                 <SortableTh label="Harga (Rp)" sortKey="price" sort={sort} onSort={toggle} align="right" />
@@ -185,10 +190,10 @@ export default function DataBarangPurchasing() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading && (
-                <tr><td colSpan={12} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
+                <tr><td colSpan={14} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
               )}
               {!loading && dataBarang.length === 0 && (
-                <tr><td colSpan={12} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
+                <tr><td colSpan={14} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
               )}
               {!loading && dataBarang.map((item, index) => (
                 <tr key={item.id} className="hover:bg-purple-50/30 transition-colors group">
@@ -224,6 +229,7 @@ export default function DataBarangPurchasing() {
                          {item.stock}
                        </span>
                   </td>
+                  <td className="px-6 py-4"><StokMinimumCell item={item} onSaved={reload} /></td>
 
                   {/* Satuan */}
                   <td className="px-6 py-4 text-gray-600">

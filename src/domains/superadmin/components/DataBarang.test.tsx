@@ -6,6 +6,7 @@ import type { AuthUser } from '@/domains/auth/types';
 import DataBarangGudang from './DataBarang';
 
 vi.mock('next/navigation', () => ({
+  useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
   useParams: () => ({}),
   usePathname: () => '/superadmin/barang',
