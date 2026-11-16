@@ -741,6 +741,9 @@ describe('BarangMasuk search', () => {
     expect(api.calls('GET /api/v1/inbound').length).toBe(before);
     await waitFor(() => expect(lastList(api).get('search')).toBe('Tri'));
     expect(api.calls('GET /api/v1/inbound').length).toBe(before + 1);
+  });
+});
+
 describe('BarangMasuk selection', () => {
   it('clears the checked rows when the filter changes', async () => {
     setup();
