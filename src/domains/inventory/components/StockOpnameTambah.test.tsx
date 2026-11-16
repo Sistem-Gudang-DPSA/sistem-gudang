@@ -110,12 +110,31 @@ describe("StockOpnameTambah", () => {
     expect(api.calls("POST /api/v1/stock-opname").length).toBe(0);
   });
 
-  it("input restrictions: digits only, maxLength 9 and 255", async () => {
+  it("input restrictions: decimal with comma or dot, max 3 decimals, maxLength 11 and 255", async () => {
     await setup();
-    fireEvent.change(qtys()[0], { target: { value: "-1e2.5" } });
-    expect(qtys()[0].value).toBe("125");
-    expect(qtys()[0].maxLength).toBe(9);
+    fireEvent.change(qtys()[0], { target: { value: "-1e2,5678" } });
+    expect(qtys()[0].value).toBe("12,567");
+    fireEvent.change(qtys()[0], { target: { value: "3.1234" } });
+    expect(qtys()[0].value).toBe("3.123");
+    expect(qtys()[0].maxLength).toBe(11);
     expect(notes()[0].maxLength).toBe(255);
+  });
+
+  it("sends 31,5 as physicalQty 31.5", async () => {
+    const { api } = await setup({ "POST /api/v1/stock-opname": { id: 1 } });
+    fireEvent.change(qtys()[0], { target: { value: "31,5" } });
+    fireEvent.click(screen.getByText("Simpan"));
+    await waitFor(() => expect(api.calls("POST /api/v1/stock-opname").length).toBe(1));
+    expect((api.calls("POST /api/v1/stock-opname")[0].body as { lines: unknown }).lines).toEqual([{ itemId: 1, physicalQty: 31.5 }]);
+  });
+
+  it("rejects a count above 1.000.000 with a message and does not post", async () => {
+    const { api, confirmSpy } = await setup();
+    fireEvent.change(qtys()[0], { target: { value: "1000001" } });
+    fireEvent.click(screen.getByText("Simpan"));
+    expect(screen.getByText(/0 sampai 1\.000\.000/)).not.toBeNull();
+    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(api.calls("POST /api/v1/stock-opname").length).toBe(0);
   });
 
   it("does not post when confirm is cancelled", async () => {
@@ -325,6 +344,46 @@ describe("scan mode", () => {
       (api.calls("POST /api/v1/stock-opname")[0].body as { lines: unknown })
         .lines,
     ).toEqual([{ itemId: 1, physicalQty: 9 }]);
+  });
+
+  it("a scanned row from another page stays visible, can be emptied and then is not posted", async () => {
+    const { api } = await setup({ ...routes, "POST /api/v1/stock-opname": { id: 1 } });
+    await openScanner();
+    scanCode("LBR001");
+    await screen.findByText("Lem Kayu", { selector: "dd" });
+    fireEvent.change(screen.getByLabelText("Jumlah fisik"), { target: { value: "3,5" } });
+    fireEvent.click(screen.getByText("Masukkan ke opname"));
+    expect(screen.getByText("Lem Kayu", { selector: "span" })).not.toBeNull();
+    expect(qtys().length).toBe(3);
+    fireEvent.change(qtys()[2], { target: { value: "" } });
+    expect(qtys().length).toBe(2);
+    fireEvent.change(qtys()[0], { target: { value: "1" } });
+    fireEvent.click(screen.getByText("Simpan"));
+    await waitFor(() => expect(api.calls("POST /api/v1/stock-opname").length).toBe(1));
+    expect((api.calls("POST /api/v1/stock-opname")[0].body as { lines: unknown }).lines).toEqual([{ itemId: 1, physicalQty: 1 }]);
+  });
+
+  it("when two scans answer out of order, the last scan wins", async () => {
+    await setup({
+      ...routes,
+      "GET /api/v1/items/by-code/SLOW": { ...lem, id: 5, name: "Lama" },
+    });
+    // hold back the SLOW answer until the second scan has been answered
+    const real = globalThis.fetch;
+    let release!: () => void;
+    vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) =>
+      String(input).includes("SLOW")
+        ? new Promise((res) => { release = () => res(real(input, init)); })
+        : real(input, init));
+    await openScanner();
+    scanCode("SLOW");
+    fireEvent.click(await screen.findByText("Scan lagi"));
+    scanCode("LBR001");
+    await screen.findByText("Lem Kayu", { selector: "dd" });
+    release();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.queryByText("Lama", { selector: "dd" })).toBeNull();
+    expect(screen.getByText("Lem Kayu", { selector: "dd" })).not.toBeNull();
   });
 
   it("unknown code shows the rejected message and no card", async () => {
