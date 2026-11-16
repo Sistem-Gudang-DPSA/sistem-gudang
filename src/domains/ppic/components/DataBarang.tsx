@@ -1,5 +1,8 @@
 "use client";
 
+import StockNotificationDetail from '@/domains/inventory/components/data-barang/StockNotificationDetail';
+
+import StokMinimumCell from '@/domains/inventory/components/data-barang/StokMinimumCell';
 import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import { useCan } from '@/domains/auth/user-context';
@@ -124,6 +127,7 @@ export default function DataBarangPPIC() {
     { label: 'Supplier', sortKey: 'supplierName', cell: (item) => <SupplierCell name={supplierName(item.supplierId)} /> },
     { label: 'Stok & Satuan', sortKey: 'stock' },
     { label: 'Stok', sortKey: 'stock', cell: (item) => <StokCell stock={item.stock} /> },
+    { label: 'Stok Minimum', cell: (item) => <StokMinimumCell item={item} onSaved={reload} /> },
     { label: 'Satuan', tdClassName: 'px-6 py-4 text-gray-600', cell: (item) => item.unit },
     { label: 'Kategori', sortKey: 'category', cell: (item) => <KategoriBadge category={item.category} /> },
     { label: 'Harga (Rp)', sortKey: 'price', align: 'right', tdClassName: 'px-6 py-4 text-right font-mono text-gray-700', cell: (item) => item.price },
@@ -159,6 +163,7 @@ export default function DataBarangPPIC() {
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <StockNotificationDetail />
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1">Data Barang</h1>

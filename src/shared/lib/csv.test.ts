@@ -5,6 +5,11 @@ it('quotes every field, doubles quotes, keeps commas and newlines inside', () =>
   expect(toCsv([['a', 'b,"c"', 1, null], ['x\ny', undefined, 0, '']])).toBe('"a","b,""c""","1",""\r\n"x\ny","","0",""');
 });
 
+it('neutralises leading formula characters in text but keeps numbers, phone-like values and a lone dash', () => {
+  expect(toCsv([['=SUM(A1)', '@cmd', '+A1', '-A1+1', '-x', '-', 'ok', -5]])).toBe(`"'=SUM(A1)","'@cmd","'+A1","'-A1+1","'-x","-","ok","-5"`);
+  expect(toCsv([['+62 812-3456', '-5', '1.234,5', '(021) 555-1234']])).toBe('"+62 812-3456","-5","1.234,5","(021) 555-1234"');
+});
+
 // jsdom has no URL.createObjectURL; stub it for this file only.
 const urlApi = URL as unknown as { createObjectURL?: unknown; revokeObjectURL?: unknown };
 afterEach(() => {

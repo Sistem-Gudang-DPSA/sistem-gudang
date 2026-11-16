@@ -12,7 +12,7 @@ const note = (id: number, over = {}) => ({
   title: `Judul ${id}`,
   body: `Isi ${id}`,
   link: `/dashboard/x/${id}`,
-  readAt: null,
+  readAt: null as string | null,
   createdAt: "2026-11-09T02:00:00Z",
   ...over,
 });
@@ -29,7 +29,11 @@ const setup = () =>
     },
     "POST /api/v1/notifications/1/read": note(1, { readAt: "2026-11-09T03:00:00Z" }),
     "POST /api/v1/notifications/3/read": note(3, { readAt: "2026-11-09T03:00:00Z" }),
-    "POST /api/v1/notifications/read-all": { updated: 2 },
+    "POST /api/v1/notifications/read-all": () => {
+      unread = 0;
+      rows = rows.map((row) => ({ ...row, readAt: "2026-11-16T03:00:00Z" }));
+      return { updated: 2 };
+    },
   });
 
 beforeEach(() => {
@@ -39,6 +43,49 @@ beforeEach(() => {
 });
 
 describe("NotificationBell", () => {
+  it("requests only three recent notifications and links Show all to the full page", async () => {
+    rows = [note(4), note(3), note(2), note(1)];
+    const api = setup();
+    render(<NotificationBell />);
+    fireEvent.click(screen.getByRole("button", { name: "Notifikasi" }));
+    await screen.findByText("Judul 4");
+    expect(screen.getByText("Judul 2")).toBeTruthy();
+    expect(screen.queryByText("Judul 1")).toBeNull();
+    expect(api.calls("GET /api/v1/notifications").at(-1)?.query.get("pageSize")).toBe("3");
+    const showAll = screen.getByRole("link", { name: "Show all" });
+    expect(showAll.getAttribute("href")).toBe("/dashboard/notifications");
+    fireEvent.click(showAll);
+    expect(screen.getByRole("button", { name: "Notifikasi" }).getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("refreshes its badge after a notification is read on the full page", async () => {
+    setup();
+    render(<NotificationBell />);
+    expect(await screen.findByText("2")).toBeTruthy();
+    unread = 0;
+    fireEvent(window, new Event("notifications-changed"));
+    await waitFor(() => expect(screen.queryByText("2")).toBeNull());
+  });
+
+  it("shows low stock with its unit and opens the user's inventory link", async () => {
+    rows = [note(1, { type: "LOW_STOCK", title: "Stok menipis: Triplex 2 mm", body: "Sisa stok Triplex 2 mm: 10 lembar. Segera ajukan pembelian.", link: "/dashboard/gudang/master/data-barang" })];
+    setup();
+    render(<NotificationBell />);
+    fireEvent.click(screen.getByRole("button", { name: "Notifikasi" }));
+    expect(await screen.findByText("Sisa stok Triplex 2 mm: 10 lembar. Segera ajukan pembelian.")).toBeTruthy();
+    fireEvent.click(screen.getByText("Stok menipis: Triplex 2 mm"));
+    expect(router.push).toHaveBeenCalledWith("/dashboard/gudang/master/data-barang?itemId=1");
+  });
+
+  it("refreshes when a stock threshold is changed", async () => {
+    setup();
+    render(<NotificationBell />);
+    expect(await screen.findByText("2")).toBeTruthy();
+    unread = 0;
+    fireEvent(window, new Event("stock-notifications-changed"));
+    await waitFor(() => expect(screen.queryByText("2")).toBeNull());
+  });
+
   it("shows the unread count, capped at 9+", async () => {
     setup();
     render(<NotificationBell />);

@@ -111,3 +111,14 @@ Route dan menu tetap bernama `gudang`. URL `/dashboard/gudang`, folder
 Gudang di layar tidak berubah. Dokumen lama yang menyebut
 `src/domains/gudang` sudah disesuaikan ke `src/domains/inventory`.
 
+## Gudang Barang Jadi Memakai Layar Gudang
+
+Divisi Gudang Barang Jadi (`/dashboard/gudang-barang-jadi`) memakai ulang
+layar Gudang dari `src/domains/inventory`. File `page.tsx` di
+`src/app/dashboard/gudang-barang-jadi` hanya me-re-export komponen yang sama,
+termasuk `laporan/dokubah/detail-dokubah/[id]` dan
+`transaksi/stock-opname/tambah`. Link di dalam layar mengikuti divisi yang
+sedang dibuka lewat `gudangBasePath(pathname)` (`src/domains/inventory/base-path.ts`),
+jadi pengguna GBJ tidak dilempar ke `/dashboard/gudang`. Kartu Stok belum
+punya route GBJ, sehingga link di `KartuStok` dan `DetailKartuStok` tetap
+menuju `/dashboard/gudang`.

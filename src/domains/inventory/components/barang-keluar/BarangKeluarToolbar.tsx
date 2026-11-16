@@ -1,4 +1,5 @@
-import { FileUp, Filter, Plus, Printer, Search } from "lucide-react";
+import Modal from "@/shared/components/Modal";
+import { ArrowRight, ClipboardList, FileUp, Filter, Plus, Printer, Search, Warehouse } from "lucide-react";
 import DateFilter from "@/shared/components/DateFilter";
 import { orangeButtonClass } from "./styles";
 import type { ModeKeluar } from "./types";
@@ -10,6 +11,8 @@ type Props = {
   printDisabled: boolean;
   onPrint: () => void;
   canCreate: boolean;
+  pilihJenis: boolean;
+  onPilihJenis: (open: boolean) => void;
   onOpenForm: (mode: ModeKeluar) => void;
   canExport: boolean;
   downloading: boolean;
@@ -27,6 +30,10 @@ type Props = {
 };
 
 export default function BarangKeluarToolbar(p: Props) {
+  const openForm = (mode: ModeKeluar) => {
+    p.onPilihJenis(false);
+    p.onOpenForm(mode);
+  };
   const activeDateFilters = [p.day, p.month, p.year].filter(Boolean).length;
   return (
     <>
@@ -53,17 +60,10 @@ export default function BarangKeluarToolbar(p: Props) {
             <span>{p.printing ? "Menyiapkan cetak..." : "Print"}</span>
           </button>
           {p.canCreate && (
-            <>
-              <button type="button" onClick={() => p.onOpenForm("spk")} className={orangeButtonClass}>
-                <Plus className="w-4 h-4" />
-                <span>Barang Keluar SPK</span>
-              </button>
-
-              <button type="button" onClick={() => p.onOpenForm("stok")} className={orangeButtonClass}>
-                <Plus className="w-4 h-4" />
-                <span>Barang Keluar Stok / Internal</span>
-              </button>
-            </>
+            <button type="button" onClick={() => p.onPilihJenis(true)} className={orangeButtonClass}>
+              <Plus className="w-4 h-4" />
+              <span>Barang Keluar</span>
+            </button>
           )}
 
           {p.canExport && (
@@ -87,6 +87,36 @@ export default function BarangKeluarToolbar(p: Props) {
           </button>
         </div>
       </div>
+
+      {p.canCreate && p.pilihJenis && (
+        <Modal title={<span className="normal-case text-lg tracking-normal">Pilih Jenis Barang Keluar</span>} onClose={() => p.onPilihJenis(false)} size="md">
+          <p className="-mt-3 mb-5 text-sm text-gray-500">Pilih jenis transaksi yang ingin dicatat.</p>
+          <div className="flex flex-col gap-3">
+            <button type="button" aria-label="Barang Keluar SPK" onClick={() => openForm("spk")}
+              className="group flex w-full items-center gap-4 rounded-xl border border-gray-200 bg-white p-4 text-left transition-colors hover:border-orange-300 hover:bg-orange-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-600">
+                <ClipboardList aria-hidden="true" className="h-6 w-6" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-gray-900">Barang Keluar SPK</span>
+                <span className="mt-1 block text-xs leading-relaxed text-gray-500">Untuk kebutuhan produksi berdasarkan SPK.</span>
+              </span>
+              <ArrowRight aria-hidden="true" className="h-4 w-4 shrink-0 text-gray-300 transition-colors group-hover:text-orange-500" />
+            </button>
+            <button type="button" aria-label="Barang Keluar Stok / Internal" onClick={() => openForm("stok")}
+              className="group flex w-full items-center gap-4 rounded-xl border border-gray-200 bg-white p-4 text-left transition-colors hover:border-orange-300 hover:bg-orange-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+                <Warehouse aria-hidden="true" className="h-6 w-6" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-gray-900">Barang Keluar Stok / Internal</span>
+                <span className="mt-1 block text-xs leading-relaxed text-gray-500">Untuk stok atau kebutuhan internal.</span>
+              </span>
+              <ArrowRight aria-hidden="true" className="h-4 w-4 shrink-0 text-gray-300 transition-colors group-hover:text-orange-500" />
+            </button>
+          </div>
+        </Modal>
+      )}
 
       {p.showFilter && (
         <DateFilter

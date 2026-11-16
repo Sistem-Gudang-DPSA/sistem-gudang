@@ -48,6 +48,16 @@ Tes frontend mencakup batas waktu tepat 24 jam, pengajuan, persetujuan saat tab 
 
 ## Barang keluar stok/internal
 
-Tombol dan formulir **Barang Keluar Stok / Internal** menerima **ID Stok / Internal** serta **Nama Item** sebagai input teks manual yang dimulai kosong. Mengubah ID tidak menghapus nama item yang sudah diketik. Formulir SPK tetap memakai pilihan client, SPK dan produk dari tracking. Bahan yang dikeluarkan tetap terhubung ke master barang agar jumlah stok dapat diperiksa dan dikurangi sesuai barangnya.
+Tombol **Barang Keluar** membuka pilihan **Barang Keluar SPK** dan **Barang Keluar Stok / Internal**. Memilih salah satu menutup pilihan dan membuka form sesuai jenisnya. Panah di kiri atas kedua form kembali ke pilihan jenis transaksi tanpa menyimpan. Memilih jenis transaksi membuka form baru. Panah dinonaktifkan saat menyimpan. Pilihan dapat ditutup dengan tombol Tutup atau Escape. Tombol Barang Keluar hanya tampil untuk pengguna dengan permission `outbound.create`.
+
+Formulir **Barang Keluar Stok / Internal** menerima **ID Stok / Internal** serta **Nama Item** sebagai input teks manual yang dimulai kosong. Mengubah ID tidak menghapus nama item yang sudah diketik. Formulir SPK tetap memakai pilihan client, SPK dan produk dari tracking. Bahan yang dikeluarkan tetap terhubung ke master barang agar jumlah stok dapat diperiksa dan dikurangi sesuai barangnya.
 
 Transaksi stok/internal memakai `recipientType: INTERNAL`, ID manual disimpan pada field `spk` yang sudah ada, dan `clientName` ditetapkan server sebagai `Internal`. Tidak memerlukan migrasi tambahan. Preview dan cetak menampilkan ID stok/internal. Aturan pengajuan edit 24 jam, persetujuan superadmin, satu kali edit dan riwayat perubahan tetap berlaku. Form edit untuk transaksi internal juga memakai input ID manual. Transaksi internal tidak dihitung sebagai realisasi SPK, termasuk jika ID manual kebetulan sama dengan nomor SPK tracking.
+
+Kolom **Dokubah** pada form Barang Keluar SPK dan stok/internal bersifat
+opsional dan menerima angka desimal dengan koma, maksimal 3 angka desimal.
+Jika diisi, jumlah harus lebih dari 0 dan maksimal 999999999. Input memakai
+validasi karakter yang sama dengan Pengambilan; nilai yang tidak valid
+menghalangi Preview dengan pesan singkat. Preview dan cetak menampilkan
+koma desimal. Dokubah hanya digunakan pada preview dan cetak langsung
+setelah simpan; field ini belum disimpan dalam payload API Barang Keluar.

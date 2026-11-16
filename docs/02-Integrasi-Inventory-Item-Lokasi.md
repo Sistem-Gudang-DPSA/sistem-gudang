@@ -99,7 +99,7 @@ sebelumnya jadi catatan "Belum Dikerjakan": `PATCH /items/{id}/stock`
 untuk mengubah stok lewat delta bertanda plus/minus dengan alasan wajib,
 dan field `createdAt`/`updatedAt` di response Item. Sudah disambungkan:
 
-- `src/domains/inventory/api.ts` — fungsi baru `adjustItemStock(id, { delta, reason })`.
+- `src/domains/inventory/api.ts` — fungsi baru `adjustItemStock(id, { delta, reason }, idempotencyKey?)`. Header `Idempotency-Key` dikirim bila diisi; layar Data Barang Superadmin membuat satu key per penyesuaian, memakainya ulang saat retry (isi sama), dan membuat key baru untuk penyesuaian berikutnya.
 - `src/domains/inventory/types.ts` — `Item` sekarang punya `createdAt` dan `updatedAt`.
 - `src/domains/inventory/components/DataBarang.tsx` — tombol "Stok" baru di kolom Aksi, membuka modal untuk input perubahan jumlah dan alasan, lalu memanggil `adjustItemStock`.
 
