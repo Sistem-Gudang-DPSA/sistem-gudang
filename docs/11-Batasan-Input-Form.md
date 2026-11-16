@@ -14,6 +14,10 @@ terlihat setelah dikirim.
   `digitsOnly` dari `src/shared/lib/input.ts`, dengan batas 9 digit
   supaya aman dari batas integer backend. Input ini hanya menerima angka
   dan menampilkan keypad numerik di ponsel.
+- Jumlah fisik di Tambah Stock Opname memakai `PHYSICAL_QTY_INPUT` dan
+  `decimalOnlyMax(value, 3)`: koma atau titik sebagai pemisah desimal,
+  maksimal 3 angka di belakangnya. `physicalQtyValid` menolak nilai di atas
+  1.000.000 saat Simpan, sesuai `multipleOf 0.001` di backend.
 - Field `delta` di penyesuaian stok boleh diawali satu tanda minus.
 - Field teks memakai `maxLength` sesuai batas di OpenAPI, misalnya nama 191,
   kode 20, catatan 500. Kotak pencarian dibatasi 100.
