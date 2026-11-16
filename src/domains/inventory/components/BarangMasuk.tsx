@@ -100,7 +100,6 @@ export default function BarangMasukGudang() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const selection = useSelection<InboundRow>();
   const [printing, setPrinting] = useState(false);
   const [actionError, setActionError] = useState("");
 
@@ -108,6 +107,7 @@ export default function BarangMasukGudang() {
 
   const filterKey = JSON.stringify([searchQuery, filterDay, filterMonth, filterYear, sortParams]);
   const [page, setPage] = usePage(filterKey);
+  const selection = useSelection<InboundRow>(filterKey);
   const { data: result, loading, error, reload } = useApiData(
     () => listInbound({ page, pageSize: PAGE_SIZE, search: searchQuery || undefined, ...dateRange, ...sortParams }),
     `${filterKey}|${page}`,

@@ -730,3 +730,15 @@ describe('permissions', () => {
     expect(screen.getByText('Barang Baru')).not.toBeNull();
   });
 });
+
+describe('BarangMasuk selection', () => {
+  it('clears the checked rows when the filter changes', async () => {
+    setup();
+    await screen.findByText('Triplex 1');
+    const box = () => screen.getByLabelText('Centang Triplex 1') as HTMLInputElement;
+    fireEvent.click(box());
+    expect(box().checked).toBe(true);
+    fireEvent.change(screen.getByPlaceholderText(/Cari kode/), { target: { value: 'Triplex' } });
+    await waitFor(() => expect(box().checked).toBe(false));
+  });
+});
