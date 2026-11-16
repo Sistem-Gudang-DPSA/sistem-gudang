@@ -23,6 +23,8 @@ type Props<T> = {
   onSave: (rows: T[]) => Promise<void>;
   onSuccess?: () => void;
   saveLabel?: string;
+  // Jumlah baris data maksimal (tanpa baris kosong); file yang melebihinya ditolak
+  maxRows?: number;
 };
 
 type XLSXModule = typeof import('xlsx');
@@ -45,6 +47,7 @@ export function ImportExcelButton<T>({
   onSave,
   onSuccess,
   saveLabel = 'Simpan',
+  maxRows,
 }: Props<T>) {
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -92,18 +95,25 @@ export function ImportExcelButton<T>({
       const book = XLSX.read(buffer, { type: 'array', cellDates: true });
       const sheet = book.Sheets[book.SheetNames[0]];
       // Baris yang kolom templatenya kosong semua (mis. hanya berisi daftar referensi) dilewati
-      const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' })
-        .filter((r) => templateHeaders.some((h) => String(r[h] ?? '').trim() !== ''));
+      // Nomor baris dihitung dari baris Excel sebenarnya (blankrows: true agar baris kosong tetap menggeser nomor), sebelum baris kosong dibuang
+      const firstRow = sheet['!ref'] ? XLSX.utils.decode_range(sheet['!ref']).s.r + 1 : 1;
+      const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '', blankrows: true })
+        .map((r, i) => ({ r, rowNumber: firstRow + 1 + i }))
+        .filter(({ r }) => templateHeaders.some((h) => String(r[h] ?? '').trim() !== ''));
 
       if (raw.length === 0) {
         setErrors(['File kosong atau tidak ada data.']);
         return;
       }
 
+      if (maxRows && raw.length > maxRows) {
+        setErrors([`Maksimal ${maxRows.toLocaleString('id-ID')} baris per import (file berisi ${raw.length.toLocaleString('id-ID')} baris).`]);
+        return;
+      }
+
       const parsed: ParsedRow<T>[] = [];
       const errs: string[] = [];
-      raw.forEach((r, i) => {
-        const rowNumber = i + 2; // baris 1 = header
+      raw.forEach(({ r, rowNumber }) => {
         try {
           parsed.push({ rowNumber, data: parseRow(r, rowNumber) });
         } catch (e) {
