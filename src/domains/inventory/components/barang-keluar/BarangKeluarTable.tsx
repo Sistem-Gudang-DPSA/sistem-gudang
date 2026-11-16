@@ -14,7 +14,7 @@ type Props = {
   error: string;
   sort: Sort;
   onSort: (key: string) => void;
-  selected: Map<number, OutboundRow>;
+  isSelected: (id: number) => boolean;
   allChecked: boolean;
   onToggle: (trx: OutboundRow) => void;
   onToggleAll: () => void;
@@ -28,7 +28,7 @@ type Props = {
 };
 
 export default function BarangKeluarTable({
-  rows, page, pageSize, loading, error, sort, onSort, selected, allChecked, onToggle, onToggleAll,
+  rows, page, pageSize, loading, error, sort, onSort, isSelected, allChecked, onToggle, onToggleAll,
   canUpdate, userId, requesting, onRincian, onEdit, onAjukan, onRiwayat,
 }: Props) {
   // Transaksi yang sedang disorot kursor; semua barisnya ikut disorot
@@ -230,7 +230,7 @@ export default function BarangKeluarTable({
                       </div>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <input type="checkbox" aria-label={`Centang transaksi ${trx.noTransaksi ?? trx.id}`} checked={selected.has(trx.id)} onChange={() => onToggle(trx)} className="w-4 h-4 accent-[#FF8A00] cursor-pointer" />
+                      <input type="checkbox" aria-label={`Centang transaksi ${trx.noTransaksi ?? trx.id}`} checked={isSelected(trx.id)} onChange={() => onToggle(trx)} className="w-4 h-4 accent-[#FF8A00] cursor-pointer" />
                     </td>
                   </tr>
 
