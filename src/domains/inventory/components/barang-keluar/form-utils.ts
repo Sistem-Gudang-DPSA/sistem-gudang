@@ -3,7 +3,7 @@ import { todayIso } from "@/domains/inventory/date";
 import { randomId } from "@/shared/lib/random-id";
 import type { BarisForm, FormBarangKeluar, ModeKeluar } from "./types";
 
-export const MAX_JUMLAH = 999_999_999;
+export const MAX_JUMLAH = 1_000_000;
 export const JUMLAH_INPUT = { type: "text", inputMode: "decimal", autoComplete: "off" } as const;
 export const inputJumlah = (value: string) => value.replace(/,/g, ".");
 export const jumlahValid = (value: string) =>
@@ -14,7 +14,7 @@ export function peringatanDokubah(value: string): string {
   if (!value) return "";
   if (/^\d*\.$/.test(value)) return "Lengkapi angka desimal.";
   if (Number(value) <= 0) return "Harus lebih dari 0.";
-  if (Number(value) > MAX_JUMLAH) return "Maksimal 999.999.999.";
+  if (Number(value) > MAX_JUMLAH) return "Maksimal 1.000.000.";
   return jumlahValid(value) ? "" : "Maksimal 3 angka desimal.";
 }
 
@@ -81,7 +81,7 @@ export function validasiForm(
   const terisi = barisTerisi(baris);
   if (terisi.length === 0) return "Scan atau pilih minimal satu barang yang keluar.";
   if (terisi.some((b) => !jumlahValid(b.qty)))
-    return "Jumlah pengambilan harus lebih dari 0, maksimal 999999999, dengan maksimal 3 angka di belakang koma.";
+    return "Jumlah pengambilan harus lebih dari 0, maksimal 1000000, dengan maksimal 3 angka di belakang koma.";
   if (terisi.some((b) => !!peringatanDokubah(b.dokubah)))
     return "Periksa jumlah Dokubah yang ditandai.";
   if (new Set(terisi.map((b) => b.itemId)).size !== terisi.length)
