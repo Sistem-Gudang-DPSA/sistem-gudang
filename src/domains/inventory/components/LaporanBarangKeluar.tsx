@@ -120,7 +120,7 @@ export default function LaporanBarangKeluar() {
                 <p class="meta">Periode: ${escapeHtml(periodeText)} &nbsp;|&nbsp; Penerima: ${escapeHtml(penerimaText)}${searchQuery ? ` &nbsp;|&nbsp; Pencarian: ${escapeHtml(searchQuery)}` : ''
             }</p>
                 <p class="summary">
-                <span><b>Total:</b> ${totalTransaksi.toLocaleString('id-ID')} Transaksi</span>
+                <span><b>Total:</b> ${rows.length.toLocaleString('id-ID')} Transaksi / ${totalQty.toLocaleString('id-ID')} Qty</span>
                 </p>
                 <table>
                 <thead>
@@ -145,9 +145,10 @@ export default function LaporanBarangKeluar() {
     };
 
     const rows = report?.rows ?? [];
-    // The API splits the count per warehouse; only Gudang Bahan Baku exists so far, so show the total.
-    const totalTransaksi = Object.values(report?.summary ?? {}).reduce((sum, n) => sum + n, 0);
+    // report.summary ignores the recipient filter, report.total follows every filter, so the card uses total.
+    const totalTransaksi = report?.total ?? 0;
     // The table shows one row per item line, the API returns one row per transaction.
+    const totalQty = rows.reduce((sum, trx) => sum + trx.lines.reduce((s, l) => s + l.qty, 0), 0);
     const tableRows = rows.flatMap((trx, trxIndex) =>
         trx.lines.map((line, lineIndex) => ({
             trx,
