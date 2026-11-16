@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import PpicEditPage from '@/app/dashboard/ppic/transaksi/permintaan-pembelian/[id]/edit/page';
 import GudangEditPage from '@/app/dashboard/gudang/transaksi/permintaan-pembelian/[id]/edit/page';
 import { fail, installFakeApi, paged } from '@/test/fake-api';
-import { withUser } from './as-user';
+import { withUser } from '@/test/as-user';
 
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock('next/navigation', () => ({

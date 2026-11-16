@@ -20,7 +20,7 @@ import Pagination from '@/shared/components/Pagination';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import ItemPhoto from '@/domains/inventory/components/ItemPhoto';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
-import BarangFilterPanel, { countActiveFilters, emptyBarangFilters } from '@/domains/inventory/components/BarangFilterPanel';
+import BarangFilterPanel, { countActiveFilters, emptyBarangFilters, toItemFilterParams } from '@/domains/inventory/components/BarangFilterPanel';
 
 export default function DataBarangPurchasing() {
   // PUT /items/:id needs item.update, and changing the price also needs item.set-price.
@@ -44,15 +44,17 @@ export default function DataBarangPurchasing() {
 
   const [searchTerm, setSearchTerm] = useState('');
 
-  const [page, setPage] = usePage(`${searchTerm}|${JSON.stringify(sortParams)}`);
+  const filterKey = `${searchTerm}|${JSON.stringify(filters)}|${JSON.stringify(sortParams)}`;
+  const [page, setPage] = usePage(filterKey);
   const { data: loaded, loading, error: loadError, reload } = useApiData(
-    () => listItems({ search: searchTerm || undefined, page, pageSize: 20, ...sortParams }),
-    `${searchTerm}|${page}|${JSON.stringify(sortParams)}`,
+    () => listItems({ search: searchTerm || undefined, page, pageSize: 20, ...toItemFilterParams(filters), ...sortParams }),
+    `${filterKey}|${page}`,
     "Gagal memuat data barang.",
   );
   const dataBarang = loaded?.rows ?? [];
   useClampPage(page, loaded?.total ?? 0, 20, setPage);
-  const error = loadError;
+  const [exportError, setExportError] = useState('');
+  const error = loadError || exportError;
 
   useEffect(() => {
     fetchAllPages((page, pageSize) => listSuppliers({ page, pageSize })).then(setSuppliers).catch(() => {});
@@ -88,10 +90,17 @@ export default function DataBarangPurchasing() {
     }
   };
 
-  const handleExportCSV = () => {
-    const rows: unknown[][] = [['No', 'Kode Barang', 'Kode Bawaan', 'Nama Barang', 'Supplier', 'Jumlah Stok', 'Satuan', 'Kategori', 'Harga', 'Lokasi']];
-    dataBarang.forEach((item, index) => rows.push([(page - 1) * 20 + index + 1, item.code ?? '-', item.externalCode ?? '-', item.name, supplierName(item.supplierId), item.stock, item.unit, item.category, item.price, locationCode(item.locationId)]));
-    downloadCsv(`Data_Barang_Purchasing_halaman-${page}.csv`, rows);
+  // Semua barang sesuai pencarian/filter aktif, bukan hanya halaman yang tampil
+  const handleExportCSV = async () => {
+    setExportError('');
+    try {
+      const all = await fetchAllPages((p) => listItems({ page: p, pageSize: 100, search: searchTerm || undefined, ...toItemFilterParams(filters), ...sortParams }));
+      const rows: unknown[][] = [['No', 'Kode Barang', 'Kode Bawaan', 'Nama Barang', 'Supplier', 'Jumlah Stok', 'Satuan', 'Kategori', 'Harga', 'Lokasi']];
+      all.forEach((item, index) => rows.push([index + 1, item.code ?? '-', item.externalCode ?? '-', item.name, supplierName(item.supplierId), item.stock, item.unit, item.category, item.price, locationCode(item.locationId)]));
+      downloadCsv('Data_Barang_Purchasing.csv', rows);
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : 'Gagal export data barang.');
+    }
   };
 
   const getCategoryColor = (kategori: string) => {
