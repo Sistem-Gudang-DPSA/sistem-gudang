@@ -84,6 +84,27 @@ describe('DataBarang list', () => {
   });
 });
 
+describe('DataBarang reference lists', () => {
+  it('loads every page of locations and suppliers', async () => {
+    const byPage = (p1: unknown[], p2: unknown[]) => (req: { query: URLSearchParams }) =>
+      ({ rows: req.query.get('page') === '2' ? p2 : p1, total: 101, page: Number(req.query.get('page')), pageSize: 100 });
+    const api = setup({
+      'GET /api/v1/locations': byPage([{ id: 1, code: 'A01', rackName: 'A', rackNumber: '01' }], [{ id: 2, code: 'Z99', rackName: 'Z', rackNumber: '99' }]),
+      'GET /api/v1/suppliers': byPage([{ id: 7, name: 'PT Kayu' }], [{ id: 8, name: 'PT Halaman Dua' }]),
+    }, paged([item(1, { supplierId: 8, locationId: 2 })]));
+    await screen.findByText('Barang 1');
+    expect(await screen.findByText('Z99')).not.toBeNull();
+    expect(await screen.findByText('PT Halaman Dua')).not.toBeNull();
+    expect(api.calls('GET /api/v1/locations')).toHaveLength(2);
+    expect(api.calls('GET /api/v1/suppliers')).toHaveLength(2);
+  });
+
+  it('shows an error when a reference list fails to load', async () => {
+    setup({ 'GET /api/v1/locations': fail(500, 'Lokasi down') });
+    expect(await screen.findByText('Lokasi down')).not.toBeNull();
+  });
+});
+
 describe('DataBarang assign location', () => {
   async function openAssign(api: ReturnType<typeof installFakeApi>) {
     await ready(api);
