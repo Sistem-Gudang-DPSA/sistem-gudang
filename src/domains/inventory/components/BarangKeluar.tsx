@@ -126,9 +126,10 @@ export default function BarangKeluarGudang() {
             form={form.form}
             mode={form.modeKeluar}
             saving={form.saving}
+            disabled={form.scan.pendingScans > 0}
             cetak={form.previewCetak}
             error={form.modalError}
-            onBack={() => form.setPreviewOpen(false)}
+            onBack={form.kembaliEdit}
             onConfirm={form.konfirmasiSimpan}
           />
         )}

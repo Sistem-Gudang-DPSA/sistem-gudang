@@ -89,6 +89,11 @@ export function useScanBarang({ pengambil, baris, setBaris, submittingRef }: Pro
     setLockedName("");
   };
 
+  // Kembali dari preview: scan boleh masuk lagi (panel dibuka manual lewat Scan Barang).
+  const lanjut = () => {
+    modalOpenRef.current = true;
+  };
+
   const bukaScan = () => {
     if (!pengambilRef.current) return;
     if (scanOpen) scanRef.current?.focus();
@@ -173,6 +178,6 @@ export function useScanBarang({ pengambil, baris, setBaris, submittingRef }: Pro
   return {
     scanOpen, scanValue, setScanValue, scanError, setScanError, pendingScans, flash,
     cameraOn, setCameraOn, lockedName, scanRef,
-    mulai, akhiri, bukaScan, tambahKode, onScanKey,
+    mulai, akhiri, lanjut, bukaScan, tambahKode, onScanKey,
   };
 }
