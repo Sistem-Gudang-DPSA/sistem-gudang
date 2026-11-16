@@ -122,3 +122,7 @@ endpoint backend-nya:
   masuk/keluar yang terstruktur (nomor referensi, supplier, dsb).
 - Edit dan hapus lokasi (tidak ada tombolnya di desain awal, dan
   `DELETE /locations/{id}` belum dipakai di frontend manapun).
+
+## Import Excel Data Barang
+
+Import Data Barang Superadmin memeriksa tiap baris sebelum dikirim ke `POST /api/v1/items/bulk`. Stok maksimal 1.000.000 dengan paling banyak 3 desimal, harga bilangan bulat maksimal 2.000.000.000, dan satu file maksimal 1.000 baris data. Nilai yang melanggar ditolak dengan pesan per baris, tidak dibulatkan diam-diam. Nomor baris di pesan sama dengan nomor baris di Excel, termasuk bila ada baris kosong di antaranya.
