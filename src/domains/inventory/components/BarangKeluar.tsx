@@ -79,7 +79,7 @@ export default function BarangKeluarGudang() {
           searchQuery={list.searchQuery}
           onSearch={list.setSearchQuery}
           printing={list.printing}
-          printDisabled={list.printing || (list.selected.size === 0 && (list.loading || !!list.error || list.rows.length === 0))}
+          printDisabled={list.printing || (list.selectedCount === 0 && (list.loading || !!list.error || list.rows.length === 0))}
           onPrint={list.printSelected}
           canCreate={canCreate}
           pilihJenis={pilihJenis}
@@ -108,7 +108,7 @@ export default function BarangKeluarGudang() {
           error={list.error}
           sort={list.sort}
           onSort={list.toggle}
-          selected={list.selected}
+          isSelected={list.isSelected}
           allChecked={list.allChecked}
           onToggle={list.toggleSelected}
           onToggleAll={list.toggleAllSelected}

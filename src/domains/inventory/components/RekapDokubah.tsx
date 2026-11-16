@@ -11,6 +11,7 @@ import { formatRupiah, type StatusDokubah } from '@/domains/ppic/data/dokubah';
 import { listDokubahRows, STATUS_TO_UI, statusToApi } from '@/domains/ppic/api';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
+import { useSelection } from '@/shared/lib/use-selection';
 import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import { cetakHtml } from '@/shared/lib/print-html';
@@ -29,7 +30,6 @@ export default function RekapDokubah() {
   const [filterStatus, setFilterStatus] = useState<StatusDokubah | ''>('');
   const [filterDari, setFilterDari] = useState('');
   const [filterSampai, setFilterSampai] = useState('');
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [exporting] = useState(false);
 
   const filters = {
@@ -65,28 +65,14 @@ export default function RekapDokubah() {
   const nilaiRealisasi = summary?.nilaiRealisasi ?? 0;
   const persenMaterial = nilaiKuota === 0 ? 0 : Math.round((nilaiRealisasi / nilaiKuota) * 100);
 
-  const checkedRows = filteredData.filter((item) => selectedIds.has(item.id));
-  const allChecked = filteredData.length > 0 && checkedRows.length === filteredData.length;
+  const selection = useSelection<(typeof filteredData)[number]>(filterKey);
+  const checkedRows = selection.rows;
+  const allChecked = selection.allSelected(filteredData);
 
-  // Export & cetak pakai baris yang dicentang; kalau tidak ada yang dicentang, semua baris di halaman ini
+  // Pilihan hanya berlaku untuk filter yang sedang tampil. Export & cetak pakai baris yang dicentang; kalau tidak ada yang dicentang, semua baris di halaman ini
   const rowsToExport = checkedRows.length > 0 ? checkedRows : filteredData;
 
-  const toggleAll = () => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      filteredData.forEach((item) => (allChecked ? next.delete(item.id) : next.add(item.id)));
-      return next;
-    });
-  };
-
-  const toggleOne = (id: number) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
+  const toggleAll = () => selection.toggleMany(filteredData);
 
   const handleExportExcel = async () => {
     const XLSX = await import('xlsx');
@@ -253,7 +239,7 @@ export default function RekapDokubah() {
                 <tr
                   key={item.id}
                   onClick={() => router.push(detailPath(item.id))}
-                  className={`cursor-pointer transition-colors ${selectedIds.has(item.id) ? 'bg-orange-50/60' : 'hover:bg-orange-50/20'}`}
+                  className={`cursor-pointer transition-colors ${selection.isSelected(item.id) ? 'bg-orange-50/60' : 'hover:bg-orange-50/20'}`}
                 >
                   <td className={cellClass}>{(page - 1) * 20 + index + 1}</td>
                   <td className={`${cellClass} font-semibold text-gray-900`}>
@@ -268,8 +254,8 @@ export default function RekapDokubah() {
                   <td className={`${cellClass} text-right cursor-default`} onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
-                      checked={selectedIds.has(item.id)}
-                      onChange={() => toggleOne(item.id)}
+                      checked={selection.isSelected(item.id)}
+                      onChange={() => selection.toggle(item)}
                       aria-label={`Centang ${item.noSpk}`}
                       className={`${checkboxClass} align-middle`}
                     />
