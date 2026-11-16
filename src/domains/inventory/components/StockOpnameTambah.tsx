@@ -3,7 +3,8 @@
 import { useCan } from '@/domains/auth/user-context';
 import React, { useEffect, useState } from 'react';
 import { ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown, Camera } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { gudangBasePath } from '../base-path';
 import { createStockOpname, getItemByCode, listItems } from '@/domains/inventory/api';
 import type { Item, ItemListRow } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
@@ -33,6 +34,7 @@ type Row = { itemId: string; itemName: string; stock: number; jumlah: string; ke
 
 export default function TambahStockOpnameGudang() {
   const router = useRouter();
+  const base = gudangBasePath(usePathname());
   const canCreate = useCan('stock-opname.create');
 
   const now = new Date();
@@ -196,7 +198,7 @@ export default function TambahStockOpnameGudang() {
           note: row.keterangan || undefined,
         })),
       });
-      router.push('/dashboard/gudang/transaksi/stock-opname');
+      router.push(`${base}/transaksi/stock-opname`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Gagal menyimpan stok opname.");
     } finally {
