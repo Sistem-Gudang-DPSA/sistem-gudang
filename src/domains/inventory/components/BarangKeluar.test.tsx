@@ -489,6 +489,7 @@ describe('BarangKeluar create', () => {
     fireEvent.click(screen.getByText('Simpan'));
     expect(screen.queryByText('Konfirmasi Simpan')).toBeNull();
     expect(api.calls('POST /api/v1/outbound')).toHaveLength(0);
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)); });
     fireEvent.change(q, { target: { value: '0,75' } });
     expect(q.getAttribute('aria-invalid')).toBe('false');
     expect(q.hasAttribute('aria-describedby')).toBe(false);
@@ -960,15 +961,82 @@ describe('BarangKeluar safety paths', () => {
   });
 
   it('blocks a quantity above the stock and names the material', async () => {
-    const api = setup();
+    const api = setup({ 'GET /api/v1/items/1': item(1, 'BRG-1', 'Triplex', 'lembar', 25) });
     await openForm(api);
     await fillHeader();
     scan('BRG-1');
     await screen.findByText('Triplex', { selector: 'td' });
     fireEvent.change(label('Pengambilan Triplex'), { target: { value: '26' } });
     fireEvent.click(screen.getByText('Simpan'));
-    expect(screen.getByText('Jumlah Triplex melebihi stok 25 lembar.')).toBeTruthy();
+    expect(await screen.findByText('Jumlah Triplex melebihi stok 25 lembar.')).toBeTruthy();
+    expect(api.calls('GET /api/v1/items/1')).toHaveLength(1);
     expect(screen.queryByRole('dialog', { name: 'Preview Barang Keluar' })).toBeNull();
+    expect(api.calls('POST /api/v1/outbound')).toHaveLength(0);
+  });
+
+  it('refreshes the stock of an over-stock row and lets a valid outbound through', async () => {
+    const api = setup({ 'GET /api/v1/items/1': item(1, 'BRG-1', 'Triplex', 'lembar', 30), 'POST /api/v1/outbound': { id: 5 } });
+    await openForm(api);
+    await fillHeader();
+    scan('BRG-1');
+    await screen.findByText('Triplex', { selector: 'td' });
+    fireEvent.change(label('Pengambilan Triplex'), { target: { value: '28' } });
+    fireEvent.click(screen.getByText('Simpan'));
+    await screen.findByRole('dialog', { name: 'Preview Barang Keluar' });
+    expect(api.calls('GET /api/v1/items/1')).toHaveLength(1);
+    fireEvent.click(screen.getByText('Konfirmasi Simpan'));
+    await waitFor(() => expect(api.calls('POST /api/v1/outbound')).toHaveLength(1));
+  });
+
+  it('ignores a second Simpan while the stock refresh is running', async () => {
+    const api = setup({ 'GET /api/v1/items/1': item(1, 'BRG-1', 'Triplex', 'lembar', 30) });
+    await openForm(api);
+    await fillHeader();
+    scan('BRG-1');
+    await screen.findByText('Triplex', { selector: 'td' });
+    fireEvent.change(label('Pengambilan Triplex'), { target: { value: '28' } });
+    const form = label('Nama Pengambil').closest('form')!;
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+    await screen.findByRole('dialog', { name: 'Preview Barang Keluar' });
+    expect(api.calls('GET /api/v1/items/1')).toHaveLength(1);
+  });
+
+  it('closes the scan panel and camera when the preview opens, and ignores scans until Kembali Edit', async () => {
+    Object.defineProperty(window, 'isSecureContext', { value: true, configurable: true });
+    qr.start.mockClear(); qr.stop.mockClear();
+    const api = setup();
+    await openForm(api);
+    await fillHeader();
+    scan('BRG-1');
+    await screen.findByText('Triplex', { selector: 'td' });
+    fireEvent.click(screen.getByText('Kamera'));
+    await waitFor(() => expect(qr.start).toHaveBeenCalled());
+    fireEvent.click(screen.getByText('Simpan'));
+    await screen.findByRole('dialog', { name: 'Preview Barang Keluar' });
+    expect(qr.stop).toHaveBeenCalled();
+    expect(screen.queryByLabelText('Hasil scan')).toBeNull();
+    qr.cb?.({ data: 'HPL-01' });
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)); });
+    expect(api.calls('GET /api/v1/items/by-code/HPL-01')).toHaveLength(0);
+    expect(screen.queryByText('HPL Putih', { selector: 'td' })).toBeNull();
+    fireEvent.click(screen.getByText('Kembali Edit'));
+    scan('HPL-01');
+    await screen.findByText('HPL Putih', { selector: 'td' });
+  });
+
+  it('revalidates on Konfirmasi and refuses to save a row that became invalid', async () => {
+    const api = setup({ 'POST /api/v1/outbound': { id: 5 } });
+    await openForm(api);
+    await fillHeader();
+    scan('BRG-1');
+    await screen.findByText('Triplex', { selector: 'td' });
+    fireEvent.click(screen.getByText('Simpan'));
+    await screen.findByRole('dialog', { name: 'Preview Barang Keluar' });
+    // Form is still mounted under the preview; change a row behind it
+    fireEvent.change(label('Pengambilan Triplex'), { target: { value: '0' } });
+    fireEvent.click(screen.getByText('Konfirmasi Simpan'));
+    expect((await screen.findAllByText(/Jumlah pengambilan harus lebih dari 0/)).length).toBeGreaterThan(0);
     expect(api.calls('POST /api/v1/outbound')).toHaveLength(0);
   });
 
