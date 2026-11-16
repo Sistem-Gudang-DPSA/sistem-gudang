@@ -3,10 +3,11 @@
 import { escapeHtml } from '@/shared/lib/escape-html';
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { gudangBasePath } from '../base-path';
 import { Search, ChevronDown } from 'lucide-react';
 import { getStatusBadge, STATUS_OPTIONS } from '@/domains/ppic/components/Dokubah';
-import { detailGudangRekapDokubahPath, formatRupiah, type StatusDokubah } from '@/domains/ppic/data/dokubah';
+import { formatRupiah, type StatusDokubah } from '@/domains/ppic/data/dokubah';
 import { listDokubahRows, STATUS_TO_UI, statusToApi } from '@/domains/ppic/api';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
@@ -22,6 +23,8 @@ const checkboxClass = 'w-4 h-4 accent-[#FF8A00] cursor-pointer disabled:cursor-n
 
 export default function RekapDokubah() {
   const router = useRouter();
+  const base = gudangBasePath(usePathname());
+  const detailPath = (id: number) => `${base}/laporan/dokubah/detail-dokubah/${id}`;
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<StatusDokubah | ''>('');
   const [filterDari, setFilterDari] = useState('');
@@ -249,13 +252,13 @@ export default function RekapDokubah() {
               {filteredData.map((item, index) => (
                 <tr
                   key={item.id}
-                  onClick={() => router.push(detailGudangRekapDokubahPath(item.id))}
+                  onClick={() => router.push(detailPath(item.id))}
                   className={`cursor-pointer transition-colors ${selectedIds.has(item.id) ? 'bg-orange-50/60' : 'hover:bg-orange-50/20'}`}
                 >
                   <td className={cellClass}>{(page - 1) * 20 + index + 1}</td>
                   <td className={`${cellClass} font-semibold text-gray-900`}>
                     {/* Link supaya baris tetap bisa dibuka lewat keyboard; klik di sel lain ditangani onClick baris */}
-                    <Link href={detailGudangRekapDokubahPath(item.id)} onClick={(e) => e.stopPropagation()} className="hover:underline">
+                    <Link href={detailPath(item.id)} onClick={(e) => e.stopPropagation()} className="hover:underline">
                       {item.noSpk}
                     </Link>
                   </td>

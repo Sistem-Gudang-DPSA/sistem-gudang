@@ -5,6 +5,8 @@ import { useCan } from '@/domains/auth/user-context';
 import React, { useState } from 'react';
 import { Search, Plus, Eye, Download, Filter } from 'lucide-react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { gudangBasePath } from '../base-path';
 import { getStockOpname, listStockOpname } from '@/domains/inventory/api';
 import type { StockOpnameDetail } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
@@ -22,6 +24,7 @@ const periodeLabel = (month: number, year: number) => `Stok Opname ${BULAN[month
 
 export default function StockOpnameMasterGudang() {
   const canCreate = useCan('stock-opname.create');
+  const base = gudangBasePath(usePathname());
   const { sort, toggle, params: sortParams } = useSort();
   const [showFilter, setShowFilter] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -291,7 +294,7 @@ export default function StockOpnameMasterGudang() {
 
           <div className="flex gap-2 w-full lg:w-auto">
             <ExportExcellButton onClick={handleExportExcel} disabled={rows.length===0}/>
-            {canCreate && <Link href="/dashboard/gudang/transaksi/stock-opname/tambah" className="w-full lg:w-auto">
+            {canCreate && <Link href={`${base}/transaksi/stock-opname/tambah`} className="w-full lg:w-auto">
               <button className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0 w-full">
                 <Plus className="w-4 h-4" />
                 <span>Tambah Data</span>
