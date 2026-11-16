@@ -62,6 +62,7 @@ const dateSelect = (placeholder: string) => screen.getByRole('option', { name: p
 async function openForm(api: ReturnType<typeof installFakeApi>) {
   await screen.findAllByText('Klien 1');
   await waitFor(() => expect(api.calls('GET /api/v1/items').length).toBeGreaterThan(0));
+  fireEvent.click(screen.getByRole('button', { name: 'Barang Keluar' }));
   fireEvent.click(screen.getByText('Barang Keluar SPK'));
   await screen.findByText('Form Barang Keluar SPK');
   await waitFor(() => expect(api.calls('GET /api/v1/tracking/clients').length).toBeGreaterThan(0));
@@ -421,15 +422,42 @@ describe('BarangKeluar create', () => {
     expect(screen.queryByText('Triplex', { selector: 'td' })).toBeNull();
   });
 
-  it('keeps the typed Dokubah of each row in a text input', async () => {
+  it('accepts Dokubah decimals and rejects invalid characters and excess precision', async () => {
     const api = setup();
     await openForm(api);
     typePengambil();
     scan('BRG-1');
     await screen.findByText('Triplex', { selector: 'td' });
     expect(label('Dokubah Triplex').value).toBe('');
-    fireEvent.change(label('Dokubah Triplex'), { target: { value: 'DKB-12' } });
-    expect(label('Dokubah Triplex').value).toBe('DKB-12');
+    const input = label('Dokubah Triplex');
+    expect(input.inputMode).toBe('decimal');
+    fireEvent.change(input, { target: { value: '1,125' } });
+    expect(input.value).toBe('1,125');
+    for (const value of ['DKB-12', '1.25', '1,2,3', '1,1234']) {
+      fireEvent.change(input, { target: { value } });
+      expect(input.value).toBe('1,125');
+      expect(input.getAttribute('aria-invalid')).toBe('true');
+    }
+    fireEvent.change(input, { target: { value: '0,75' } });
+    expect(input.getAttribute('aria-invalid')).toBe('false');
+  });
+
+  it.each(['0', '1,', '1000000000'])('blocks preview for invalid Dokubah %s until corrected', async (value) => {
+    const api = setup();
+    await openForm(api);
+    await fillHeader();
+    scan('BRG-1');
+    await screen.findByText('Triplex', { selector: 'td' });
+    fireEvent.change(label('Dokubah Triplex'), { target: { value } });
+    expect(label('Dokubah Triplex').getAttribute('aria-invalid')).toBe('true');
+    fireEvent.click(screen.getByText('Simpan'));
+    expect(screen.queryByText('Konfirmasi Simpan')).toBeNull();
+    expect(screen.getByText('Periksa jumlah Dokubah yang ditandai.')).not.toBeNull();
+    fireEvent.change(label('Dokubah Triplex'), { target: { value: '1,25' } });
+    fireEvent.click(screen.getByText('Simpan'));
+    expect(await screen.findByText('Konfirmasi Simpan')).not.toBeNull();
+    expect(screen.getByText('1,25', { selector: 'td' })).not.toBeNull();
+    expect(api.calls('POST /api/v1/outbound')).toHaveLength(0);
   });
 
   it('enforces input limits', async () => {
@@ -593,6 +621,7 @@ describe('BarangKeluar create', () => {
   it('saves a stock/internal outbound with a manually entered ID and item name', async () => {
     const api = setup({ 'POST /api/v1/outbound': { id: 9 } });
     await screen.findAllByText('Klien 1');
+    fireEvent.click(screen.getByRole('button', { name: 'Barang Keluar' }));
     fireEvent.click(screen.getByText('Barang Keluar Stok / Internal'));
     await screen.findByText('Form Barang Keluar Stok / Internal');
     expect(screen.queryByLabelText('SPK')).toBeNull();
@@ -622,6 +651,7 @@ describe('BarangKeluar create', () => {
   it('requires a manual stock/internal ID and item before opening the preview', async () => {
     const api = setup();
     await screen.findAllByText('Klien 1');
+    fireEvent.click(screen.getByRole('button', { name: 'Barang Keluar' }));
     fireEvent.click(screen.getByText('Barang Keluar Stok / Internal'));
     fireEvent.click(screen.getByText('Simpan'));
     expect(screen.getByText('Lengkapi tanggal, ID stok/internal, nama pengambil, dan nama item.')).toBeTruthy();
@@ -967,6 +997,7 @@ describe('BarangKeluar safety paths', () => {
     scan('HPL-01');
     await screen.findByRole('status');
     fireEvent.click(screen.getByLabelText('Tutup form'));
+    fireEvent.click(screen.getByRole('button', { name: 'Barang Keluar' }));
     fireEvent.click(screen.getByText('Barang Keluar SPK'));
     await screen.findByText('Form Barang Keluar SPK');
     release();
@@ -1041,6 +1072,56 @@ describe('BarangKeluar safety paths', () => {
   });
 });
 
+describe('BarangKeluar type selection', () => {
+  it('returns from both forms to the type choices without saving', async () => {
+    const api = setup();
+    await screen.findAllByText('Klien 1');
+    fireEvent.click(screen.getByRole('button', { name: 'Barang Keluar' }));
+    for (const mode of ['SPK', 'Stok / Internal']) {
+      fireEvent.click(screen.getByRole('button', { name: `Barang Keluar ${mode}` }));
+      expect(screen.getByText(`Form Barang Keluar ${mode}`)).not.toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Kembali ke pilihan jenis barang keluar' }));
+      expect(screen.getByText('Pilih Jenis Barang Keluar')).not.toBeNull();
+      expect(screen.queryByLabelText('Nama Pengambil')).toBeNull();
+      expect(screen.queryByText(`Form Barang Keluar ${mode}`)).toBeNull();
+    }
+    expect(api.calls('POST /api/v1/outbound')).toHaveLength(0);
+  });
+
+  it('shows one create button and opens the chosen form after selecting a type', async () => {
+    setup();
+    await screen.findAllByText('Klien 1');
+    expect(screen.getAllByRole('button', { name: 'Barang Keluar' })).toHaveLength(1);
+    expect(screen.queryByText('Barang Keluar SPK')).toBeNull();
+    expect(screen.queryByText('Barang Keluar Stok / Internal')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Barang Keluar' }));
+    expect(screen.getByText('Pilih Jenis Barang Keluar')).not.toBeNull();
+    expect(screen.queryByText('Form Barang Keluar SPK')).toBeNull();
+    expect(screen.queryByText('Form Barang Keluar Stok / Internal')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Barang Keluar SPK' }));
+    expect(screen.getByText('Form Barang Keluar SPK')).not.toBeNull();
+    expect(screen.queryByText('Pilih Jenis Barang Keluar')).toBeNull();
+    fireEvent.click(screen.getByLabelText('Tutup form'));
+    fireEvent.click(screen.getByRole('button', { name: 'Barang Keluar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Barang Keluar Stok / Internal' }));
+    expect(screen.getByText('Form Barang Keluar Stok / Internal')).not.toBeNull();
+    expect(screen.queryByText('Pilih Jenis Barang Keluar')).toBeNull();
+    expect(screen.getByLabelText('ID Stok / Internal')).not.toBeNull();
+    expect(screen.queryByLabelText('SPK')).toBeNull();
+  });
+
+  it('closes the choices using the close button or Escape without opening a form', async () => {
+    setup();
+    await screen.findAllByText('Klien 1');
+    for (const close of [() => fireEvent.click(screen.getByRole('button', { name: 'Tutup' })), () => fireEvent.keyDown(document, { key: 'Escape' })]) {
+      fireEvent.click(screen.getByRole('button', { name: 'Barang Keluar' }));
+      close();
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(screen.queryByLabelText('Nama Pengambil')).toBeNull();
+    }
+  });
+});
+
 describe('permissions', () => {
   const open = async (user: ReturnType<typeof who>) => {
     installFakeApi({ 'GET /api/v1/outbound': paged([trx(1)]), 'GET /api/v1/items': items, ...tracking });
@@ -1051,12 +1132,14 @@ describe('permissions', () => {
   it('hides mutation and download buttons from a view-only user but keeps the list', async () => {
     await open(who([]));
     expect(screen.queryByText('Barang Keluar')).toBeNull();
+    expect(screen.queryByText('Barang Keluar SPK')).toBeNull();
+    expect(screen.queryByText('Barang Keluar Stok / Internal')).toBeNull();
     expect(screen.queryByText('Export')).toBeNull();
   });
 
   it('shows them to a user with the permissions', async () => {
     await open(who(['outbound.create', 'outbound.update', 'report.view']));
-    expect(screen.getByText('Barang Keluar SPK')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Barang Keluar' })).not.toBeNull();
     expect(screen.getByText('Export')).not.toBeNull();
   });
 
@@ -1067,7 +1150,7 @@ describe('permissions', () => {
 
   it('shows them to a superadmin', async () => {
     await open(who([], true));
-    expect(screen.getByText('Barang Keluar SPK')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Barang Keluar' })).not.toBeNull();
   });
 });
 

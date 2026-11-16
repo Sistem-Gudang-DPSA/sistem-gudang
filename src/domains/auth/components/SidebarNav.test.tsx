@@ -10,6 +10,18 @@ const user: AuthUser = {
   roleName: "Superadmin", isSuperadmin: true, permissions: [],
 };
 
+describe("notifications sidebar", () => {
+  it.each([true, false])("shows the shared Notifications link for superadmin=%s and highlights it", (isSuperadmin) => {
+    const onNavigate = vi.fn();
+    render(<SidebarNav user={{ ...user, isSuperadmin }} pathname="/dashboard/notifications" onNavigate={onNavigate} />);
+    const link = screen.getByRole("link", { name: "Notifications" });
+    expect(link.getAttribute("href")).toBe("/dashboard/notifications");
+    expect(link.className).toContain("bg-blue-600");
+    fireEvent.click(link);
+    expect(onNavigate).toHaveBeenCalledOnce();
+  });
+});
+
 describe("production sidebar", () => {
   it("highlights only the production link in blue on a production detail page", () => {
     const onNavigate = vi.fn();

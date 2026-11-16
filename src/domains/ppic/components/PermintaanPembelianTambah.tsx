@@ -13,11 +13,11 @@ import { ApiError } from '@/shared/lib/api-client';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 import { useItemSearch } from '@/domains/inventory/use-item-search';
 
-const emptyRow = { itemId: undefined as number | undefined, tanggal: "", supplier: "", keterangan: "", deadlineTanggal: "", namaBarang: "", qty: "", satuan: "", proyek: "", client: "", noSpk: "" };
+const emptyRow = { itemId: undefined as number | undefined, tanggal: "", supplier: "", keterangan: "", dikirimTanggal: "", namaBarang: "", qty: "", satuan: "", proyek: "", client: "", noSpk: "" };
 type Row = typeof emptyRow;
 
 const kolomWajib = (r: Row) => [r.namaBarang, r.qty, r.satuan, r.proyek];
-const barisTerisi = (r: Row) => [r.namaBarang, r.qty, r.satuan, r.proyek, r.tanggal, r.supplier, r.keterangan, r.deadlineTanggal].some(Boolean);
+const barisTerisi = (r: Row) => [r.namaBarang, r.qty, r.satuan, r.proyek, r.tanggal, r.supplier, r.keterangan, r.dikirimTanggal].some(Boolean);
 
 export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = permintaan_pembelian_path, editing = false }: { permintaan?: PermintaanPembelian; basePath?: string; editing?: boolean }) {
   const router = useRouter();
@@ -41,7 +41,7 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
   });
 
   const [tableData, setTableData] = useState<Row[]>(() => {
-    const rows = (permintaan?.barang ?? []).map((b) => ({ ...emptyRow, ...b, noSpk: b.noSpk ?? "", supplier: b.supplier ?? "", keterangan: b.keterangan ?? "", tanggal: b.tanggal ?? "", deadlineTanggal: b.deadlineTanggal ?? "", qty: String(b.qty) }));
+    const rows = (permintaan?.barang ?? []).map((b) => ({ ...emptyRow, ...b, noSpk: b.noSpk ?? "", supplier: b.supplier ?? "", keterangan: b.keterangan ?? "", tanggal: b.tanggal ?? "", dikirimTanggal: b.deadlineTanggal ?? "", qty: String(b.qty) }));
     return rows.length > 0 ? rows : [{ ...emptyRow }];
   });
   const submitting = useRef(false);
@@ -90,7 +90,7 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
           supplier: row.supplier.trim() || undefined,
           keterangan: row.keterangan.trim() || undefined,
           tanggal: row.tanggal || undefined,
-          deadlineTanggal: row.deadlineTanggal || undefined,
+          deadlineTanggal: row.dikirimTanggal || undefined,
           qty: Number(row.qty),
         })),
         ...(permintaan?.catatan ? { notes: permintaan.catatan } : {}),
@@ -187,10 +187,6 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
               <input aria-label="Tanggal Pengajuan" type="date" placeholder="DD/MM/YYYY" value={header.tanggalPengajuan} onChange={(e) => setHeader({ ...header, tanggalPengajuan: e.target.value })} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200" />
             </div>
           </div>
-
-          <label className="flex items-center gap-4 mb-6 text-sm font-semibold text-gray-700">Periode
-            <input aria-label="Periode" value={header.periode} maxLength={100} onChange={(e) => setHeader({ ...header, periode: e.target.value })} placeholder="Contoh: November 2026" className="border border-gray-200 rounded-lg py-2 px-4 font-normal" />
-          </label>
           {editing && <p className="mb-4 text-sm text-gray-500">Perubahan akan mengulang proses persetujuan permintaan.</p>}
           {/* Divider Custom */}
           <div className="w-full h-px bg-gray-200 mb-8 mt-2"></div>
@@ -211,7 +207,7 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
                 </colgroup>
                 <thead className="bg-gray-50 text-gray-700 text-xs font-bold">
                   <tr>
-                    {['No', 'Tanggal', 'Supplier', 'Nama Barang', 'QTY', 'SAT', 'Proyek', 'Keterangan', 'Deadline Tanggal'].map((label) => (
+                    {['No', 'Tanggal', 'Supplier', 'Nama Barang', 'QTY', 'SAT', 'Proyek', 'Keterangan', 'Dikirim Tanggal'].map((label) => (
                       <th key={label} className="border border-gray-300 px-2 py-3 text-center">{label}</th>
                     ))}
                   </tr>
@@ -333,8 +329,8 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
                       <td className="p-0 border border-gray-300">
                         <input aria-label={`Satuan baris ${i + 1}`} type="text" value={row.satuan} maxLength={50} placeholder="SAT" onChange={(e) => handleChange(i, 'satuan', e.target.value)} className="w-full h-full min-h-11 px-1 text-center bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 placeholder-gray-300 not-italic" />
                       </td>
-                      {(['proyek', 'keterangan', 'deadlineTanggal'] as const).map((field) => (
-                        <td key={field} className="p-0 border border-gray-300"><input aria-label={`${field === 'deadlineTanggal' ? 'Deadline' : field === 'proyek' ? 'Proyek' : 'Keterangan'} baris ${i + 1}`} type={field === 'deadlineTanggal' ? 'date' : 'text'} value={row[field]} maxLength={field === 'keterangan' ? 500 : 191} onChange={(e) => handleChange(i, field, e.target.value)} className="w-full min-w-0 bg-transparent px-2 py-2.5 focus:outline-orange-400" /></td>
+                      {(['proyek', 'keterangan', 'dikirimTanggal'] as const).map((field) => (
+                        <td key={field} className="p-0 border border-gray-300"><input aria-label={`${field === 'dikirimTanggal' ? 'Dikirim Tanggal' : field === 'proyek' ? 'Proyek' : 'Keterangan'} baris ${i + 1}`} type={field === 'dikirimTanggal' ? 'date' : 'text'} value={row[field]} maxLength={field === 'keterangan' ? 500 : 191} onChange={(e) => handleChange(i, field, e.target.value)} className="w-full min-w-0 bg-transparent px-2 py-2.5 focus:outline-orange-400" /></td>
                       ))}
                     </tr>
                   ))}
