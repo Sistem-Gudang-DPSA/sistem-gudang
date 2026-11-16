@@ -10,6 +10,14 @@ export const jumlahValid = (value: string) =>
   /^(?:\d{1,9}(?:\.\d{1,3})?|\.\d{1,3})$/.test(value) &&
   Number(value) > 0 && Number(value) <= MAX_JUMLAH;
 
+export function peringatanDokubah(value: string): string {
+  if (!value) return "";
+  if (/^\d*\.$/.test(value)) return "Lengkapi angka desimal.";
+  if (Number(value) <= 0) return "Harus lebih dari 0.";
+  if (Number(value) > MAX_JUMLAH) return "Maksimal 999.999.999.";
+  return jumlahValid(value) ? "" : "Maksimal 3 angka desimal.";
+}
+
 // Pertahankan input yang salah agar pengguna dapat melihat dan memperbaikinya.
 export function peringatanJumlah(value: string): string {
   if (!value) return "Jumlah pengambilan wajib diisi.";
@@ -74,6 +82,8 @@ export function validasiForm(
   if (terisi.length === 0) return "Scan atau pilih minimal satu barang yang keluar.";
   if (terisi.some((b) => !jumlahValid(b.qty)))
     return "Jumlah pengambilan harus lebih dari 0, maksimal 999999999, dengan maksimal 3 angka di belakang koma.";
+  if (terisi.some((b) => !!peringatanDokubah(b.dokubah)))
+    return "Periksa jumlah Dokubah yang ditandai.";
   if (new Set(terisi.map((b) => b.itemId)).size !== terisi.length)
     return "Material yang sama cukup diisi pada satu baris. Tambahkan jumlahnya di baris tersebut.";
   const melebihiStok = terisi.find((b) => Number(b.qty) > b.stock);

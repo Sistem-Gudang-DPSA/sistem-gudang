@@ -50,6 +50,21 @@ berubah dan mengabaikan respons yang sudah kedaluwarsa.
 | Laporan Barang Masuk dan Keluar | `/reports/inbound`, `/reports/outbound` | Kartu total memakai `summary` dari backend (jumlah transaksi). Ada kolom Lokasi. |
 | Rekap Permintaan | `/reports/requests`, `/material-requests/{id}` | Export mendukung mode filter dan mode `ids`. |
 
+Jumlah **Rekap Pembelian** dan **Kedatangan** pada form Barang Masuk menerima
+angka desimal dengan koma, maksimal 3 angka di belakang koma. Huruf, titik,
+tanda plus/minus, koma ganda, dan presisi berlebih ditolak dengan pesan di
+kolom tanpa mengubah nilai sebelumnya. Pesan validasi hanya menyebut
+kesalahan yang perlu diperbaiki, misalnya "Lengkapi angka desimal." atau
+"Maksimal 100.000.". Kedatangan wajib lebih dari 0 dan
+maksimal 100.000; rekap pembelian wajib diisi, minimal 0 dan maksimal
+999999999. Nilai yang tidak valid menghalangi Preview. Tombol tambah dan
+scan ulang menambah 1 hingga batas kedatangan; tombol kurang mengurangi 1
+dengan batas 1, sedangkan pecahan di bawah 1 dapat diketik langsung.
+Preview menampilkan desimal dengan koma dan `POST /inbound/batch` menerima
+`qtyArrived` serta `qtyPurchased` sebagai angka JSON. Spec lokal
+`docs/api-1.json` masih mencantumkan keduanya sebagai integer; dukungan
+desimal di backend perlu diverifikasi sebelum dipakai di produksi.
+
 ### Penggabungan branch `cal/updRabuGudang`
 
 Tampilan laporan dari branch tersebut dipertahankan. Fungsi dan tipe
