@@ -75,7 +75,9 @@ Kartu dan tabel hanya tampil untuk user yang punya permission endpoint-nya.
 - Laporan memakai `summary` backend atas seluruh data, bukan jumlah dari
   100 baris pertama, dan daftar utama dipaginasi dari server. Pencarian
   Permintaan Pembelian dikirim ke backend, dan riwayat persetujuan
-  menampilkan nama pelaku.
+  menampilkan nama pelaku. Kartu Barang Keluar memakai `total` (ikut filter
+  penerima), kartu Barang Masuk memakai `summary` yang berlabel semua
+  sumber, dan PDF "(halaman ini)" menjumlah baris yang dicetak.
 - Filter Periode di Rekap Dokubah PPIC berubah dari pilihan bulan menjadi
   dua kolom tanggal, karena pilihan bulan dibangun dari baris yang dimuat.
 - Kode mati dihapus: `rekapold.tsx`, `Dokubah.tsx` milik Purchasing, dan
