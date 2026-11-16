@@ -22,7 +22,7 @@ import DataBarangTable, { type BarangColumn, KategoriBadge, StokCell, SupplierCe
 import DataBarangToolbar, { FilterToggle } from '@/domains/inventory/components/data-barang/DataBarangToolbar';
 import AdjustStokModal from '@/domains/inventory/components/data-barang/modals/AdjustStokModal';
 import RecodeNotice from '@/domains/inventory/components/data-barang/modals/RecodeModal';
-import { MasterData, mstrDataTemplateExample, mstrDataTemplateHeaders, type MasterDataImportRow } from '@/domains/inventory/components/data-barang/modals/ImportMasterData';
+import { MasterData, mstrDataTemplateExample, mstrDataTemplateHeaders, type MasterDataImportRow, MAX_IMPORT_ROWS } from '@/domains/inventory/components/data-barang/modals/ImportMasterData';
 
 export { MasterData, mstrDataTemplateExample, mstrDataTemplateHeaders };
 export type { MasterDataImportRow };
@@ -385,6 +385,7 @@ export default function DataBarangGudang() {
                 templateFilename="Template_Import_Barang.xlsx"
                 templateReference={referenceLists()}
                 parseRow={MasterData}
+                maxRows={MAX_IMPORT_ROWS}
                 previewColumns={[
                   { header: 'Nama Barang', value: (r) => r.name },
                   { header: 'Kode Bawaan', value: (r) => r.code },
