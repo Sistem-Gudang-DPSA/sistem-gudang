@@ -98,6 +98,12 @@ export default function LaporanBarangMasuk() {
     const sumberText = filterSumber === 'ALL' ? 'Semua Sumber' : SUMBER_LABEL[filterSumber];
     const periodeText = `${startDate ? displayDate(startDate) : '-'} s/d ${endDate ? displayDate(endDate) : '-'}`;
 
+    const pageQty = rows.reduce((sum, r) => sum + r.qtyArrived, 0);
+    const bySource = (source: InboundSource) => {
+      const list = rows.filter((r) => r.source === source);
+      return { n: list.length, qty: list.reduce((sum, r) => sum + r.qtyArrived, 0) };
+    };
+
     const bodyRows = rows
       .map((item, index) => {
         const referensi =
@@ -149,9 +155,9 @@ export default function LaporanBarangMasuk() {
               searchQuery ? ` &nbsp;|&nbsp; Pencarian: ${escapeHtml(searchQuery)}` : ''
             }</p>
             <p class="summary">
-              <span><b>Total:</b> ${summary.qtyTotal.toLocaleString('id-ID')} Qty / ${summary.total.toLocaleString('id-ID')} Transaksi</span>
-              <span><b>Supplier:</b> ${summary.qtySupplier.toLocaleString('id-ID')} Qty (${summary.supplier.toLocaleString('id-ID')} Transaksi)</span>
-              <span><b>Produksi:</b> ${summary.qtyProduksi.toLocaleString('id-ID')} Qty (${summary.produksi.toLocaleString('id-ID')} Transaksi)</span>
+              <span><b>Total:</b> ${pageQty.toLocaleString('id-ID')} Qty / ${rows.length.toLocaleString('id-ID')} Transaksi</span>
+              <span><b>Supplier:</b> ${bySource('SUPPLIER').qty.toLocaleString('id-ID')} Qty (${bySource('SUPPLIER').n.toLocaleString('id-ID')} Transaksi)</span>
+              <span><b>Produksi:</b> ${bySource('PRODUKSI').qty.toLocaleString('id-ID')} Qty (${bySource('PRODUKSI').n.toLocaleString('id-ID')} Transaksi)</span>
             </p>
             <table>
               <thead>
@@ -193,7 +199,7 @@ export default function LaporanBarangMasuk() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
-          <p className="text-xs font-semibold text-gray-500 uppercase">Total Inbound Periode Ini</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase">Total Inbound Periode Ini (semua sumber)</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">
             {summary.qtyTotal.toLocaleString('id-ID')} Qty / {summary.total.toLocaleString('id-ID')} Transaksi
           </p>
