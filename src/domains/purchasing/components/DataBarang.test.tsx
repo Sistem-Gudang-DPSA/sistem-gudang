@@ -1,7 +1,10 @@
 import { it, expect, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { downloadCsv } from '@/shared/lib/csv';
 import { installFakeApi, paged, type FakeRequest } from '@/test/fake-api';
 import DataBarang from './DataBarang';
+
+vi.mock('@/shared/lib/csv', () => ({ downloadCsv: vi.fn() }));
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
@@ -32,4 +35,33 @@ it('DataBarang memuat semua halaman lokasi dan supplier', async () => {
   expect(api.calls('GET /api/v1/locations')[0].query.get('pageSize')).toBe('100');
   // Id 150 hanya ada di halaman kedua.
   expect(await screen.findByText('Supplier Terakhir')).not.toBeNull();
+});
+
+it('Export CSV mengambil semua halaman barang, bukan hanya halaman yang tampil', async () => {
+  const api = installFakeApi({
+    'GET /api/v1/items': twoPages((id) => ({ ...item, id, name: `Barang ${id}` })),
+    'GET /api/v1/locations': paged([]),
+    'GET /api/v1/suppliers': paged([]),
+  });
+  render(<DataBarang />);
+  await screen.findByText('Barang 1');
+  fireEvent.click(screen.getByRole('button', { name: /export/i }));
+  await waitFor(() => expect(downloadCsv).toHaveBeenCalled());
+  const [name, rows] = vi.mocked(downloadCsv).mock.calls[0];
+  expect(name).toBe('Data_Barang_Purchasing.csv');
+  expect(rows).toHaveLength(151);
+  expect(api.calls('GET /api/v1/items').filter((c) => c.query.get('pageSize') === '100')).toHaveLength(2);
+});
+
+it('Filter stok kosong dikirim ke API daftar barang', async () => {
+  const api = installFakeApi({
+    'GET /api/v1/items': paged([item]),
+    'GET /api/v1/locations': paged([]),
+    'GET /api/v1/suppliers': paged([]),
+  });
+  render(<DataBarang />);
+  await screen.findByText('Barang 1');
+  fireEvent.click(screen.getByRole('button', { name: /filter/i }));
+  fireEvent.click(screen.getByLabelText(/Stok kosong/));
+  await waitFor(() => expect(api.calls('GET /api/v1/items').at(-1)?.query.get('stock')).toBe('empty'));
 });
