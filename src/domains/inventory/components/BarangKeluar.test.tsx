@@ -476,7 +476,7 @@ describe('BarangKeluar create', () => {
     expect(q.hasAttribute('maxlength')).toBe(false);
   });
 
-  it.each(['0', '1000000000', ''])('warns and prevents saving invalid quantity %s until corrected', async (value) => {
+  it.each(['0', '1000001', ''])('warns and prevents saving invalid quantity %s until corrected', async (value) => {
     const api = setup({ 'POST /api/v1/outbound': { id: 5 } });
     await openForm(api);
     await fillHeader();
