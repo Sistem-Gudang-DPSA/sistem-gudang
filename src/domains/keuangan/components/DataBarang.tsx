@@ -62,8 +62,8 @@ export default function DataBarangGudang({
   useClampPage(page, total, 20, setPage);
 
   useEffect(() => {
-    listLocations().then((res) => setLocations(res.rows)).catch(() => {});
-    listSuppliers().then((res) => setSuppliers(res.rows)).catch(() => {});
+    fetchAllPages((page, pageSize) => listLocations({ page, pageSize })).then(setLocations).catch(() => {});
+    fetchAllPages((page, pageSize) => listSuppliers({ page, pageSize })).then(setSuppliers).catch(() => {});
     listItemCategories().then((res) => setCategories(res.map((c) => c.name))).catch(() => {});
     listItemUnits().then((res) => setUnits(res.map((u) => u.name))).catch(() => {});
   }, []);

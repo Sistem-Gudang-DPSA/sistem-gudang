@@ -12,6 +12,7 @@ import type { Supplier } from '@/domains/purchasing/types';
 import { downloadCsv } from '@/shared/lib/csv';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
+import { fetchAllPages } from '@/shared/lib/fetch-all';
 import { digitsOnly, INTEGER_INPUT } from '@/shared/lib/input';
 import { useCan } from '@/domains/auth/user-context';
 import { useClampPage, usePage } from '@/shared/lib/use-page';
@@ -55,8 +56,8 @@ export default function DataBarangPurchasing() {
   const error = loadError;
 
   useEffect(() => {
-    listSuppliers().then((res) => setSuppliers(res.rows)).catch(() => {});
-    listLocations().then((res) => setLocations(res.rows)).catch(() => {});
+    fetchAllPages((page, pageSize) => listSuppliers({ page, pageSize })).then(setSuppliers).catch(() => {});
+    fetchAllPages((page, pageSize) => listLocations({ page, pageSize })).then(setLocations).catch(() => {});
   }, []);
 
   const handleEdit = (item: ItemListRow) => {
