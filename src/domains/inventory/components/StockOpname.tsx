@@ -33,7 +33,7 @@ export default function StockOpnameMasterGudang() {
   const [detail, setDetail] = useState<StockOpnameDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
-  const [, setActionError] = useState('');
+  const [actionError, setActionError] = useState('');
 
   const filterKey = JSON.stringify([searchQuery, filterMonth, filterYear, sortParams]);
   const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
@@ -74,16 +74,15 @@ export default function StockOpnameMasterGudang() {
   const toggleAll = () => setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.id)));
 
   const handleExportExcel = async () => {
-    const id = selected.values().next().value;
-    if (id === undefined) {
-      alert("Pilih data stok opname yang ingin diekspor.");
+    if (selected.size === 0) {
+      setActionError("Pilih data stok opname yang ingin diekspor.");
       return;
     }
+    setActionError("");
 
     try {
       const XLSX = await import("xlsx");
-      const detailData = await getStockOpname(id);
-
+      const details = await Promise.all([...selected].map((id) => getStockOpname(id)));
       const headers = [
         "No",
         "Kode Barang",
@@ -96,57 +95,55 @@ export default function StockOpnameMasterGudang() {
         "Keterangan",
       ];
 
-      const rows = detailData.lines.map((line, index) => [
-        index + 1,
-        line.itemCode ?? "-",
-        line.itemName,
-        line.unit,
-        line.category,
-        line.systemQty,
-        line.physicalQty,
-        line.difference,
-        line.note ?? "-",
-      ]);
-
-      // Membuat worksheet dari header dan data
-      const worksheet = XLSX.utils.aoa_to_sheet([
-        headers,
-        ...rows,
-      ]);
-
-      // Mengatur lebar setiap kolom
-      worksheet["!cols"] = [
-        { wch: 6 },
-        { wch: 18 },
-        { wch: 30 },
-        { wch: 12 },
-        { wch: 20 },
-        { wch: 20 },
-        { wch: 16 },
-        { wch: 12 },
-        { wch: 30 },
-      ];
-
       // Membuat workbook
       const workbook = XLSX.utils.book_new();
 
-      XLSX.utils.book_append_sheet(
-        workbook,
-        worksheet,
-        "Stok Opname"
-      );
+      // Satu sheet per periode terpilih
+      for (const detailData of details) {
+        const rows = detailData.lines.map((line, index) => [
+          index + 1,
+          line.itemCode ?? "-",
+          line.itemName,
+          line.unit,
+          line.category,
+          line.systemQty,
+          line.physicalQty,
+          line.difference,
+          line.note ?? "-",
+        ]);
+
+        // Membuat worksheet dari header dan data
+        const worksheet = XLSX.utils.aoa_to_sheet([
+          headers,
+          ...rows,
+        ]);
+
+        // Mengatur lebar setiap kolom
+        worksheet["!cols"] = [
+          { wch: 6 },
+          { wch: 18 },
+          { wch: 30 },
+          { wch: 12 },
+          { wch: 20 },
+          { wch: 20 },
+          { wch: 16 },
+          { wch: 12 },
+          { wch: 30 },
+        ];
+
+        // Nama sheet maksimal 31 karakter dan harus unik; id menjaga dua opname di bulan yang sama
+        XLSX.utils.book_append_sheet(
+          workbook,
+          worksheet,
+          `Opname ${detailData.month}-${detailData.year} #${detailData.id}`
+        );
+      }
 
       // Mengunduh file XLSX asli
-      XLSX.writeFile(
-        workbook,
-        `Stok_Opname_Bulan_${detailData.month}_${detailData.year}.xlsx`
-      );
+      const first = details[0];
+      XLSX.writeFile(workbook, details.length === 1 ? `Stok_Opname_Bulan_${first.month}_${first.year}.xlsx` : "Stok_Opname.xlsx");
     } catch (err) {
-      alert(
-        err instanceof ApiError
-          ? err.message
-          : "Gagal mengekspor data stok opname."
-      );
+      setActionError(err instanceof ApiError ? err.message : "Gagal mengekspor data stok opname.");
     }
   };
 
@@ -327,6 +324,7 @@ export default function StockOpnameMasterGudang() {
         )}
 
         {detailError && <p className="px-6 pt-3 text-sm text-red-500">{detailError}</p>}
+        {actionError && <p className="px-6 pt-3 text-sm text-red-500">{actionError}</p>}
 
         {/* Table Container */}
         <div className="overflow-x-auto">
