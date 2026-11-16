@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Filter, Search } from 'lucide-react';
 import { formatRupiah } from '@/domains/ppic/data/dokubah';
 import { toDateRange } from '@/domains/inventory/date';
@@ -26,6 +27,12 @@ const statusBadge = (s: StatusRealisasi | null) => s === null ? <span className=
 );
 
 export default function RealisasiSpk() {
+  return <RealisasiSpkReport />;
+}
+
+// rowHref: when given, rows are clickable and open the detail page.
+export function RealisasiSpkReport({ rowHref }: { rowHref?: (id: string) => string }) {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebouncedValue(searchQuery);
   const [showFilter, setShowFilter] = useState(false);
@@ -181,6 +188,7 @@ export default function RealisasiSpk() {
               {rows.map((r, i) => (
                 <tr
                   key={r.id}
+                  onClick={rowHref ? () => router.push(rowHref(r.id)) : undefined}
                   className={`cursor-pointer transition-colors ${selected.has(r.id) ? 'bg-orange-50/60' : 'hover:bg-orange-50/20'}`}
                 >
                   <td className={cellClass}>{(page - 1) * PAGE_SIZE + i + 1}</td>
