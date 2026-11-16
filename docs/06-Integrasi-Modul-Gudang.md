@@ -83,3 +83,16 @@ Modul Gudang selesai tersambung. Berikutnya lihat
 `04-Rencana-Selanjutnya.md`.
 
 Permintaan Pembelian tidak lagi ada di Gudang. Halamannya pindah ke PPIC, lihat `09-Permintaan-Pembelian-PPIC-dan-Rekap-Pembelian.md`.
+
+## Export di Stock Opname dan Data Barang
+
+- Export Stock Opname memuat satu sheet per periode yang dicentang di halaman
+  tersebut (satu periode memakai nama file `Stok_Opname_Bulan_<bulan>_<tahun>.xlsx`,
+  lebih dari satu `Stok_Opname.xlsx`). Kegagalan export dan cetak tampil di
+  atas tabel.
+- Export CSV Data Barang (Gudang dan Keuangan) mengambil semua barang sesuai
+  pencarian dan filter aktif lewat `fetchAllPages`, bukan hanya halaman yang
+  tampil. Nama file mengikuti divisi (`Data_Barang_Gudang.csv`,
+  `Data_Barang_Keuangan.csv`).
+- `toCsv` (`src/shared/lib/csv.ts`) mengutip semua kolom dan menambah `'` di
+  depan teks berawalan `=`, `+`, `-`, `@` agar tidak dibaca Excel sebagai rumus.
