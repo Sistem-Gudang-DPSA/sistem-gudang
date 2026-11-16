@@ -113,4 +113,66 @@ describe("apiClient", () => {
     expect(b).toEqual(data);
     expect(getAccessToken()).toBe("new");
   });
+
+  it("refreshes once when several requests get 401 with the same expired token", async () => {
+    const { apiClient, setAccessToken } = await import("./api-client");
+    setAccessToken("old");
+    const fetchMock = vi.fn(async (url: string, init: RequestInit) => {
+      if (String(url).includes("/auth/refresh")) {
+        return jsonResponse(200, { success: true, message: "ok", data: { accessToken: "new" } });
+      }
+      const auth = (init.headers as Record<string, string>).Authorization;
+      return auth === "Bearer new"
+        ? jsonResponse(200, { success: true, message: "ok", data: 1 })
+        : jsonResponse(401, { success: false, message: "Token invalid" });
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await Promise.all([apiClient.get("/api/v1/a"), apiClient.get("/api/v1/b"), apiClient.get("/api/v1/c")]);
+
+    expect(fetchMock.mock.calls.filter(([u]) => String(u).includes("/auth/refresh"))).toHaveLength(1);
+  });
+
+  it("retries without refreshing when the token was renewed after the request was sent", async () => {
+    const { apiClient, setAccessToken } = await import("./api-client");
+    setAccessToken("old");
+    let first = true;
+    const fetchMock = vi.fn(async () => {
+      if (first) {
+        first = false;
+        setAccessToken("new"); // a concurrent refresh finished while this request was in flight
+        return jsonResponse(401, { success: false, message: "Token invalid" });
+      }
+      return jsonResponse(200, { success: true, message: "ok", data: 7 });
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(apiClient.get("/api/v1/a")).resolves.toBe(7);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not refresh after a 401 from an auth endpoint (wrong password)", async () => {
+    const { apiClient } = await import("./api-client");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(401, { success: false, message: "Invalid email or password" }));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(apiClient.post("/api/v1/auth/login", {})).rejects.toMatchObject({ status: 401 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("runs the refresh inside a Web Lock so tabs do not race on the cookie", async () => {
+    const request = vi.fn((_name: string, cb: () => Promise<unknown>) => cb());
+    Object.defineProperty(navigator, "locks", { value: { request }, configurable: true });
+    global.fetch = vi.fn().mockResolvedValue(
+      jsonResponse(200, { success: true, message: "ok", data: { accessToken: "n" } })
+    ) as unknown as typeof fetch;
+    const { refreshSessionData } = await import("./api-client");
+
+    await refreshSessionData();
+
+    expect(request).toHaveBeenCalledWith("auth-refresh", expect.any(Function));
+    Object.defineProperty(navigator, "locks", { value: undefined, configurable: true });
+  });
 });
