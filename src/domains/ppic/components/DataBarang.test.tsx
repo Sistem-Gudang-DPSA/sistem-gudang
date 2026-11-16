@@ -4,6 +4,7 @@ import { installFakeApi, paged } from '@/test/fake-api';
 import DataBarangPPIC from './DataBarang';
 
 vi.mock('next/navigation', () => ({
+  useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
   useParams: () => ({}),
   usePathname: () => '/ppic/barang',

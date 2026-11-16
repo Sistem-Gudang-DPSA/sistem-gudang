@@ -10,6 +10,7 @@ export interface Item {
   unit: string;
   price: number;
   stock: number;
+  minimumStock?: number | null;
   locationId: number | null;
   supplierId: number | null;
   // Path relatif foto barang (dilayani lewat fileUrl); null bila belum ada foto.
@@ -70,6 +71,7 @@ export interface ItemFilterParams {
 }
 
 export interface UpdateItemInput {
+  minimumStock?: number | null;
   name?: string;
   detail?: string | null;
   category?: string;
