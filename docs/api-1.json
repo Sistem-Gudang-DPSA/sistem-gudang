@@ -21325,10 +21325,11 @@
                           "exclusiveMinimum": true
                         },
                         "qty": {
-                          "type": "integer",
+                          "type": "number",
                           "minimum": 0,
                           "exclusiveMinimum": true,
-                          "maximum": 1000000
+                          "maximum": 1000000,
+                          "multipleOf": 0.001
                         },
                         "pic": {
                           "type": "string",
@@ -22344,10 +22345,11 @@
                           "exclusiveMinimum": true
                         },
                         "qty": {
-                          "type": "integer",
+                          "type": "number",
                           "minimum": 0,
                           "exclusiveMinimum": true,
-                          "maximum": 1000000
+                          "maximum": 1000000,
+                          "multipleOf": 0.001
                         },
                         "pic": {
                           "type": "string",

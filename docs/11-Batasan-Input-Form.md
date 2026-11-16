@@ -18,6 +18,10 @@ terlihat setelah dikirim.
   `decimalOnlyMax(value, 3)`: koma atau titik sebagai pemisah desimal,
   maksimal 3 angka di belakangnya. `physicalQtyValid` menolak nilai di atas
   1.000.000 saat Simpan, sesuai `multipleOf 0.001` di backend.
+- Qty barang keluar (form dan edit) boleh desimal, maksimal 3 angka di
+  belakang koma dan maksimal 1.000.000, sama dengan backend (`MAX_QTY`).
+  Nilai 1.000.001 ditolak. Aturannya ada di `jumlahValid`
+  (`barang-keluar/form-utils.ts`).
 - Field `delta` di penyesuaian stok boleh diawali satu tanda minus.
 - Field teks memakai `maxLength` sesuai batas di OpenAPI, misalnya nama 191,
   kode 20, catatan 500. Kotak pencarian dibatasi 100.
