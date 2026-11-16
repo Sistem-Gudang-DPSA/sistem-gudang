@@ -7,6 +7,7 @@ import { ApiError } from "@/shared/lib/api-client";
 import { useApiData } from "@/shared/lib/use-api-data";
 import { useDebouncedValue } from "@/shared/lib/use-debounced-value";
 import { useClampPage, usePage } from "@/shared/lib/use-page";
+import { useSelection } from "@/shared/lib/use-selection";
 import { cetakTransaksi } from "./cetak";
 
 export const PAGE_SIZE = 20;
@@ -52,28 +53,17 @@ export function useBarangKeluarList({ setActionError }: { setActionError: (messa
     };
   }, [hasPendingEdit, reload]);
 
-  const [selected, setSelected] = useState<Map<number, OutboundRow>>(new Map());
-  const allChecked = rows.length > 0 && rows.every((trx) => selected.has(trx.id));
-  const toggleSelected = (trx: OutboundRow) =>
-    setSelected((prev) => {
-      const next = new Map(prev);
-      if (next.has(trx.id)) next.delete(trx.id);
-      else next.set(trx.id, trx);
-      return next;
-    });
-  const toggleAllSelected = () =>
-    setSelected((prev) => {
-      const next = new Map(prev);
-      rows.forEach((trx) => (allChecked ? next.delete(trx.id) : next.set(trx.id, trx)));
-      return next;
-    });
+  const selection = useSelection<OutboundRow>(filterKey);
+  const allChecked = selection.allSelected(rows);
+  const toggleSelected = selection.toggle;
+  const toggleAllSelected = () => selection.toggleMany(rows);
 
   const [printing, setPrinting] = useState(false);
   const printSelected = async () => {
     if (printing) return;
     const transactions =
-      selected.size > 0
-        ? [...selected.values()].map((trx) => rows.find((row) => row.id === trx.id) ?? trx)
+      selection.size > 0
+        ? selection.rows.map((trx) => rows.find((row) => row.id === trx.id) ?? trx)
         : rows;
     if (transactions.length === 0) return;
     setPrinting(true);
@@ -113,7 +103,7 @@ export function useBarangKeluarList({ setActionError }: { setActionError: (messa
     showFilter, setShowFilter,
     filterDay, setFilterDay, filterMonth, setFilterMonth, filterYear, setFilterYear, resetDateFilter,
     page, setPage, rows, total, loading, error, reload,
-    selected, allChecked, toggleSelected, toggleAllSelected,
+    selectedCount: selection.size, isSelected: selection.isSelected, allChecked, toggleSelected, toggleAllSelected,
     printing, printSelected,
     downloading, downloadError, handleDownload,
   };

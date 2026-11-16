@@ -5,7 +5,7 @@ export function getUnreadCount() {
   return apiClient.get<{ count: number }>("/api/v1/notifications/unread-count");
 }
 
-export function listNotifications(params?: { page?: number; pageSize?: number }) {
+export function listNotifications(params?: { page?: number; pageSize?: number; unreadOnly?: boolean }) {
   return apiClient.get<NotificationPage>(`/api/v1/notifications${toQuery(params)}`);
 }
 

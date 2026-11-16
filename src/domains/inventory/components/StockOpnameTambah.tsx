@@ -1,13 +1,14 @@
 "use client";
 
 import { useCan } from '@/domains/auth/user-context';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown, Camera } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { gudangBasePath } from '../base-path';
 import { createStockOpname, getItemByCode, listItems } from '@/domains/inventory/api';
 import type { Item, ItemListRow } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
-import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
+import { PHYSICAL_QTY_INPUT, decimalOnlyMax, physicalQtyValid } from '@/shared/lib/input';
 import Pagination from '@/shared/components/Pagination';
 import { useSort, type Sort } from '@/shared/components/SortableTh';
 import QrCameraScanner from '@/domains/inventory/components/QrCameraScanner';
@@ -29,10 +30,14 @@ function SortTh({ label, sortKey, sort, onSort, className, rowSpan }: SortThProp
 
 const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 // stock is kept on the row so the confirm count is right for items scanned in from another page
-type Row = { itemId: string; itemName: string; stock: number; jumlah: string; keterangan: string };
+// The item info is kept too, so a row scanned in from another page can still be shown and corrected.
+type Row = { itemId: string; itemName: string; code: string | null; unit: string; category: string; price: number; stock: number; jumlah: string; keterangan: string };
+const rowInfo = (item: Item | ItemListRow) => ({ itemName: item.name, code: item.code, unit: item.unit, category: item.category, price: item.price, stock: item.stock });
+const toNum = (v: string) => Number(v.replace(",", "."));
 
 export default function TambahStockOpnameGudang() {
   const router = useRouter();
+  const base = gudangBasePath(usePathname());
   const canCreate = useCan('stock-opname.create');
 
   const now = new Date();
@@ -78,11 +83,10 @@ export default function TambahStockOpnameGudang() {
             const id = String(item.id);
             const saved = existing.get(id);
 
-            if (saved) return { ...saved, itemName: item.name, stock: item.stock };
+            if (saved) return { ...saved, ...rowInfo(item) };
             return {
               itemId: id,
-              itemName: item.name,
-              stock: item.stock,
+              ...rowInfo(item),
               jumlah: "",
               keterangan: "",
             };
@@ -129,7 +133,11 @@ export default function TambahStockOpnameGudang() {
   const [lockedName, setLockedName] = useState("");
   const [scanned, setScanned] = useState<{ item: Item; jumlah: string; keterangan: string } | null>(null);
 
+  // Bumped on every scan and when the camera toggles; an answer from an older session is dropped.
+  const scanSession = useRef(0);
+
   const toggleCamera = () => {
+    scanSession.current++;
     setCameraOn((v) => !v);
     setScanned(null);
     setScanError("");
@@ -138,17 +146,20 @@ export default function TambahStockOpnameGudang() {
   };
 
   const handleScan = async (code: string) => {
+    const session = ++scanSession.current;
     setScanError("");
     setScanNotice("");
     setScanned(null);
     setLockedName("");
     try {
       const item = await getItemByCode(code);
+      if (session !== scanSession.current) return;
       // An item already in the list keeps its typed count, so a rescan corrects it instead of duplicating it.
       const existing = data.find((row) => row.itemId === String(item.id));
       setLockedName(item.name);
       setScanned({ item, jumlah: existing?.jumlah ?? "", keterangan: existing?.keterangan ?? "" });
     } catch (err) {
+      if (session !== scanSession.current) return;
       setScanError(
         err instanceof ApiError && err.status === 404 ? `Kode "${code}" tidak dikenal.`
         : err instanceof ApiError ? err.message : "Gagal membaca kode.",
@@ -162,8 +173,8 @@ export default function TambahStockOpnameGudang() {
     const id = String(item.id);
     setData((prev) => prev.some((row) => row.itemId === id)
       ? prev.map((row) => row.itemId === id ? { ...row, jumlah, keterangan } : row)
-      : [...prev, { itemId: id, itemName: item.name, stock: item.stock, jumlah, keterangan }]);
-    setScanNotice(`${item.name} dimasukkan ke opname: ${Number(jumlah).toLocaleString('id-ID')} ${item.unit}.`);
+      : [...prev, { itemId: id, ...rowInfo(item), jumlah, keterangan }]);
+    setScanNotice(`${item.name} dimasukkan ke opname: ${toNum(jumlah).toLocaleString('id-ID')} ${item.unit}.`);
     setScanned(null);
   };
 
@@ -174,13 +185,17 @@ export default function TambahStockOpnameGudang() {
       setError("Isi jumlah fisik minimal satu barang.");
       return;
     }
+    if (filled.some((row) => !physicalQtyValid(row.jumlah))) {
+      setError("Jumlah fisik harus 0 sampai 1.000.000, maksimal 3 angka di belakang koma.");
+      return;
+    }
     const ids = filled.map((row) => row.itemId);
     if (new Set(ids).size !== ids.length) {
       setError("Satu barang hanya boleh muncul sekali per stok opname.");
       return;
     }
     // Stock opname overwrites stock with the physical count, so confirm first.
-    const changed = filled.filter((row) => Number(row.jumlah) !== row.stock).length;
+    const changed = filled.filter((row) => toNum(row.jumlah) !== row.stock).length;
     if (!window.confirm(`Stok ${filled.length} barang akan disetel ke jumlah fisik (${changed} berbeda dari stok sistem). Lanjutkan?`)) {
       return;
     }
@@ -192,11 +207,11 @@ export default function TambahStockOpnameGudang() {
         year: Number(year),
         lines: filled.map((row) => ({
           itemId: Number(row.itemId),
-          physicalQty: Number(row.jumlah),
+          physicalQty: toNum(row.jumlah),
           note: row.keterangan || undefined,
         })),
       });
-      router.push('/dashboard/gudang/transaksi/stock-opname');
+      router.push(`${base}/transaksi/stock-opname`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Gagal menyimpan stok opname.");
     } finally {
@@ -206,8 +221,9 @@ export default function TambahStockOpnameGudang() {
 
   if (!canCreate) return <div className="p-6 text-sm text-gray-600">Anda tidak punya izin untuk membuat stock opname.</div>;
 
+  // Every counted row stays visible whatever page it came from; empty rows show only on their own page.
   const pageData = data.filter((row) =>
-    items.some((item) => String(item.id) === row.itemId)
+    row.jumlah !== "" || items.some((item) => String(item.id) === row.itemId)
   );
 
   return (
@@ -262,7 +278,7 @@ export default function TambahStockOpnameGudang() {
               {scanError && <p role="alert" className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{scanError}</p>}
               {scanned && (() => {
                 const { item, jumlah, keterangan } = scanned;
-                const selisih = jumlah === "" ? null : Number(jumlah) - item.stock;
+                const selisih = jumlah === "" ? null : toNum(jumlah) - item.stock;
                 return (
                   <div className="mb-4 p-4 max-w-sm bg-white border border-gray-200 rounded-xl shadow-sm text-sm">
                     <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
@@ -280,7 +296,7 @@ export default function TambahStockOpnameGudang() {
                     <div className="grid grid-cols-2 gap-3 mt-4">
                       <label className="flex flex-col gap-1 text-gray-500">
                         Jumlah fisik
-                        <input {...INTEGER_INPUT} maxLength={9} aria-label="Jumlah fisik" value={jumlah} placeholder="0" onChange={(e) => setScanned((s) => s && { ...s, jumlah: digitsOnly(e.target.value) })} className="border border-gray-200 rounded-lg px-3 py-2 text-center text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20" />
+                        <input {...PHYSICAL_QTY_INPUT} aria-label="Jumlah fisik" value={jumlah} placeholder="0" onChange={(e) => setScanned((s) => s && { ...s, jumlah: decimalOnlyMax(e.target.value, 3) })} className="border border-gray-200 rounded-lg px-3 py-2 text-center text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20" />
                       </label>
                       <div className="flex flex-col gap-1 text-gray-500">
                         Selisih
@@ -339,33 +355,32 @@ export default function TambahStockOpnameGudang() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {pageData.map((row, index) => {
-                    const item = items.find((it) => String(it.id) === row.itemId);
                     // Administrasi = system stock; Fisik harga and Selisih are derived (the API only takes physical qty).
-                    const adm = item ? { qty: item.stock, harga: item.stock * item.price } : null;
-                    const fsk = item && row.jumlah !== "" ? { qty: Number(row.jumlah), harga: Number(row.jumlah) * item.price } : null;
+                    const adm = { qty: row.stock, harga: row.stock * row.price };
+                    const fsk = row.jumlah !== "" ? { qty: toNum(row.jumlah), harga: toNum(row.jumlah) * row.price } : null;
                     const fmt = (n?: number) => (n === undefined ? '' : n.toLocaleString('id-ID'));
                     return (
-                      <tr key={item?.id} className="bg-white hover:bg-orange-50/10 transition-colors duration-150">
-                        <td className="border-r border-b border-gray-100/50 h-12 text-gray-400 font-medium text-center text-xs"> {(page - 1) * pageSize + index + 1}</td>
+                      <tr key={row.itemId} className="bg-white hover:bg-orange-50/10 transition-colors duration-150">
+                        <td className="border-r border-b border-gray-100/50 h-12 text-gray-400 font-medium text-center text-xs"> {index + 1}</td>
                         <td className="border-r border-b border-gray-100/50 p-0 whitespace-normal">
                           <div className='flex flex-col'>
                             <span className="font-bold text-gray-900">{row.itemName}</span>
-                            <span className="text-xs font-mono text-gray-500 mt-0.5">{item?.code ?? '-'}</span>
+                            <span className="text-xs font-mono text-gray-500 mt-0.5">{row.code ?? '-'}</span>
                           </div>
                         </td>
                         <td className="border-r border-b border-gray-100/50 p-0 w-24">
-                          <input type="text" readOnly value={item?.unit ?? ''} placeholder="Unit" className="w-full h-full min-h-12 px-4 py-2 bg-transparent text-center text-gray-700 text-sm placeholder-gray-300 focus:outline-none" />
+                          <input type="text" readOnly value={row.unit} placeholder="Unit" className="w-full h-full min-h-12 px-4 py-2 bg-transparent text-center text-gray-700 text-sm placeholder-gray-300 focus:outline-none" />
                         </td>
                         <td className="border-r border-b border-gray-100/50 p-0 w-32">
-                          <input type="text" readOnly value={item?.category ?? ''} placeholder="Kategori" className="w-full h-full min-h-12 px-4 py-2 bg-transparent text-center text-gray-700 text-sm placeholder-gray-300 focus:outline-none" />
+                          <input type="text" readOnly value={row.category} placeholder="Kategori" className="w-full h-full min-h-12 px-4 py-2 bg-transparent text-center text-gray-700 text-sm placeholder-gray-300 focus:outline-none" />
                         </td>
-                        <td colSpan={2} className="border-r border-b border-gray-100/50 px-4 py-2 w-28 text-center text-gray-600">{fmt(adm?.qty)}</td>
+                        <td colSpan={2} className="border-r border-b border-gray-100/50 px-4 py-2 w-28 text-center text-gray-600">{fmt(adm.qty)}</td>
                         {/* <td className="border-r border-b border-gray-100/50 px-4 py-2 w-36 text-center text-gray-600">{fmt(adm?.harga)}</td> */}
                         <td colSpan={2} className="border-r border-b border-gray-100/50 p-0 w-28">
-                          <input {...INTEGER_INPUT} maxLength={9} value={row.jumlah} placeholder="0" onChange={(e) => handleChange(row.itemId, { jumlah: digitsOnly(e.target.value) })} className="w-full h-full min-h-12 px-4 py-2 bg-transparent text-center focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 text-gray-700 text-sm transition-all placeholder-gray-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                          <input {...PHYSICAL_QTY_INPUT} value={row.jumlah} placeholder="0" onChange={(e) => handleChange(row.itemId, { jumlah: decimalOnlyMax(e.target.value, 3) })} className="w-full h-full min-h-12 px-4 py-2 bg-transparent text-center focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 text-gray-700 text-sm transition-all placeholder-gray-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                         </td>
                         {/* <td className="border-r border-b border-gray-100/50 px-4 py-2 w-36 text-center text-gray-600">{fmt(fsk?.harga)}</td> */}
-                        <td colSpan={2} className="border-r border-b border-gray-100/50 px-4 py-2 w-28 text-center text-gray-600 font-bold bg-gray-50/50">{fsk && adm ? fmt(fsk.qty - adm.qty) : ''}</td>
+                        <td colSpan={2} className="border-r border-b border-gray-100/50 px-4 py-2 w-28 text-center text-gray-600 font-bold bg-gray-50/50">{fsk ? fmt(fsk.qty - adm.qty) : ''}</td>
                         {/* <td className="border-r border-b border-gray-100/50 px-4 py-2 w-36 text-center text-gray-600 font-bold bg-gray-50/50">{fsk && adm ? fmt(fsk.harga - adm.harga) : ''}</td> */}
                         <td className="border-b border-gray-100/50 p-0">
                           <input type="text" maxLength={255} value={row.keterangan} placeholder="Tambahkan catatan..." onChange={(e) => handleChange(row.itemId, { keterangan: e.target.value })} className="w-full h-full min-h-12 px-6 py-2 bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 text-gray-700 text-sm transition-all placeholder-gray-300 italic" />

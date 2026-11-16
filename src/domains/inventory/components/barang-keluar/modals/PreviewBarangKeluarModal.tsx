@@ -1,5 +1,6 @@
 import { createPortal } from "react-dom";
 import { displayDate } from "@/domains/inventory/date";
+import { roundQty } from "@/shared/lib/input";
 import { orangeButtonClass } from "../styles";
 import type { FormBarangKeluar, ModeKeluar } from "../types";
 
@@ -7,6 +8,7 @@ export default function PreviewBarangKeluarModal({
   form,
   mode,
   saving,
+  disabled,
   cetak,
   error,
   onBack,
@@ -15,6 +17,7 @@ export default function PreviewBarangKeluarModal({
   form: FormBarangKeluar;
   mode: ModeKeluar;
   saving: boolean;
+  disabled: boolean;
   cetak: boolean;
   error: string;
   onBack: () => void;
@@ -69,10 +72,10 @@ export default function PreviewBarangKeluarModal({
                     <td className="px-4 py-2.5 font-medium text-gray-900">{b.name}</td>
                     <td className="px-4 py-2.5 font-mono text-xs text-gray-600">{b.code}</td>
                     <td className="px-4 py-2.5 text-gray-600">{b.unit}</td>
-                    <td className="px-4 py-2.5 text-gray-600">{b.dokubah || "-"}</td>
-                    <td className="px-4 py-2.5 text-right font-bold text-gray-800">{qty}</td>
+                    <td className="px-4 py-2.5 text-gray-600">{b.dokubah.replace(/\./g, ",") || "-"}</td>
+                    <td className="px-4 py-2.5 text-right font-bold text-gray-800">{roundQty(qty)}</td>
                     <td className="px-4 py-2.5 text-right text-gray-600">{b.stock}</td>
-                    <td className="px-4 py-2.5 text-right font-semibold text-gray-900">{b.stock - qty}</td>
+                    <td className="px-4 py-2.5 text-right font-semibold text-gray-900">{roundQty(b.stock - qty)}</td>
                   </tr>
                 );
               })}
@@ -81,7 +84,7 @@ export default function PreviewBarangKeluarModal({
               <tr>
                 <td colSpan={5} className="px-4 py-2.5">Total</td>
                 <td className="px-4 py-2.5 text-right">
-                  {form.baris.reduce((n, b) => n + (b.itemId !== null ? Number(b.qty) || 0 : 0), 0)}
+                  {roundQty(form.baris.reduce((n, b) => n + (b.itemId !== null ? Number(b.qty) || 0 : 0), 0))}
                 </td>
                 <td colSpan={2} />
               </tr>
@@ -96,7 +99,7 @@ export default function PreviewBarangKeluarModal({
             className="px-5 py-2.5 text-gray-600 bg-gray-100 hover:bg-gray-200 font-semibold rounded-xl transition-colors text-sm disabled:opacity-50">
             Kembali Edit
           </button>
-          <button type="button" onClick={onConfirm} disabled={saving} className={orangeButtonClass}>
+          <button type="button" onClick={onConfirm} disabled={saving || disabled} className={orangeButtonClass}>
             {saving ? "Menyimpan..." : cetak ? "Konfirmasi + Cetak" : "Konfirmasi Simpan"}
           </button>
         </div>

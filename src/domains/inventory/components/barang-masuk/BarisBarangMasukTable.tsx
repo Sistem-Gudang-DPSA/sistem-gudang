@@ -1,8 +1,8 @@
 import { Minus, Plus, Trash2 } from 'lucide-react';
 import SearchableSelect from '@/shared/components/SearchableSelect';
-import { digitsOnly, INTEGER_INPUT } from '@/shared/lib/input';
+import JumlahInput from '../JumlahInput';
 import { cellClass, headClass } from './styles';
-import { MAX_QTY, type useFormBarangMasuk } from './useFormBarangMasuk';
+import { MAX_QTY, peringatanJumlahMasuk, type useFormBarangMasuk } from './useFormBarangMasuk';
 
 type TableForm = Pick<ReturnType<typeof useFormBarangMasuk>,
   'baris' | 'preview' | 'supplier' | 'pilihanMaterial' | 'itemSearch' | 'pilihMaterial' | 'patchBaris' | 'hapusBaris'>;
@@ -47,24 +47,24 @@ export default function BarisBarangMasukTable({ f }: { f: TableForm }) {
                 <td className={`${cellClass} text-center font-mono text-xs text-gray-600`}>{row.code || '-'}</td>
                 <td className={`${cellClass} text-center`}>
                   {f.preview ? Number(row.qtyPurchased).toLocaleString('id-ID') : (
-                    <input {...INTEGER_INPUT} maxLength={9} placeholder="0" value={row.qtyPurchased}
+                    <JumlahInput validate={(value) => peringatanJumlahMasuk(value, 'rekap')} placeholder="0" value={row.qtyPurchased}
                       aria-label={`Jumlah Sesuai Rekap Pembelian ${name}`}
-                      onChange={(event) => f.patchBaris(row.key, { qtyPurchased: digitsOnly(event.target.value) })}
+                      onValueChange={(qtyPurchased) => f.patchBaris(row.key, { qtyPurchased })}
                       className="w-full min-w-20 border border-gray-300 rounded-md px-2 py-1.5 text-center text-sm" />
                   )}
                 </td>
                 <td className={`${cellClass} text-center`}>
                   {f.preview ? <span className="font-semibold">{Number(row.qtyArrived).toLocaleString('id-ID')}</span> : (
                     <div className="flex items-center justify-center">
-                      <button type="button" aria-label={`Kurangi ${name}`} disabled={Number(row.qtyArrived) <= 1}
-                        onClick={() => f.patchBaris(row.key, { qtyArrived: String(Math.max((Number(row.qtyArrived) || 0) - 1, 1)) })}
+                      <button type="button" aria-label={`Kurangi ${name}`} disabled={!!peringatanJumlahMasuk(row.qtyArrived, 'kedatangan') || Number(row.qtyArrived) <= 1}
+                        onClick={() => f.patchBaris(row.key, { qtyArrived: String(Number(Math.max((Number(row.qtyArrived) || 0) - 1, 1).toFixed(3))) })}
                         className="p-1 text-gray-500 hover:text-gray-900 disabled:opacity-30"><Minus className="w-4 h-4" /></button>
-                      <input {...INTEGER_INPUT} maxLength={9} placeholder="0" value={row.qtyArrived}
+                      <JumlahInput validate={(value) => peringatanJumlahMasuk(value, 'kedatangan')} placeholder="0" value={row.qtyArrived}
                         aria-label={`Jumlah Sesuai Kedatangan ${name}`}
-                        onChange={(event) => f.patchBaris(row.key, { qtyArrived: digitsOnly(event.target.value) })}
+                        onValueChange={(qtyArrived) => f.patchBaris(row.key, { qtyArrived })}
                         className="w-16 border border-gray-300 rounded-md py-1.5 px-2 text-center text-sm" />
-                      <button type="button" aria-label={`Tambah ${name}`} disabled={Number(row.qtyArrived) >= MAX_QTY}
-                        onClick={() => f.patchBaris(row.key, { qtyArrived: String((Number(row.qtyArrived) || 0) + 1) })}
+                      <button type="button" aria-label={`Tambah ${name}`} disabled={!!peringatanJumlahMasuk(row.qtyArrived, 'kedatangan') || Number(row.qtyArrived) >= MAX_QTY}
+                        onClick={() => f.patchBaris(row.key, { qtyArrived: String(Number(Math.min((Number(row.qtyArrived) || 0) + 1, MAX_QTY).toFixed(3))) })}
                         className="p-1 text-gray-500 hover:text-gray-900 disabled:opacity-30"><Plus className="w-4 h-4" /></button>
                     </div>
                   )}

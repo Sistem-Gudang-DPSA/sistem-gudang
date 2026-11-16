@@ -42,7 +42,7 @@ function buatDokumenBarangKeluar(data: DataCetak): string {
         <td class="tengah">${h.awal + rowIndex + 1}</td>
         <td>${escapeHtml(b.name)}</td>
         <td class="tengah">${escapeHtml(b.unit)}</td>
-        <td class="tengah">${escapeHtml(b.dokubah)}</td>
+        <td class="tengah">${escapeHtml(String(b.dokubah ?? "").replace(/\./g, ","))}</td>
         <td class="tengah">${escapeHtml(b.qty)}</td>
         <td>${escapeHtml(b.keterangan)}</td>
       </tr>`)
