@@ -66,6 +66,11 @@ dengan payload `{ price, supplierId }` saja. Field supplier di form
 diganti dari input teks bebas jadi dropdown supplier asli, karena API
 butuh `supplierId` bukan nama supplier.
 
+Panel Filter (kategori, satuan, supplier, lokasi, stok kosong) dikirim ke
+`listItems()` lewat `toItemFilterParams`, sama seperti Data Barang Gudang.
+Export CSV mengambil semua barang yang cocok dengan pencarian, filter, dan
+urutan aktif lewat `fetchAllPages`, bukan hanya halaman yang tampil.
+
 ## Bug atau Celah yang Ditemukan
 
 `src/domains/purchasing/components/DataSupplierDetail.tsx` (harga per

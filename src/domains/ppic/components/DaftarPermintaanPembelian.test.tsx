@@ -3,7 +3,7 @@ vi.setConfig({ testTimeout: 30000 });
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { fail, installFakeApi, paged, type FakeRequest } from '@/test/fake-api';
 import DaftarPermintaanPembelianPPIC from './DaftarPermintaanPembelian';
-import { withUser } from './as-user';
+import { withUser } from '@/test/as-user';
 
 const row = (id: number, status: string, over: Record<string, unknown> = {}) => ({
   id, type: 'purchase-request', requestedBy: 1, requestedByDomainId: 1, currentStepOrder: 1, cycle: 1, status,
