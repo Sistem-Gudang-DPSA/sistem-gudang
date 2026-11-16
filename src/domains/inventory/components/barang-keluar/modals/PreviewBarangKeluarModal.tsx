@@ -7,6 +7,7 @@ export default function PreviewBarangKeluarModal({
   form,
   mode,
   saving,
+  disabled,
   cetak,
   error,
   onBack,
@@ -15,6 +16,7 @@ export default function PreviewBarangKeluarModal({
   form: FormBarangKeluar;
   mode: ModeKeluar;
   saving: boolean;
+  disabled: boolean;
   cetak: boolean;
   error: string;
   onBack: () => void;
@@ -96,7 +98,7 @@ export default function PreviewBarangKeluarModal({
             className="px-5 py-2.5 text-gray-600 bg-gray-100 hover:bg-gray-200 font-semibold rounded-xl transition-colors text-sm disabled:opacity-50">
             Kembali Edit
           </button>
-          <button type="button" onClick={onConfirm} disabled={saving} className={orangeButtonClass}>
+          <button type="button" onClick={onConfirm} disabled={saving || disabled} className={orangeButtonClass}>
             {saving ? "Menyimpan..." : cetak ? "Konfirmasi + Cetak" : "Konfirmasi Simpan"}
           </button>
         </div>
