@@ -22,6 +22,10 @@ terlihat setelah dikirim.
   belakang koma dan maksimal 1.000.000, sama dengan backend (`MAX_QTY`).
   Nilai 1.000.001 ditolak. Aturannya ada di `jumlahValid`
   (`barang-keluar/form-utils.ts`).
+- Qty desimal yang dihitung untuk tampilan (total, sisa, saldo Kartu Stok)
+  dibulatkan dengan `roundQty` (`input.ts`, 3 desimal) agar 0,1 + 0,2 tampil
+  0,3. Pembulatan hanya untuk tampilan dan perbandingan; nilai yang dikirim ke
+  API tidak diubah.
 - Field `delta` di penyesuaian stok boleh diawali satu tanda minus.
 - Field teks memakai `maxLength` sesuai batas di OpenAPI, misalnya nama 191,
   kode 20, catatan 500. Kotak pencarian dibatasi 100.

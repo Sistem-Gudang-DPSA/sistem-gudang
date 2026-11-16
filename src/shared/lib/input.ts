@@ -8,6 +8,12 @@ export const INTEGER_INPUT = { type: "text", inputMode: "numeric", autoComplete:
 // PPN may be decimal with a comma or a dot ("11,5" = 11.5). Empty or not a number gives NaN, never 0.
 export const parsePpn = (value: string) => (value.trim() === "" ? NaN : Number(value.replace(",", ".")));
 
+// Rounds a decimal quantity for display or comparison, so 0.1 + 0.2 shows as 0.3. Never use it on a value sent to the API.
+export const roundQty = (value: number, decimals = 3) => {
+  const f = 10 ** decimals;
+  return Math.round((value + Number.EPSILON) * f) / f;
+};
+
 // Keeps digits and a single dot, for decimal fields such as dimensions and quantities.
 export const decimalOnly = (value: string) => value.replace(/[^\d.]/g, "").replace(/^(\d*\.\d*)\./, "$1");
 
