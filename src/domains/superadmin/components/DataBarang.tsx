@@ -8,6 +8,7 @@ import { adjustItemStock, assignItemLocation, bulkRecodeItems, deleteItem, listI
 import type { ItemListRow, UpdateItemInput } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
 import Pagination from '@/shared/components/Pagination';
+import { randomId } from '@/shared/lib/random-id';
 import { fetchAllPages } from '@/shared/lib/fetch-all';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import { ImportExcelButton, addReferenceColumns } from '@/shared/components/ImportExcelButton';
@@ -59,6 +60,8 @@ export default function DataBarangGudang() {
 
   const [isStockModalOpen, setIsStockModalOpen] = useState(false);
   const [stockItem, setStockItem] = useState<ItemListRow | null>(null);
+  // Satu key per penyesuaian: dipakai ulang saat retry, ganti kalau isinya berubah
+  const stockKey = useRef({ key: '', payload: '' });
   const [stockDelta, setStockDelta] = useState("");
   const [stockReason, setStockReason] = useState("");
   const [stockSaving, setStockSaving] = useState(false);
@@ -217,6 +220,7 @@ export default function DataBarangGudang() {
 
   const openStockModal = (item: ItemListRow) => {
     setStockItem(item);
+    stockKey.current = { key: '', payload: '' };
     setStockDelta("");
     setStockReason("");
     setStockError("");
@@ -232,7 +236,10 @@ export default function DataBarangGudang() {
     setStockSaving(true);
     setStockError("");
     try {
-      await adjustItemStock(stockItem.id, { delta, reason: stockReason });
+      const payload = `${stockItem.id}|${delta}|${stockReason}`;
+      if (!stockKey.current.key || stockKey.current.payload !== payload) stockKey.current = { key: randomId(), payload };
+      await adjustItemStock(stockItem.id, { delta, reason: stockReason }, stockKey.current.key);
+      stockKey.current = { key: '', payload: '' };
       reload();
       setIsStockModalOpen(false);
     } catch (err) {
