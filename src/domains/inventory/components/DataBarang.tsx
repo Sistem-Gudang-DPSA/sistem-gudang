@@ -6,14 +6,15 @@ import StokMinimumCell from '@/domains/inventory/components/data-barang/StokMini
 import { useState } from 'react';
 import { useCan } from '@/domains/auth/user-context';
 import { Plus, Edit2, QrCode } from 'lucide-react';
-import { assignItemLocation, bulkAssignItemLocation } from '@/domains/inventory/api';
+import { assignItemLocation, bulkAssignItemLocation, listItems } from '@/domains/inventory/api';
 import type { ItemListRow } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
-import { downloadBlob } from '@/shared/lib/download';
+import { downloadCsv } from '@/shared/lib/csv';
+import { fetchAllPages } from '@/shared/lib/fetch-all';
 import Pagination from '@/shared/components/Pagination';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import { printItemLabels } from '@/domains/inventory/label-print';
-import BarangFilterPanel, { countActiveFilters } from './BarangFilterPanel';
+import BarangFilterPanel, { countActiveFilters, toItemFilterParams } from './BarangFilterPanel';
 import { useDataBarang } from './data-barang/useDataBarang';
 import DataBarangTable, { type BarangColumn, KategoriBadge, StokCell, SupplierCell } from './data-barang/DataBarangTable';
 import DataBarangToolbar, { FilterToggle } from './data-barang/DataBarangToolbar';
@@ -91,14 +92,17 @@ export default function DataBarangGudang({
     }
   };
 
-  const handleExportExcel = () => {
-    const headers = ['No,Kode Barang,Kode Bawaan,Nama Barang,Supplier,Jumlah Stok,Satuan,Kategori,Lokasi'];
-    const csvData = dataBarang.map((item, index) =>
-      `${index + 1},${item.code ?? '-'},"${item.externalCode ?? '-'}","${item.name}","${supplierName(item.supplierId)}",${item.stock},${item.unit},${item.category},${locationCode(item.locationId)}`
-    );
-    const csvString = [...headers, ...csvData].join('\n');
-
-    downloadBlob(new Blob([csvString], { type: 'text/csv;charset=utf-8;' }), 'Data_Barang_Gudang.csv');
+  // Semua barang sesuai pencarian/filter aktif, bukan hanya halaman yang tampil
+  const handleExportExcel = async () => {
+    setPrintError("");
+    try {
+      const all = await fetchAllPages((p) => listItems({ page: p, pageSize: 100, search: d.debouncedSearch || undefined, ...toItemFilterParams(d.filters), ...d.sortParams }));
+      const rows: unknown[][] = [['No', 'Kode Barang', 'Kode Bawaan', 'Nama Barang', 'Supplier', 'Jumlah Stok', 'Satuan', 'Kategori', 'Lokasi']];
+      all.forEach((item, index) => rows.push([index + 1, item.code ?? '-', item.externalCode ?? '-', item.name, supplierName(item.supplierId), item.stock, item.unit, item.category, locationCode(item.locationId)]));
+      downloadCsv('Data_Barang_Gudang.csv', rows);
+    } catch (err) {
+      setPrintError(err instanceof Error ? err.message : "Gagal export data barang.");
+    }
   };
 
   const columns: BarangColumn[] = [
