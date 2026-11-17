@@ -573,6 +573,52 @@ describe('BarangKeluar create', () => {
     });
   });
 
+  it.each(['SPK', 'Stok / Internal'])('capitalizes Nama Pengambil immediately and saves the same name in %s', async (mode) => {
+    const api = setup({ 'POST /api/v1/outbound': { id: 5 } });
+    if (mode === 'SPK') {
+      await openForm(api);
+      await fillHeader();
+    } else {
+      await screen.findAllByText('Klien 1');
+      fireEvent.click(screen.getByRole('button', { name: 'Barang Keluar' }));
+      fireEvent.click(screen.getByText('Barang Keluar Stok / Internal'));
+      fireEvent.change(label('ID Stok / Internal'), { target: { value: 'OPS-1' } });
+      fireEvent.change(label('Nama Item'), { target: { value: 'Rak bengkel' } });
+    }
+    const input = label('Nama Pengambil');
+    for (const value of ['pak mul', 'PAK MUL', 'pAk mUL']) {
+      fireEvent.change(input, { target: { value } });
+      expect(input.value).toBe('Pak Mul');
+    }
+    fireEvent.change(input, { target: { value: 'Pak ' } });
+    expect(input.value).toBe('Pak ');
+    fireEvent.change(input, { target: { value: '' } });
+    expect(input.value).toBe('');
+    fireEvent.change(input, { target: { value: 'pak mul' } });
+    scan('BRG-1');
+    await screen.findByText('Triplex', { selector: 'td' });
+    fireEvent.click(screen.getByText('Simpan'));
+    const preview = await screen.findByRole('dialog', { name: 'Preview Barang Keluar' });
+    expect(within(preview).getByText('Pak Mul')).toBeTruthy();
+    fireEvent.click(within(preview).getByText('Konfirmasi Simpan'));
+    await waitFor(() => expect(api.calls('POST /api/v1/outbound')).toHaveLength(1));
+    expect(api.calls('POST /api/v1/outbound')[0].body).toMatchObject({
+      notes: 'Pengambil: Pak Mul', lines: [{ itemId: 1, pic: 'Pak Mul' }],
+    });
+  });
+
+  it('preserves the cursor when correcting a letter in the middle of Nama Pengambil', async () => {
+    const api = setup();
+    await openForm(api);
+    const input = label('Nama Pengambil');
+    fireEvent.change(input, { target: { value: 'pak mul' } });
+    await act(async () => {});
+    fireEvent.change(input, { target: { value: 'Pak amul', selectionStart: 5, selectionEnd: 5 } });
+    expect(input.value).toBe('Pak Amul');
+    await waitFor(() => expect(input.selectionStart).toBe(5));
+    expect(input.selectionEnd).toBe(5);
+  });
+
   it('saves one transaction with the header SPK/produk and every scanned item', async () => {
     const api = setup({ 'POST /api/v1/outbound': { id: 5 } });
     await openForm(api);
@@ -1141,6 +1187,7 @@ describe('permissions', () => {
     await open(who(['outbound.create', 'outbound.update', 'report.view']));
     expect(screen.getByRole('button', { name: 'Barang Keluar' })).not.toBeNull();
     expect(screen.getByText('Export')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Export' }).querySelector('.lucide-file-up')).not.toBeNull();
   });
 
   it('shows Edit only to a user with outbound.update', async () => {

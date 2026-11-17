@@ -28,10 +28,10 @@ describe("production sidebar", () => {
     render(<SidebarNav user={user} pathname="/dashboard/produksi/laporan/realisasi-spk/SPK-1" onNavigate={onNavigate} />);
     const production = screen.getByText("Produksi").closest("details")!;
     const finance = screen.getByText("Keuangan").closest("details")!;
-    const link = within(production).getByRole("link", { name: "Realisasi SPK" });
+    const link = within(production).getByRole("link", { name: "Realisasi Dokubah" });
     expect(link.getAttribute("href")).toBe("/dashboard/produksi/laporan/realisasi-spk");
     expect(link.className).toContain("bg-blue-500");
-    expect(within(finance).getByRole("link", { name: "Realisasi SPK" }).className).not.toContain("finance-nav-active");
+    expect(within(finance).getByRole("link", { name: "Realisasi Dokubah" }).className).not.toContain("finance-nav-active");
     fireEvent.click(link);
     expect(onNavigate).toHaveBeenCalledOnce();
   });

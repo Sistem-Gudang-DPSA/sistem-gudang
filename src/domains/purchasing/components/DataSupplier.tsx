@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Search, Plus, FileUp } from 'lucide-react';
+import { Search, Plus, FileDown } from 'lucide-react';
 import Link from 'next/link';
 import { createSupplier, deleteSupplier, listSuppliers, updateSupplier } from '@/domains/purchasing/api';
 import type { Pajak, Supplier } from '@/domains/purchasing/types';
@@ -127,7 +127,7 @@ export default function DataSupplierPurchasing() {
                 onClick={() => { setImportNote(''); setImportOpen(true); }}
                 className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-[#FF8A00] text-[#FF8A00] font-semibold rounded-xl hover:bg-orange-50 transition-colors text-sm w-full lg:w-auto"
               >
-                <FileUp className="w-4 h-4" />
+                <FileDown className="w-4 h-4" />
                 <span>Import Excel</span>
               </button>
               

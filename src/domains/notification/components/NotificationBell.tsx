@@ -118,7 +118,8 @@ export default function NotificationBell() {
   const openRow = (n: Notification) => {
     setOpen(false);
     if (!n.readAt) void markNotificationRead(n.id).then(() => window.dispatchEvent(new Event("notifications-changed"))).catch(() => {});
-    router.push(notificationDestination(n));
+    if (n.type === "LOW_STOCK") router.push(notificationDestination(n), { scroll: false });
+    else router.push(n.link);
   };
 
   const markAll = async () => {

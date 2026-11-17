@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Download, Eye, Search } from 'lucide-react';
+import { Printer, Eye, Search } from 'lucide-react';
 import { getStockCard, listItems } from '@/domains/inventory/api';
 import type { ItemListRow } from '@/domains/inventory/types';
 import { buildKartu, kartuStokPath } from '@/domains/inventory/components/KartuStok';
@@ -117,7 +117,7 @@ export default function KartuStok() {
               title="Print Data ke PDF"
               className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-50"
             >
-              <Download className="w-4 h-4" />
+              <Printer className="w-4 h-4" />
               <span className="hidden sm:inline">Print PDF</span>
             </button>
           </div>
