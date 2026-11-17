@@ -74,7 +74,7 @@ describe("NotificationBell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Notifikasi" }));
     expect(await screen.findByText("Sisa stok Triplex 2 mm: 10 lembar. Segera ajukan pembelian.")).toBeTruthy();
     fireEvent.click(screen.getByText("Stok menipis: Triplex 2 mm"));
-    expect(router.push).toHaveBeenCalledWith("/dashboard/gudang/master/data-barang?itemId=1");
+    expect(router.push).toHaveBeenCalledWith("/dashboard/gudang/master/data-barang?itemId=1", { scroll: false });
   });
 
   it("refreshes when a stock threshold is changed", async () => {

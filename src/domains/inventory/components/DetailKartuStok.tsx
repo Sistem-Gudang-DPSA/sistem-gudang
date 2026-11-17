@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, AlertCircle, CalendarDays, Download, Filter } from 'lucide-react';
+import { ArrowLeft, AlertCircle, CalendarDays, Printer, Filter } from 'lucide-react';
 import { getStockCard } from '@/domains/inventory/api';
 import { buildKartu } from '@/domains/inventory/components/KartuStok';
 import { exportKartuExcel, printKartuPdf } from '@/shared/components/ExportStok';
@@ -109,7 +109,7 @@ export default function KartuStokDetail() {
                             disabled={exportDisabled}
                             className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-50"
                         >
-                            <Download className="w-4 h-4" />
+                            <Printer className="w-4 h-4" />
                             <span className="hidden sm:inline">Print PDF</span>
                         </button>
                         <button type="button" onClick={reload} className="px-3 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">

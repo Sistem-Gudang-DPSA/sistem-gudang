@@ -153,6 +153,10 @@
   * {
     @apply border-border outline-ring/50;
   }
+  /* Ikon mempertahankan ukurannya saat berada di baris flex yang padat. */
+  .lucide {
+    flex-shrink: 0;
+  }
   body {
     @apply bg-background text-foreground;
     font-family: Arial, Helvetica, sans-serif;

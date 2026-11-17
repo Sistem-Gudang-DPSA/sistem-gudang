@@ -48,10 +48,10 @@ const listBody = (rows: RealisasiListRow[]): Cell[][] =>
   rows.map((r, i) => [i + 1, r.noSpk, r.client, orDash(r.anggaran), r.realisasi, orDash(r.sisa), orDash(r.status)]);
 
 export const exportRealisasiExcel = (rows: RealisasiListRow[], periode: string) =>
-  exportToExcel({ filename: `Realisasi_SPK_${safeName(periode)}.xlsx`, sheetName: 'Realisasi SPK', headers: listHeaders, rows: listBody(rows) });
+  exportToExcel({ filename: `Realisasi_Dokubah_${safeName(periode)}.xlsx`, sheetName: 'Realisasi Dokubah', headers: listHeaders, rows: listBody(rows) });
 
 export const printRealisasiPdf = (win: Window, rows: RealisasiListRow[], periode: string) =>
-  writePrint(win, 'Realisasi SPK', [`Periode: ${periode}`, 'Sumber: Barang Keluar (belum dari dokubah PPIC)'], listHeaders, listBody(rows));
+  writePrint(win, 'Realisasi Dokubah', [`Periode: ${periode}`, 'Sumber: Barang Keluar (belum dari dokubah PPIC)'], listHeaders, listBody(rows));
 
 // ---------- Rincian satu SPK ----------
 function rincianTable(mode: Mode, r: RincianSpk, rows: RincianRow[]) {

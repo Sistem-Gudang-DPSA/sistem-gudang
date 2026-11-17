@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { AuthUserProvider } from '@/domains/auth/user-context';
 import { installFakeApi, paged, fail } from '@/test/fake-api';
 import Gudang from '../DataBarang';
@@ -8,6 +8,8 @@ import Ppic from '@/domains/ppic/components/DataBarang';
 import Purchasing from '@/domains/purchasing/components/DataBarang';
 import Superadmin from '@/domains/superadmin/components/DataBarang';
 import StockNotificationDetail from './StockNotificationDetail';
+import { renderToString } from 'react-dom/server';
+import * as inventoryApi from '@/domains/inventory/api';
 
 const router = { replace: vi.fn(), push: vi.fn() };
 let pathname: string;
@@ -51,6 +53,32 @@ describe('Stock notification detail', () => {
     expect(screen.queryByRole('button', { name: /Atur stok minimum/ })).toBeNull();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Tutup' }));
     expect(router.replace).toHaveBeenCalledWith(pathname, { scroll: false });
+  });
+
+  it('keeps the popup outside the animated page and reserves space while stock loads', async () => {
+    let finishLoading!: (value: Awaited<ReturnType<typeof inventoryApi.getItem>>) => void;
+    vi.spyOn(inventoryApi, 'getItem').mockImplementation(() => new Promise((resolve) => { finishLoading = resolve; }));
+    const { container, unmount } = render(<div className="animate-in slide-in-from-bottom-4"><StockNotificationDetail /></div>);
+    const dialog = screen.getByRole('dialog');
+    expect(container.contains(dialog)).toBe(false);
+    expect(document.body.contains(dialog)).toBe(true);
+    const content = within(dialog).getByRole('status').parentElement!;
+    expect(content.classList.contains('min-h-52')).toBe(true);
+    expect(content.getAttribute('aria-busy')).toBe('true');
+    expect(within(dialog).queryByText('Triplex notifikasi')).toBeNull();
+
+    await act(async () => { finishLoading({ ...item, createdAt: null, updatedAt: null }); });
+    expect(screen.getByRole('dialog')).toBe(dialog);
+    expect(content.getAttribute('aria-busy')).toBe('false');
+    expect(content.classList.contains('min-h-52')).toBe(true);
+    expect(within(content).getByText('Triplex notifikasi')).toBeTruthy();
+    expect(within(dialog).queryByRole('status')).toBeNull();
+    unmount();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('defers the portal until the client renders', () => {
+    expect(renderToString(<StockNotificationDetail />)).not.toContain('role="dialog"');
   });
 
   it('shows the error when the item has been deleted', async () => {

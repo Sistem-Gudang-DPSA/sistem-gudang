@@ -49,7 +49,8 @@ export default function Notifications() {
         await markNotificationRead(notification.id);
         window.dispatchEvent(new Event("notifications-changed"));
       }
-      router.push(notificationDestination(notification));
+      if (notification.type === "LOW_STOCK") router.push(notificationDestination(notification), { scroll: false });
+      else router.push(notification.link);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Gagal menandai notifikasi.");
     } finally {

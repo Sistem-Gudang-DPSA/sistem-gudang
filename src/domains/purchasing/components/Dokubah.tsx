@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Search, Plus, Edit2, Trash2, CheckCircle, XCircle, Clock, Download, Calendar } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, CheckCircle, XCircle, Clock, Upload, Calendar } from 'lucide-react';
 
 export default function RekapDokubah() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -242,7 +242,7 @@ export default function RekapDokubah() {
                       className="flex items-center w-full pl-4 pr-3 py-2.5 bg-white border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors font-sans"
                     >
                       <span className="text-gray-400 flex-1 truncate text-left">Upload file dokubah</span>
-                      <Download className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                      <Upload className="w-5 h-5 text-gray-600 flex-shrink-0" />
                     </label>
                   </div>
                 </div>
@@ -257,7 +257,7 @@ export default function RekapDokubah() {
                       className="flex items-center w-full pl-4 pr-3 py-2.5 bg-white border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors font-sans"
                     >
                       <span className="text-gray-400 flex-1 truncate text-left">Upload file rekap</span>
-                      <Download className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                      <Upload className="w-5 h-5 text-gray-600 flex-shrink-0" />
                     </label>
                   </div>
                 </div>

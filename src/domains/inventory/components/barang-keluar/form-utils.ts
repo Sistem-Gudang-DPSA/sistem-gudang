@@ -3,6 +3,9 @@ import { todayIso } from "@/domains/inventory/date";
 import { randomId } from "@/shared/lib/random-id";
 import type { BarisForm, FormBarangKeluar, ModeKeluar } from "./types";
 
+export const formatNamaPengambil = (value: string) =>
+  value.toLowerCase().replace(/(^|[^\p{L}\p{M}])\p{L}/gu, (awal) => awal.toUpperCase());
+
 export const MAX_JUMLAH = 999_999_999;
 export const JUMLAH_INPUT = { type: "text", inputMode: "decimal", autoComplete: "off" } as const;
 export const inputJumlah = (value: string) => value.replace(/,/g, ".");

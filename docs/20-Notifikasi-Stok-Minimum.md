@@ -24,6 +24,8 @@ Data Barang di divisi pengguna dan langsung menampilkan detail barang terkait
 (nama, kode, sisa stok beserta satuan, dan stok minimum), serta menandainya
 dibaca. Detail mengambil stok terbaru berdasarkan ID barang, sehingga barang
 tetap terbuka meskipun berada di halaman lain atau daftar sedang difilter.
+Popup tampil terpisah dari animasi halaman dengan area pemuatan berukuran
+stabil. Navigasi dari notifikasi stok mempertahankan posisi scroll.
 Tutup detail untuk kembali ke daftar Data Barang. **Tandai semua
 dibaca** hanya memengaruhi pengguna yang sedang masuk. Status dibaca
 disimpan di backend dan tetap berlaku setelah refresh atau login ulang.

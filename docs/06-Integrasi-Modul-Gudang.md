@@ -50,6 +50,12 @@ berubah dan mengabaikan respons yang sudah kedaluwarsa.
 | Laporan Barang Masuk dan Keluar | `/reports/inbound`, `/reports/outbound` | Kartu total memakai `summary` dari backend (jumlah transaksi). Ada kolom Lokasi. |
 | Rekap Permintaan | `/reports/requests`, `/material-requests/{id}` | Export mendukung mode filter dan mode `ids`. |
 
+Pada form Barang Keluar **SPK** dan **Stok / Internal** di Gudang maupun
+Gudang Barang Jadi, **Nama Pengambil** otomatis memakai huruf kapital di
+awal setiap kata saat diketik atau ditempel. Misalnya `pak mul`, `PAK MUL`,
+dan `pAk mUL` menjadi `Pak Mul`. Nama yang sudah disesuaikan dipakai pada
+Preview, catatan pengambil dan PIC tiap baris saat disimpan, serta cetakan.
+
 Jumlah **Rekap Pembelian** dan **Kedatangan** pada form Barang Masuk menerima
 angka desimal dengan koma, maksimal 3 angka di belakang koma. Huruf, titik,
 tanda plus/minus, koma ganda, dan presisi berlebih ditolak dengan pesan di
