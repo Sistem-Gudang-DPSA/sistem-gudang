@@ -6,7 +6,7 @@ import StokMinimumCell from '@/domains/inventory/components/data-barang/StokMini
 import dynamic from 'next/dynamic';
 import { useAuthUser, useCan } from '@/domains/auth/user-context';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { Images, RefreshCw, Trash2, Edit2 } from 'lucide-react';
+import { Images, RefreshCw, Trash2, Edit2, Truck } from 'lucide-react';
 import { adjustItemStock, assignItemLocation, bulkRecodeItems, deleteItem, listItems, recodeItem, updateItem } from '@/domains/inventory/api';
 import type { ItemListRow, UpdateItemInput } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
@@ -24,7 +24,8 @@ import { printItemLabels } from '@/domains/inventory/label-print';
 import { useDataBarang } from '@/domains/inventory/components/data-barang/useDataBarang';
 import DataBarangTable, { type BarangColumn, KategoriBadge, StokCell, SupplierCell } from '@/domains/inventory/components/data-barang/DataBarangTable';
 import DataBarangToolbar, { FilterToggle } from '@/domains/inventory/components/data-barang/DataBarangToolbar';
-import BulkSupplierAction, { type SupplierMappingResult } from '@/domains/inventory/components/data-barang/BulkSupplierAction';
+import { useBulkSupplierAction, type SupplierMappingResult } from '@/domains/inventory/components/data-barang/useBulkSupplierAction';
+import ActionMenu from '@/shared/components/ActionMenu';
 import AdjustStokModal from '@/domains/inventory/components/data-barang/modals/AdjustStokModal';
 import RecodeNotice from '@/domains/inventory/components/data-barang/modals/RecodeModal';
 import { MasterData, mstrDataTemplateExample, mstrDataTemplateHeaders, type MasterDataImportRow, MAX_IMPORT_ROWS } from '@/domains/inventory/components/data-barang/modals/ImportMasterData';
@@ -52,6 +53,9 @@ export default function DataBarangGudang() {
   const canSetPrice = useCan('item.set-price');
   const canSetSupplier = useCan('item.set-supplier');
   const canUploadPhoto = useCan('item.upload-photo');
+  const canAssignSupplier = canUpdate && canSetSupplier;
+  // Pilihan baris dipakai Atur Supplier, Pasang Foto Massal, dan Ganti Kode Massal.
+  const canSelect = canUploadPhoto || canAssignSupplier || isSuperadmin;
   const edit = useBatchEdit();
   const seen = useRef(new Map<number, ItemListRow>()); // semua baris yang pernah tampil, untuk menyimpan perubahan dari halaman lain
   const d = useDataBarang();
@@ -74,6 +78,13 @@ export default function DataBarangGudang() {
     });
     reload();
   };
+
+  const supplierAction = useBulkSupplierAction({
+    selected,
+    suppliers,
+    canAssignSupplier,
+    onFinished: handleSupplierFinished,
+  });
 
   const [isStockModalOpen, setIsStockModalOpen] = useState(false);
   const [stockItem, setStockItem] = useState<ItemListRow | null>(null);
@@ -392,6 +403,7 @@ export default function DataBarangGudang() {
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
       <StockNotificationDetail />
+      {supplierAction.modal}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1">Data Barang</h1>
@@ -426,46 +438,47 @@ export default function DataBarangGudang() {
                 onSave={async (rows) => setPendingImport(rows)}
               />
             )}
-            <BulkSupplierAction
-              selected={selected}
-              suppliers={suppliers}
-              canAssignSupplier={canUpdate && canSetSupplier}
-              onFinished={handleSupplierFinished}
+            <ActionMenu
+              label="Aksi Massal"
+              count={selected.size}
+              items={[
+                {
+                  key: 'supplier',
+                  label: 'Atur Supplier',
+                  icon: <Truck className="w-4 h-4" />,
+                  onClick: supplierAction.open,
+                  hidden: !canAssignSupplier,
+                  disabled: selected.size === 0,
+                },
+                {
+                  key: 'photo',
+                  label: 'Pasang Foto Massal',
+                  icon: <Images className="w-4 h-4" />,
+                  onClick: () => setBulkOpen(true),
+                  hidden: !canUploadPhoto,
+                  disabled: selected.size === 0,
+                },
+                {
+                  key: 'recode',
+                  label: 'Ganti Kode Massal',
+                  icon: <RefreshCw className="w-4 h-4" />,
+                  onClick: handleGantiKodeMassal,
+                  hidden: !isSuperadmin,
+                  disabled: selected.size === 0,
+                },
+                {
+                  // TEMP(hapus-semua): sementara untuk membersihkan data produksi; hapus item ini dan test-nya setelah selesai.
+                  key: 'delete-all',
+                  label: `Hapus Semua (${total})`,
+                  icon: <Trash2 className="w-4 h-4" />,
+                  onClick: handleHapusSemua,
+                  hidden: !(isSuperadmin && canDelete),
+                  disabled: !!deletingAll || total === 0,
+                  danger: true,
+                  separator: true,
+                },
+              ]}
             />
-            {canUploadPhoto && (
-              <button
-                type="button"
-                onClick={() => setBulkOpen(true)}
-                disabled={selected.size === 0}
-                className="flex items-center gap-2 px-3 py-2 bg-orange-50 border border-orange-300 text-orange-700 rounded-lg hover:bg-orange-100 transition-colors text-sm font-medium disabled:opacity-50"
-              >
-                <Images className="w-4 h-4" />
-                {`Pasang Foto Massal (${selected.size})`}
-              </button>
-            )}
-            {isSuperadmin && (
-              <button
-                type="button"
-                onClick={handleGantiKodeMassal}
-                disabled={selected.size === 0}
-                className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-100 transition-colors text-sm font-medium disabled:opacity-50"
-              >
-                <RefreshCw className="w-4 h-4" />
-                {`Ganti Kode Massal (${selected.size})`}
-              </button>
-            )}
-            {/* TEMP(hapus-semua) */}
-            {isSuperadmin && canDelete && (
-              <button
-                type="button"
-                onClick={handleHapusSemua}
-                disabled={!!deletingAll || total === 0}
-                className="flex items-center gap-2 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium disabled:opacity-50"
-              >
-                <Trash2 className="w-4 h-4" />
-                {deletingAll || `Hapus Semua (${total})`}
-              </button>
-            )}
             <ExportExcellButton onClick={handleExportExcel} />
             {(canUpdate || canAssign) && <EditModeBar editing={edit.editing} dirty={edit.dirty} saving={edit.saving} onToggle={edit.toggle} onSave={simpanSemua} onCancel={edit.cancel} />}
           </>}
@@ -504,6 +517,8 @@ export default function DataBarangGudang() {
           </div>
         )}
 
+        {deletingAll && <div role="status" className="mx-5 mt-5 p-3 bg-amber-50 text-amber-700 text-sm rounded-lg">{deletingAll}</div>}
+
         {codeNotice && (
           <RecodeNotice headline={codeNotice.headline} lines={codeNotice.lines} onPrint={() => cetakLabel(codeNotice.labels)} />
         )}
@@ -528,13 +543,13 @@ export default function DataBarangGudang() {
         <DataBarangTable
           rows={dataBarang}
           loading={d.loading}
-          colSpan={canUploadPhoto ? 13 : 12}
+          colSpan={canSelect ? 13 : 12}
           columns={columns}
           sort={d.sort}
           onSort={d.toggle}
           numberOffset={(page - 1) * pageSize}
           photo={{ canUpload: canUploadPhoto, onUploaded: reload }}
-          selection={canUploadPhoto ? {
+          selection={canSelect ? {
             selected,
             allOnPage: pageAllSelected,
             onToggleRow: toggleRow,
