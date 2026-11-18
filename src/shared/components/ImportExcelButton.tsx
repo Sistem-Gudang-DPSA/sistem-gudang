@@ -2,7 +2,7 @@
 "use client";
 
 import { useRef, useState } from 'react';
-import { FileDown, FileSpreadsheet, Upload, X } from 'lucide-react';
+import { FileDown, FileSpreadsheet, X } from 'lucide-react';
 
 type PreviewColumn<T> = {
   header: string;
@@ -150,7 +150,7 @@ export function ImportExcelButton<T>({
         onClick={() => setOpen(true)}
         className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
       >
-        <Upload className="w-4 h-4" />
+        <FileDown className="w-4 h-4" />
         <span className="hidden sm:inline">Import Excel</span>
       </button>
 
