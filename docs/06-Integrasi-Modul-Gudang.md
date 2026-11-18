@@ -17,7 +17,7 @@ Permintaan. Sebelumnya semua halaman ini memakai data dummy.
 | Harga di Stock Opname read-only, diambil dari harga master barang | Harga ditetapkan Purchasing. Petugas gudang hanya menghitung jumlah fisik. Backend mengisi `systemPrice` dan `physicalPrice` dari `items.price`. |
 | Form Barang Masuk hanya untuk barang yang sudah lolos QC (`statusQc` `PASS`) | Pengecekan QC dilakukan sebelum input. Form tidak punya pilihan Status QC. |
 | Filter tanggal berupa rentang `startDate` dan `endDate` di semua halaman | Sepakat dengan backend. Berlaku juga untuk `GET /approvals`. |
-| Export Excel dibuat backend, cetak PDF memakai `window.print()` | Data laporan dipaginasi, jadi export harus dari server. PDF cukup dari cetak browser. |
+| Export Excel dibuat backend, cetak PDF memakai `cetakHtml` | Data laporan dipaginasi, jadi export harus dari server. PDF cukup dari cetak browser. `cetakHtml` mencetak lewat iframe tersembunyi, jadi tidak ada pop-up yang bisa diblokir. |
 | Rekap Permintaan memakai tabel `material-requests` sendiri, bukan `approvals` | Kolomnya (SPK, klien, item produksi, group tukang, status) tidak cocok dengan `purchase-request`. |
 | Checkbox "Pilih" di Rekap Permintaan hanya untuk export dan cetak | Ada baris terpilih: hanya baris itu yang diekspor dan dicetak. Tidak ada yang terpilih: seluruh hasil filter. |
 | Hook `useApiData` menggantikan pola `setLoading(true)` di dalam `useEffect` | Aturan lint `react-hooks/set-state-in-effect` melarang pola lama. Status memuat dihitung dari respons terakhir. |
@@ -111,3 +111,21 @@ Permintaan Pembelian tidak lagi ada di Gudang. Halamannya pindah ke PPIC, lihat 
   `Data_Barang_Keuangan.csv`).
 - `toCsv` (`src/shared/lib/csv.ts`) mengutip semua kolom dan menambah `'` di
   depan teks berawalan `=`, `+`, `-`, `@` agar tidak dibaca Excel sebagai rumus.
+
+## Cetak Laporan
+
+- Semua cetak memakai `cetakHtml` (`src/shared/lib/print-html.ts`), yaitu
+  iframe tersembunyi yang membuka dialog cetak browser. Tidak ada lagi
+  `window.open` dan `document.write`, sehingga tidak ada pop-up yang
+  diblokir dan menu halaman tidak ikut tercetak.
+- Cetak Kartu Stok dan Realisasi SPK memakai kop laporan bersama di
+  `src/shared/lib/print-laporan.ts`: logo perusahaan, nama
+  `PT DHARMA PUTRA SEJAHTERA ABADI`, judul laporan, dan periode. Nama
+  perusahaan dibaca dari `src/shared/lib/company.ts` dan dipakai juga oleh
+  dokumen PO.
+- Logo ditunggu selesai dimuat sebelum dialog cetak dibuka. Bila logo gagal
+  dimuat, berkas cadangan `public/logo-perusahaan.png` dipakai, dan pesan
+  kegagalan tampil di layar, bukan lewat `alert`.
+- Berkas cetak Kartu Stok dan Realisasi SPK ada di
+  `src/domains/inventory/export/`, sehingga `src/shared` tidak lagi
+  mengimpor tipe dan komponen domain.

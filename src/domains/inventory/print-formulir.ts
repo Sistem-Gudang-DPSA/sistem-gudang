@@ -1,7 +1,9 @@
 // Bagian bersama formulir cetak barang masuk dan barang keluar: CSS, kop, tanda tangan,
 // pembagian halaman, dan cetak lewat iframe tersembunyi.
+import { COMPANY_LOGO } from '@/shared/lib/company';
 import { escapeHtml } from '@/shared/lib/escape-html';
 import { cetakHtml } from '@/shared/lib/print-html';
+import { tungguGambarCetak } from '@/shared/lib/print-laporan';
 
 export type KopFormulir = {
   judul: string;
@@ -14,8 +16,6 @@ export type KopFormulir = {
 
 export type Halaman = { nomor: number; jumlah: number; awal: number };
 
-const LOGO = "/logo-perusahaan.jpg";
-const LOGO_ALTERNATIF = "/logo-perusahaan.png";
 export const BARIS_PER_HALAMAN = 6;
 const FORMULIR_PER_KERTAS = 4;
 
@@ -81,7 +81,7 @@ export function tabelMaterial(lebar: number[], isi: string): string {
 }
 
 function kopFormulir(kop: KopFormulir): string {
-  const logoUrl = new URL(LOGO, window.location.origin).href;
+  const logoUrl = new URL(COMPANY_LOGO, window.location.origin).href;
   return `<header class="kop">
         <img class="logo" src="${escapeHtml(logoUrl)}" alt="Logo perusahaan" />
         <h1>${escapeHtml(kop.judul)}</h1>
@@ -156,19 +156,6 @@ export async function cetakFormulir(htmlDocs: string[], label: string): Promise<
     gabungan.body.append(kertas);
   }
 
-  return cetakHtml(`<!doctype html>${gabungan.documentElement.outerHTML}`, label, async (printDocument) => {
-    // Tunggu gambar selesai dibaca agar logo tidak hilang saat dialog cetak dibuka.
-    await Promise.all(
-      Array.from(printDocument.images, (img) =>
-        img.decode().catch(async () => {
-          img.src = new URL(LOGO_ALTERNATIF, window.location.origin).href;
-          try {
-            await img.decode();
-          } catch {
-            throw new Error("Logo gagal dimuat. Letakkan logo di public/logo-perusahaan.jpg atau public/logo-perusahaan.png.");
-          }
-        }),
-      ),
-    );
-  });
+  // Tunggu gambar selesai dibaca agar logo tidak hilang saat dialog cetak dibuka.
+  return cetakHtml(`<!doctype html>${gabungan.documentElement.outerHTML}`, label, tungguGambarCetak);
 }
