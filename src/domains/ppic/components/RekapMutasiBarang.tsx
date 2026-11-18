@@ -181,7 +181,7 @@ export default function RekapMutasiBarang() {
           <style>
             body { font-family: Arial, sans-serif; padding: 24px; color: #111; }
             h1 { font-size: 18px; margin: 0 0 16px; }
-            table { width: 100%; border-collapse: collapse; font-size: 12px; }
+            table { width: calc(100% - 2mm); border-collapse: collapse; font-size: 12px; }
             th, td { border: 1px solid #999; padding: 6px 8px; text-align: left; }
             th { background: #eee; }
             .center { text-align: center; }

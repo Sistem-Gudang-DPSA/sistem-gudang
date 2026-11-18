@@ -106,7 +106,7 @@ export default function LaporanBarangKeluar() {
                 .meta { font-size: 12px; margin: 0 0 12px; color: #444; }
                 .summary { font-size: 12px; margin: 0 0 12px; }
                 .summary span { margin-right: 24px; }
-                table { width: 100%; border-collapse: collapse; font-size: 11px; }
+                table { width: calc(100% - 2mm); border-collapse: collapse; font-size: 11px; }
                 th, td { border: 1px solid #999; padding: 6px 8px; text-align: left; vertical-align: top; }
                 th { background: #eee; }
                 thead { display: table-header-group; }
