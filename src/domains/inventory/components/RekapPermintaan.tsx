@@ -114,7 +114,7 @@ export default function RekapPermintaan(){
                 body { font-family: Arial, sans-serif; color: #111; }
                 h1 { font-size: 18px; margin: 0 0 4px; text-transform: uppercase; }
                 .meta { font-size: 12px; margin: 0 0 12px; color: #444; }
-                table { width: 100%; border-collapse: collapse; font-size: 11px; }
+                table { width: calc(100% - 2mm); border-collapse: collapse; font-size: 11px; }
                 th, td { border: 1px solid #999; padding: 6px 8px; text-align: left; vertical-align: top; }
                 th { background: #eee; }
                 thead { display: table-header-group; }

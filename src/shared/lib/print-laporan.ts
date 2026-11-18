@@ -12,7 +12,8 @@ const CSS_LAPORAN = `
   .perusahaan { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.3px; }
   h1 { margin: 1mm 0 0; font-size: 16px; text-transform: uppercase; }
   .meta { margin: 2mm 0 0; font-size: 11px; color: #444; }
-  table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 4mm; }
+  /* Sisakan 2mm di kanan agar border kolom terakhir tidak terpotong tepi area cetak. */
+  table { width: calc(100% - 2mm); border-collapse: collapse; font-size: 12px; margin-top: 4mm; }
   th, td { border: 1px solid #999; padding: 6px 8px; text-align: left; vertical-align: top; }
   th { background: #eee; }
   thead { display: table-header-group; }
