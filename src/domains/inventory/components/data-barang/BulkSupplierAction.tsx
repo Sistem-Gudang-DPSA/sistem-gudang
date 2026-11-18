@@ -35,7 +35,14 @@ export default function BulkSupplierAction({
 
   if (!canAssignSupplier) return null;
 
-  const withSupplier = [...selected.values()].filter((item) => item.supplierId !== null).length;
+  const items = [...selected.values()].map((item) => ({
+    id: item.id,
+    name: item.name,
+    code: item.code,
+    currentSupplier: item.supplierId === null
+      ? null
+      : item.supplierName ?? suppliers.find((s) => s.id === item.supplierId)?.name ?? `#${item.supplierId}`,
+  }));
 
   const buka = () => {
     setValue("");
@@ -90,8 +97,7 @@ export default function BulkSupplierAction({
       </button>
       {open && (
         <SupplierBulkModal
-          count={selected.size}
-          withSupplier={withSupplier}
+          items={items}
           suppliers={suppliers}
           value={value}
           onChange={setValue}
