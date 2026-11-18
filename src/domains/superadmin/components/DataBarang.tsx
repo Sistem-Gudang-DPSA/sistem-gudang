@@ -24,6 +24,7 @@ import { printItemLabels } from '@/domains/inventory/label-print';
 import { useDataBarang } from '@/domains/inventory/components/data-barang/useDataBarang';
 import DataBarangTable, { type BarangColumn, KategoriBadge, StokCell, SupplierCell } from '@/domains/inventory/components/data-barang/DataBarangTable';
 import DataBarangToolbar, { FilterToggle } from '@/domains/inventory/components/data-barang/DataBarangToolbar';
+import BulkSupplierAction, { type SupplierMappingResult } from '@/domains/inventory/components/data-barang/BulkSupplierAction';
 import AdjustStokModal from '@/domains/inventory/components/data-barang/modals/AdjustStokModal';
 import RecodeNotice from '@/domains/inventory/components/data-barang/modals/RecodeModal';
 import { MasterData, mstrDataTemplateExample, mstrDataTemplateHeaders, type MasterDataImportRow, MAX_IMPORT_ROWS } from '@/domains/inventory/components/data-barang/modals/ImportMasterData';
@@ -60,6 +61,19 @@ export default function DataBarangGudang() {
   const [importNote, setImportNote] = useState('');
   const [codeNotice, setCodeNotice] = useState<{ headline: string; lines: string[]; labels: CodeLabel[] } | null>(null); // hasil Ganti kode, satu atau banyak barang
   const [actionError, setActionError] = useState('');
+  const [supplierNotice, setSupplierNotice] = useState<{ text: string; failed: boolean } | null>(null);
+
+  const handleSupplierFinished = (result: SupplierMappingResult) => {
+    const failedIds = new Set(result.failed.map((f) => f.id));
+    // Barang yang gagal tetap tercentang supaya bisa dicoba ulang.
+    setSelected(new Map([...selected.entries()].filter(([id]) => failedIds.has(id))));
+    const failedText = result.failed.map((f) => `${f.name}: ${f.reason}`).join('; ');
+    setSupplierNotice({
+      text: `${result.assigned} barang dipetakan ke ${result.supplierName}.${failedText ? ` Gagal: ${failedText}` : ''}`,
+      failed: result.failed.length > 0,
+    });
+    reload();
+  };
 
   const [isStockModalOpen, setIsStockModalOpen] = useState(false);
   const [stockItem, setStockItem] = useState<ItemListRow | null>(null);
@@ -412,6 +426,12 @@ export default function DataBarangGudang() {
                 onSave={async (rows) => setPendingImport(rows)}
               />
             )}
+            <BulkSupplierAction
+              selected={selected}
+              suppliers={suppliers}
+              canAssignSupplier={canUpdate && canSetSupplier}
+              onFinished={handleSupplierFinished}
+            />
             {canUploadPhoto && (
               <button
                 type="button"
@@ -474,6 +494,15 @@ export default function DataBarangGudang() {
         )}
 
         {importNote && <div className="mx-5 mt-5 p-3 bg-green-50 text-green-700 text-sm rounded-lg">{importNote}</div>}
+
+        {supplierNotice && (
+          <div
+            role="status"
+            className={`mx-5 mt-5 p-3 text-sm rounded-lg ${supplierNotice.failed ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700'}`}
+          >
+            {supplierNotice.text}
+          </div>
+        )}
 
         {codeNotice && (
           <RecodeNotice headline={codeNotice.headline} lines={codeNotice.lines} onPrint={() => cetakLabel(codeNotice.labels)} />
