@@ -58,6 +58,12 @@ Setelah berhasil, layar menampilkan jumlah yang ditambahkan dan yang
 dilewati, misalnya "3 supplier ditambahkan, 2 dilewati karena duplikat:
 S7, Toko B". Baris tanpa kode ditampilkan dengan namanya. Daftar tabel ikut diperbarui.
 
+## Pemetaan Barang ke Supplier
+
+Supplier tiap barang dapat diatur sekaligus lewat checklist di Data Barang
+Purchasing dan Superadmin. Detail alur, endpoint, dan izinnya ada di
+`21-Pemetaan-Supplier-Barang.md`.
+
 ## Status dan Langkah Berikutnya
 
 Selesai untuk cakupan CRUD Supplier. `DataSupplierDetail.tsx` (rincian

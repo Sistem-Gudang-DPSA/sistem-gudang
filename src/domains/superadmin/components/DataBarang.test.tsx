@@ -1,5 +1,5 @@
 import { afterEach, describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { fail, installFakeApi, paged } from '@/test/fake-api';
 import { AuthUserProvider } from '@/domains/auth/user-context';
 import type { AuthUser } from '@/domains/auth/types';
@@ -202,5 +202,44 @@ describe('DataBarang superadmin: Sesuaikan Stok', () => {
     fireEvent.click(screen.getByText('Simpan'));
     await waitFor(() => expect(api.calls('PATCH /api/v1/items/1/stock')).toHaveLength(3));
     expect(api.calls('PATCH /api/v1/items/1/stock')[2].headers.get('Idempotency-Key')).not.toBe(a.headers.get('Idempotency-Key'));
+  });
+});
+
+describe('DataBarang superadmin: pemetaan supplier massal', () => {
+  const second = { ...item, id: 2, name: 'Barang 2', supplierId: null, supplierName: null };
+  const routes = {
+    'GET /api/v1/items': paged([item, second]),
+    'GET /api/v1/locations': paged([{ id: 1, code: 'A01', rackName: 'A', rackNumber: '01' }]),
+    'GET /api/v1/suppliers': paged([{ id: 7, name: 'PT Kayu' }]),
+    'GET /api/v1/items/categories': [{ id: 1, name: 'Lembaran' }],
+    'GET /api/v1/items/units': [{ id: 1, name: 'pcs' }],
+    'PUT /api/v1/items/1': { ...item, supplierId: 7 },
+    'PUT /api/v1/items/2': { ...second, supplierId: 7 },
+  };
+
+  it('memetakan barang yang dicentang ke supplier', async () => {
+    const api = installFakeApi(routes);
+    render(<DataBarangGudang />);
+    await screen.findByText('Barang 1');
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Pilih Barang 1' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Pilih Barang 2' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Atur Supplier (2)' }));
+    const dialog = within(screen.getByRole('dialog'));
+    fireEvent.click(dialog.getByRole('button', { name: 'Supplier' }));
+    fireEvent.click(dialog.getByRole('option', { name: 'PT Kayu' }));
+    fireEvent.click(dialog.getByRole('button', { name: 'Simpan 2 Barang' }));
+
+    await waitFor(() => expect(api.calls('PUT /api/v1/items/2')).toHaveLength(1));
+    expect(api.calls('PUT /api/v1/items/1')[0].body).toEqual({ supplierId: 7 });
+    expect(await screen.findByText('2 barang dipetakan ke PT Kayu.')).not.toBeNull();
+  });
+
+  it('menyembunyikan tombol tanpa item.set-supplier', async () => {
+    installFakeApi(routes);
+    const user: AuthUser = { id: 1, username: 'u', email: 'u@x.id', roleId: 2, roleName: 'Staff', isSuperadmin: false, permissions: ['item.update'] };
+    render(<AuthUserProvider user={user}><DataBarangGudang /></AuthUserProvider>);
+    await screen.findByText('Barang 1');
+    expect(screen.queryByRole('button', { name: /Atur Supplier/ })).toBeNull();
   });
 });
