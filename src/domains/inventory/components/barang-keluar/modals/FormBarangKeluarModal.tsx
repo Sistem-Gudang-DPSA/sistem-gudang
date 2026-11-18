@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Calendar, Printer, X } from "lucide-react";
+import { ArrowLeft, Calendar, Printer, X } from "lucide-react";
 import type { useItemSearch } from "@/domains/inventory/use-item-search";
 import SearchableSelect from "@/shared/components/SearchableSelect";
 import { fieldClass, orangeButtonClass, rowClass, rowLabelClass, selectClass } from "../styles";
@@ -29,7 +29,9 @@ function WaktuSekarang() {
 export default function FormBarangKeluarModal({
   f,
   itemSearch,
+  onBack,
 }: {
+  onBack: () => void;
   f: ReturnType<typeof useFormBarangKeluar>;
   itemSearch: ReturnType<typeof useItemSearch>;
 }) {
@@ -56,9 +58,16 @@ export default function FormBarangKeluarModal({
           </button>
 
           <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 mb-6 pr-10">
-            <h2 className="text-[18px] font-extrabold text-black tracking-wide uppercase">
-              Form Barang Keluar {modeKeluar === "stok" ? "Stok / Internal" : "SPK"}
-            </h2>
+            <div className="flex min-w-0 items-center gap-3">
+              <button type="button" onClick={onBack} disabled={saving}
+                aria-label="Kembali ke pilihan jenis barang keluar" title="Kembali"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-orange-50 hover:text-orange-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 disabled:opacity-50">
+                <ArrowLeft aria-hidden="true" className="h-5 w-5" />
+              </button>
+              <h2 className="text-[18px] font-extrabold text-black tracking-wide uppercase">
+                Form Barang Keluar {modeKeluar === "stok" ? "Stok / Internal" : "SPK"}
+              </h2>
+            </div>
 
             <p className="px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm text-gray-800">
               <span className="font-medium">No. Transaksi :</span>{" "}

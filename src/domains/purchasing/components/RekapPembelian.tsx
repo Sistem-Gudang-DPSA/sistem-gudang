@@ -11,7 +11,11 @@ import { lihatPermintaanPath } from '@/domains/purchasing/data/pembelian';
 
 const cellClass = 'px-4 py-3 border-b border-r border-gray-300';
 
-export default function RekapPembelianPurchasing() {
+export default function RekapPembelian({
+  lihatPath = lihatPermintaanPath,
+}: {
+  lihatPath?: (id: number | string) => string;
+}) {
   const [searchQuery, setSearchQuery] = useState('');
   const filterKey = searchQuery.trim();
   const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
@@ -68,7 +72,7 @@ export default function RekapPembelianPurchasing() {
                   <td className={`${cellClass} text-center font-bold text-gray-900`}>{item.status}</td>
                   <td className={`${cellClass} text-center`}>
                     <Link
-                      href={lihatPermintaanPath(item.id)}
+                      href={lihatPath(item.id)}
                       className="inline-block px-3 py-1 bg-[#FF8A00] text-white text-xs font-semibold rounded-md hover:bg-orange-600 transition-colors"
                     >
                       Lihat Permintaan

@@ -11,6 +11,20 @@ import type { BarisBarangMasuk, SupplierTerpilih } from './types';
 export const MAX_QTY = 100000;
 export const MAX_LINES = 200;
 
+export function peringatanJumlahMasuk(value: string, field: 'kedatangan' | 'rekap'): string {
+  const label = field === 'kedatangan' ? 'kedatangan' : 'rekap pembelian';
+  if (!value) return `Isi jumlah ${label}.`;
+  const valid = /^(?:\d{1,9}(?:\.\d{1,3})?|\.\d{1,3})$/.test(value);
+  const qty = Number(value);
+  if (/^\d*\.$/.test(value)) return 'Lengkapi angka desimal.';
+  if (!valid) return 'Maksimal 3 angka desimal.';
+  if (field === 'kedatangan' && qty <= 0) return 'Harus lebih dari 0.';
+  if (field === 'kedatangan' && qty > MAX_QTY) return 'Maksimal 100.000.';
+  if (qty < 0) return 'Minimal 0.';
+  if (qty > 999_999_999) return 'Maksimal 999.999.999.';
+  return '';
+}
+
 export type SaveBarangMasuk = (input: CreateInboundBatchInput, key: string, printAfter: boolean) => Promise<void>;
 
 export function useFormBarangMasuk(onSave: SaveBarangMasuk) {
@@ -120,7 +134,7 @@ export function useFormBarangMasuk(onSave: SaveBarangMasuk) {
     const existing = rowsRef.current.find((row) => row.itemId === item.id);
     if (existing) {
       if (Number(existing.qtyArrived) >= MAX_QTY) { setScanError('Jumlah kedatangan maksimal 100.000 per barang.'); return; }
-      patchBaris(existing.key, { qtyArrived: String((Number(existing.qtyArrived) || 0) + 1) });
+      patchBaris(existing.key, { qtyArrived: String(Number(Math.min((Number(existing.qtyArrived) || 0) + 1, MAX_QTY).toFixed(3))) });
     } else {
       if (rowsRef.current.length >= MAX_LINES) { setScanError('Maksimal 200 jenis barang dalam satu form.'); return; }
       updateRows((rows) => [...rows, {
@@ -140,7 +154,7 @@ export function useFormBarangMasuk(onSave: SaveBarangMasuk) {
     const existing = rowsRef.current.find((row) => row.code === code);
     if (existing && existing.supplierId === supplierRef.current.id) {
       if (Number(existing.qtyArrived) >= MAX_QTY) { setScanError('Jumlah kedatangan maksimal 100.000 per barang.'); return; }
-      patchBaris(existing.key, { qtyArrived: String((Number(existing.qtyArrived) || 0) + 1) });
+      patchBaris(existing.key, { qtyArrived: String(Number(Math.min((Number(existing.qtyArrived) || 0) + 1, MAX_QTY).toFixed(3))) });
       setLockedName(existing.name);
       return;
     }
@@ -174,14 +188,8 @@ export function useFormBarangMasuk(onSave: SaveBarangMasuk) {
       const prefix = `Baris ${index + 1}${row.name ? ` (${row.name})` : ''}: `;
       if (!row.itemId) { setError(`${prefix}pilih material terlebih dahulu.`); return; }
       if (row.supplierId !== supplier.id) { setError(`${prefix}barang bukan dari supplier yang dipilih. Ganti material atau hapus baris ini.`); return; }
-      const arrived = Number(row.qtyArrived);
-      if (row.qtyArrived === '' || !Number.isInteger(arrived) || arrived < 1 || arrived > MAX_QTY) {
-        setError(`${prefix}jumlah kedatangan harus antara 1 dan 100.000.`); return;
-      }
-      const purchased = Number(row.qtyPurchased);
-      if (row.qtyPurchased === '' || !Number.isSafeInteger(purchased) || purchased < 0) {
-        setError(`${prefix}isi jumlah rekap pembelian dengan bilangan bulat minimal 0.`); return;
-      }
+      const warning = peringatanJumlahMasuk(row.qtyArrived, 'kedatangan') || peringatanJumlahMasuk(row.qtyPurchased, 'rekap');
+      if (warning) { setError(`${prefix}${warning}`); return; }
     }
     scanSession.current += 1;
     previewRef.current = true;

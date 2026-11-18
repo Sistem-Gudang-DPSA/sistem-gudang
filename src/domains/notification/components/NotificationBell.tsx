@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
-import { waktuEdit } from "@/domains/inventory/components/RiwayatEditBarangKeluar";
+import NotificationItem from "./NotificationItem";
 import { getUnreadCount, listNotifications, markAllNotificationsRead, markNotificationRead } from "../api";
+import { notificationDestination } from "../destination";
 import type { Notification } from "../types";
 
 const POLL_MS = 60_000;
@@ -83,12 +85,12 @@ export default function NotificationBell() {
     };
   }, [open]);
 
-  const loadRows = async () => {
+  const loadRows = useCallback(async () => {
     setLoadingRows(true);
     setRowsError("");
     try {
-      const page = await listNotifications({ page: 1, pageSize: 10 });
-      setRows(page.rows);
+      const page = await listNotifications({ page: 1, pageSize: 3 });
+      setRows(page.rows.slice(0, 3));
       knownCount.current = page.unreadCount;
       setCount(page.unreadCount);
     } catch (err) {
@@ -96,7 +98,17 @@ export default function NotificationBell() {
     } finally {
       setLoadingRows(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const onStockChanged = () => { void refresh(); if (open) void loadRows(); };
+    window.addEventListener("stock-notifications-changed", onStockChanged);
+    window.addEventListener("notifications-changed", onStockChanged);
+    return () => {
+      window.removeEventListener("stock-notifications-changed", onStockChanged);
+      window.removeEventListener("notifications-changed", onStockChanged);
+    };
+  }, [refresh, open, loadRows]);
 
   const toggle = () => {
     if (!open) void loadRows();
@@ -105,8 +117,8 @@ export default function NotificationBell() {
 
   const openRow = (n: Notification) => {
     setOpen(false);
-    if (!n.readAt) void markNotificationRead(n.id).then(refresh).catch(() => {});
-    router.push(n.link);
+    if (!n.readAt) void markNotificationRead(n.id).then(() => window.dispatchEvent(new Event("notifications-changed"))).catch(() => {});
+    router.push(notificationDestination(n));
   };
 
   const markAll = async () => {
@@ -116,6 +128,7 @@ export default function NotificationBell() {
       setRows((rs) => rs.map((r) => ({ ...r, readAt: r.readAt ?? now })));
       knownCount.current = 0;
       setCount(0);
+      window.dispatchEvent(new Event("notifications-changed"));
     } catch (err) {
       setRowsError(err instanceof Error ? err.message : "Gagal menandai notifikasi.");
     }
@@ -162,22 +175,14 @@ export default function NotificationBell() {
               {!rowsError && !loadingRows && rows.length === 0 && (
                 <p className="p-6 text-center text-sm text-gray-400">Belum ada notifikasi</p>
               )}
-              {rows.map((n) => (
-                <button
-                  key={n.id}
-                  type="button"
-                  onClick={() => openRow(n)}
-                  className={`flex w-full gap-2 border-b border-gray-100 px-4 py-3 text-left hover:bg-gray-50 ${n.readAt ? "" : "bg-blue-50/40"}`}
-                >
-                  <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.readAt ? "" : "bg-blue-600"}`} aria-hidden="true" />
-                  <span className="min-w-0 flex-1">
-                    <span className={`block truncate text-sm ${n.readAt ? "font-medium text-gray-700" : "font-bold text-gray-900"}`}>{n.title}</span>
-                    <span className="line-clamp-2 block text-xs text-gray-500">{n.body}</span>
-                    <span className="mt-1 block text-[11px] text-gray-400">{waktuEdit(n.createdAt)} WIB</span>
-                  </span>
-                </button>
+              {loadingRows && <p role="status" className="p-4 text-center text-xs text-gray-400">Memuat notifikasi...</p>}
+              {!loadingRows && !rowsError && rows.map((n) => (
+                <NotificationItem key={n.id} notification={n} onOpen={openRow} compact />
               ))}
             </div>
+            <Link href="/dashboard/notifications" onClick={() => setOpen(false)} className="border-t border-gray-100 px-4 py-3 text-center text-xs font-semibold text-indigo-600 hover:bg-indigo-50">
+              Show all
+            </Link>
           </div>
         )}
       </div>

@@ -187,8 +187,8 @@ export function uploadItemPhotosBulk(pairs: { itemId: number; file: File }[]) {
   return apiClient.upload<BulkPhotoResult>("/api/v1/items/photos/bulk", form);
 }
 
-export function adjustItemStock(id: number, input: { delta: number; reason: string }) {
-  return apiClient.patch<Item>(`/api/v1/items/${id}/stock`, input);
+export function adjustItemStock(id: number, input: { delta: number; reason: string }, idempotencyKey?: string) {
+  return apiClient.patch<Item>(`/api/v1/items/${id}/stock`, input, idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined);
 }
 
 export function listLocations(params?: ListParams & SortParams) {

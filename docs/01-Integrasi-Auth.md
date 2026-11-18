@@ -50,6 +50,14 @@ dll) tidak terpakai di file manapun, jadi dihapus bersih. Sekarang berisi
 - Otomatis mencoba `POST /auth/refresh` sekali kalau request pertama
   balas 401, lalu mengulang request aslinya. Kalau refresh juga gagal,
   error asli tetap dilempar ke pemanggil.
+  - 401 dari `/api/v1/auth/*` (login, logout) tidak memicu refresh.
+    Refresh dengan cookie lama yang sudah dicabut dianggap reuse oleh
+    backend dan mencabut semua sesi user.
+  - Kalau token sudah diganti request lain selama request berjalan,
+    request diulang dengan token baru tanpa refresh lagi.
+  - Refresh berjalan di dalam Web Lock `auth-refresh`
+    (`navigator.locks`), jadi beberapa tab tidak merotasi cookie yang
+    sama bersamaan. Browser tanpa Web Locks memakai single-flight per tab.
 
 ### `src/app/page.tsx` (halaman login)
 

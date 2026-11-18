@@ -26,6 +26,7 @@ export default function BarangKeluarGudang() {
   const userId = useAuthUser()?.id;
   // Pesan error di luar modal (mis. dialog cetak gagal dibuka setelah data tersimpan)
   const [actionError, setActionError] = useState("");
+  const [pilihJenis, setPilihJenis] = useState(false);
   const [historyId, setHistoryId] = useState<number | null>(null);
   // Transaksi yang rinciannya tampil di pop-up
   const [detailTrx, setDetailTrx] = useState<OutboundRow | null>(null);
@@ -78,9 +79,11 @@ export default function BarangKeluarGudang() {
           searchQuery={list.searchQuery}
           onSearch={list.setSearchQuery}
           printing={list.printing}
-          printDisabled={list.printing || (list.selected.size === 0 && (list.loading || !!list.error || list.rows.length === 0))}
+          printDisabled={list.printing || (list.selectedCount === 0 && (list.loading || !!list.error || list.rows.length === 0))}
           onPrint={list.printSelected}
           canCreate={canCreate}
+          pilihJenis={pilihJenis}
+          onPilihJenis={setPilihJenis}
           onOpenForm={form.open}
           canExport={canExport}
           downloading={list.downloading}
@@ -105,7 +108,7 @@ export default function BarangKeluarGudang() {
           error={list.error}
           sort={list.sort}
           onSort={list.toggle}
-          selected={list.selected}
+          isSelected={list.isSelected}
           allChecked={list.allChecked}
           onToggle={list.toggleSelected}
           onToggleAll={list.toggleAllSelected}
@@ -123,9 +126,10 @@ export default function BarangKeluarGudang() {
             form={form.form}
             mode={form.modeKeluar}
             saving={form.saving}
+            disabled={form.scan.pendingScans > 0}
             cetak={form.previewCetak}
             error={form.modalError}
-            onBack={() => form.setPreviewOpen(false)}
+            onBack={form.kembaliEdit}
             onConfirm={form.konfirmasiSimpan}
           />
         )}
@@ -133,7 +137,7 @@ export default function BarangKeluarGudang() {
         <Pagination page={list.page} pageSize={PAGE_SIZE} total={list.total} onPageChange={list.setPage} />
       </div>
 
-      {form.isOpen && <FormBarangKeluarModal f={form} itemSearch={itemSearch} />}
+      {form.isOpen && <FormBarangKeluarModal f={form} itemSearch={itemSearch} onBack={() => { if (form.saving) return; form.close(); setPilihJenis(true); }} />}
       <EditBarangKeluarModal edit={edit} itemSearch={itemSearch} />
       {detailTrx && (
         <RincianTrxModal

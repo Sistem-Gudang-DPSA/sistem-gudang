@@ -1,60 +1,39 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
-import { Search, Plus, Filter } from 'lucide-react';
-import { listItems, listLocations, updateItem } from '@/domains/inventory/api';
-import type { ItemListRow, Location } from '@/domains/inventory/types';
-import { listSuppliers } from '@/domains/purchasing/api';
-import type { Supplier } from '@/domains/purchasing/types';
+import StockNotificationDetail from '@/domains/inventory/components/data-barang/StockNotificationDetail';
+
+import StokMinimumCell from '@/domains/inventory/components/data-barang/StokMinimumCell';
+import { useState } from 'react';
+import { Plus } from 'lucide-react';
+import { listItems, updateItem } from '@/domains/inventory/api';
+import type { ItemListRow } from '@/domains/inventory/types';
 import { downloadCsv } from '@/shared/lib/csv';
 import { ApiError } from '@/shared/lib/api-client';
-import { useApiData } from '@/shared/lib/use-api-data';
+import { fetchAllPages } from '@/shared/lib/fetch-all';
 import { digitsOnly, INTEGER_INPUT } from '@/shared/lib/input';
 import { useCan } from '@/domains/auth/user-context';
-import { useClampPage, usePage } from '@/shared/lib/use-page';
 import Pagination from '@/shared/components/Pagination';
 import { ExportExcellButton } from '@/shared/components/Tombol';
-import ItemPhoto from '@/domains/inventory/components/ItemPhoto';
-import SortableTh, { useSort } from '@/shared/components/SortableTh';
-import BarangFilterPanel, { countActiveFilters, emptyBarangFilters } from '@/domains/inventory/components/BarangFilterPanel';
+import BarangFilterPanel, { countActiveFilters, toItemFilterParams } from '@/domains/inventory/components/BarangFilterPanel';
+import { useDataBarang } from '@/domains/inventory/components/data-barang/useDataBarang';
+import DataBarangTable, { type BarangColumn, KategoriBadge, StokCell, SupplierCell } from '@/domains/inventory/components/data-barang/DataBarangTable';
+import DataBarangToolbar, { FilterToggle } from '@/domains/inventory/components/data-barang/DataBarangToolbar';
 
 export default function DataBarangPurchasing() {
   // PUT /items/:id needs item.update, and changing the price also needs item.set-price.
   const canUpdateItem = useCan('item.update');
   const canSetPrice = useCan('item.set-price');
   const canEditPrice = canUpdateItem && canSetPrice;
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [categories] = useState<string[]>([]);
-  const [units] = useState<string[]>([]);
-  const [Exporting, setExporting] = useState(false);
-  const [filters, setFilters] = useState(emptyBarangFilters);
-  const [showFilter, setShowFilter] = useState(false);
-
-  const { sort, toggle, params: sortParams } = useSort();
+  const d = useDataBarang();
+  const { dataBarang, supplierName, locationCode, reload } = d;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [formData, setFormData] = useState({ supplierId: '', price: '' });
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState("");
-
-  const [searchTerm, setSearchTerm] = useState('');
-
-  const [page, setPage] = usePage(`${searchTerm}|${JSON.stringify(sortParams)}`);
-  const { data: loaded, loading, error: loadError, reload } = useApiData(
-    () => listItems({ search: searchTerm || undefined, page, pageSize: 20, ...sortParams }),
-    `${searchTerm}|${page}|${JSON.stringify(sortParams)}`,
-    "Gagal memuat data barang.",
-  );
-  const dataBarang = loaded?.rows ?? [];
-  useClampPage(page, loaded?.total ?? 0, 20, setPage);
-  const error = loadError;
-
-  useEffect(() => {
-    listSuppliers().then((res) => setSuppliers(res.rows)).catch(() => {});
-    listLocations().then((res) => setLocations(res.rows)).catch(() => {});
-  }, []);
+  const [exportError, setExportError] = useState('');
+  const error = d.error || exportError;
 
   const handleEdit = (item: ItemListRow) => {
     setEditingId(item.id);
@@ -85,30 +64,51 @@ export default function DataBarangPurchasing() {
     }
   };
 
-  const handleExportCSV = () => {
-    setExporting(true);
-    const rows: unknown[][] = [['No', 'Kode Barang', 'Kode Bawaan', 'Nama Barang', 'Supplier', 'Jumlah Stok', 'Satuan', 'Kategori', 'Harga', 'Lokasi']];
-    dataBarang.forEach((item, index) => rows.push([index + 1, item.code ?? '-', item.externalCode ?? '-', item.name, supplierName(item.supplierId), item.stock, item.unit, item.category, item.price, locationCode(item.locationId)]));
-    downloadCsv(`Data_Barang_Purchasing_halaman-${page}.csv`, rows);
-  };
-
-  const getCategoryColor = (kategori: string) => {
-    if (!kategori) return 'bg-gray-100 text-gray-700 border-gray-200/50';
-    switch(kategori.toLowerCase()) {
-      case 'lembaran': return 'bg-blue-100 text-blue-700 border-blue-200/50';
-      case 'kayu solid': return 'bg-amber-100 text-amber-700 border-amber-200/50';
-      case 'logam': return 'bg-slate-100 text-slate-700 border-slate-200/50';
-      case 'finishing': return 'bg-teal-100 text-teal-700 border-teal-200/50';
-      case 'aksesoris': return 'bg-pink-100 text-pink-700 border-pink-200/50';
-      default: return 'bg-purple-100 text-purple-700 border-purple-200/50';
+  // Semua barang sesuai pencarian/filter aktif, bukan hanya halaman yang tampil
+  const handleExportCSV = async () => {
+    setExportError('');
+    try {
+      const all = await fetchAllPages((p) => listItems({ page: p, pageSize: 100, search: d.debouncedSearch || undefined, ...toItemFilterParams(d.filters), ...d.sortParams }));
+      const rows: unknown[][] = [['No', 'Kode Barang', 'Kode Bawaan', 'Nama Barang', 'Supplier', 'Jumlah Stok', 'Satuan', 'Kategori', 'Harga', 'Lokasi']];
+      all.forEach((item, index) => rows.push([index + 1, item.code ?? '-', item.externalCode ?? '-', item.name, supplierName(item.supplierId), item.stock, item.unit, item.category, item.price, locationCode(item.locationId)]));
+      downloadCsv('Data_Barang_Purchasing.csv', rows);
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : 'Gagal export data barang.');
     }
   };
 
-  const supplierName = (id: number | null) => suppliers.find((s) => s.id === id)?.name ?? '-';
-  const locationCode = (id: number | null) => (id === null ? '-' : locations.find((loc) => loc.id === id)?.code ?? `#${id}`);
+  const columns: BarangColumn[] = [
+    { label: 'Kode Barang', tdClassName: 'px-6 py-4 font-mono text-xs text-gray-500', cell: (item) => item.code ?? '-' },
+    { label: 'Informasi Barang', sortKey: 'name', tdClassName: 'px-6 py-4 font-bold text-gray-900', cell: (item) => item.name },
+    { label: 'Kode Bawaan', tdClassName: 'px-6 py-4 text-gray-600', cell: (item) => item.externalCode || '-' },
+    { label: 'Supplier', sortKey: 'supplierName', cell: (item) => <SupplierCell name={supplierName(item.supplierId)} /> },
+    { label: 'Stok', sortKey: 'stock', cell: (item) => <StokCell stock={item.stock} /> },
+    { label: 'Stok Minimum', cell: (item) => <StokMinimumCell item={item} onSaved={reload} /> },
+    { label: 'Satuan', tdClassName: 'px-6 py-4 text-gray-600', cell: (item) => item.unit },
+    { label: 'Kategori', sortKey: 'category', cell: (item) => <KategoriBadge category={item.category} /> },
+    { label: 'Harga (Rp)', sortKey: 'price', align: 'right', tdClassName: 'px-6 py-4 text-right font-mono text-gray-700', cell: (item) => item.price },
+    { label: 'Lokasi', sortKey: 'locationCode', cell: (item) => (
+      <span className="inline-flex items-center gap-1 text-gray-600 font-medium">
+        <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+        {locationCode(item.locationId)}
+      </span>
+    ) },
+    { label: 'Keterangan', sortKey: 'detail', tdClassName: 'px-6 py-4 text-gray-600', cell: (item) => item.detail || '-' },
+  ];
+
+  const renderRowActions = (item: ItemListRow) => canEditPrice && (
+    <button
+      onClick={() => handleEdit(item)}
+      className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-[#FF8A00] hover:bg-orange-600 rounded-lg transition-all shadow-sm w-full max-w-27.5 mx-auto"
+    >
+      <Plus className="w-3.5 h-3.5" />
+      Lengkapi
+    </button>
+  );
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <StockNotificationDetail />
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1">Data Barang</h1>
@@ -117,158 +117,42 @@ export default function DataBarangPurchasing() {
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
-        {/* Table Toolbar */}
-        <div className="p-5 border-b border-gray-100 bg-gray-50/50 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex flex-col sm:flex-row gap-4 flex-1 max-w-2xl">
-            <div className="relative flex-1">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-4 w-4 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => { setSearchTerm(e.target.value); }}
-                maxLength={100}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 sm:text-sm transition-all"
-                placeholder="Cari kode atau nama barang..."
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <ExportExcellButton onClick={handleExportCSV} disabled={Exporting || loading || dataBarang.length === 0} />
-            <button
-              type="button"
-              onClick={() => setShowFilter((v) => !v)}
-              aria-expanded={showFilter}
-              className={`flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors text-sm font-medium ${showFilter || countActiveFilters(filters) > 0 ? 'bg-orange-50 border-orange-300 text-orange-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-            >
-              <Filter className="w-4 h-4" />
-              <span>Filter{countActiveFilters(filters) > 0 ? ` (${countActiveFilters(filters)})` : ''}</span>
-            </button>
-          </div>
-        </div>
+        <DataBarangToolbar
+          searchValue={d.searchQuery}
+          onSearchChange={d.setSearchQuery}
+          searchInputClassName="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 sm:text-sm transition-all"
+          bulkActions={<ExportExcellButton onClick={handleExportCSV} disabled={d.loading || dataBarang.length === 0} />}
+          filter={<FilterToggle open={d.showFilter} count={countActiveFilters(d.filters)} onToggle={() => d.setShowFilter((v) => !v)} />}
+        />
 
-        {showFilter && (
+        {d.showFilter && (
           <BarangFilterPanel
-            value={filters}
-            onChange={setFilters}
-            categories={categories}
-            units={units}
-            suppliers={suppliers}
-            locations={locations}
+            value={d.filters}
+            onChange={d.setFilters}
+            categories={d.categories}
+            units={d.units}
+            suppliers={d.suppliers}
+            locations={d.locations}
           />
         )}
-        
+
         {error && (
           <div className="mx-5 mt-5 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>
         )}
 
-        {/* Table Container */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
-              <tr>
-                <th scope="col" className="px-6 py-4">No</th>
-                <th scope="col" className="px-6 py-4">Foto</th>
-                <th scope="col" className="px-6 py-4">Kode Barang</th>
-                <SortableTh label="Informasi Barang" sortKey="name" sort={sort} onSort={toggle} />
-                <th scope="col" className="px-6 py-4">Kode Bawaan</th>
-                <SortableTh label="Supplier" sortKey="supplierName" sort={sort} onSort={toggle} />
-                <SortableTh label="Stok" sortKey="stock" sort={sort} onSort={toggle} />
-                <th scope="col" className="px-6 py-4">Satuan</th>
-                <SortableTh label="Kategori" sortKey="category" sort={sort} onSort={toggle} />
-                <SortableTh label="Harga (Rp)" sortKey="price" sort={sort} onSort={toggle} align="right" />
-                <SortableTh label="Lokasi" sortKey="locationCode" sort={sort} onSort={toggle} />
-                <SortableTh label="Keterangan" sortKey="detail" sort={sort} onSort={toggle} />
-                <th scope="col" className="px-6 py-4 text-center">Aksi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {loading && (
-                <tr><td colSpan={12} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
-              )}
-              {!loading && dataBarang.length === 0 && (
-                <tr><td colSpan={12} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
-              )}
-              {!loading && dataBarang.map((item, index) => (
-                <tr key={item.id} className="hover:bg-purple-50/30 transition-colors group">
-                  <td className="px-6 py-4 text-gray-500">{index + 1}</td>
-
-                  {/* Foto */}
-                  <td className="px-6 py-4">
-                    <ItemPhoto item={item} />
-                  </td>
-
-                  {/* Kode Barang */}
-                  <td className="px-6 py-4 font-mono text-xs text-gray-500">{item.code ?? '-'}</td>
-
-                  {/* Informasi Barang */}
-                  <td className="px-6 py-4 font-bold text-gray-900">{item.name}</td>
-
-                  {/* Kode Bawaan */}
-                  <td className="px-6 py-4 text-gray-600">{item.externalCode || '-'}</td>
-
-                  {/* Supplier */}
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <div className="w-6 h-6 rounded-md bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500">
-                        {supplierName(item.supplierId).charAt(0)}
-                      </div>
-                      <span>{supplierName(item.supplierId)}</span>
-                    </div>
-                  </td>
-
-                 {/* Stok */}
-                  <td className="px-6 py-4">
-                       <span className={`font-bold ${item.stock < 20 ? 'text-red-600' : item.stock < 50 ? 'text-amber-600' : 'text-gray-800'}`}>
-                         {item.stock}
-                       </span>
-                  </td>
-
-                  {/* Satuan */}
-                  <td className="px-6 py-4 text-gray-600">
-                    {item.unit}
-                  </td> 
-
-                  {/* Kategori */}
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getCategoryColor(item.category)}`}>
-                      {item.category || '-'}
-                    </span>
-                  </td>
-
-                  {/* Harga */}
-                  <td className="px-6 py-4 text-right font-mono text-gray-700">
-                    {item.price}
-                  </td>
-
-                  {/* Lokasi */}
-                  <td className="px-6 py-4">
-                    <span className="inline-flex items-center gap-1 text-gray-600 font-medium">
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
-                      {locationCode(item.locationId)}
-                    </span>
-                  </td>
-
-                  {/* Keterangan */}
-                  <td className="px-6 py-4 text-gray-600">{item.detail || '-'}</td>
-
-                  {/* Aksi */}
-                  <td className="px-6 py-4 text-center">
-                    {canEditPrice && <button
-                      onClick={() => handleEdit(item)}
-                      className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-[#FF8A00] hover:bg-orange-600 rounded-lg transition-all shadow-sm w-full max-w-27.5 mx-auto"
-                    >
-                       <Plus className="w-3.5 h-3.5" />
-                       Lengkapi
-                    </button>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <Pagination page={page} pageSize={20} total={loaded?.total ?? 0} onPageChange={setPage} activeClass="bg-teal-500 text-white border-teal-500" />
+        <DataBarangTable
+          rows={dataBarang}
+          loading={d.loading}
+          colSpan={13}
+          columns={columns}
+          sort={d.sort}
+          onSort={d.toggle}
+          photo={{ canUpload: false }}
+          rowActions={renderRowActions}
+          rowClassName={() => 'hover:bg-purple-50/30 transition-colors group'}
+          tbodyClassName="divide-y divide-gray-50"
+        />
+        <Pagination page={d.page} pageSize={d.pageSize} total={d.total} onPageChange={d.setPage} activeClass="bg-teal-500 text-white border-teal-500" />
       </div>
 
       {/* Modal Lengkapi Data */}
@@ -286,7 +170,7 @@ export default function DataBarangPurchasing() {
                   className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors font-sans"
                 >
                   <option value="" disabled>Pilih supplier</option>
-                  {suppliers.map((s) => (
+                  {d.suppliers.map((s) => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
                 </select>
