@@ -228,6 +228,7 @@ describe('DataBarang superadmin: pemetaan supplier massal', () => {
     const dialog = within(screen.getByRole('dialog'));
     fireEvent.click(dialog.getByRole('button', { name: 'Supplier' }));
     fireEvent.click(dialog.getByRole('option', { name: 'PT Kayu' }));
+    fireEvent.click(dialog.getByRole('button', { name: 'Tinjau 2 Barang' }));
     fireEvent.click(dialog.getByRole('button', { name: 'Simpan 2 Barang' }));
 
     await waitFor(() => expect(api.calls('PUT /api/v1/items/2')).toHaveLength(1));

@@ -60,6 +60,7 @@ describe("BulkSupplierAction", () => {
     expect(screen.getByText("1 barang sudah punya supplier dan akan diganti.")).not.toBeNull();
 
     choose("PT Kayu");
+    fireEvent.click(screen.getByRole("button", { name: "Tinjau 2 Barang" }));
     fireEvent.click(screen.getByRole("button", { name: "Simpan 2 Barang" }));
 
     await waitFor(() => expect(onFinished).toHaveBeenCalledOnce());
@@ -77,6 +78,7 @@ describe("BulkSupplierAction", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Atur Supplier (2)" }));
     choose("PT Kayu");
+    fireEvent.click(screen.getByRole("button", { name: "Tinjau 2 Barang" }));
     fireEvent.click(screen.getByRole("button", { name: "Simpan 2 Barang" }));
 
     await waitFor(() => expect(onFinished).toHaveBeenCalledOnce());
@@ -93,6 +95,7 @@ describe("BulkSupplierAction", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Atur Supplier (1)" }));
     choose("— Kosongkan supplier —");
+    fireEvent.click(screen.getByRole("button", { name: "Tinjau 1 Barang" }));
     fireEvent.click(screen.getByRole("button", { name: "Simpan 1 Barang" }));
 
     await waitFor(() => expect(onFinished).toHaveBeenCalledOnce());
