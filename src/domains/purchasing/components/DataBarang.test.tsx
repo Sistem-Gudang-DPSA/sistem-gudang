@@ -82,6 +82,9 @@ it('memetakan supplier untuk barang yang dicentang', async () => {
   const dialog = within(screen.getByRole('dialog'));
   fireEvent.click(dialog.getByRole('button', { name: 'Supplier' }));
   fireEvent.click(dialog.getByRole('option', { name: 'PT Kayu' }));
+  fireEvent.click(dialog.getByRole('button', { name: 'Tinjau 2 Barang' }));
+  expect(dialog.getByText('Barang 1')).not.toBeNull();
+  expect(dialog.getByText('CV Baja')).not.toBeNull();
   fireEvent.click(dialog.getByRole('button', { name: 'Simpan 2 Barang' }));
 
   await waitFor(() => expect(api.calls('PUT /api/v1/items/2')).toHaveLength(1));

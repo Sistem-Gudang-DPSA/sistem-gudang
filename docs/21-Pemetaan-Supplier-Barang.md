@@ -17,6 +17,10 @@ ditemukan dan diperbaiki sekaligus.
   supplier untuk menghapus supplierId.
 - Bila sebagian barang terpilih sudah punya supplier, modal menampilkan
   jumlah barang yang akan diganti.
+- Tekan Tinjau sebelum menyimpan. Layar tinjauan menampilkan supplier
+  tujuan, jumlah barang, nama barang, kode, dan supplier saat ini untuk
+  setiap barang. Tombol Kembali membuka lagi pilihan supplier, dan tombol
+  Simpan baru tersedia di layar tinjauan.
 - Selama menyimpan, tombol menampilkan progres jumlah barang yang sudah
   dikirim.
 - Setelah selesai, layar menampilkan jumlah barang yang berhasil beserta
