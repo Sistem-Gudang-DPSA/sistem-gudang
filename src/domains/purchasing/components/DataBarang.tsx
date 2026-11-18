@@ -18,14 +18,18 @@ import BarangFilterPanel, { countActiveFilters, toItemFilterParams } from '@/dom
 import { useDataBarang } from '@/domains/inventory/components/data-barang/useDataBarang';
 import DataBarangTable, { type BarangColumn, KategoriBadge, StokCell, SupplierCell } from '@/domains/inventory/components/data-barang/DataBarangTable';
 import DataBarangToolbar, { FilterToggle } from '@/domains/inventory/components/data-barang/DataBarangToolbar';
+import BulkSupplierAction, { type SupplierMappingResult } from '@/domains/inventory/components/data-barang/BulkSupplierAction';
 
 export default function DataBarangPurchasing() {
   // PUT /items/:id needs item.update, and changing the price also needs item.set-price.
   const canUpdateItem = useCan('item.update');
   const canSetPrice = useCan('item.set-price');
   const canEditPrice = canUpdateItem && canSetPrice;
+  const canSetSupplier = useCan('item.set-supplier');
+  // PUT /items/:id menolak perubahan supplierId tanpa item.set-supplier.
+  const canAssignSupplier = canUpdateItem && canSetSupplier;
   const d = useDataBarang();
-  const { dataBarang, supplierName, locationCode, reload } = d;
+  const { dataBarang, supplierName, locationCode, reload, selected, setSelected, toggleRow, togglePage, pageAllSelected } = d;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -33,7 +37,20 @@ export default function DataBarangPurchasing() {
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState("");
   const [exportError, setExportError] = useState('');
+  const [supplierNotice, setSupplierNotice] = useState<{ text: string; failed: boolean } | null>(null);
   const error = d.error || exportError;
+
+  const handleSupplierFinished = (result: SupplierMappingResult) => {
+    const failedIds = new Set(result.failed.map((f) => f.id));
+    // Barang yang gagal tetap tercentang supaya bisa dicoba ulang.
+    setSelected(new Map([...selected.entries()].filter(([id]) => failedIds.has(id))));
+    const failedText = result.failed.map((f) => `${f.name}: ${f.reason}`).join('; ');
+    setSupplierNotice({
+      text: `${result.assigned} barang dipetakan ke ${result.supplierName}.${failedText ? ` Gagal: ${failedText}` : ''}`,
+      failed: result.failed.length > 0,
+    });
+    reload();
+  };
 
   const handleEdit = (item: ItemListRow) => {
     setEditingId(item.id);
@@ -121,7 +138,15 @@ export default function DataBarangPurchasing() {
           searchValue={d.searchQuery}
           onSearchChange={d.setSearchQuery}
           searchInputClassName="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 sm:text-sm transition-all"
-          bulkActions={<ExportExcellButton onClick={handleExportCSV} disabled={d.loading || dataBarang.length === 0} />}
+          bulkActions={<>
+            <BulkSupplierAction
+              selected={selected}
+              suppliers={d.suppliers}
+              canAssignSupplier={canAssignSupplier}
+              onFinished={handleSupplierFinished}
+            />
+            <ExportExcellButton onClick={handleExportCSV} disabled={d.loading || dataBarang.length === 0} />
+          </>}
           filter={<FilterToggle open={d.showFilter} count={countActiveFilters(d.filters)} onToggle={() => d.setShowFilter((v) => !v)} />}
         />
 
@@ -140,14 +165,30 @@ export default function DataBarangPurchasing() {
           <div className="mx-5 mt-5 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>
         )}
 
+        {supplierNotice && (
+          <div
+            role="status"
+            className={`mx-5 mt-5 p-3 text-sm rounded-lg ${supplierNotice.failed ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700'}`}
+          >
+            {supplierNotice.text}
+          </div>
+        )}
+
         <DataBarangTable
           rows={dataBarang}
           loading={d.loading}
-          colSpan={13}
+          colSpan={canAssignSupplier ? 15 : 14}
           columns={columns}
           sort={d.sort}
           onSort={d.toggle}
           photo={{ canUpload: false }}
+          selection={canAssignSupplier ? {
+            selected,
+            allOnPage: pageAllSelected,
+            onToggleRow: toggleRow,
+            onToggleAll: togglePage,
+            disableAllWhenEmpty: true,
+          } : undefined}
           rowActions={renderRowActions}
           rowClassName={() => 'hover:bg-purple-50/30 transition-colors group'}
           tbodyClassName="divide-y divide-gray-50"
