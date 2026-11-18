@@ -52,7 +52,7 @@ export function RealisasiSpkReport({ rowHref }: { rowHref?: (id: string) => stri
   const { data: semua, loading, error } = useApiData(
     () => loadRealisasiList(range),
     `realisasi-outbound|${JSON.stringify(range)}`,
-    'Gagal memuat realisasi SPK.',
+    'Gagal memuat realisasi Dokubah.',
   );
   const q = debouncedSearch.trim().toLowerCase();
   const filtered = (semua ?? [])
@@ -102,7 +102,7 @@ export function RealisasiSpkReport({ rowHref }: { rowHref?: (id: string) => stri
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
-      <h1 className="text-[18px] font-extrabold text-black tracking-wide mb-6">Realisasi SPK</h1>
+      <h1 className="text-[18px] font-extrabold text-black tracking-wide mb-6">Realisasi Dokubah</h1>
 
       <p role="note" className="mb-6 p-3 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg">{SUMBER_DATA_NOTICE}</p>
 
