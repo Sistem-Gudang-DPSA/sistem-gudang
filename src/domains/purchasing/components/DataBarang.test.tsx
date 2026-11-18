@@ -76,7 +76,7 @@ it('memetakan supplier untuk barang yang dicentang', async () => {
 
   fireEvent.click(screen.getByRole('checkbox', { name: 'Pilih Barang 1' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Pilih Barang 2' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Atur Supplier (2)' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Edit Supplier (2)' }));
   expect(screen.getByText('1 barang sudah punya supplier dan akan diganti.')).not.toBeNull();
 
   const dialog = within(screen.getByRole('dialog'));
@@ -98,7 +98,7 @@ it('menyembunyikan checklist tanpa item.set-supplier', async () => {
   render(<AuthUserProvider user={userWith(['item.update'])}><DataBarang /></AuthUserProvider>);
   await screen.findByText('Barang 1');
   expect(screen.queryByRole('checkbox', { name: 'Pilih Barang 1' })).toBeNull();
-  expect(screen.queryByRole('button', { name: /Atur Supplier/ })).toBeNull();
+  expect(screen.queryByRole('button', { name: /Edit Supplier/ })).toBeNull();
 });
 
 it('menampilkan checklist dengan item.update dan item.set-supplier', async () => {
@@ -106,7 +106,7 @@ it('menampilkan checklist dengan item.update dan item.set-supplier', async () =>
   render(<AuthUserProvider user={userWith(['item.update', 'item.set-supplier'])}><DataBarang /></AuthUserProvider>);
   await screen.findByText('Barang 1');
   expect(screen.getByRole('checkbox', { name: 'Pilih Barang 1' })).not.toBeNull();
-  expect(screen.getByRole('button', { name: 'Atur Supplier (0)' })).not.toBeNull();
+  expect(screen.getByRole('button', { name: 'Edit Supplier (0)' })).not.toBeNull();
 });
 
 it('Filter stok kosong dikirim ke API daftar barang', async () => {

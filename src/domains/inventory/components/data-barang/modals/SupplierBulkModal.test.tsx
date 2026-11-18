@@ -32,7 +32,7 @@ function setup(over: Partial<ComponentProps<typeof SupplierBulkModal>> = {}) {
 describe("SupplierBulkModal", () => {
   it("shows the item count and disables review until a supplier is chosen", () => {
     setup();
-    expect(screen.getByText(/Atur Supplier · 2 Barang/i)).not.toBeNull();
+    expect(screen.getByText(/Edit Supplier · 2 Barang/i)).not.toBeNull();
     expect((screen.getByRole("button", { name: "Tinjau 2 Barang" }) as HTMLButtonElement).disabled).toBe(true);
   });
 
@@ -62,7 +62,7 @@ describe("SupplierBulkModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "Tinjau 2 Barang" }));
     fireEvent.click(screen.getByRole("button", { name: "Kembali" }));
 
-    expect(screen.getByText(/Atur Supplier · 2 Barang/i)).not.toBeNull();
+    expect(screen.getByText(/Edit Supplier · 2 Barang/i)).not.toBeNull();
     expect(props.onSave).not.toHaveBeenCalled();
   });
 

@@ -54,7 +54,7 @@ export default function SupplierBulkModal({
 
   return (
     <Modal
-      title={step === "pilih" ? `Atur Supplier · ${count} Barang` : `Tinjau Pemetaan · ${count} Barang`}
+      title={step === "pilih" ? `Edit Supplier · ${count} Barang` : `Tinjau Pemetaan · ${count} Barang`}
       onClose={onClose}
       footer={step === "pilih" ? (
         <>

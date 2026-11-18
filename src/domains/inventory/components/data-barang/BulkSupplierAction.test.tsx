@@ -41,12 +41,12 @@ const choose = (label: string) => {
 describe("BulkSupplierAction", () => {
   it("is hidden without item.set-supplier", () => {
     renderAction({ canAssignSupplier: false });
-    expect(screen.queryByRole("button", { name: /Atur Supplier/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Edit Supplier/ })).toBeNull();
   });
 
   it("is disabled while nothing is selected", () => {
     renderAction({ selected: new Map() });
-    expect((screen.getByRole("button", { name: "Atur Supplier (0)" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "Edit Supplier (0)" }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("maps every selected item to the chosen supplier and reports the result", async () => {
@@ -56,7 +56,7 @@ describe("BulkSupplierAction", () => {
     });
     const { onFinished } = renderAction();
 
-    fireEvent.click(screen.getByRole("button", { name: "Atur Supplier (2)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit Supplier (2)" }));
     expect(screen.getByText("1 barang sudah punya supplier dan akan diganti.")).not.toBeNull();
 
     choose("PT Kayu");
@@ -76,7 +76,7 @@ describe("BulkSupplierAction", () => {
     });
     const { onFinished } = renderAction();
 
-    fireEvent.click(screen.getByRole("button", { name: "Atur Supplier (2)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit Supplier (2)" }));
     choose("PT Kayu");
     fireEvent.click(screen.getByRole("button", { name: "Tinjau 2 Barang" }));
     fireEvent.click(screen.getByRole("button", { name: "Simpan 2 Barang" }));
@@ -93,7 +93,7 @@ describe("BulkSupplierAction", () => {
     const api = installFakeApi({ "PUT /api/v1/items/1": { id: 1 } });
     const { onFinished } = renderAction({ selected: new Map([[1, item(1, "Triplex", 7)]]) });
 
-    fireEvent.click(screen.getByRole("button", { name: "Atur Supplier (1)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit Supplier (1)" }));
     choose("— Kosongkan supplier —");
     fireEvent.click(screen.getByRole("button", { name: "Tinjau 1 Barang" }));
     fireEvent.click(screen.getByRole("button", { name: "Simpan 1 Barang" }));
