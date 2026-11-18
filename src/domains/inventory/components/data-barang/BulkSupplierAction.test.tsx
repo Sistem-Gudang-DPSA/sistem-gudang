@@ -25,7 +25,7 @@ function renderAction(over: Partial<Parameters<typeof BulkSupplierAction>[0]> = 
     <BulkSupplierAction
       selected={selected}
       suppliers={suppliers}
-      canUpdate
+      canAssignSupplier
       onFinished={onFinished}
       {...over}
     />,
@@ -39,8 +39,8 @@ const choose = (label: string) => {
 };
 
 describe("BulkSupplierAction", () => {
-  it("is hidden without item.update", () => {
-    renderAction({ canUpdate: false });
+  it("is hidden without item.set-supplier", () => {
+    renderAction({ canAssignSupplier: false });
     expect(screen.queryByRole("button", { name: /Atur Supplier/ })).toBeNull();
   });
 

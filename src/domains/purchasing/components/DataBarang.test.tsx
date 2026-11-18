@@ -1,7 +1,9 @@
 import { it, expect, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { downloadCsv } from '@/shared/lib/csv';
 import { installFakeApi, paged, type FakeRequest } from '@/test/fake-api';
+import { AuthUserProvider } from '@/domains/auth/user-context';
+import type { AuthUser } from '@/domains/auth/types';
 import DataBarang from './DataBarang';
 
 vi.mock('@/shared/lib/csv', () => ({ downloadCsv: vi.fn() }));
@@ -51,6 +53,57 @@ it('Export CSV mengambil semua halaman barang, bukan hanya halaman yang tampil',
   expect(name).toBe('Data_Barang_Purchasing.csv');
   expect(rows).toHaveLength(151);
   expect(api.calls('GET /api/v1/items').filter((c) => c.query.get('pageSize') === '100')).toHaveLength(2);
+});
+
+const userWith = (permissions: string[]): AuthUser => ({ id: 1, username: 'u', email: 'u@x.id', roleId: 2, roleName: 'Staff', isSuperadmin: false, permissions });
+
+const supplierRoutes = {
+  'GET /api/v1/locations': paged([]),
+  'GET /api/v1/suppliers': paged([{ id: 7, name: 'PT Kayu' }, { id: 8, name: 'CV Baja' }]),
+};
+
+it('memetakan supplier untuk barang yang dicentang', async () => {
+  const first = { ...item, id: 1, name: 'Barang 1', supplierId: null, supplierName: null };
+  const second = { ...item, id: 2, name: 'Barang 2', supplierId: 8, supplierName: 'CV Baja' };
+  const api = installFakeApi({
+    ...supplierRoutes,
+    'GET /api/v1/items': paged([first, second]),
+    'PUT /api/v1/items/1': { ...first, supplierId: 7, supplierName: 'PT Kayu' },
+    'PUT /api/v1/items/2': { ...second, supplierId: 7, supplierName: 'PT Kayu' },
+  });
+  render(<DataBarang />);
+  await screen.findByText('Barang 1');
+
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Pilih Barang 1' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Pilih Barang 2' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Atur Supplier (2)' }));
+  expect(screen.getByText('1 barang sudah punya supplier dan akan diganti.')).not.toBeNull();
+
+  const dialog = within(screen.getByRole('dialog'));
+  fireEvent.click(dialog.getByRole('button', { name: 'Supplier' }));
+  fireEvent.click(dialog.getByRole('option', { name: 'PT Kayu' }));
+  fireEvent.click(dialog.getByRole('button', { name: 'Simpan 2 Barang' }));
+
+  await waitFor(() => expect(api.calls('PUT /api/v1/items/2')).toHaveLength(1));
+  expect(api.calls('PUT /api/v1/items/1')[0].body).toEqual({ supplierId: 7 });
+  expect(api.calls('PUT /api/v1/items/2')[0].body).toEqual({ supplierId: 7 });
+  expect(await screen.findByText('2 barang dipetakan ke PT Kayu.')).not.toBeNull();
+});
+
+it('menyembunyikan checklist tanpa item.set-supplier', async () => {
+  installFakeApi({ ...supplierRoutes, 'GET /api/v1/items': paged([item]) });
+  render(<AuthUserProvider user={userWith(['item.update'])}><DataBarang /></AuthUserProvider>);
+  await screen.findByText('Barang 1');
+  expect(screen.queryByRole('checkbox', { name: 'Pilih Barang 1' })).toBeNull();
+  expect(screen.queryByRole('button', { name: /Atur Supplier/ })).toBeNull();
+});
+
+it('menampilkan checklist dengan item.update dan item.set-supplier', async () => {
+  installFakeApi({ ...supplierRoutes, 'GET /api/v1/items': paged([item]) });
+  render(<AuthUserProvider user={userWith(['item.update', 'item.set-supplier'])}><DataBarang /></AuthUserProvider>);
+  await screen.findByText('Barang 1');
+  expect(screen.getByRole('checkbox', { name: 'Pilih Barang 1' })).not.toBeNull();
+  expect(screen.getByRole('button', { name: 'Atur Supplier (0)' })).not.toBeNull();
 });
 
 it('Filter stok kosong dikirim ke API daftar barang', async () => {
