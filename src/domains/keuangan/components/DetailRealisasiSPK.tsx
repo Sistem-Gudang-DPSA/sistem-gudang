@@ -9,7 +9,7 @@ import {
     loadAllItems, loadItemSpk, loadRincianPerItem, loadRincianSpk, realisasiSpkPath, statusRealisasi,
     type RincianRow,
 } from '@/domains/inventory/components/RealisasiSPK';
-import { exportRincianExcel, openPrintWindow, printRincianPdf } from '@/shared/components/ExportRealisasi';
+import { exportRincianExcel, printRincianPdf } from '@/domains/inventory/export/realisasi';
 import { useApiData } from '@/shared/lib/use-api-data';
 import SearchableSelect from '@/shared/components/SearchableSelect';
 import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';
@@ -39,6 +39,7 @@ export function RincianSpkDetail({ noSpk, mode, backHref }: {
 }) {
     const [hanyaTerpakai, setHanyaTerpakai] = useState(true);
     const [itemDipilih, setItemDipilih] = useState(SEMUA);
+    const [printError, setPrintError] = useState('');
 
     // Harga barang hanya dibutuhkan untuk rincian biaya
     const { data: items, loading: loadingItems, error: errItems } = useApiData(
@@ -149,10 +150,15 @@ export function RincianSpkDetail({ noSpk, mode, backHref }: {
     const melebihi = rincian ? rincian.rows.filter((r) => r.qty > r.kuota).length : 0;
 
     const handleExcel = () =>
-        rincian && exportRincianExcel(mode, { ...rincian, totalBiaya: totalTampil }, rows, labelItem);
-    const handlePdf = () => {
-        const win = openPrintWindow();
-        if (win && rincian) printRincianPdf(win, mode, { ...rincian, totalBiaya: totalTampil }, rows, labelItem);
+        rincian && exportRincianExcel(mode, { ...rincian, totalBiaya: totalTampil }, rows);
+    const handlePdf = async () => {
+        if (!rincian) return;
+        setPrintError('');
+        try {
+            await printRincianPdf(mode, { ...rincian, totalBiaya: totalTampil }, rows);
+        } catch (err) {
+            setPrintError(err instanceof Error ? err.message : 'Gagal mencetak PDF.');
+        }
     };
 
     const info: [string, React.ReactNode][] = rincian
@@ -215,6 +221,8 @@ export function RincianSpkDetail({ noSpk, mode, backHref }: {
                         <PrintPdfButton onClick={handlePdf} disabled={memuat || !rincian} />
                     </div>
                 </div>
+
+                {printError && <p role="alert" className="px-5 py-2 text-sm text-red-600 border-b border-gray-100">{printError}</p>}
 
                 {rincian && (
                     <dl className="grid grid-cols-2 md:grid-cols-6 gap-x-8 gap-y-3 px-5 py-4 border-b border-gray-100 text-sm">
