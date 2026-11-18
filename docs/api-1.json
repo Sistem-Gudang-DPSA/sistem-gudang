@@ -21325,10 +21325,11 @@
                           "exclusiveMinimum": true
                         },
                         "qty": {
-                          "type": "integer",
+                          "type": "number",
                           "minimum": 0,
                           "exclusiveMinimum": true,
-                          "maximum": 1000000
+                          "maximum": 1000000,
+                          "multipleOf": 0.001
                         },
                         "pic": {
                           "type": "string",
@@ -22344,10 +22345,11 @@
                           "exclusiveMinimum": true
                         },
                         "qty": {
-                          "type": "integer",
+                          "type": "number",
                           "minimum": 0,
                           "exclusiveMinimum": true,
-                          "maximum": 1000000
+                          "maximum": 1000000,
+                          "multipleOf": 0.001
                         },
                         "pic": {
                           "type": "string",
@@ -32668,7 +32670,8 @@
                         "physicalQty": {
                           "type": "number",
                           "minimum": 0,
-                          "maximum": 1000000
+                          "maximum": 1000000,
+                          "multipleOf": 0.001
                         },
                         "note": {
                           "type": "string",
@@ -34529,7 +34532,7 @@
           "Report"
         ],
         "summary": "Inbound report with summary",
-        "description": "Same rows as GET /inbound plus a summary of transaction counts per source. The summary follows the date and search filters but ignores the source/type filter, so the cards keep showing every category.",
+        "description": "Same rows as GET /inbound plus a summary of transaction counts per source. The summary follows the date and search filters but ignores the source/type filter, so the cards keep showing every category. filteredSummary has the same shape but follows every filter (source/type too), so it matches the filtered table.",
         "security": [
           {
             "bearerAuth": []
@@ -34805,6 +34808,46 @@
                             "qtyProduksi",
                             "qtyKlien"
                           ]
+                        },
+                        "filteredSummary": {
+                          "type": "object",
+                          "properties": {
+                            "total": {
+                              "type": "number"
+                            },
+                            "supplier": {
+                              "type": "number"
+                            },
+                            "produksi": {
+                              "type": "number"
+                            },
+                            "klien": {
+                              "type": "number"
+                            },
+                            "qtyTotal": {
+                              "type": "number",
+                              "description": "Quantity received, all sources"
+                            },
+                            "qtySupplier": {
+                              "type": "number"
+                            },
+                            "qtyProduksi": {
+                              "type": "number"
+                            },
+                            "qtyKlien": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "total",
+                            "supplier",
+                            "produksi",
+                            "klien",
+                            "qtyTotal",
+                            "qtySupplier",
+                            "qtyProduksi",
+                            "qtyKlien"
+                          ]
                         }
                       },
                       "required": [
@@ -34812,7 +34855,8 @@
                         "total",
                         "page",
                         "pageSize",
-                        "summary"
+                        "summary",
+                        "filteredSummary"
                       ]
                     }
                   },
@@ -35264,7 +35308,7 @@
           "Report"
         ],
         "summary": "Outbound report with summary",
-        "description": "Same rows as GET /outbound plus a summary of transaction counts per warehouse type. The summary follows the date and search filters but ignores the source/type filter, so the cards keep showing every category.",
+        "description": "Same rows as GET /outbound plus a summary of transaction counts per warehouse type. The summary follows the date and search filters but ignores the source/type filter, so the cards keep showing every category. filteredSummary has the same shape but follows every filter (source/type too), so it matches the filtered table.",
         "security": [
           {
             "bearerAuth": []
@@ -35576,6 +35620,25 @@
                             "wip",
                             "barangJadi"
                           ]
+                        },
+                        "filteredSummary": {
+                          "type": "object",
+                          "properties": {
+                            "bahanBaku": {
+                              "type": "number"
+                            },
+                            "wip": {
+                              "type": "number"
+                            },
+                            "barangJadi": {
+                              "type": "number"
+                            }
+                          },
+                          "required": [
+                            "bahanBaku",
+                            "wip",
+                            "barangJadi"
+                          ]
                         }
                       },
                       "required": [
@@ -35583,7 +35646,8 @@
                         "total",
                         "page",
                         "pageSize",
-                        "summary"
+                        "summary",
+                        "filteredSummary"
                       ]
                     }
                   },

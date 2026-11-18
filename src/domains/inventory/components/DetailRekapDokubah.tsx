@@ -2,9 +2,10 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, usePathname } from 'next/navigation';
+import { gudangBasePath } from '../base-path';
 import { ArrowLeft } from 'lucide-react';
-import { formatAngka, formatRupiah, gudang_rekap_dokubah_path } from '@/domains/ppic/data/dokubah';
+import { formatAngka, formatRupiah } from '@/domains/ppic/data/dokubah';
 import { getDokubah } from '@/domains/ppic/api';
 import { useApiData } from '@/shared/lib/use-api-data';
 import StatusBadge, { type BadgeTone } from '@/shared/components/StatusBadge';
@@ -39,11 +40,12 @@ function Field({ id, label, children }: { id: string; label: string; children: R
 
 export default function DetailRekapDokubahPPIC() {
   const { id } = useParams<{ id: string }>();
+  const backPath = `${gudangBasePath(usePathname())}/laporan/dokubah`;
   const { data: dokubah, loading, error } = useApiData(() => getDokubah(Number(id)), id, 'Gagal memuat Dokubah.');
 
   const header = (
     <div className="flex items-center gap-3 mb-6">
-      <Link href={gudang_rekap_dokubah_path} aria-label="Kembali ke Rekap Dokubah" className="text-gray-800 hover:opacity-70 transition-opacity">
+      <Link href={backPath} aria-label="Kembali ke Rekap Dokubah" className="text-gray-800 hover:opacity-70 transition-opacity">
         <ArrowLeft className="w-5 h-5" strokeWidth={2.5} />
       </Link>
       <h1 className="text-[18px] font-extrabold text-black tracking-wide">Detail Rekap Dokubah</h1>
@@ -127,7 +129,7 @@ export default function DetailRekapDokubahPPIC() {
         </div>
 
         <div className="flex justify-end mt-10">
-          <Link href={gudang_rekap_dokubah_path} className={orangeButtonClass}>Kembali</Link>
+          <Link href={backPath} className={orangeButtonClass}>Kembali</Link>
         </div>
       </div>
     </div>

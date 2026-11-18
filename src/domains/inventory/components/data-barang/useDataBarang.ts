@@ -5,6 +5,7 @@ import { listSuppliers } from '@/domains/purchasing/api';
 import { emptyBarangFilters, toItemFilterParams } from '@/domains/inventory/components/BarangFilterPanel';
 import { useSort } from '@/shared/components/SortableTh';
 import { useApiData } from '@/shared/lib/use-api-data';
+import { fetchAllPages } from '@/shared/lib/fetch-all';
 import { useDebouncedValue } from '@/shared/lib/use-debounced-value';
 import { useClampPage, usePage } from '@/shared/lib/use-page';
 
@@ -33,12 +34,13 @@ export function useDataBarang({ cacheReferenceLists = false }: { cacheReferenceL
 
   // Urutan pemanggilan sama seperti sebelumnya (lokasi, supplier, kategori, satuan). Hanya kategori dan satuan yang boleh di-cache.
   const cacheMs = cacheReferenceLists ? REFERENCE_CACHE_MS : 0;
-  const { data: locationData } = useApiData(() => listLocations(), 'locations');
-  const { data: supplierData } = useApiData(() => listSuppliers(), 'suppliers');
+  // Lokasi dan supplier berpaginasi: ambil semua halaman agar nama dan pilihan lengkap.
+  const { data: locationData, error: locationError } = useApiData(() => fetchAllPages((page, pageSize) => listLocations({ page, pageSize })), 'locations', 'Gagal memuat daftar lokasi.');
+  const { data: supplierData, error: supplierError } = useApiData(() => fetchAllPages((page, pageSize) => listSuppliers({ page, pageSize })), 'suppliers', 'Gagal memuat daftar supplier.');
   const { data: categoryData } = useApiData(() => listItemCategories(), 'categories', 'Gagal memuat daftar kategori.', cacheMs);
   const { data: unitData } = useApiData(() => listItemUnits(), 'units', 'Gagal memuat daftar satuan.', cacheMs);
-  const locations = locationData?.rows ?? [];
-  const suppliers = supplierData?.rows ?? [];
+  const locations = locationData ?? [];
+  const suppliers = supplierData ?? [];
   const categories = (categoryData ?? []).map((c) => c.name);
   const units = (unitData ?? []).map((u) => u.name);
 
@@ -70,7 +72,7 @@ export function useDataBarang({ cacheReferenceLists = false }: { cacheReferenceL
     filters, setFilters, showFilter, setShowFilter,
     searchQuery, setSearchQuery, debouncedSearch,
     pageSize, setPageSize, page, setPage,
-    dataBarang, total, loaded, loading, error, reload,
+    dataBarang, total, loaded, loading, error: error || locationError || supplierError, reload,
     locations, suppliers, categories, units, supplierName, locationCode,
     selected, setSelected, toggleRow, togglePage, pageAllSelected,
   };

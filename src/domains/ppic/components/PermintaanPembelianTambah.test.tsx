@@ -28,7 +28,7 @@ describe('purchase request form', () => {
     change('Nama pemohon', 'Fauzi');
     change('Jabatan', 'Staff');
     change('Tanggal Pengajuan', '2026-11-09');
-    change('Periode', 'November 2026');
+    expect(screen.queryByLabelText('Periode')).toBeNull();
     change('Nama Barang baris 1', 'Paku');
     change('QTY baris 1', '5');
     change('Satuan baris 1', 'Kg');
@@ -36,14 +36,14 @@ describe('purchase request form', () => {
     change('Supplier baris 1', 'PT Bahan');
     change('Proyek baris 1', 'Hotel');
     change('Keterangan baris 1', 'Segera');
-    change('Deadline baris 1', '2026-11-20');
-    expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['No', 'Tanggal', 'Supplier', 'Nama Barang', 'QTY', 'SAT', 'Proyek', 'Keterangan', 'Deadline Tanggal']);
+    change('Dikirim Tanggal baris 1', '2026-11-20');
+    expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['No', 'Tanggal', 'Supplier', 'Nama Barang', 'QTY', 'SAT', 'Proyek', 'Keterangan', 'Dikirim Tanggal']);
     expect(screen.queryByRole('button', { name: 'Client' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'No SPK' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Ajukan Permintaan Pembelian' }));
     await waitFor(() => expect(api.calls('POST /api/v1/approvals')).toHaveLength(1));
     expect(api.calls('POST /api/v1/approvals')[0].body).toEqual({ type: 'purchase-request', payload: {
-      bagian: 'Gudang', namaPemohon: 'Fauzi', jabatan: 'Staff', tanggalPengajuan: '2026-11-09', periode: 'November 2026', items: existing.barang.map((item) => ({ ...item, noSpk: undefined })),
+      bagian: 'Gudang', namaPemohon: 'Fauzi', jabatan: 'Staff', tanggalPengajuan: '2026-11-09', items: existing.barang.map((item) => ({ ...item, noSpk: undefined })),
     } });
     await waitFor(() => expect(push).toHaveBeenCalledWith(basePath));
   });
@@ -51,6 +51,7 @@ describe('purchase request form', () => {
   it('edits the same request, preserves fields, and returns to the Gudang list', async () => {
     const api = installFakeApi({ ...routes, 'PUT /api/v1/approvals/7': null });
     render(<Form permintaan={existing} basePath={basePath} editing />);
+    expect((screen.getByLabelText('Dikirim Tanggal baris 1') as HTMLInputElement).value).toBe('2026-11-20');
     change('Keterangan baris 1', 'Tambahan');
     fireEvent.click(screen.getByRole('button', { name: 'Simpan Perubahan' }));
     await waitFor(() => expect(api.calls('PUT /api/v1/approvals/7')).toHaveLength(1));
@@ -102,6 +103,29 @@ describe('purchase request form', () => {
     expect(payload).not.toHaveProperty('periode');
     expect(payload.items).toEqual([{ namaBarang: 'Paku', qty: 5, satuan: 'Kg', proyek: 'Hotel' }]);
     expect(Object.keys((payload.items as object[])[0])).toEqual(['namaBarang', 'satuan', 'proyek', 'qty']);
+  });
+
+  it('validates rows containing only a delivery date instead of silently discarding them', async () => {
+    const api = installFakeApi(routes);
+    render(<Form basePath={basePath} />);
+    fillHeader();
+    fillRow();
+    fireEvent.click(screen.getByRole('button', { name: '+ Tambah Baris' }));
+    change('Dikirim Tanggal baris 2', '2026-11-20');
+    fireEvent.click(screen.getByRole('button', { name: 'Ajukan Permintaan Pembelian' }));
+    expect(screen.getByText('Lengkapi semua kolom di setiap baris barang yang dipakai (QTY minimal 1).')).not.toBeNull();
+    expect(api.calls('POST /api/v1/approvals')).toHaveLength(0);
+  });
+
+  it('sends an edited delivery date using the API deadlineTanggal field', async () => {
+    const api = installFakeApi({ ...routes, 'PUT /api/v1/approvals/7': null });
+    render(<Form permintaan={existing} basePath={basePath} editing />);
+    change('Dikirim Tanggal baris 1', '2026-11-25');
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan Perubahan' }));
+    await waitFor(() => expect(api.calls('PUT /api/v1/approvals/7')).toHaveLength(1));
+    const body = api.calls('PUT /api/v1/approvals/7')[0].body as { payload: { items: Record<string, unknown>[] } };
+    expect(body.payload.items[0].deadlineTanggal).toBe('2026-11-25');
+    expect(body.payload.items[0]).not.toHaveProperty('dikirimTanggal');
   });
 
   it('starts with one row and adds more with Tambah Baris', () => {

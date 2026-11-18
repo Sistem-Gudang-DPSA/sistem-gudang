@@ -45,10 +45,25 @@ berubah dan mengabaikan respons yang sudah kedaluwarsa.
 | Halaman | Endpoint | Catatan |
 |---|---|---|
 | Barang Masuk | `/inbound`, `POST /inbound/batch` | Pilih supplier dulu, lalu tambah barang lewat Scan Barang (scanner atau kamera) atau Input Manual. Barang dengan supplier berbeda ditandai merah. Semua baris tampil di Preview, lalu disimpan sekali lewat `/inbound/batch` dengan header `Idempotency-Key`. Tabel menampilkan kolom Supplier. Form Barang Kembali tidak ada. |
-| Barang Keluar | `/outbound` | Form punya Asal Gudang dan Tujuan/Penerima (wajib). Tabel diratakan satu baris per barang. |
-| Stock Opname | `/stock-opname` | Daftar dengan filter bulan dan tahun dari server, dan detail berisi stok sistem, fisik, dan selisih. Form konfirmasi sebelum menyimpan karena stok disetel ke jumlah fisik. |
-| Laporan Barang Masuk dan Keluar | `/reports/inbound`, `/reports/outbound` | Kartu total memakai `summary` dari backend (jumlah transaksi). Ada kolom Lokasi. |
+| Barang Keluar | `/outbound` | Form punya Asal Gudang dan Tujuan/Penerima (wajib). Tabel diratakan satu baris per barang. Saat Preview terbuka, panel scan dan kamera ditutup dan scan baru diabaikan sampai Kembali Edit. Konfirmasi ditolak selama scan tertunda, memvalidasi ulang form, dan mengambil ulang stok (`GET /items/{id}`) hanya untuk baris yang qty-nya melebihi stok. |
+| Stock Opname | `/stock-opname` | Daftar dengan filter bulan dan tahun dari server, dan detail berisi stok sistem, fisik, dan selisih. Form konfirmasi sebelum menyimpan karena stok disetel ke jumlah fisik. Jumlah fisik boleh desimal (maks. 3 angka di belakang koma, maks. 1.000.000). Baris yang sudah diisi, termasuk hasil scan dari halaman lain, tetap tampil di tabel dan bisa dikosongkan agar tidak ikut dikirim. |
+| Laporan Barang Masuk dan Keluar | `/reports/inbound`, `/reports/outbound` | Kartu per kategori memakai `summary` dari backend (abaikan filter sumber). Kartu total Barang Masuk memakai `filteredSummary` (qty dan jumlah transaksi, mengikuti semua filter) agar cocok dengan tabel. Ada kolom Lokasi. |
 | Rekap Permintaan | `/reports/requests`, `/material-requests/{id}` | Export mendukung mode filter dan mode `ids`. |
+
+Jumlah **Rekap Pembelian** dan **Kedatangan** pada form Barang Masuk menerima
+angka desimal dengan koma, maksimal 3 angka di belakang koma. Huruf, titik,
+tanda plus/minus, koma ganda, dan presisi berlebih ditolak dengan pesan di
+kolom tanpa mengubah nilai sebelumnya. Pesan validasi hanya menyebut
+kesalahan yang perlu diperbaiki, misalnya "Lengkapi angka desimal." atau
+"Maksimal 100.000.". Kedatangan wajib lebih dari 0 dan
+maksimal 100.000; rekap pembelian wajib diisi, minimal 0 dan maksimal
+999999999. Nilai yang tidak valid menghalangi Preview. Tombol tambah dan
+scan ulang menambah 1 hingga batas kedatangan; tombol kurang mengurangi 1
+dengan batas 1, sedangkan pecahan di bawah 1 dapat diketik langsung.
+Preview menampilkan desimal dengan koma dan `POST /inbound/batch` menerima
+`qtyArrived` serta `qtyPurchased` sebagai angka JSON. Spec lokal
+`docs/api-1.json` masih mencantumkan keduanya sebagai integer; dukungan
+desimal di backend perlu diverifikasi sebelum dipakai di produksi.
 
 ### Penggabungan branch `cal/updRabuGudang`
 
@@ -83,3 +98,16 @@ Modul Gudang selesai tersambung. Berikutnya lihat
 `04-Rencana-Selanjutnya.md`.
 
 Permintaan Pembelian tidak lagi ada di Gudang. Halamannya pindah ke PPIC, lihat `09-Permintaan-Pembelian-PPIC-dan-Rekap-Pembelian.md`.
+
+## Export di Stock Opname dan Data Barang
+
+- Export Stock Opname memuat satu sheet per periode yang dicentang di halaman
+  tersebut (satu periode memakai nama file `Stok_Opname_Bulan_<bulan>_<tahun>.xlsx`,
+  lebih dari satu `Stok_Opname.xlsx`). Kegagalan export dan cetak tampil di
+  atas tabel.
+- Export CSV Data Barang (Gudang dan Keuangan) mengambil semua barang sesuai
+  pencarian dan filter aktif lewat `fetchAllPages`, bukan hanya halaman yang
+  tampil. Nama file mengikuti divisi (`Data_Barang_Gudang.csv`,
+  `Data_Barang_Keuangan.csv`).
+- `toCsv` (`src/shared/lib/csv.ts`) mengutip semua kolom dan menambah `'` di
+  depan teks berawalan `=`, `+`, `-`, `@` agar tidak dibaca Excel sebagai rumus.

@@ -6,6 +6,7 @@ import type { AuthUser } from '@/domains/auth/types';
 import DataBarangGudang from './DataBarang';
 
 vi.mock('next/navigation', () => ({
+  useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
   useParams: () => ({}),
   usePathname: () => '/superadmin/barang',
@@ -176,5 +177,30 @@ describe('DataBarang superadmin: Hapus Semua (sementara)', () => {
     expect(await screen.findByText('1 barang dihapus. 1 barang dilewati karena sudah dipakai transaksi.')).not.toBeNull();
     expect(api.calls('DELETE /api/v1/items/1')).toHaveLength(1);
     expect(api.calls('DELETE /api/v1/items/2')).toHaveLength(1);
+  });
+});
+
+describe('DataBarang superadmin: Sesuaikan Stok', () => {
+  it('retry setelah gagal memakai Idempotency-Key yang sama; penyesuaian berikutnya memakai key baru', async () => {
+    let n = 0;
+    const api = setup({}, { 'PATCH /api/v1/items/1/stock': () => (++n === 1 ? fail(500, 'timeout') : item) }, { user: { id: 1, username: 'u', email: 'u@x.id', roleId: 1, roleName: 'SA', isSuperadmin: true, permissions: [] } });
+    await screen.findByText('Barang 1');
+    fireEvent.click(screen.getByTitle('Sesuaikan stok'));
+    fireEvent.change(screen.getByPlaceholderText('Contoh: 10 atau -5'), { target: { value: '10' } });
+    fireEvent.change(screen.getByPlaceholderText(/Contoh: Penerimaan/), { target: { value: 'koreksi' } });
+    fireEvent.click(screen.getByText('Simpan'));
+    await screen.findByText('timeout');
+    fireEvent.click(screen.getByText('Simpan'));
+    await waitFor(() => expect(screen.queryByText('Simpan')).toBeNull());
+    const [a, b] = api.calls('PATCH /api/v1/items/1/stock');
+    expect(a.headers.get('Idempotency-Key')).toBeTruthy();
+    expect(b.headers.get('Idempotency-Key')).toBe(a.headers.get('Idempotency-Key'));
+
+    fireEvent.click(await screen.findByTitle('Sesuaikan stok'));
+    fireEvent.change(screen.getByPlaceholderText('Contoh: 10 atau -5'), { target: { value: '10' } });
+    fireEvent.change(screen.getByPlaceholderText(/Contoh: Penerimaan/), { target: { value: 'koreksi' } });
+    fireEvent.click(screen.getByText('Simpan'));
+    await waitFor(() => expect(api.calls('PATCH /api/v1/items/1/stock')).toHaveLength(3));
+    expect(api.calls('PATCH /api/v1/items/1/stock')[2].headers.get('Idempotency-Key')).not.toBe(a.headers.get('Idempotency-Key'));
   });
 });
