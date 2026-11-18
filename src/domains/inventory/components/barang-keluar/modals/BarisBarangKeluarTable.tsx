@@ -1,8 +1,9 @@
+import JumlahInput from "../../JumlahInput";
 import JumlahPengambilanInput from "./JumlahPengambilanInput";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import type { useItemSearch } from "@/domains/inventory/use-item-search";
 import SearchableSelect from "@/shared/components/SearchableSelect";
-import { peringatanJumlah, MAX_JUMLAH, tambahSatu } from "../form-utils";
+import { peringatanJumlah, peringatanDokubah, MAX_JUMLAH, tambahSatu } from "../form-utils";
 import { formCellClass, formHeadClass } from "../styles";
 import type { BarisForm } from "../types";
 
@@ -128,11 +129,11 @@ export default function BarisBarangKeluarTable({
                   {b.code}
                 </td>
                 <td className={`${formCellClass} px-2 text-center`}>
-                  <input
-                    type="text"
+                  <JumlahInput
+                    validate={peringatanDokubah}
                     value={b.dokubah}
-                    onChange={(e) =>
-                      patchBaris(b.key, { dokubah: e.target.value })
+                    onValueChange={(dokubah) =>
+                      patchBaris(b.key, { dokubah })
                     }
                     placeholder="Isi Dokubah"
                     aria-label={`Dokubah ${nama}`}

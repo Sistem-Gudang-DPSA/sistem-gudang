@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { createOutbound } from "@/domains/inventory/api";
+import { createOutbound, getItem } from "@/domains/inventory/api";
 import type { useItemSearch } from "@/domains/inventory/use-item-search";
 import { getTrackingSpk } from "@/domains/ppic/api";
 import type { TrackingSpkDetail } from "@/domains/ppic/types";
@@ -8,7 +8,7 @@ import { useClientSearch, useSpkSearch } from "@/domains/ppic/use-spk-search";
 import { ApiError } from "@/shared/lib/api-client";
 import { randomId } from "@/shared/lib/random-id";
 import { cetakBarangKeluar, dataCetakDariTrx } from "./cetak";
-import { barisManual, formKosong, susunInput, validasiForm } from "./form-utils";
+import { barisManual, barisTerisi, formKosong, susunInput, validasiForm } from "./form-utils";
 import type { BarisForm, FormBarangKeluar, ModeKeluar } from "./types";
 import { useScanBarang } from "./useScanBarang";
 
@@ -39,6 +39,10 @@ export function useFormBarangKeluar({ itemSearch, reload, setActionError }: Prop
   const patchForm = (patch: Partial<FormBarangKeluar>) => setForm((prev) => ({ ...prev, ...patch }));
 
   const scan = useScanBarang({ pengambil: form.namaPengambil, baris: form.baris, setBaris, submittingRef });
+  const pendingRef = useRef(0);
+  useEffect(() => {
+    pendingRef.current = scan.pendingScans;
+  }, [scan.pendingScans]);
 
   // Dropdown Client dan SPK: pencarian dikirim ke server. Client berasal dari tracking lewat SPK; API mengabaikan nama client dari FE.
   const clientSearch = useClientSearch();
@@ -115,8 +119,32 @@ export function useFormBarangKeluar({ itemSearch, reload, setActionError }: Prop
     setForm((prev) => (prev.client === client ? prev : { ...prev, client, spk: "", namaItem: "" }));
   const pilihSpk = (spk: string) => setForm((prev) => ({ ...prev, spk, namaItem: "" }));
 
+  const cekForm = (f: FormBarangKeluar) =>
+    validasiForm(f, modeKeluar, {
+      spkAda: spkPilihan.some((p) => p.value === f.spk),
+      produkAda: produkTracking.some((p) => p.name === f.namaItem),
+    });
+
+  // Stok disalin saat scan, jadi bisa basi. Hanya baris yang qty-nya melebihi stok diambil ulang;
+  // bila gagal diambil, stok lama dipakai.
+  const barisBasi = (f: FormBarangKeluar) => barisTerisi(f.baris).filter((b) => Number(b.qty) > b.stock);
+  const segarkanStok = async (f: FormBarangKeluar): Promise<FormBarangKeluar> => {
+    const basi = barisBasi(f);
+    if (basi.length === 0) return f;
+    const baru = new Map<string, number>();
+    await Promise.all(
+      basi.map((b) =>
+        getItem(b.itemId as number).then((it) => void baru.set(b.key, it.stock), () => undefined),
+      ),
+    );
+    if (baru.size === 0) return f;
+    const pakai = (bs: BarisForm[]) => bs.map((b) => (baru.has(b.key) ? { ...b, stock: baru.get(b.key) as number } : b));
+    setBaris(pakai);
+    return { ...f, baris: pakai(f.baris) };
+  };
+
   // Dipanggil saat tombol Simpan / Simpan + Cetak ditekan di form
-  const bukaPreview = (e: FormEvent<HTMLFormElement>) => {
+  const bukaPreview = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (submittingRef.current) return;
     if (scan.pendingScans > 0) {
@@ -125,26 +153,52 @@ export function useFormBarangKeluar({ itemSearch, reload, setActionError }: Prop
     }
     const submitter = (e.nativeEvent as SubmitEvent).submitter;
     setPreviewCetak(submitter instanceof HTMLButtonElement && submitter.value === "cetak");
-    const invalid = validasiForm(form, modeKeluar, {
-      spkAda: spkPilihan.some((p) => p.value === form.spk),
-      produkAda: produkTracking.some((p) => p.name === form.namaItem),
-    });
+    let invalid = cekForm(form);
+    if (invalid && barisBasi(form).length > 0) {
+      submittingRef.current = true;
+      try {
+        invalid = cekForm(await segarkanStok(form));
+      } finally {
+        submittingRef.current = false;
+      }
+      if (pendingRef.current > 0) {
+        setModalError("Tunggu proses scan barang selesai sebelum menyimpan.");
+        return;
+      }
+    }
     if (invalid) {
       setModalError(invalid);
       return;
     }
     setModalError("");
+    // Tutup panel scan dan kamera: scan setelah ini tidak boleh mengubah dokumen yang sedang direview
+    scan.akhiri();
     setPreviewOpen(true);
+  };
+
+  const kembaliEdit = () => {
+    scan.lanjut();
+    setPreviewOpen(false);
   };
 
   const konfirmasiSimpan = async () => {
     if (submittingRef.current) return;
-    const { input, terisi, pengambil, client } = susunInput(form, modeKeluar);
+    if (scan.pendingScans > 0) {
+      setModalError("Tunggu proses scan barang selesai sebelum menyimpan.");
+      return;
+    }
     submittingRef.current = true;
     setSaving(true);
     setModalError("");
     setActionError("");
     try {
+      const terkini = await segarkanStok(form);
+      const invalid = cekForm(terkini);
+      if (invalid) {
+        setModalError(invalid);
+        return;
+      }
+      const { input, terisi, pengambil, client } = susunInput(terkini, modeKeluar);
       const payload = JSON.stringify(input);
       if (!draftKey.current.key || draftKey.current.payload !== payload)
         draftKey.current = { key: randomId(), payload };
@@ -184,7 +238,7 @@ export function useFormBarangKeluar({ itemSearch, reload, setActionError }: Prop
 
   return {
     isOpen, modeKeluar, form, patchForm, saving, modalError,
-    previewOpen, setPreviewOpen, previewCetak,
+    previewOpen, kembaliEdit, previewCetak,
     open, close, bukaPreview, konfirmasiSimpan,
     setBaris, patchBaris, tambahManual, pilihMaterial, pilihanMaterial, pilihClient, pilihSpk,
     clientSearch, clientPilihan, spkSearch, spkPilihan, pilihanProduk, detailMemuat, detailGagal,

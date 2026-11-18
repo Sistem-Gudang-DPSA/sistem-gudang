@@ -4,7 +4,7 @@ import { installFakeApi, fail } from '@/test/fake-api';
 import { vi as viTimeout } from 'vitest';
 viTimeout.setConfig({ testTimeout: 30000 });
 import BuatDokubah from './BuatDokubah';
-import { withUser } from './as-user';
+import { withUser } from '@/test/as-user';
 
 const replace = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ replace, push: vi.fn(), back: vi.fn() }) }));

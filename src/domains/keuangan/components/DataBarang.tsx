@@ -8,7 +8,8 @@ import type { ItemListRow, Location } from '@/domains/inventory/types';
 import { listSuppliers } from '@/domains/purchasing/api';
 import type { Supplier } from '@/domains/purchasing/types';
 import { ApiError } from '@/shared/lib/api-client';
-import { downloadBlob } from '@/shared/lib/download';
+import { downloadCsv } from '@/shared/lib/csv';
+import { fetchAllPages } from '@/shared/lib/fetch-all';
 import { useClampPage } from '@/shared/lib/use-page';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
@@ -61,8 +62,8 @@ export default function DataBarangGudang({
   useClampPage(page, total, 20, setPage);
 
   useEffect(() => {
-    listLocations().then((res) => setLocations(res.rows)).catch(() => {});
-    listSuppliers().then((res) => setSuppliers(res.rows)).catch(() => {});
+    fetchAllPages((page, pageSize) => listLocations({ page, pageSize })).then(setLocations).catch(() => {});
+    fetchAllPages((page, pageSize) => listSuppliers({ page, pageSize })).then(setSuppliers).catch(() => {});
     listItemCategories().then((res) => setCategories(res.map((c) => c.name))).catch(() => {});
     listItemUnits().then((res) => setUnits(res.map((u) => u.name))).catch(() => {});
   }, []);
@@ -148,14 +149,17 @@ export default function DataBarangGudang({
     }
   };
 
-  const handleExportExcel = () => {
-    const headers = ['No,Kode Barang,Kode Bawaan,Nama Barang,Supplier,Jumlah Stok,Satuan,Kategori,Lokasi'];
-    const csvData = dataBarang.map((item, index) =>
-      `${index + 1},${item.code ?? '-'},"${item.externalCode ?? '-'}","${item.name}","${supplierName(item.supplierId)}",${item.stock},${item.unit},${item.category},${locationCode(item.locationId)}`
-    );
-    const csvString = [...headers, ...csvData].join('\n');
-
-    downloadBlob(new Blob([csvString], { type: 'text/csv;charset=utf-8;' }), 'Data_Barang_Gudang.csv');
+  // Semua barang sesuai pencarian/filter aktif, bukan hanya halaman yang tampil
+  const handleExportExcel = async () => {
+    setPrintError("");
+    try {
+      const all = await fetchAllPages((p) => listItems({ page: p, pageSize: 100, search: debouncedSearch || undefined, ...toItemFilterParams(filters), ...sortParams }));
+      const rows: unknown[][] = [['No', 'Kode Barang', 'Kode Bawaan', 'Nama Barang', 'Supplier', 'Jumlah Stok', 'Satuan', 'Kategori', 'Lokasi']];
+      all.forEach((item, index) => rows.push([index + 1, item.code ?? '-', item.externalCode ?? '-', item.name, supplierName(item.supplierId), item.stock, item.unit, item.category, locationCode(item.locationId)]));
+      downloadCsv('Data_Barang_Keuangan.csv', rows);
+    } catch (err) {
+      setPrintError(err instanceof Error ? err.message : "Gagal export data barang.");
+    }
   };
 
   return (

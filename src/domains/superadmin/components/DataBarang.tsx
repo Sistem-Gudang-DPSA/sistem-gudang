@@ -1,5 +1,8 @@
 "use client";
 
+import StockNotificationDetail from '@/domains/inventory/components/data-barang/StockNotificationDetail';
+
+import StokMinimumCell from '@/domains/inventory/components/data-barang/StokMinimumCell';
 import dynamic from 'next/dynamic';
 import { useAuthUser, useCan } from '@/domains/auth/user-context';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
@@ -8,6 +11,7 @@ import { adjustItemStock, assignItemLocation, bulkRecodeItems, deleteItem, listI
 import type { ItemListRow, UpdateItemInput } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
 import Pagination from '@/shared/components/Pagination';
+import { randomId } from '@/shared/lib/random-id';
 import { fetchAllPages } from '@/shared/lib/fetch-all';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import { ImportExcelButton, addReferenceColumns } from '@/shared/components/ImportExcelButton';
@@ -22,7 +26,7 @@ import DataBarangTable, { type BarangColumn, KategoriBadge, StokCell, SupplierCe
 import DataBarangToolbar, { FilterToggle } from '@/domains/inventory/components/data-barang/DataBarangToolbar';
 import AdjustStokModal from '@/domains/inventory/components/data-barang/modals/AdjustStokModal';
 import RecodeNotice from '@/domains/inventory/components/data-barang/modals/RecodeModal';
-import { MasterData, mstrDataTemplateExample, mstrDataTemplateHeaders, type MasterDataImportRow } from '@/domains/inventory/components/data-barang/modals/ImportMasterData';
+import { MasterData, mstrDataTemplateExample, mstrDataTemplateHeaders, type MasterDataImportRow, MAX_IMPORT_ROWS } from '@/domains/inventory/components/data-barang/modals/ImportMasterData';
 
 export { MasterData, mstrDataTemplateExample, mstrDataTemplateHeaders };
 export type { MasterDataImportRow };
@@ -59,6 +63,8 @@ export default function DataBarangGudang() {
 
   const [isStockModalOpen, setIsStockModalOpen] = useState(false);
   const [stockItem, setStockItem] = useState<ItemListRow | null>(null);
+  // Satu key per penyesuaian: dipakai ulang saat retry, ganti kalau isinya berubah
+  const stockKey = useRef({ key: '', payload: '' });
   const [stockDelta, setStockDelta] = useState("");
   const [stockReason, setStockReason] = useState("");
   const [stockSaving, setStockSaving] = useState(false);
@@ -217,6 +223,7 @@ export default function DataBarangGudang() {
 
   const openStockModal = (item: ItemListRow) => {
     setStockItem(item);
+    stockKey.current = { key: '', payload: '' };
     setStockDelta("");
     setStockReason("");
     setStockError("");
@@ -232,7 +239,10 @@ export default function DataBarangGudang() {
     setStockSaving(true);
     setStockError("");
     try {
-      await adjustItemStock(stockItem.id, { delta, reason: stockReason });
+      const payload = `${stockItem.id}|${delta}|${stockReason}`;
+      if (!stockKey.current.key || stockKey.current.payload !== payload) stockKey.current = { key: randomId(), payload };
+      await adjustItemStock(stockItem.id, { delta, reason: stockReason }, stockKey.current.key);
+      stockKey.current = { key: '', payload: '' };
       reload();
       setIsStockModalOpen(false);
     } catch (err) {
@@ -295,6 +305,7 @@ export default function DataBarangGudang() {
       )
     ) },
     { label: 'Stok', sortKey: 'stock', cell: (item) => <StokCell stock={item.stock} /> },
+    { label: 'Stok Minimum', cell: (item) => <StokMinimumCell item={item} onSaved={reload} /> },
     { label: 'Satuan', tdClassName: 'px-6 py-4 text-gray-600', cell: (item) => item.unit },
     { label: 'Kategori', sortKey: 'category', cell: (item) => (
       edit.editing && canUpdate ? (
@@ -366,6 +377,7 @@ export default function DataBarangGudang() {
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <StockNotificationDetail />
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1">Data Barang</h1>
@@ -385,6 +397,7 @@ export default function DataBarangGudang() {
                 templateFilename="Template_Import_Barang.xlsx"
                 templateReference={referenceLists()}
                 parseRow={MasterData}
+                maxRows={MAX_IMPORT_ROWS}
                 previewColumns={[
                   { header: 'Nama Barang', value: (r) => r.name },
                   { header: 'Kode Bawaan', value: (r) => r.code },

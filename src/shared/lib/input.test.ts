@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decimalOnly, digitsOnly } from "./input";
+import { decimalOnly, digitsOnly, roundQty } from "./input";
 
 describe("digitsOnly", () => {
   it("drops everything except digits", () => {
@@ -18,3 +18,11 @@ describe("decimalOnly", () => {
   });
 });
 
+
+describe("roundQty", () => {
+  it("rounds float noise for display", () => {
+    expect(roundQty(0.1 + 0.2)).toBe(0.3);
+    expect(roundQty(1.0005, 2)).toBe(1);
+    expect(roundQty(25 - 0.7)).toBe(24.3);
+  });
+});

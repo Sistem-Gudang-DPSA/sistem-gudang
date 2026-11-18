@@ -7,7 +7,7 @@ import { countActiveFilters, emptyBarangFilters } from "@/domains/inventory/comp
 import DateFilter from "@/shared/components/DateFilter";
 import Pagination from "@/shared/components/Pagination";
 import { ExportExcellButton } from "@/shared/components/Tombol";
-import { downloadBlob } from "@/shared/lib/download";
+import { downloadCsv } from "@/shared/lib/csv";
 import { useApiData } from "@/shared/lib/use-api-data";
 import { Filter, Plus, Search } from "lucide-react"
 import Link from "next/link";
@@ -19,7 +19,6 @@ import { useState } from "react";
 export default function EstimasiPenawaranHarga() {
     const canCreate = useCan("penawaran-harga.create");
     const [searchQuery, setSearchQuery] = useState('');
-    const [Exporting, setExporting] = useState(false);
     const [showFilter, setShowFilter] = useState(false);
     const [filters] = useState(emptyBarangFilters);
     const [filterDay, setFilterDay] = useState("");
@@ -40,14 +39,9 @@ export default function EstimasiPenawaranHarga() {
     const total = result?.total ?? 0;
 
     const handleExportCSV = () => {
-        setExporting(true);
-        const headers = ['No,No. Order,Nama Client,Status'];
-        const csvData = filteredData.map((item, index) =>
-            `${index + 1},${item.noOrder},"${item.namaClient}",${STATUS_UI[item.status]}`
-        );
-        const csvString = [...headers, ...csvData].join('\n');
-
-        downloadBlob(new Blob([csvString], { type: 'text/csv;charset=utf-8;' }), 'Penawaran_Harga.csv');
+        const rows: unknown[][] = [['No', 'No. Order', 'Nama Client', 'Status']];
+        filteredData.forEach((item, index) => rows.push([(page - 1) * 20 + index + 1, item.noOrder, item.namaClient, STATUS_UI[item.status]]));
+        downloadCsv(`Penawaran_Harga_halaman-${page}.csv`, rows);
     };
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -71,7 +65,7 @@ export default function EstimasiPenawaranHarga() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <ExportExcellButton onClick={handleExportCSV} disabled={Exporting || loading || filteredData.length === 0} />
+                        <ExportExcellButton onClick={handleExportCSV} disabled={loading || filteredData.length === 0} />
                         <button
                             type="button"
                             onClick={() => setShowFilter((v) => !v)}

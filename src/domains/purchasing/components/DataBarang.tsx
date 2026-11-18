@@ -1,5 +1,8 @@
 "use client";
 
+import StockNotificationDetail from '@/domains/inventory/components/data-barang/StockNotificationDetail';
+
+import StokMinimumCell from '@/domains/inventory/components/data-barang/StokMinimumCell';
 import React, { useEffect, useState } from 'react';
 import { Search, Plus, Filter } from 'lucide-react';
 import { listItems, listLocations, updateItem } from '@/domains/inventory/api';
@@ -9,6 +12,7 @@ import type { Supplier } from '@/domains/purchasing/types';
 import { downloadCsv } from '@/shared/lib/csv';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
+import { fetchAllPages } from '@/shared/lib/fetch-all';
 import { digitsOnly, INTEGER_INPUT } from '@/shared/lib/input';
 import { useCan } from '@/domains/auth/user-context';
 import { useClampPage, usePage } from '@/shared/lib/use-page';
@@ -16,7 +20,7 @@ import Pagination from '@/shared/components/Pagination';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import ItemPhoto from '@/domains/inventory/components/ItemPhoto';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
-import BarangFilterPanel, { countActiveFilters, emptyBarangFilters } from '@/domains/inventory/components/BarangFilterPanel';
+import BarangFilterPanel, { countActiveFilters, emptyBarangFilters, toItemFilterParams } from '@/domains/inventory/components/BarangFilterPanel';
 
 export default function DataBarangPurchasing() {
   // PUT /items/:id needs item.update, and changing the price also needs item.set-price.
@@ -27,7 +31,6 @@ export default function DataBarangPurchasing() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [categories] = useState<string[]>([]);
   const [units] = useState<string[]>([]);
-  const [Exporting, setExporting] = useState(false);
   const [filters, setFilters] = useState(emptyBarangFilters);
   const [showFilter, setShowFilter] = useState(false);
 
@@ -41,19 +44,21 @@ export default function DataBarangPurchasing() {
 
   const [searchTerm, setSearchTerm] = useState('');
 
-  const [page, setPage] = usePage(`${searchTerm}|${JSON.stringify(sortParams)}`);
+  const filterKey = `${searchTerm}|${JSON.stringify(filters)}|${JSON.stringify(sortParams)}`;
+  const [page, setPage] = usePage(filterKey);
   const { data: loaded, loading, error: loadError, reload } = useApiData(
-    () => listItems({ search: searchTerm || undefined, page, pageSize: 20, ...sortParams }),
-    `${searchTerm}|${page}|${JSON.stringify(sortParams)}`,
+    () => listItems({ search: searchTerm || undefined, page, pageSize: 20, ...toItemFilterParams(filters), ...sortParams }),
+    `${filterKey}|${page}`,
     "Gagal memuat data barang.",
   );
   const dataBarang = loaded?.rows ?? [];
   useClampPage(page, loaded?.total ?? 0, 20, setPage);
-  const error = loadError;
+  const [exportError, setExportError] = useState('');
+  const error = loadError || exportError;
 
   useEffect(() => {
-    listSuppliers().then((res) => setSuppliers(res.rows)).catch(() => {});
-    listLocations().then((res) => setLocations(res.rows)).catch(() => {});
+    fetchAllPages((page, pageSize) => listSuppliers({ page, pageSize })).then(setSuppliers).catch(() => {});
+    fetchAllPages((page, pageSize) => listLocations({ page, pageSize })).then(setLocations).catch(() => {});
   }, []);
 
   const handleEdit = (item: ItemListRow) => {
@@ -85,11 +90,17 @@ export default function DataBarangPurchasing() {
     }
   };
 
-  const handleExportCSV = () => {
-    setExporting(true);
-    const rows: unknown[][] = [['No', 'Kode Barang', 'Kode Bawaan', 'Nama Barang', 'Supplier', 'Jumlah Stok', 'Satuan', 'Kategori', 'Harga', 'Lokasi']];
-    dataBarang.forEach((item, index) => rows.push([index + 1, item.code ?? '-', item.externalCode ?? '-', item.name, supplierName(item.supplierId), item.stock, item.unit, item.category, item.price, locationCode(item.locationId)]));
-    downloadCsv(`Data_Barang_Purchasing_halaman-${page}.csv`, rows);
+  // Semua barang sesuai pencarian/filter aktif, bukan hanya halaman yang tampil
+  const handleExportCSV = async () => {
+    setExportError('');
+    try {
+      const all = await fetchAllPages((p) => listItems({ page: p, pageSize: 100, search: searchTerm || undefined, ...toItemFilterParams(filters), ...sortParams }));
+      const rows: unknown[][] = [['No', 'Kode Barang', 'Kode Bawaan', 'Nama Barang', 'Supplier', 'Jumlah Stok', 'Satuan', 'Kategori', 'Harga', 'Lokasi']];
+      all.forEach((item, index) => rows.push([index + 1, item.code ?? '-', item.externalCode ?? '-', item.name, supplierName(item.supplierId), item.stock, item.unit, item.category, item.price, locationCode(item.locationId)]));
+      downloadCsv('Data_Barang_Purchasing.csv', rows);
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : 'Gagal export data barang.');
+    }
   };
 
   const getCategoryColor = (kategori: string) => {
@@ -109,6 +120,7 @@ export default function DataBarangPurchasing() {
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <StockNotificationDetail />
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1">Data Barang</h1>
@@ -135,7 +147,7 @@ export default function DataBarangPurchasing() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <ExportExcellButton onClick={handleExportCSV} disabled={Exporting || loading || dataBarang.length === 0} />
+            <ExportExcellButton onClick={handleExportCSV} disabled={loading || dataBarang.length === 0} />
             <button
               type="button"
               onClick={() => setShowFilter((v) => !v)}
@@ -175,6 +187,7 @@ export default function DataBarangPurchasing() {
                 <th scope="col" className="px-6 py-4">Kode Bawaan</th>
                 <SortableTh label="Supplier" sortKey="supplierName" sort={sort} onSort={toggle} />
                 <SortableTh label="Stok" sortKey="stock" sort={sort} onSort={toggle} />
+                <th scope="col" className="px-6 py-4">Stok Minimum</th>
                 <th scope="col" className="px-6 py-4">Satuan</th>
                 <SortableTh label="Kategori" sortKey="category" sort={sort} onSort={toggle} />
                 <SortableTh label="Harga (Rp)" sortKey="price" sort={sort} onSort={toggle} align="right" />
@@ -185,10 +198,10 @@ export default function DataBarangPurchasing() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading && (
-                <tr><td colSpan={12} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
+                <tr><td colSpan={14} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
               )}
               {!loading && dataBarang.length === 0 && (
-                <tr><td colSpan={12} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
+                <tr><td colSpan={14} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
               )}
               {!loading && dataBarang.map((item, index) => (
                 <tr key={item.id} className="hover:bg-purple-50/30 transition-colors group">
@@ -224,6 +237,7 @@ export default function DataBarangPurchasing() {
                          {item.stock}
                        </span>
                   </td>
+                  <td className="px-6 py-4"><StokMinimumCell item={item} onSaved={reload} /></td>
 
                   {/* Satuan */}
                   <td className="px-6 py-4 text-gray-600">

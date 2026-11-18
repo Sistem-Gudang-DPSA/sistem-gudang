@@ -3,7 +3,11 @@ import { generateLocations, parseRaks } from './BatchLokasiModal';
 
 describe('batch lokasi', () => {
   it('parses letters and ranges', () => {
-    expect(parseRaks('a-c, F,x1')).toEqual(['A', 'B', 'C', 'F']);
+    expect(parseRaks('a-c, F,x1').raks).toEqual(['A', 'B', 'C', 'F']);
+  });
+
+  it('reports ignored parts', () => {
+    expect(parseRaks('A-C,F1')).toEqual({ raks: ['A', 'B', 'C'], ignored: ['F1'] });
   });
 
   it('generates RAK.KOLOM.BARIS codes', () => {

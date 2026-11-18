@@ -71,3 +71,10 @@ dan catatan. Nama pelaku belum tampil karena backend hanya mengirim
 - Backend membatasi daftar approval ke tipe yang domain pengguna punya
   langkah workflow-nya. Pastikan role Purchasing dan PPIC memang punya
   langkah untuk `purchase-request` saat uji manual.
+
+## Tanggal pada form permintaan
+
+Kolom **Dikirim Tanggal** pada form tambah, edit, dan revisi dipetakan ke
+field API `items[].deadlineTanggal`. Tanggal dari permintaan lama mengisi
+kolom yang sama dan tetap dikirim saat menyimpan. Baris yang hanya berisi
+tanggal tetap dianggap terisi dan wajib dilengkapi sebelum dikirim.
