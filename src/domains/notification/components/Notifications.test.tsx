@@ -74,7 +74,7 @@ describe("Notifications page", () => {
   it("marks a notification read before opening the division link", async () => {
     const api = setup();
     fireEvent.click(await screen.findByText("Judul 45"));
-    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/dashboard/ppic/master/data-barang?itemId=45"));
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/dashboard/ppic/master/data-barang?itemId=45", { scroll: false }));
     expect(api.calls("POST /api/v1/notifications/45/read")).toHaveLength(1);
   });
 

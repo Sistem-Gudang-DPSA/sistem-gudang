@@ -17,7 +17,7 @@ describe("visibleNav", () => {
     expect(nav[0].groups.map((group) => group.title)).toEqual(["Laporan"]);
     expect(nav[0].groups[0].items).toEqual([
       expect.objectContaining({ href: "/dashboard/keuangan/laporan/data-barang" }),
-      expect.objectContaining({ href: "/dashboard/keuangan/laporan/realisasi-spk" }),
+      expect.objectContaining({ href: "/dashboard/keuangan/laporan/realisasi-spk", label: "Realisasi Dokubah" }),
     ]);
     expect(canAccess(finance, "/dashboard/keuangan/laporan/data-barang")).toBe(true);
     expect(canAccess(withDomain(user(["report.view"]), "inventory"), "/dashboard/keuangan/laporan/data-barang")).toBe(false);
