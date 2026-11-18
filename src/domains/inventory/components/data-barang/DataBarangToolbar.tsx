@@ -30,7 +30,7 @@ export default function DataBarangToolbar({ searchValue, onSearchChange, searchI
           placeholder="Cari kode atau nama barang..."
         />
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 sm:justify-end">
         {bulkActions}
         {filter}
         {trailing}

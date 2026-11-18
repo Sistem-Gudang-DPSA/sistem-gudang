@@ -25,6 +25,7 @@ describe('superadmin DataSupplier', () => {
   it('shows Import Excel only to users with supplier.create', async () => {
     await setup(userWith(['supplier.create']));
     expect(screen.getByRole('button', { name: /Import Excel/ })).not.toBeNull();
+    expect(screen.getByRole('button', { name: /Import Excel/ }).querySelector('.lucide-file-down')).not.toBeNull();
   });
 
   it('hides Import Excel without supplier.create', async () => {
