@@ -6,7 +6,7 @@ import { Filter, Search } from 'lucide-react';
 import { formatRupiah } from '@/domains/ppic/data/dokubah';
 import { toDateRange } from '@/domains/inventory/date';
 import { SUMBER_DATA_NOTICE, loadRealisasiList, periodeLabel, type RealisasiListRow, type StatusRealisasi } from '@/domains/inventory/components/RealisasiSPK';
-import { exportRealisasiExcel, openPrintWindow, printRealisasiPdf } from '@/shared/components/ExportRealisasi';
+import { exportRealisasiExcel, printRealisasiPdf } from '@/domains/inventory/export/realisasi';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { useDebouncedValue } from '@/shared/lib/use-debounced-value';
 import { usePage } from '@/shared/lib/use-page';
@@ -86,24 +86,19 @@ export function RealisasiSpkReport({ rowHref }: { rowHref?: (id: string) => stri
     });
 
   // Ada yang dicentang: hanya itu. Tidak ada: semua SPK sesuai pencarian dan filter, dari semua halaman.
-  const jalankan = async (aksi: (data: RealisasiListRow[]) => void | Promise<void>, saatGagal?: () => void) => {
+  const jalankan = async (aksi: (data: RealisasiListRow[]) => void | Promise<void>, gagalMessage = 'Gagal menyiapkan data export.') => {
     setExporting(true);
     setExportError('');
     try {
       await aksi(selected.size > 0 ? [...selected.values()] : filtered);
     } catch {
-      saatGagal?.();
-      setExportError('Gagal menyiapkan data export.');
+      setExportError(gagalMessage);
     } finally {
       setExporting(false);
     }
   };
   const handleExcel = () => jalankan((data) => exportRealisasiExcel(data, periode));
-  const handlePdf = () => {
-    const win = openPrintWindow(); // dibuka saat klik supaya tidak diblokir browser
-    if (!win) return;
-    void jalankan((data) => printRealisasiPdf(win, data, periode), () => win.close());
-  };
+  const handlePdf = () => void jalankan((data) => printRealisasiPdf(data, periode), 'Gagal mencetak PDF.');
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">

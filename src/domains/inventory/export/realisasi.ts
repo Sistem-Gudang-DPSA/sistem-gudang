@@ -1,5 +1,6 @@
 import { escapeHtml } from '@/shared/lib/escape-html';
 import { exportToExcel } from '@/shared/lib/export-excel';
+import { cetakLaporan } from '@/shared/lib/print-laporan';
 import { statusRealisasi, type RealisasiListRow, type RincianRow, type RincianSpk } from '@/domains/inventory/components/RealisasiSPK';
 
 type Cell = string | number;
@@ -8,38 +9,13 @@ const safeName = (s: string) => s.replace(/[^\w.-]+/g, '_');
 const rp = (n: number) => n.toLocaleString('id-ID');
 const orDash = (v: number | string | null) => (v === null ? '-' : v);
 
-// ---------- Jendela cetak ----------
-export function openPrintWindow() {
-  const win = window.open('', '_blank');
-  if (!win) {
-    alert('Pop-up diblokir browser. Izinkan pop-up untuk mencetak PDF.');
-    return null;
-  }
-  win.opener = null;
-  win.document.write('<p style="font-family:Arial;padding:24px">Menyiapkan data...</p>');
-  return win;
-}
-
-function writePrint(win: Window, title: string, meta: string[], headers: string[], body: Cell[][], boldLast = false) {
+// Tabel cetak memakai kelas .r dan .b dari kop laporan bersama.
+function tabel(headers: string[], body: Cell[][], boldLast = false) {
   const cell = (v: Cell) => (typeof v === 'number' ? `<td class="r">${rp(v)}</td>` : `<td>${escapeHtml(v)}</td>`);
   const rows = body
     .map((r, i) => `<tr${boldLast && i === body.length - 1 ? ' class="b"' : ''}>${r.map(cell).join('')}</tr>`)
     .join('');
-  win.document.open();
-  win.document.write(`<!doctype html><html><head><title>${escapeHtml(title)}</title><style>
-    @page { size: landscape; }
-    body { font-family: Arial, sans-serif; padding: 24px; color: #111; }
-    h1 { font-size: 18px; margin: 0 0 8px; } .meta { font-size: 12px; color: #444; line-height: 1.6; }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 12px; }
-    th, td { border: 1px solid #999; padding: 6px 8px; text-align: left; }
-    th { background: #eee; } .r { text-align: right; } .b td { font-weight: bold; background: #f5f5f5; }
-  </style></head><body><h1>${escapeHtml(title)}</h1>
-  ${meta.map((m) => `<div class="meta">${escapeHtml(m)}</div>`).join('')}
-  <table><thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>
-  </body></html>`);
-  win.document.close();
-  win.focus();
-  win.print();
+  return `<table><thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 // ---------- Daftar SPK ----------
@@ -50,8 +26,12 @@ const listBody = (rows: RealisasiListRow[]): Cell[][] =>
 export const exportRealisasiExcel = (rows: RealisasiListRow[], periode: string) =>
   exportToExcel({ filename: `Realisasi_SPK_${safeName(periode)}.xlsx`, sheetName: 'Realisasi SPK', headers: listHeaders, rows: listBody(rows) });
 
-export const printRealisasiPdf = (win: Window, rows: RealisasiListRow[], periode: string) =>
-  writePrint(win, 'Realisasi SPK', [`Periode: ${periode}`, 'Sumber: Barang Keluar (belum dari dokubah PPIC)'], listHeaders, listBody(rows));
+export const printRealisasiPdf = (rows: RealisasiListRow[], periode: string) =>
+  cetakLaporan('Realisasi SPK', tabel(listHeaders, listBody(rows)), {
+    meta: [`Periode: ${periode}`, 'Sumber: Barang Keluar (belum dari dokubah PPIC)'],
+    label: 'realisasi SPK',
+    landscape: true,
+  });
 
 // ---------- Rincian satu SPK ----------
 function rincianTable(mode: Mode, r: RincianSpk, rows: RincianRow[]) {
@@ -80,8 +60,7 @@ const rincianMeta = (mode: Mode, r: RincianSpk) =>
 export function exportRincianExcel(
   mode: Mode,
   r: RincianSpk,
-  rows: RincianRow[],
-  labelItem?: string
+  rows: RincianRow[]
 ) {
   const { headers, body } = rincianTable(mode, r, rows);
 
@@ -94,20 +73,16 @@ export function exportRincianExcel(
 }
 
 export function printRincianPdf(
-  win: Window,
   mode: Mode,
   r: RincianSpk,
-  rows: RincianRow[],
-  labelItem?: string
+  rows: RincianRow[]
 ) {
   const { headers, body } = rincianTable(mode, r, rows);
+  const judul = mode === 'biaya' ? 'Rincian Biaya SPK' : 'Material Terpakai per SPK';
 
-  writePrint(
-    win,
-    mode === 'biaya' ? 'Rincian Biaya SPK' : 'Material Terpakai per SPK',
-    rincianMeta(mode, r),
-    headers,
-    body,
-    mode === 'biaya'
-  );
+  return cetakLaporan(judul, tabel(headers, body, mode === 'biaya'), {
+    meta: rincianMeta(mode, r),
+    label: judul.toLowerCase(),
+    landscape: true,
+  });
 }
