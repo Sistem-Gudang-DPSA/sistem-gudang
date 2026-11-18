@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { fail, installFakeApi, paged } from '@/test/fake-api';
-import { exportDaftarExcel, printDaftarPdf } from '@/shared/components/ExportStok';
+import { exportDaftarExcel, printDaftarPdf } from '@/domains/inventory/export/stok';
 import type { ItemListRow } from '../types';
 import DashboardKartuStok from './DashboardKartuStok';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/dashboard/gudang/laporan/kartu-stok' }));
-vi.mock('@/shared/components/ExportStok', () => ({ exportDaftarExcel: vi.fn(), printDaftarPdf: vi.fn() }));
+vi.mock('@/domains/inventory/export/stok', () => ({ exportDaftarExcel: vi.fn(), printDaftarPdf: vi.fn(async () => {}) }));
 
 const item = (id: number, name: string): ItemListRow => ({
   id, code: `BRG-${id}`, name, category: 'Bahan', unit: 'Lembar', price: 0, stock: 10,
