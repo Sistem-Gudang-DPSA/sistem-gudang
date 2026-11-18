@@ -76,6 +76,9 @@ describe('DataBarang superadmin: Ganti kode', () => {
   });
 });
 
+const openBulkMenu = () => fireEvent.click(screen.getByRole('button', { name: /Aksi Massal/ }));
+const closeBulkMenu = () => fireEvent.keyDown(document, { key: 'Escape' });
+
 describe('DataBarang superadmin: Ganti Kode Massal', () => {
   afterEach(() => vi.restoreAllMocks());
   const item2 = { ...item, id: 2, code: 'LEM014', name: 'Barang 2' };
@@ -90,17 +93,21 @@ describe('DataBarang superadmin: Ganti Kode Massal', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     const api = setup({}, { 'POST /api/v1/items/recode/bulk': recoded }, { rows: [item, item2] });
     await screen.findByText('Barang 1');
-    const bulk = screen.getByRole('button', { name: 'Ganti Kode Massal (0)' });
-    expect((bulk as HTMLButtonElement).disabled).toBe(true);
+    openBulkMenu();
+    expect((screen.getByRole('menuitem', { name: 'Ganti Kode Massal' }) as HTMLButtonElement).disabled).toBe(true);
+    closeBulkMenu();
+
     fireEvent.click(screen.getByLabelText('Pilih Barang 1'));
     fireEvent.click(screen.getByLabelText('Pilih Barang 2'));
-    fireEvent.click(screen.getByRole('button', { name: 'Ganti Kode Massal (2)' }));
+    openBulkMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Ganti Kode Massal' }));
     expect(window.confirm).toHaveBeenCalledWith('Ganti kode 2 barang? Label lama tidak bisa di-scan lagi. Cetak ulang label setelah ini.');
     expect(await screen.findByText('2 kode barang diganti.')).not.toBeNull();
     expect(screen.getByText('LEM013 → PER201')).not.toBeNull();
     expect(screen.getByText('LEM014 → PER202')).not.toBeNull();
     expect(api.calls('POST /api/v1/items/recode/bulk')[0].body).toEqual({ itemIds: [1, 2] });
-    expect(screen.getByRole('button', { name: 'Ganti Kode Massal (0)' })).not.toBeNull();
+    openBulkMenu();
+    expect((screen.getByRole('menuitem', { name: 'Ganti Kode Massal' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('batal di konfirmasi tidak memanggil recode massal', async () => {
@@ -108,7 +115,8 @@ describe('DataBarang superadmin: Ganti Kode Massal', () => {
     const api = setup({}, { 'POST /api/v1/items/recode/bulk': recoded }, { rows: [item, item2] });
     await screen.findByText('Barang 1');
     fireEvent.click(screen.getByLabelText('Pilih Barang 1'));
-    fireEvent.click(screen.getByRole('button', { name: 'Ganti Kode Massal (1)' }));
+    openBulkMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Ganti Kode Massal' }));
     expect(window.confirm).toHaveBeenCalled();
     await new Promise((r) => setTimeout(r, 0));
     expect(api.calls('POST /api/v1/items/recode/bulk')).toHaveLength(0);
@@ -118,7 +126,7 @@ describe('DataBarang superadmin: Ganti Kode Massal', () => {
     const user: AuthUser = { id: 1, username: 'u', email: 'u@x.id', roleId: 2, roleName: 'Staff', isSuperadmin: false, permissions: [] };
     setup({}, {}, { user });
     await screen.findByText('Barang 1');
-    expect(screen.queryByRole('button', { name: /Ganti Kode Massal/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Aksi Massal/ })).toBeNull();
   });
 });
 
@@ -147,9 +155,13 @@ describe('DataBarang superadmin: pilih semua barang', () => {
     await screen.findByText('Barang 1');
     fireEvent.click(screen.getByLabelText('Pilih semua barang di halaman ini'));
     fireEvent.click(screen.getByRole('button', { name: 'Pilih semua 2 barang' }));
-    expect(await screen.findByRole('button', { name: 'Ganti Kode Massal (2)' })).not.toBeNull();
+    expect(await screen.findByRole('button', { name: 'Aksi Massal (2)' })).not.toBeNull();
+    openBulkMenu();
+    expect((screen.getByRole('menuitem', { name: 'Ganti Kode Massal' }) as HTMLButtonElement).disabled).toBe(false);
+    closeBulkMenu();
     fireEvent.click(screen.getByRole('button', { name: 'Batalkan pilihan' }));
-    expect(screen.getByRole('button', { name: 'Ganti Kode Massal (0)' })).not.toBeNull();
+    openBulkMenu();
+    expect((screen.getByRole('menuitem', { name: 'Ganti Kode Massal' }) as HTMLButtonElement).disabled).toBe(true);
   });
 });
 
@@ -167,13 +179,15 @@ describe('DataBarang superadmin: Hapus Semua (sementara)', () => {
     });
     await screen.findByText('Barang 1');
     const prompt = vi.spyOn(window, 'prompt').mockReturnValue('hapus');
-    fireEvent.click(screen.getByRole('button', { name: 'Hapus Semua (2)' }));
+    openBulkMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Hapus Semua (2)' }));
     expect(prompt).toHaveBeenCalled();
     await new Promise((r) => setTimeout(r, 0));
     expect(api.calls('DELETE /api/v1/items/1')).toHaveLength(0);
 
     prompt.mockReturnValue('HAPUS SEMUA');
-    fireEvent.click(screen.getByRole('button', { name: 'Hapus Semua (2)' }));
+    openBulkMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Hapus Semua (2)' }));
     expect(await screen.findByText('1 barang dihapus. 1 barang dilewati karena sudah dipakai transaksi.')).not.toBeNull();
     expect(api.calls('DELETE /api/v1/items/1')).toHaveLength(1);
     expect(api.calls('DELETE /api/v1/items/2')).toHaveLength(1);
@@ -224,7 +238,8 @@ describe('DataBarang superadmin: pemetaan supplier massal', () => {
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Pilih Barang 1' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Pilih Barang 2' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Atur Supplier (2)' }));
+    openBulkMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Atur Supplier' }));
     const dialog = within(screen.getByRole('dialog'));
     fireEvent.click(dialog.getByRole('button', { name: 'Supplier' }));
     fireEvent.click(dialog.getByRole('option', { name: 'PT Kayu' }));
@@ -236,11 +251,27 @@ describe('DataBarang superadmin: pemetaan supplier massal', () => {
     expect(await screen.findByText('2 barang dipetakan ke PT Kayu.')).not.toBeNull();
   });
 
-  it('menyembunyikan tombol tanpa item.set-supplier', async () => {
+  it('menyembunyikan aksi massal tanpa izin apa pun', async () => {
     installFakeApi(routes);
     const user: AuthUser = { id: 1, username: 'u', email: 'u@x.id', roleId: 2, roleName: 'Staff', isSuperadmin: false, permissions: ['item.update'] };
     render(<AuthUserProvider user={user}><DataBarangGudang /></AuthUserProvider>);
     await screen.findByText('Barang 1');
-    expect(screen.queryByRole('button', { name: /Atur Supplier/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Aksi Massal/ })).toBeNull();
+  });
+
+  it('menampilkan checkbox dan Atur Supplier tanpa item.upload-photo', async () => {
+    installFakeApi(routes);
+    const user: AuthUser = { id: 1, username: 'u', email: 'u@x.id', roleId: 2, roleName: 'Staff', isSuperadmin: false, permissions: ['item.update', 'item.set-supplier'] };
+    render(<AuthUserProvider user={user}><DataBarangGudang /></AuthUserProvider>);
+    await screen.findByText('Barang 1');
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Pilih Barang 1' }));
+    openBulkMenu();
+    expect((screen.getByRole('menuitem', { name: 'Atur Supplier' }) as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.queryByRole('menuitem', { name: 'Pasang Foto Massal' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Ganti Kode Massal' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Atur Supplier' }));
+    expect(screen.getByRole('dialog')).not.toBeNull();
   });
 });
