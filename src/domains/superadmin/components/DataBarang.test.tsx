@@ -239,7 +239,7 @@ describe('DataBarang superadmin: pemetaan supplier massal', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Pilih Barang 1' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Pilih Barang 2' }));
     openBulkMenu();
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Atur Supplier' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit Supplier' }));
     const dialog = within(screen.getByRole('dialog'));
     fireEvent.click(dialog.getByRole('button', { name: 'Supplier' }));
     fireEvent.click(dialog.getByRole('option', { name: 'PT Kayu' }));
@@ -259,7 +259,7 @@ describe('DataBarang superadmin: pemetaan supplier massal', () => {
     expect(screen.queryByRole('button', { name: /Aksi Massal/ })).toBeNull();
   });
 
-  it('menampilkan checkbox dan Atur Supplier tanpa item.upload-photo', async () => {
+  it('menampilkan checkbox dan Edit Supplier tanpa item.upload-photo', async () => {
     installFakeApi(routes);
     const user: AuthUser = { id: 1, username: 'u', email: 'u@x.id', roleId: 2, roleName: 'Staff', isSuperadmin: false, permissions: ['item.update', 'item.set-supplier'] };
     render(<AuthUserProvider user={user}><DataBarangGudang /></AuthUserProvider>);
@@ -267,11 +267,11 @@ describe('DataBarang superadmin: pemetaan supplier massal', () => {
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Pilih Barang 1' }));
     openBulkMenu();
-    expect((screen.getByRole('menuitem', { name: 'Atur Supplier' }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole('menuitem', { name: 'Edit Supplier' }) as HTMLButtonElement).disabled).toBe(false);
     expect(screen.queryByRole('menuitem', { name: 'Pasang Foto Massal' })).toBeNull();
     expect(screen.queryByRole('menuitem', { name: 'Ganti Kode Massal' })).toBeNull();
 
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Atur Supplier' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit Supplier' }));
     expect(screen.getByRole('dialog')).not.toBeNull();
   });
 });

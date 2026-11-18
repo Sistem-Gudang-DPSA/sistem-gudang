@@ -12,7 +12,7 @@ ditemukan dan diperbaiki sekaligus.
 
 - Centang barang pada satu atau beberapa halaman. Pilihan disimpan per id,
   jadi tidak hilang saat pindah halaman, mencari, atau mengurutkan.
-- Tekan Atur Supplier. Tombol menampilkan jumlah barang yang dicentang.
+- Tekan Edit Supplier. Tombol menampilkan jumlah barang yang dicentang.
 - Pilih supplier pada dropdown yang bisa dicari, atau pilih Kosongkan
   supplier untuk menghapus supplierId.
 - Bila sebagian barang terpilih sudah punya supplier, modal menampilkan

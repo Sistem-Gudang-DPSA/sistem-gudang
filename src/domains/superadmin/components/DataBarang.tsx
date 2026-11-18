@@ -54,7 +54,7 @@ export default function DataBarangGudang() {
   const canSetSupplier = useCan('item.set-supplier');
   const canUploadPhoto = useCan('item.upload-photo');
   const canAssignSupplier = canUpdate && canSetSupplier;
-  // Pilihan baris dipakai Atur Supplier, Pasang Foto Massal, dan Ganti Kode Massal.
+  // Pilihan baris dipakai Edit Supplier, Pasang Foto Massal, dan Ganti Kode Massal.
   const canSelect = canUploadPhoto || canAssignSupplier || isSuperadmin;
   const edit = useBatchEdit();
   const seen = useRef(new Map<number, ItemListRow>()); // semua baris yang pernah tampil, untuk menyimpan perubahan dari halaman lain
@@ -444,7 +444,7 @@ export default function DataBarangGudang() {
               items={[
                 {
                   key: 'supplier',
-                  label: 'Atur Supplier',
+                  label: 'Edit Supplier',
                   icon: <Truck className="w-4 h-4" />,
                   onClick: supplierAction.open,
                   hidden: !canAssignSupplier,
