@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Filter, Search } from 'lucide-react';
 import { formatRupiah } from '@/domains/ppic/data/dokubah';
 import { toDateRange } from '@/domains/inventory/date';
 import { SUMBER_DATA_NOTICE, loadRealisasiList, periodeLabel, type RealisasiListRow, type StatusRealisasi } from '@/domains/inventory/components/RealisasiSPK';
-import { exportRealisasiExcel, openPrintWindow, printRealisasiPdf } from '@/shared/components/ExportRealisasi';
+import { exportRealisasiExcel, printRealisasiPdf } from '@/domains/inventory/export/realisasi';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { useDebouncedValue } from '@/shared/lib/use-debounced-value';
 import { usePage } from '@/shared/lib/use-page';
@@ -26,6 +27,12 @@ const statusBadge = (s: StatusRealisasi | null) => s === null ? <span className=
 );
 
 export default function RealisasiSpk() {
+  return <RealisasiSpkReport />;
+}
+
+// rowHref: when given, rows are clickable and open the detail page.
+export function RealisasiSpkReport({ rowHref }: { rowHref?: (id: string) => string }) {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebouncedValue(searchQuery);
   const [showFilter, setShowFilter] = useState(false);
@@ -45,7 +52,7 @@ export default function RealisasiSpk() {
   const { data: semua, loading, error } = useApiData(
     () => loadRealisasiList(range),
     `realisasi-outbound|${JSON.stringify(range)}`,
-    'Gagal memuat realisasi SPK.',
+    'Gagal memuat realisasi Dokubah.',
   );
   const q = debouncedSearch.trim().toLowerCase();
   const filtered = (semua ?? [])
@@ -79,28 +86,23 @@ export default function RealisasiSpk() {
     });
 
   // Ada yang dicentang: hanya itu. Tidak ada: semua SPK sesuai pencarian dan filter, dari semua halaman.
-  const jalankan = async (aksi: (data: RealisasiListRow[]) => void | Promise<void>, saatGagal?: () => void) => {
+  const jalankan = async (aksi: (data: RealisasiListRow[]) => void | Promise<void>, gagalMessage = 'Gagal menyiapkan data export.') => {
     setExporting(true);
     setExportError('');
     try {
       await aksi(selected.size > 0 ? [...selected.values()] : filtered);
     } catch {
-      saatGagal?.();
-      setExportError('Gagal menyiapkan data export.');
+      setExportError(gagalMessage);
     } finally {
       setExporting(false);
     }
   };
   const handleExcel = () => jalankan((data) => exportRealisasiExcel(data, periode));
-  const handlePdf = () => {
-    const win = openPrintWindow(); // dibuka saat klik supaya tidak diblokir browser
-    if (!win) return;
-    void jalankan((data) => printRealisasiPdf(win, data, periode), () => win.close());
-  };
+  const handlePdf = () => void jalankan((data) => printRealisasiPdf(data, periode), 'Gagal mencetak PDF.');
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
-      <h1 className="text-[18px] font-extrabold text-black tracking-wide mb-6">Realisasi SPK</h1>
+      <h1 className="text-[18px] font-extrabold text-black tracking-wide mb-6">Realisasi Dokubah</h1>
 
       <p role="note" className="mb-6 p-3 bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg">{SUMBER_DATA_NOTICE}</p>
 
@@ -181,6 +183,7 @@ export default function RealisasiSpk() {
               {rows.map((r, i) => (
                 <tr
                   key={r.id}
+                  onClick={rowHref ? () => router.push(rowHref(r.id)) : undefined}
                   className={`cursor-pointer transition-colors ${selected.has(r.id) ? 'bg-orange-50/60' : 'hover:bg-orange-50/20'}`}
                 >
                   <td className={cellClass}>{(page - 1) * PAGE_SIZE + i + 1}</td>

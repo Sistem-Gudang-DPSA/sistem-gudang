@@ -1,10 +1,10 @@
-# Realisasi SPK: Data Barang Keluar Sekarang, Dokubah Nanti
+# Realisasi Dokubah: Data Barang Keluar Sekarang, Dokubah Nanti
 
 Issue: #38
 
 ## Ringkasan
 
-Halaman Realisasi SPK (`/dashboard/gudang/laporan/realisasi-spk`) memakai
+Halaman Realisasi Dokubah (`/dashboard/gudang/laporan/realisasi-spk`) memakai
 tampilan baru dari PR #36 (daftar per SPK, ringkasan, halaman rincian per SPK),
 tetapi datanya sementara diambil dari **barang keluar**, bukan dari dokubah PPIC.
 Halaman daftar dan rincian menampilkan notice tentang hal ini.

@@ -1,30 +1,9 @@
-// domains/inventory/export/kartu-stok.ts
+// Cetak kartu stok: kop laporan bersama, lalu tabel lewat cetakHtml (iframe, tanpa popup).
 import { escapeHtml } from '@/shared/lib/escape-html';
+import { cetakLaporan } from '@/shared/lib/print-laporan';
 import { displayDate } from '@/domains/inventory/date';
 import type { ItemListRow } from '@/domains/inventory/types';
 import { buildKartu, type KartuStokData } from '@/domains/inventory/components/KartuStok';
-
-// Dipanggil langsung dari klik tombol supaya jendela tidak diblokir browser
-function printHtml(title: string, body: string) {
-  const win = window.open('', '_blank');
-  if (win) win.opener = null;
-  if (!win) {
-    alert('Pop-up diblokir browser. Izinkan pop-up untuk mencetak PDF.');
-    return;
-  }
-  win.document.write(`<!doctype html><html><head><title>${escapeHtml(title)}</title><style>
-    body { font-family: Arial, sans-serif; padding: 24px; color: #111; }
-    h1 { font-size: 18px; margin: 0 0 12px; }
-    .meta { font-size: 12px; margin-bottom: 12px; line-height: 1.6; }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    th, td { border: 1px solid #999; padding: 6px 8px; text-align: left; vertical-align: top; }
-    th { background: #eee; }
-    .c { text-align: center; } .r { text-align: right; } .sub { color: #555; font-size: 11px; }
-  </style></head><body>${body}</body></html>`);
-  win.document.close();
-  win.focus();
-  win.print();
-}
 
 // ---------- Daftar barang (halaman utama) ----------
 export async function exportDaftarExcel(rows: ItemListRow[]) {
@@ -46,9 +25,9 @@ export function printDaftarPdf(rows: ItemListRow[]) {
   const body = rows.map((item, i) => `<tr>
     <td class="c">${i + 1}</td><td>${escapeHtml(item.code ?? '-')}</td><td>${escapeHtml(item.externalCode ?? '-')}</td>
     <td>${escapeHtml(item.name)}</td><td>${escapeHtml(item.unit)}</td><td class="r">${item.stock}</td></tr>`).join('');
-  printHtml('Daftar Kartu Stok', `<h1>Daftar Kartu Stok</h1>
-    <table><thead><tr><th class="c">No.</th><th>Kode Barang</th><th>Kode Bawaan</th><th>Nama Barang</th><th>Satuan</th><th class="r">Stok Saat Ini</th></tr></thead>
-    <tbody>${body}</tbody></table>`);
+  return cetakLaporan('Daftar Kartu Stok', `<table>
+    <thead><tr><th class="c">No.</th><th>Kode Barang</th><th>Kode Bawaan</th><th>Nama Barang</th><th>Satuan</th><th class="r">Stok Saat Ini</th></tr></thead>
+    <tbody>${body}</tbody></table>`, { label: 'daftar kartu stok' });
 }
 
 // ---------- Kartu stok satu barang (halaman detail) ----------
@@ -84,9 +63,7 @@ export function printKartuPdf(data: KartuStokData, kartu = buildKartu(data)) {
     <td class="r">${r.saldo}</td>
     <td>${escapeHtml(r.noTransaksi ?? r.note ?? '')}${r.usage ? `<div class="sub">${escapeHtml(r.usage)}</div>` : ''}</td></tr>`).join('');
 
-  printHtml(`Kartu Stok ${data.item.name}`, `<h1>Kartu Stok</h1>
-    <div class="meta">Kode: <b>${escapeHtml(data.item.code ?? '-')}</b><br>Nama: <b>${escapeHtml(data.item.name)}</b><br>Satuan: ${escapeHtml(data.item.unit)}</div>
-    <p class="sub">Saldo mengikuti seluruh mutasi pada periode. Total masuk/keluar mengikuti baris yang ditampilkan.</p>
+  return cetakLaporan('Kartu Stok', `<p class="sub">Saldo mengikuti seluruh mutasi pada periode. Total masuk/keluar mengikuti baris yang ditampilkan.</p>
     <table>
       <thead>
         <tr>
@@ -105,5 +82,8 @@ export function printKartuPdf(data: KartuStokData, kartu = buildKartu(data)) {
         ${body}
         <tr><td colspan="4"><b>Total / Saldo akhir</b></td><td class="r"><b>${totalIn}</b></td><td class="r"><b>${totalOut}</b></td><td class="r"><b>${saldoAkhir}</b></td><td></td></tr>
       </tbody>
-    </table>`);
+    </table>`, {
+    label: `kartu stok ${data.item.name}`,
+    meta: [`Kode: ${data.item.code ?? '-'}`, `Nama: ${data.item.name}`, `Satuan: ${data.item.unit}`],
+  });
 }

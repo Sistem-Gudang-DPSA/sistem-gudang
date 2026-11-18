@@ -99,7 +99,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
           { href: "/dashboard/gudang/laporan/stock-opname", label: "Rekap Stok Opname", anyOf: ["report.view"] },
           { href: "/dashboard/gudang/laporan/dokubah", label: "Rekap Dokubah", anyOf: ["dokubah.view"] },
           { href: "/dashboard/gudang/laporan/kartu-stok", label: "Kartu Stok", anyOf: ["item.view"] },
-          { href: "/dashboard/gudang/laporan/realisasi-spk", label: "Realisasi SPK", anyOf: ["dokubah.view"] },
+          { href: "/dashboard/gudang/laporan/realisasi-spk", label: "Realisasi Dokubah", anyOf: ["dokubah.view"] },
         ],
       },
     ],
@@ -223,7 +223,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
       title: "Laporan",
       items: [
         { href: "/dashboard/keuangan/laporan/data-barang", label: "Data Barang", anyOf: ["report.view"] },
-        { href: "/dashboard/keuangan/laporan/realisasi-spk", label: "Realisasi SPK", anyOf: ["report.view"] },
+        { href: "/dashboard/keuangan/laporan/realisasi-spk", label: "Realisasi Dokubah", anyOf: ["report.view"] },
         // { href: "/dashboard/keuangan/laporan/rekap-permintaan", label: "Rekap Permintaan", anyOf: ["report.view"] },
         // { href: "/dashboard/keuangan/laporan/stock-opname", label: "Rekap Stok Opname", anyOf: ["report.view"] },
       ],
@@ -240,7 +240,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
       title: "Laporan",
       items: [
         { href: "/dashboard/produksi/laporan/data-barang", label: "Data Barang", anyOf: ["report.view"] },
-        { href: "/dashboard/produksi/laporan/realisasi-spk", label: "Realisasi SPK", anyOf: ["report.view"] },
+        { href: "/dashboard/produksi/laporan/realisasi-spk", label: "Realisasi Dokubah", anyOf: ["report.view"] },
       ],
     }],
   },

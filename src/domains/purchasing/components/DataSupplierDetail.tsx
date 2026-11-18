@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
-import { Search, Download } from 'lucide-react';
+import { Search, Download, Save } from 'lucide-react';
 import Link from 'next/link';
 import { formatAngka } from '@/domains/ppic/data/dokubah';
 import { getSupplierPrices, saveSupplierPrices } from '@/domains/purchasing/api';
@@ -257,7 +257,7 @@ export default function DetailDataBarang() {
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm transition-opacity">
           <div className="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl animate-in zoom-in-95 duration-200 border border-gray-100">
             <div className="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center mb-6 mx-auto">
-              <Download className="w-8 h-8 text-[#FF8A00] rotate-180" />
+              <Save className="w-8 h-8 text-[#FF8A00]" />
             </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-2 text-center">Konfirmasi Update</h2>
             <p className="text-gray-500 mb-8 text-center leading-relaxed">
