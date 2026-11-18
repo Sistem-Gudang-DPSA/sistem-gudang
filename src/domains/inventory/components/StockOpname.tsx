@@ -203,7 +203,7 @@ export default function StockOpnameMasterGudang() {
             h1 { font-size: 20px; }
             h2 { font-size: 15px; }
             table {
-              width: 100%;
+              width: calc(100% - 2mm);
               border-collapse: collapse;
               font-size: 10px;
             }

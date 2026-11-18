@@ -135,3 +135,6 @@ Permintaan Pembelian tidak lagi ada di Gudang. Halamannya pindah ke PPIC, lihat 
 - Berkas cetak Kartu Stok dan Realisasi SPK ada di
   `src/domains/inventory/export/`, sehingga `src/shared` tidak lagi
   mengimpor tipe dan komponen domain.
+- Tabel laporan diberi lebar `calc(100% - 2mm)`. Tanpa jarak itu, border
+  kanan kolom terakhir menempel tepat di tepi area cetak dan terpotong di
+  PDF.
