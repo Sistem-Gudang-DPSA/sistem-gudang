@@ -7,6 +7,7 @@ import { fieldClass, orangeButtonClass, rowClass, rowLabelClass, selectClass } f
 import type { useFormBarangKeluar } from "../useFormBarangKeluar";
 import BarisBarangKeluarTable from "./BarisBarangKeluarTable";
 import PanelScan from "./PanelScan";
+import { formatNamaPengambil } from "../form-utils";
 
 // Jam berdetik hanya selama form terbuka, dan hanya komponen ini yang digambar ulang.
 function WaktuSekarang() {
@@ -84,7 +85,13 @@ export default function FormBarangKeluarModal({
                 type="text"
                 value={form.namaPengambil}
                 maxLength={191}
-                onChange={(e) => f.patchForm({ namaPengambil: e.target.value })}
+                autoCapitalize="words"
+                onChange={(e) => {
+                  const input = e.currentTarget;
+                  const { selectionStart, selectionEnd } = input;
+                  f.patchForm({ namaPengambil: formatNamaPengambil(input.value) });
+                  queueMicrotask(() => input.setSelectionRange(selectionStart, selectionEnd));
+                }}
                 placeholder="Isi nama pengambil"
                 className={fieldClass}
               />

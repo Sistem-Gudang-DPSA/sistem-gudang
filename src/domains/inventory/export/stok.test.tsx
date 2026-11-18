@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { KartuStokData } from '@/domains/inventory/components/KartuStok';
-import { exportKartuExcel, printKartuPdf } from './ExportStok';
+import { COMPANY_NAME } from '@/shared/lib/company';
+
+const cetak = vi.hoisted(() => ({ html: '', calls: 0 }));
+vi.mock('@/shared/lib/print-html', () => ({
+  cetakHtml: vi.fn(async (html: string) => { cetak.html = html; cetak.calls += 1; }),
+}));
 
 const xlsx = vi.hoisted(() => ({
   aoa_to_sheet: vi.fn((rows: unknown[][]) => rows),
@@ -9,6 +14,8 @@ const xlsx = vi.hoisted(() => ({
   writeFile: vi.fn(),
 }));
 vi.mock('xlsx', () => ({ utils: xlsx, writeFile: xlsx.writeFile }));
+
+import { exportKartuExcel, printKartuPdf } from './stok';
 
 const entry = {
   id: 'out-1', date: '2026-11-03', createdAt: '2026-11-03T01:00:00Z', type: 'KELUAR' as const,
@@ -25,7 +32,11 @@ const kartu = {
   totalIn: 0, totalOut: 9, saldoAkhir: 116,
 };
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  cetak.html = '';
+  cetak.calls = 0;
+});
 
 describe('filtered stock card exports', () => {
   it('writes visible transactions and their original balances to Excel', async () => {
@@ -40,14 +51,11 @@ describe('filtered stock card exports', () => {
     expect(xlsx.writeFile).toHaveBeenCalledWith(expect.any(Object), 'Kartu_Stok_BRG-7.xlsx');
   });
 
-  it('prints the displayed company, filtered totals and original ledger balances', () => {
-    const write = vi.fn();
-    const print = vi.fn();
-    vi.spyOn(window, 'open').mockReturnValue({
-      opener: null, document: { write, close: vi.fn() }, focus: vi.fn(), print,
-    } as unknown as Window);
-    printKartuPdf(data, kartu);
-    const document = new DOMParser().parseFromString(write.mock.calls[0][0], 'text/html');
+  it('prints the company letterhead, filtered totals and original ledger balances', async () => {
+    await printKartuPdf(data, kartu);
+    const document = new DOMParser().parseFromString(cetak.html, 'text/html');
+    expect(document.querySelector('.perusahaan')?.textContent).toBe(COMPANY_NAME);
+    expect(document.querySelector('.logo')?.getAttribute('src')).toContain('logo-perusahaan.jpg');
     const rows = [...document.querySelectorAll('tbody tr')];
     expect(rows).toHaveLength(4);
     expect(rows[0].textContent).toContain('110');
@@ -56,6 +64,6 @@ describe('filtered stock card exports', () => {
     expect(rows[2].querySelectorAll('td')[6].textContent).toBe('118');
     expect(rows[3].querySelectorAll('td')[2].textContent).toBe('9');
     expect(rows[3].querySelectorAll('td')[3].textContent).toBe('116');
-    expect(print).toHaveBeenCalledOnce();
+    expect(cetak.calls).toBe(1);
   });
 });

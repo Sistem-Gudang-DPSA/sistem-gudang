@@ -2,11 +2,11 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Download, Eye, Search } from 'lucide-react';
+import { Printer, Eye, Search } from 'lucide-react';
 import { getStockCard, listItems } from '@/domains/inventory/api';
 import type { ItemListRow } from '@/domains/inventory/types';
 import { buildKartu, kartuStokPath } from '@/domains/inventory/components/KartuStok';
-import { exportDaftarExcel, printDaftarPdf } from '@/shared/components/ExportStok';
+import { exportDaftarExcel, printDaftarPdf } from '@/domains/inventory/export/stok';
 import Pagination from '@/shared/components/Pagination';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { useDebouncedValue } from '@/shared/lib/use-debounced-value';
@@ -49,6 +49,7 @@ export default function KartuStok() {
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebouncedValue(searchQuery);
   const [selected, setSelected] = useState<Map<number, ItemListRow>>(new Map());
+  const [printError, setPrintError] = useState("");
 
   const filterKey = JSON.stringify([debouncedSearch]);
   const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
@@ -81,6 +82,11 @@ export default function KartuStok() {
       return next;
     });
 
+  const handlePrint = () => {
+    setPrintError("");
+    printDaftarPdf(rowsToExport).catch((err) => setPrintError(err instanceof Error ? err.message : "Gagal mencetak PDF."));
+  };
+
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="mb-8">
@@ -112,16 +118,18 @@ export default function KartuStok() {
             <ExportExcellButton onClick={() => exportDaftarExcel(rowsToExport)} />
             <button
               type="button"
-              onClick={() => printDaftarPdf(rowsToExport)}
+              onClick={handlePrint}
               disabled={rowsToExport.length === 0}
               title="Print Data ke PDF"
               className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-50"
             >
-              <Download className="w-4 h-4" />
+              <Printer className="w-4 h-4" />
               <span className="hidden sm:inline">Print PDF</span>
             </button>
           </div>
         </div>
+
+        {printError && <p role="alert" className="px-5 py-2 text-sm text-red-600 border-b border-gray-100">{printError}</p>}
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">

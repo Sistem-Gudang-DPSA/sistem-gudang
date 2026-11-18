@@ -17,6 +17,7 @@ describe('purchasing DataSupplier', () => {
     const api = installFakeApi({ 'GET /api/v1/suppliers': paged([supplier(1)], { total: 45 }) });
     render(<DataSupplier />);
     await screen.findByText('Supplier 1');
+    expect(screen.getByRole('button', { name: 'Import Excel' }).querySelector('.lucide-file-down')).not.toBeNull();
     fireEvent.click(screen.getByRole('button', { name: '3' }));
     await waitFor(() => expect(lastQ(api).get('page')).toBe('3'));
     fireEvent.click(screen.getByRole('button', { name: /Nama Supplier/ }));

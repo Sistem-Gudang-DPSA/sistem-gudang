@@ -55,6 +55,11 @@ memakai `GET /stock-opname` dengan filter `search`, `month`, dan `year`,
 serta modal detail berisi stok sistem, fisik, dan selisih. Rekap Dokubah
 dibahas di `07-Integrasi-PPIC-Dokubah-dan-SPK-Internal.md`.
 
+Tampilan Rekap Dokubah Gudang dan PPIC memakai satu komponen,
+`src/domains/ppic/components/RekapDokubahView.tsx`. `RekapDokubah.tsx` di tiap
+domain hanya mengisi props: path detail per divisi, kolom Anggaran (PPIC), dan
+header yang bisa diurutkan (Gudang).
+
 ### `DetailRekapPermintaan.tsx` dan `quota.ts`
 
 Halaman baru di `gudang/laporan/rekap-permintaan/detail-rekap-permintaan`.
@@ -115,3 +120,14 @@ membaca Dokubah. Langkah berikutnya, secara berurutan:
    punya jenis untuk kasus ini.
 
 Daftar lengkap pekerjaan sisanya ada di `04-Rencana-Selanjutnya.md`.
+
+## Ikon aksi lintas halaman
+
+Ikon Import Excel memakai berkas dengan panah ke bawah (`FileDown`), sedangkan
+Export memakai berkas dengan panah ke atas (`FileUp`). Aksi cetak memakai
+ikon printer (`Printer`), unggah berkas memakai `Upload`, dan konfirmasi
+simpan perubahan harga supplier memakai `Save`.
+
+Ikon Lucide mempertahankan ukurannya dalam baris flex di semua halaman.
+Deretan aksi Data Barang dapat turun ke baris berikutnya saat ruang terbatas,
+termasuk tombol import, ekspor, foto massal, ganti kode, hapus, dan filter.

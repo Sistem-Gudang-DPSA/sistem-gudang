@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { fail, installFakeApi } from '@/test/fake-api';
-import { exportKartuExcel, printKartuPdf } from '@/shared/components/ExportStok';
+import { exportKartuExcel, printKartuPdf } from '@/domains/inventory/export/stok';
 import { todayIso } from '../date';
 import { buildKartu, type KartuEntry, type KartuStokData } from './KartuStok';
 import DetailKartuStok from './DetailKartuStok';
 
 vi.mock('next/navigation', () => ({ useParams: () => ({ id: '7' }) }));
-vi.mock('@/shared/components/ExportStok', () => ({ exportKartuExcel: vi.fn(), printKartuPdf: vi.fn() }));
+vi.mock('@/domains/inventory/export/stok', () => ({ exportKartuExcel: vi.fn(), printKartuPdf: vi.fn(async () => {}) }));
 
 const today = todayIso();
 const monthStart = `${today.slice(0, 7)}-01`;
