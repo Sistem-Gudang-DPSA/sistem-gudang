@@ -6,8 +6,9 @@ import { useParams } from 'next/navigation';
 import { ArrowLeft, AlertCircle, CalendarDays, Download, Filter } from 'lucide-react';
 import { getStockCard } from '@/domains/inventory/api';
 import { buildKartu } from '@/domains/inventory/components/KartuStok';
-import { exportKartuExcel, printKartuPdf } from '@/shared/components/ExportStok';
+import { exportKartuExcel, printKartuPdf } from '@/domains/inventory/export/stok';
 import { displayDate, todayIso } from '@/domains/inventory/date';
+import { roundQty } from '@/shared/lib/input';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 
@@ -24,6 +25,7 @@ export default function KartuStokDetail() {
     const [usage, setUsage] = useState('');
     const [showFilter, setShowFilter] = useState(false);
     const [showPeriod, setShowPeriod] = useState(false);
+    const [printError, setPrintError] = useState('');
     const projectQuery = project.trim().toLowerCase();
     const usageQuery = usage.trim().toLowerCase();
     const hasTextFilters = !!projectQuery || !!usageQuery;
@@ -50,13 +52,21 @@ export default function KartuStokDetail() {
     const filteredKartu = kartu ? {
         ...kartu,
         rows: matchingRows,
-        totalIn: matchingRows.reduce((sum, row) => sum + row.qtyIn, 0),
-        totalOut: matchingRows.reduce((sum, row) => sum + row.qtyOut, 0),
+        totalIn: roundQty(matchingRows.reduce((sum, row) => sum + row.qtyIn, 0)),
+        totalOut: roundQty(matchingRows.reduce((sum, row) => sum + row.qtyOut, 0)),
     } : null;
     const exportData = periodData ? { ...periodData, entries: matchingRows } : null;
     const exportDisabled = loading || !!error || !exportData || !filteredKartu;
     const sampaiSekarang = rentangTerbalik || !endDate || endDate >= todayIso();
-    const tidakSinkron = data && kartu && sampaiSekarang ? kartu.saldoAkhir !== data.item.stock : false;
+    const tidakSinkron = data && kartu && sampaiSekarang ? Math.abs(kartu.saldoAkhir - data.item.stock) >= 1e-9 : false;
+
+    const handlePrint = () => {
+        if (!exportData || !filteredKartu) return;
+        setPrintError('');
+        printKartuPdf(exportData, filteredKartu).catch((err) =>
+            setPrintError(err instanceof Error ? err.message : 'Gagal mencetak PDF.'),
+        );
+    };
 
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -105,7 +115,7 @@ export default function KartuStokDetail() {
                         <ExportExcellButton onClick={() => exportData && filteredKartu && exportKartuExcel(exportData, filteredKartu)} disabled={exportDisabled} />
                         <button
                             type="button"
-                            onClick={() => exportData && filteredKartu && printKartuPdf(exportData, filteredKartu)}
+                            onClick={handlePrint}
                             disabled={exportDisabled}
                             className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-50"
                         >
@@ -117,6 +127,8 @@ export default function KartuStokDetail() {
                         </button>
                     </div>
                 </div>
+
+                {printError && <p role="alert" className="px-5 py-2 text-sm text-red-600 border-b border-gray-100">{printError}</p>}
 
                 {showFilter && (
                     <div id="kartu-stok-detail-filters" role="group" aria-label="Filter mutasi kartu stok" className="flex flex-wrap items-end gap-3 px-5 py-3 border-b border-gray-100 bg-white">

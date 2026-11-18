@@ -1,6 +1,7 @@
 export interface Notification {
   id: number;
   type: string;
+  sourceDomain?: string | null;
   title: string;
   body: string;
   link: string;

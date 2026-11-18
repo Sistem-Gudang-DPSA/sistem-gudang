@@ -98,6 +98,12 @@ export default function LaporanBarangMasuk() {
     const sumberText = filterSumber === 'ALL' ? 'Semua Sumber' : SUMBER_LABEL[filterSumber];
     const periodeText = `${startDate ? displayDate(startDate) : '-'} s/d ${endDate ? displayDate(endDate) : '-'}`;
 
+    const pageQty = rows.reduce((sum, r) => sum + r.qtyArrived, 0);
+    const bySource = (source: InboundSource) => {
+      const list = rows.filter((r) => r.source === source);
+      return { n: list.length, qty: list.reduce((sum, r) => sum + r.qtyArrived, 0) };
+    };
+
     const bodyRows = rows
       .map((item, index) => {
         const referensi =
@@ -149,9 +155,9 @@ export default function LaporanBarangMasuk() {
               searchQuery ? ` &nbsp;|&nbsp; Pencarian: ${escapeHtml(searchQuery)}` : ''
             }</p>
             <p class="summary">
-              <span><b>Total:</b> ${summary.qtyTotal.toLocaleString('id-ID')} Qty / ${summary.total.toLocaleString('id-ID')} Transaksi</span>
-              <span><b>Supplier:</b> ${summary.qtySupplier.toLocaleString('id-ID')} Qty (${summary.supplier.toLocaleString('id-ID')} Transaksi)</span>
-              <span><b>Produksi:</b> ${summary.qtyProduksi.toLocaleString('id-ID')} Qty (${summary.produksi.toLocaleString('id-ID')} Transaksi)</span>
+              <span><b>Total:</b> ${pageQty.toLocaleString('id-ID')} Qty / ${rows.length.toLocaleString('id-ID')} Transaksi</span>
+              <span><b>Supplier:</b> ${bySource('SUPPLIER').qty.toLocaleString('id-ID')} Qty (${bySource('SUPPLIER').n.toLocaleString('id-ID')} Transaksi)</span>
+              <span><b>Produksi:</b> ${bySource('PRODUKSI').qty.toLocaleString('id-ID')} Qty (${bySource('PRODUKSI').n.toLocaleString('id-ID')} Transaksi)</span>
             </p>
             <table>
               <thead>
@@ -179,6 +185,8 @@ export default function LaporanBarangMasuk() {
 
   const rows = report?.rows ?? [];
   const summary = report?.summary ?? emptySummary;
+  // the total card follows the source filter like the table; the other cards stay per category
+  const totalSummary = report?.filteredSummary ?? summary;
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -195,7 +203,7 @@ export default function LaporanBarangMasuk() {
         <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
           <p className="text-xs font-semibold text-gray-500 uppercase">Total Inbound Periode Ini</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">
-            {summary.qtyTotal.toLocaleString('id-ID')} Qty / {summary.total.toLocaleString('id-ID')} Transaksi
+            {totalSummary.qtyTotal.toLocaleString('id-ID')} Qty / {totalSummary.total.toLocaleString('id-ID')} Transaksi
           </p>
         </div>
         <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">

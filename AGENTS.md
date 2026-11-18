@@ -1,6 +1,6 @@
 # sistem-gudang
 
-Next.js 16 (App Router) + React 19 + TypeScript + Tailwind v4. Package manager: bun (`bun.lock`), npm lockfile also present.
+Next.js 16 (App Router) + React 19 + TypeScript + Tailwind v4. Package manager: bun (`bun.lock`).
 
 ## Structure
 
@@ -10,10 +10,10 @@ Next.js 16 (App Router) + React 19 + TypeScript + Tailwind v4. Package manager: 
 
 ## Commands
 
-- `npm run dev` — dev server
-- `npm run build` / `npm run start` — production build/serve
-- `npm run lint` — ESLint
-- `npm run test` / `npm run test:watch` — Vitest (jsdom + Testing Library)
+- `bun run dev` — dev server
+- `bun run build` / `bun run start` — production build/serve
+- `bun run lint` — ESLint
+- `bun run test` / `bun run test:watch` — Vitest (jsdom + Testing Library)
 
 ## Conventions
 

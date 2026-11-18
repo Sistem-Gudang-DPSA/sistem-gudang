@@ -41,7 +41,7 @@ let refreshPromise: Promise<unknown | null> | null = null;
 // response data (accessToken, user), or null when the session is gone.
 export function refreshSessionData<T extends { accessToken: string }>(): Promise<T | null> {
   if (!refreshPromise) {
-    refreshPromise = (async () => {
+    const run = async () => {
       try {
         const res = await fetch(`${BASE_URL}/api/v1/auth/refresh`, {
           method: "POST",
@@ -55,7 +55,10 @@ export function refreshSessionData<T extends { accessToken: string }>(): Promise
       } catch {
         return null;
       }
-    })().finally(() => {
+    };
+    // Tabs share one cookie jar: a lock serializes their refreshes so the second tab sends the
+    // already rotated cookie instead of the old one (the BE rejects the loser of that race).
+    refreshPromise = (navigator.locks ? navigator.locks.request("auth-refresh", run) : run()).finally(() => {
       refreshPromise = null;
     });
   }
@@ -66,7 +69,12 @@ async function refreshAccessToken(): Promise<boolean> {
   return (await refreshSessionData()) !== null;
 }
 
+// A 401 from these means bad credentials or a dead session, not an expired access token. Refreshing
+// would only replay a stale cookie, which the BE treats as token reuse and answers by revoking every session.
+const isAuthPath = (path: string) => path.startsWith("/api/v1/auth/");
+
 async function request<T>(path: string, options: RequestInit = {}, retryOn401 = true): Promise<T> {
+  const sentToken = accessToken;
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
     credentials: "include",
@@ -82,8 +90,9 @@ async function request<T>(path: string, options: RequestInit = {}, retryOn401 = 
   const body: ApiEnvelope<T> = await res.json();
 
   if (!body.success) {
-    if (res.status === 401 && retryOn401) {
-      const refreshed = await refreshAccessToken();
+    if (res.status === 401 && retryOn401 && !isAuthPath(path)) {
+      // Another request already refreshed while this one was in flight: just retry with the new token.
+      const refreshed = (accessToken !== null && accessToken !== sentToken) || (await refreshAccessToken());
       if (refreshed) return request<T>(path, options, false);
     }
     // Rate limits report the wait in seconds; `?.` because test doubles may omit headers.
@@ -97,13 +106,14 @@ async function request<T>(path: string, options: RequestInit = {}, retryOn401 = 
 
 // Fetches a binary file (e.g. xlsx export) and saves it via a temporary link.
 export async function downloadFile(path: string, fallbackName: string, retryOn401 = true): Promise<void> {
+  const sentToken = accessToken;
   const res = await fetch(`${BASE_URL}${path}`, {
     credentials: "include",
     headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
   });
 
   if (!res.ok) {
-    if (res.status === 401 && retryOn401 && (await refreshAccessToken())) {
+    if (res.status === 401 && retryOn401 && ((accessToken !== null && accessToken !== sentToken) || (await refreshAccessToken()))) {
       return downloadFile(path, fallbackName, false);
     }
     const body = await res.json().catch(() => null);
@@ -120,8 +130,8 @@ export const apiClient = {
     request<T>(path, { method: "POST", body: data !== undefined ? JSON.stringify(data) : undefined, headers }),
   put: <T>(path: string, data?: unknown) =>
     request<T>(path, { method: "PUT", body: data !== undefined ? JSON.stringify(data) : undefined }),
-  patch: <T>(path: string, data?: unknown) =>
-    request<T>(path, { method: "PATCH", body: data !== undefined ? JSON.stringify(data) : undefined }),
+  patch: <T>(path: string, data?: unknown, headers?: Record<string, string>) =>
+    request<T>(path, { method: "PATCH", body: data !== undefined ? JSON.stringify(data) : undefined, headers }),
   delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
   upload: <T>(path: string, form: FormData) => request<T>(path, { method: "POST", body: form }),
 };

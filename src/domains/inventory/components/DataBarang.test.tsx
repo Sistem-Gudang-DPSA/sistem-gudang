@@ -5,6 +5,7 @@ import { installFakeApi, paged, fail } from '@/test/fake-api';
 import DataBarang from './DataBarang';
 
 vi.mock('next/navigation', () => ({
+  useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
   useParams: () => ({}),
   usePathname: () => '/gudang/barang',
@@ -80,6 +81,27 @@ describe('DataBarang list', () => {
     fireEvent.change(screen.getByPlaceholderText('Cari kode atau nama barang...'), { target: { value: 'x' } });
     await waitFor(() => expect(lastQ(api).get('search')).toBe('x'));
     expect(lastQ(api).get('page')).toBe('1');
+  });
+});
+
+describe('DataBarang reference lists', () => {
+  it('loads every page of locations and suppliers', async () => {
+    const byPage = (p1: unknown[], p2: unknown[]) => (req: { query: URLSearchParams }) =>
+      ({ rows: req.query.get('page') === '2' ? p2 : p1, total: 101, page: Number(req.query.get('page')), pageSize: 100 });
+    const api = setup({
+      'GET /api/v1/locations': byPage([{ id: 1, code: 'A01', rackName: 'A', rackNumber: '01' }], [{ id: 2, code: 'Z99', rackName: 'Z', rackNumber: '99' }]),
+      'GET /api/v1/suppliers': byPage([{ id: 7, name: 'PT Kayu' }], [{ id: 8, name: 'PT Halaman Dua' }]),
+    }, paged([item(1, { supplierId: 8, locationId: 2 })]));
+    await screen.findByText('Barang 1');
+    expect(await screen.findByText('Z99')).not.toBeNull();
+    expect(await screen.findByText('PT Halaman Dua')).not.toBeNull();
+    expect(api.calls('GET /api/v1/locations')).toHaveLength(2);
+    expect(api.calls('GET /api/v1/suppliers')).toHaveLength(2);
+  });
+
+  it('shows an error when a reference list fails to load', async () => {
+    setup({ 'GET /api/v1/locations': fail(500, 'Lokasi down') });
+    expect(await screen.findByText('Lokasi down')).not.toBeNull();
   });
 });
 
@@ -218,5 +240,28 @@ describe('permissions', () => {
   it('has no stock adjust action', async () => {
     await open(who([], true));
     expect(screen.queryByTitle('Sesuaikan stok')).toBeNull();
+  });
+});
+
+describe('DataBarang export', () => {
+  it('exports every filtered row across pages as a quoted CSV', async () => {
+    const csv = await import('@/shared/lib/csv');
+    const spy = vi.spyOn(csv, 'downloadCsv').mockImplementation(() => {});
+    const all = Array.from({ length: 25 }, (_, i) => item(i + 1, { name: i === 0 ? 'Barang 1' : `Barang ${i + 1}`, externalCode: i === 0 ? '=Meja, "besar"' : null }));
+    const api = setup({
+      'GET /api/v1/items': (req: { query: URLSearchParams }) => {
+        const pageSize = Number(req.query.get('pageSize'));
+        const page = Number(req.query.get('page'));
+        return { rows: all.slice((page - 1) * pageSize, page * pageSize), total: 25, page, pageSize };
+      },
+    });
+    await ready(api);
+    fireEvent.click(screen.getByTitle('Export Excel'));
+    await waitFor(() => expect(spy).toHaveBeenCalled());
+    const [name, rows] = spy.mock.calls[0];
+    expect(name).toBe('Data_Barang_Gudang.csv');
+    expect(rows).toHaveLength(26);
+    expect(csv.toCsv(rows)).toContain("\"'=Meja, \"\"besar\"\"\"");
+    spy.mockRestore();
   });
 });

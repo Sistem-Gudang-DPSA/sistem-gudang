@@ -11,6 +11,7 @@ import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
+import { useDebouncedValue } from '@/shared/lib/use-debounced-value';
 import { useSelection } from '@/shared/lib/use-selection';
 import { usePage } from '@/shared/lib/use-page';
 import DateFilter from '@/shared/components/DateFilter';
@@ -93,6 +94,7 @@ export default function BarangMasukGudang() {
   const { sort, toggle, params: sortParams } = useSort();
   const [showFilter, setShowFilter] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearch = useDebouncedValue(searchQuery);
   const [filterDay, setFilterDay] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
   const [filterYear, setFilterYear] = useState("");
@@ -100,16 +102,16 @@ export default function BarangMasukGudang() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const selection = useSelection<InboundRow>();
   const [printing, setPrinting] = useState(false);
   const [actionError, setActionError] = useState("");
 
   const dateRange = toDateRange(filterDay, filterMonth, filterYear);
 
-  const filterKey = JSON.stringify([searchQuery, filterDay, filterMonth, filterYear, sortParams]);
+  const filterKey = JSON.stringify([debouncedSearch, filterDay, filterMonth, filterYear, sortParams]);
   const [page, setPage] = usePage(filterKey);
+  const selection = useSelection<InboundRow>(filterKey);
   const { data: result, loading, error, reload } = useApiData(
-    () => listInbound({ page, pageSize: PAGE_SIZE, search: searchQuery || undefined, ...dateRange, ...sortParams }),
+    () => listInbound({ page, pageSize: PAGE_SIZE, search: debouncedSearch || undefined, ...dateRange, ...sortParams }),
     `${filterKey}|${page}`,
     'Gagal memuat data barang masuk.',
   );

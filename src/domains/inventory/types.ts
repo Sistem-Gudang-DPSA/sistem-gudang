@@ -10,6 +10,7 @@ export interface Item {
   unit: string;
   price: number;
   stock: number;
+  minimumStock?: number | null;
   locationId: number | null;
   supplierId: number | null;
   // Path relatif foto barang (dilayani lewat fileUrl); null bila belum ada foto.
@@ -70,6 +71,7 @@ export interface ItemFilterParams {
 }
 
 export interface UpdateItemInput {
+  minimumStock?: number | null;
   name?: string;
   detail?: string | null;
   category?: string;
@@ -170,6 +172,8 @@ export interface InboundReport {
   page: number;
   pageSize: number;
   summary: { total: number; supplier: number; produksi: number; klien: number; qtyTotal: number; qtySupplier: number; qtyProduksi: number; qtyKlien: number };
+  // same shape, follows every filter incl. source, so it matches the table
+  filteredSummary?: { total: number; supplier: number; produksi: number; klien: number; qtyTotal: number; qtySupplier: number; qtyProduksi: number; qtyKlien: number };
 }
 
 export type WarehouseType = "BAHAN_BAKU" | "WIP" | "BARANG_JADI";
@@ -235,6 +239,7 @@ export interface OutboundReport {
   page: number;
   pageSize: number;
   summary: { bahanBaku: number; wip: number; barangJadi: number };
+  filteredSummary?: { bahanBaku: number; wip: number; barangJadi: number };
 }
 
 export interface StockOpnameRow {

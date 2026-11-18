@@ -4,7 +4,7 @@ import React, { Suspense } from "react";
 import Link from "next/link";
 import { visibleNav, type NavTheme } from "../nav";
 import type { AuthUser } from "../types";
-import { ChevronDown, KeyRound, LayoutDashboard, ShieldCheck, Users, Folder, MessageSquareWarning, ScrollText } from "lucide-react";
+import { Bell, ChevronDown, KeyRound, LayoutDashboard, ShieldCheck, Users, Folder, MessageSquareWarning, ScrollText } from "lucide-react";
 import LaporMasalahButton from "./LaporMasalahButton";
 
 // Tailwind needs full class names, so each theme lists them literally.
@@ -108,6 +108,10 @@ export default function SidebarNav({ user, pathname, onNavigate }: Props) {
         </Link>
         </>
       )}
+      <Link href="/dashboard/notifications" onClick={onNavigate} className={topLink(checkActive(pathname, "/dashboard/notifications"))}>
+        <Bell className="w-5 h-5" />
+        <span className="font-medium">Notifications</span>
+      </Link>
       <Link href="/dashboard" onClick={onNavigate} className={topLink(pathname === "/dashboard")}>
         <LayoutDashboard className="w-5 h-5" />
         <span className="font-medium">Overview</span>

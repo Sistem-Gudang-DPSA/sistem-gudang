@@ -1,5 +1,6 @@
 import { Camera, Plus, ScanLine } from "lucide-react";
 import QrCameraScanner from "@/domains/inventory/components/QrCameraScanner";
+import { roundQty } from "@/shared/lib/input";
 import { orangeButtonClass } from "../styles";
 import type { BarisForm } from "../types";
 import type { useScanBarang } from "../useScanBarang";
@@ -112,7 +113,7 @@ export default function PanelScan({
     <p className="mt-3 text-sm text-gray-700">
       Terscan:{" "}
       <span className="font-bold">
-        {baris.reduce((n, b) => n + (Number(b.qty) || 0), 0)}
+        {roundQty(baris.reduce((n, b) => n + (Number(b.qty) || 0), 0))}
       </span>{" "}
       item, {baris.length} jenis
     </p>

@@ -66,6 +66,11 @@ dengan payload `{ price, supplierId }` saja. Field supplier di form
 diganti dari input teks bebas jadi dropdown supplier asli, karena API
 butuh `supplierId` bukan nama supplier.
 
+Panel Filter (kategori, satuan, supplier, lokasi, stok kosong) dikirim ke
+`listItems()` lewat `toItemFilterParams`, sama seperti Data Barang Gudang.
+Export CSV mengambil semua barang yang cocok dengan pencarian, filter, dan
+urutan aktif lewat `fetchAllPages`, bukan hanya halaman yang tampil.
+
 ## Bug atau Celah yang Ditemukan
 
 `src/domains/purchasing/components/DataSupplierDetail.tsx` (harga per
@@ -99,7 +104,7 @@ sebelumnya jadi catatan "Belum Dikerjakan": `PATCH /items/{id}/stock`
 untuk mengubah stok lewat delta bertanda plus/minus dengan alasan wajib,
 dan field `createdAt`/`updatedAt` di response Item. Sudah disambungkan:
 
-- `src/domains/inventory/api.ts` — fungsi baru `adjustItemStock(id, { delta, reason })`.
+- `src/domains/inventory/api.ts` — fungsi baru `adjustItemStock(id, { delta, reason }, idempotencyKey?)`. Header `Idempotency-Key` dikirim bila diisi; layar Data Barang Superadmin membuat satu key per penyesuaian, memakainya ulang saat retry (isi sama), dan membuat key baru untuk penyesuaian berikutnya.
 - `src/domains/inventory/types.ts` — `Item` sekarang punya `createdAt` dan `updatedAt`.
 - `src/domains/inventory/components/DataBarang.tsx` — tombol "Stok" baru di kolom Aksi, membuka modal untuk input perubahan jumlah dan alasan, lalu memanggil `adjustItemStock`.
 
@@ -122,3 +127,7 @@ endpoint backend-nya:
   masuk/keluar yang terstruktur (nomor referensi, supplier, dsb).
 - Edit dan hapus lokasi (tidak ada tombolnya di desain awal, dan
   `DELETE /locations/{id}` belum dipakai di frontend manapun).
+
+## Import Excel Data Barang
+
+Import Data Barang Superadmin memeriksa tiap baris sebelum dikirim ke `POST /api/v1/items/bulk`. Stok maksimal 1.000.000 dengan paling banyak 3 desimal, harga bilangan bulat maksimal 2.000.000.000, dan satu file maksimal 1.000 baris data. Nilai yang melanggar ditolak dengan pesan per baris, tidak dibulatkan diam-diam. Nomor baris di pesan sama dengan nomor baris di Excel, termasuk bila ada baris kosong di antaranya.
