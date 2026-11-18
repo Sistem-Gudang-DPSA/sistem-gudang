@@ -19,12 +19,12 @@ const buttonClass = "flex items-center gap-2 px-3 py-2 bg-orange-50 border borde
 export default function BulkSupplierAction({
   selected,
   suppliers,
-  canUpdate,
+  canAssignSupplier,
   onFinished,
 }: {
   selected: Map<number, ItemListRow>;
   suppliers: { id: number; name: string }[];
-  canUpdate: boolean;
+  canAssignSupplier: boolean;
   onFinished: (result: SupplierMappingResult) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -33,7 +33,7 @@ export default function BulkSupplierAction({
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState("");
 
-  if (!canUpdate) return null;
+  if (!canAssignSupplier) return null;
 
   const withSupplier = [...selected.values()].filter((item) => item.supplierId !== null).length;
 
