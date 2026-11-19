@@ -8,6 +8,7 @@ import type { PermintaanPembelian } from '@/domains/ppic/data/pembelian';
 import { buatPoPath, rekap_pembelian_path } from '@/domains/purchasing/data/pembelian';
 import { useCan } from '@/domains/auth/user-context';
 import { ApiError } from '@/shared/lib/api-client';
+import DaftarPoPermintaan from './DaftarPoPermintaan';
 
 const buttonClass = 'min-w-24 px-8 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm text-center disabled:opacity-50';
 const ghostClass = 'min-w-24 px-8 py-2.5 border border-gray-300 text-gray-800 font-semibold rounded-xl hover:bg-gray-50 transition-all text-sm disabled:opacity-50';
@@ -22,6 +23,10 @@ function AksiPurchasing({ permintaan, reload }: { permintaan: PermintaanPembelia
   const [error, setError] = useState('');
 
   if (permintaan.statusApi === 'approved') {
+    // Semua baris sudah masuk PO aktif: tidak perlu PO baru.
+    if (permintaan.purchaseStatus === 'PURCHASED') {
+      return <p className="text-sm text-gray-600">Semua barang sudah dipesan lewat PO.</p>;
+    }
     return canCreatePo ? <Link href={buatPoPath(permintaan.id)} className={buttonClass}>Buat PO</Link> : null;
   }
   if (permintaan.statusApi !== 'pending') {
@@ -93,6 +98,7 @@ export default function PermintaanPembelianPurchasing() {
     <PermintaanPembelianPPIC
       backPath={rekap_pembelian_path}
       actions={(permintaan, reload) => <AksiPurchasing permintaan={permintaan} reload={reload} />}
+      sections={(permintaan) => <DaftarPoPermintaan permintaan={permintaan} />}
     />
   );
 }

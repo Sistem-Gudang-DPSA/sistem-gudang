@@ -4,8 +4,10 @@
 
 Di **Data Barang** Gudang (termasuk Gudang Barang Jadi), PPIC, Purchasing,
 atau Superadmin, kolom **Stok Minimum** menampilkan batas masing-masing
-barang. Pengguna dengan permission `item.update` dapat menekan ikon pensil
-untuk mengubahnya. Batas menerima angka 0 sampai 999999999 dengan maksimal
+barang. Batas hanya dapat diubah di PPIC dan Superadmin. Pengguna dengan
+permission `item.update` di sana dapat menekan ikon pensil; di Gudang
+(termasuk Gudang Barang Jadi) dan Purchasing nilai hanya ditampilkan,
+tidak diubah. Batas menerima angka 0 sampai 999999999 dengan maksimal
 3 angka desimal; gunakan koma untuk mengetik desimal. Kosongkan batas untuk
 menonaktifkan notifikasi barang tersebut. Barang lama belum memiliki batas
 sampai diatur; sistem tidak memasang angka minimum yang sama untuk semua
