@@ -36,8 +36,9 @@ function Lampiran({ label, file }: { label: string; file?: string }) {
   );
 }
 
-// `actions` mengganti tampilan status dengan tombol aksi (dipakai halaman purchasing)
-export default function PermintaanPembelianPPIC({ backPath = rekap_pembelian_path, actions }: { backPath?: string; actions?: (permintaan: PermintaanPembelian, reload: () => void) => React.ReactNode }) {
+// `actions` mengganti tampilan status dengan tombol aksi dan `sections` menambah bagian
+// (mis. daftar PO) di detail; keduanya dipakai halaman Purchasing.
+export default function PermintaanPembelianPPIC({ backPath = rekap_pembelian_path, actions, sections }: { backPath?: string; actions?: (permintaan: PermintaanPembelian, reload: () => void) => React.ReactNode; sections?: (permintaan: PermintaanPembelian) => React.ReactNode }) {
   const { id } = useParams<{ id: string }>();
   const canResubmit = useCan('purchase-request.create');
   const { data: permintaan, loading, error, reload } = useApiData(() => fetchPermintaan(id), id, 'Gagal memuat permintaan pembelian.');
@@ -114,6 +115,8 @@ export default function PermintaanPembelianPPIC({ backPath = rekap_pembelian_pat
             </tbody>
           </table>
         </div>
+
+        {sections?.(permintaan)}
 
         <hr className={dividerClass} />
 

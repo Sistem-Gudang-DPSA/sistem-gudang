@@ -8,7 +8,7 @@ export type BarangColumn = {
   sortKey?: string;
   align?: 'left' | 'right' | 'center';
   tdClassName?: string;
-  // tanpa cell hanya kepala kolom; dipakai PPIC untuk header "Stok & Satuan" yang tidak punya sel
+  // tanpa cell hanya kepala kolom
   cell?: (item: ItemListRow, index: number) => ReactNode;
 };
 

@@ -48,3 +48,7 @@ docs/example-excel-files/*.sql
 
 # catatan lokal audit performa
 /docs/perf-issue.md
+
+# claude code local skills
+.claude/
+skills-lock.json

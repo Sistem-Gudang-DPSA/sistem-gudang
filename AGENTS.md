@@ -28,6 +28,7 @@ Next.js 16 (App Router) + React 19 + TypeScript + Tailwind v4. Package manager: 
 - Jangan menghapus atau melemahkan test agar lulus. Test gagal = perbaiki kode, atau tanyakan dulu.
 - Jangan commit/push sebelum diminta user. Jangan push ke `dev` langsung; pakai branch + PR.
 - Jangan mengerjakan di luar permintaan (scope creep). Perubahan tak terkait dipisah ke PR lain.
+- Pesan commit tidak memakai trailer `Co-Authored-By` untuk agent (mis. `Claude Code <noreply@anthropic.com>`), dan body PR tidak memakai footer "Generated with Claude Code". Email co-author itu terhubung ke akun GitHub `claude`, sehingga agent ikut terhitung di daftar contributors repo.
 - Agent wajib membaca aturan di file ini dan menaatinya; hasil agent tetap harus ditinjau manusia sebelum merge.
 
 File ini adalah satu-satunya acuan aturan. `CLAUDE.md` dan `GEMINI.md` hanya mengimpornya, jadi ubah aturan di sini saja. Manusia dan agent memakai aturan yang sama. Checklist yang sama ada di `.github/pull_request_template.md`.

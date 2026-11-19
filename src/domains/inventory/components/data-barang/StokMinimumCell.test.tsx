@@ -18,7 +18,7 @@ const routes = {
   'PUT /api/v1/items/1': item,
 };
 
-describe.each([['Gudang', Gudang], ['Gudang Barang Jadi', GudangBarangJadi], ['PPIC', Ppic], ['Purchasing', Purchasing], ['Superadmin', Superadmin]] as const)('stok minimum %s', (_name, Page) => {
+describe.each([['PPIC', Ppic], ['Superadmin', Superadmin]] as const)('stok minimum %s', (_name, Page) => {
   it('shows the same per-item editor and saves a decimal threshold', async () => {
     const api = installFakeApi(routes);
     render(<AuthUserProvider user={user(['item.view', 'item.update'])}><Page /></AuthUserProvider>);
@@ -35,6 +35,16 @@ describe.each([['Gudang', Gudang], ['Gudang Barang Jadi', GudangBarangJadi], ['P
   it('hides the edit action without item.update', async () => {
     installFakeApi(routes);
     render(<AuthUserProvider user={user(['item.view'])}><Page /></AuthUserProvider>);
+    await screen.findByText('Triplex 2 mm');
+    expect(screen.getByRole('columnheader', { name: 'Stok Minimum' })).not.toBeNull();
+    expect(screen.queryByRole('button', { name: 'Atur stok minimum Triplex 2 mm' })).toBeNull();
+  });
+});
+
+describe.each([['Gudang', Gudang], ['Gudang Barang Jadi', GudangBarangJadi], ['Purchasing', Purchasing]] as const)('stok minimum %s', (_name, Page) => {
+  it('menampilkan batas tanpa aksi edit karena diatur PPIC dan Superadmin', async () => {
+    installFakeApi(routes);
+    render(<AuthUserProvider user={user(['item.view', 'item.update'])}><Page /></AuthUserProvider>);
     await screen.findByText('Triplex 2 mm');
     expect(screen.getByRole('columnheader', { name: 'Stok Minimum' })).not.toBeNull();
     expect(screen.queryByRole('button', { name: 'Atur stok minimum Triplex 2 mm' })).toBeNull();
