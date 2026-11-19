@@ -5,7 +5,9 @@ import Form from './PermintaanPembelianTambah';
 import type { PermintaanPembelian } from '../data/pembelian';
 
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
+const cetak = vi.hoisted(() => ({ cetakLaporan: vi.fn(async () => {}) }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push, back: vi.fn() }) }));
+vi.mock('@/shared/lib/print-laporan', () => ({ cetakLaporan: cetak.cetakLaporan, tungguGambarCetak: vi.fn() }));
 const basePath = '/dashboard/gudang/transaksi/permintaan-pembelian';
 const existing: PermintaanPembelian = {
   id: 7, tanggal: '2026-11-09', permintaan: 'Bahan', status: 'Belum Disetujui', statusApi: 'pending', bagian: 'Gudang', nama: 'Fauzi', jabatan: 'Staff', periode: 'November 2026', catatan: 'Penting',
@@ -18,7 +20,7 @@ const routes = {
   'GET /api/v1/tracking/spk/SPK-1': { noSpk: 'SPK-1', client: 'Client', products: [{ name: 'Hotel' }] },
 };
 const change = (name: string, value: string) => fireEvent.change(screen.getByLabelText(name), { target: { value } });
-beforeEach(() => push.mockReset());
+beforeEach(() => { push.mockReset(); cetak.cetakLaporan.mockClear(); });
 
 describe('purchase request form', () => {
   it('submits the photo fields in a new request, omitting blank rows', async () => {
@@ -33,7 +35,6 @@ describe('purchase request form', () => {
     change('QTY baris 1', '5');
     change('Satuan baris 1', 'Kg');
     change('Tanggal baris 1', '2026-11-09');
-    change('Supplier baris 1', 'PT Bahan');
     change('Proyek baris 1', 'Hotel');
     change('Keterangan baris 1', 'Segera');
     change('Dikirim Tanggal baris 1', '2026-11-20');
@@ -43,7 +44,8 @@ describe('purchase request form', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ajukan Permintaan Pembelian' }));
     await waitFor(() => expect(api.calls('POST /api/v1/approvals')).toHaveLength(1));
     expect(api.calls('POST /api/v1/approvals')[0].body).toEqual({ type: 'purchase-request', payload: {
-      bagian: 'Gudang', namaPemohon: 'Fauzi', jabatan: 'Staff', tanggalPengajuan: '2026-11-09', items: existing.barang.map((item) => ({ ...item, noSpk: undefined })),
+      bagian: 'Gudang', namaPemohon: 'Fauzi', jabatan: 'Staff', tanggalPengajuan: '2026-11-09',
+      items: [{ namaBarang: 'Paku', qty: 5, satuan: 'Kg', proyek: 'Hotel', noSpk: undefined, supplier: undefined, tanggal: '2026-11-09', keterangan: 'Segera', deadlineTanggal: '2026-11-20' }],
     } });
     await waitFor(() => expect(push).toHaveBeenCalledWith(basePath));
   });
@@ -72,10 +74,10 @@ describe('purchase request form', () => {
   it('retains changes and displays the server error when saving fails', async () => {
     installFakeApi({ ...routes, 'PUT /api/v1/approvals/7': fail(400, 'Permintaan sudah disetujui') });
     render(<Form permintaan={existing} basePath={basePath} editing />);
-    change('Supplier baris 1', 'Supplier baru');
+    change('Keterangan baris 1', 'Catatan baru');
     fireEvent.click(screen.getByRole('button', { name: 'Simpan Perubahan' }));
     expect(await screen.findByText('Permintaan sudah disetujui')).toBeTruthy();
-    expect((screen.getByLabelText('Supplier baris 1') as HTMLInputElement).value).toBe('Supplier baru');
+    expect((screen.getByLabelText('Keterangan baris 1') as HTMLInputElement).value).toBe('Catatan baru');
     expect(push).not.toHaveBeenCalled();
   });
 
@@ -103,6 +105,27 @@ describe('purchase request form', () => {
     expect(payload).not.toHaveProperty('periode');
     expect(payload.items).toEqual([{ namaBarang: 'Paku', qty: 5, satuan: 'Kg', proyek: 'Hotel' }]);
     expect(Object.keys((payload.items as object[])[0])).toEqual(['namaBarang', 'satuan', 'proyek', 'qty']);
+  });
+
+  it('mencetak form yang sedang diisi tanpa menyimpan permintaan', async () => {
+    const api = installFakeApi(routes);
+    render(<Form basePath={basePath} />);
+    fillHeader();
+    fillRow();
+    change('Keterangan baris 1', '<b>Segera</b>');
+    fireEvent.click(screen.getByRole('button', { name: 'Cetak' }));
+    await waitFor(() => expect(cetak.cetakLaporan).toHaveBeenCalledTimes(1));
+    const [judul, html, opsi] = cetak.cetakLaporan.mock.calls[0] as unknown as [string, string, { label: string; identitas: unknown }];
+    expect(judul).toBe('Form Permintaan Pembelian Bahan Baku');
+    expect(html).toContain('Paku');
+    expect(html).toContain('Hotel');
+    expect(html).toContain('&lt;b&gt;Segera&lt;/b&gt;');
+    expect(html).not.toContain('<b>Segera</b>');
+    expect(opsi.label).toBe('permintaan pembelian');
+    // Terbit mengikuti tanggal pengajuan (surat), bukan tanggal tetap.
+    expect(opsi.identitas).toEqual({ kode: 'PPIC', nomor: '002', revisi: '00', terbit: '11/26' });
+    expect(api.calls('POST /api/v1/approvals')).toHaveLength(0);
+    expect(push).not.toHaveBeenCalled();
   });
 
   it('validates rows containing only a delivery date instead of silently discarding them', async () => {
@@ -135,6 +158,31 @@ describe('purchase request form', () => {
     expect(screen.queryByLabelText('Nama Barang baris 2')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: '+ Tambah Baris' }));
     expect(screen.getByLabelText('Nama Barang baris 2')).toBeTruthy();
+  });
+
+  it('menambahkan barang menipis dari rekomendasi dengan qty saran dan supplier master', async () => {
+    const master = { id: 31, code: 'TRP001', externalCode: null, name: 'Triplex 2 mm', stock: 2, minimumStock: 10, unit: 'lembar', category: 'Lembaran', price: 1000, locationId: null, locationCode: null, supplierId: 4, supplierName: 'PT Kayu' };
+    const api = installFakeApi({ ...routes, 'GET /api/v1/items': paged([master]), 'POST /api/v1/approvals': { id: 9 } });
+    render(<Form basePath={basePath} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Rekomendasi Restock/ }));
+    expect(await screen.findByText('1 barang di bawah stok minimum')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Tambah Triplex 2 mm ke permintaan' }));
+
+    expect((screen.getByLabelText('Nama Barang baris 1') as HTMLInputElement).value).toBe('Triplex 2 mm');
+    expect((screen.getByLabelText('QTY baris 1') as HTMLInputElement).value).toBe('8');
+    expect((screen.getByLabelText('Satuan baris 1') as HTMLInputElement).value).toBe('lembar');
+    const supplier = screen.getByLabelText('Supplier baris 1') as HTMLInputElement;
+    expect(supplier.value).toBe('PT Kayu');
+    expect(supplier.readOnly).toBe(true);
+    expect(screen.getByRole('button', { name: 'Tambah Triplex 2 mm ke permintaan' })).toHaveProperty('disabled', true);
+
+    fillHeader();
+    change('Proyek baris 1', 'Hotel');
+    fireEvent.click(screen.getByRole('button', { name: 'Ajukan Permintaan Pembelian' }));
+    await waitFor(() => expect(api.calls('POST /api/v1/approvals')).toHaveLength(1));
+    expect((api.calls('POST /api/v1/approvals')[0].body as { payload: { items: unknown[] } }).payload.items).toEqual([{
+      itemId: 31, namaBarang: 'Triplex 2 mm', satuan: 'lembar', proyek: 'Hotel', supplier: 'PT Kayu', qty: 8, noSpk: undefined, keterangan: undefined, tanggal: undefined, deadlineTanggal: undefined,
+    }]);
   });
 
   it('keeps noSpk when the edited row has one', async () => {

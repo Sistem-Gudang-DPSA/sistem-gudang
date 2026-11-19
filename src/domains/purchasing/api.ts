@@ -28,6 +28,14 @@ export function saveSupplierPrices(id: number | string, tahun: number, prices: S
   return apiClient.put<SupplierPrices>(`/api/v1/suppliers/${id}/prices`, { tahun, prices });
 }
 
+export function listPurchaseOrders(params?: ListParams & { approvalRequestId?: number; status?: "ISSUED" | "CANCELLED" }) {
+  return apiClient.get<PaginatedResult<PurchaseOrder>>(`/api/v1/purchase-orders${toQuery(params)}`);
+}
+
+export function getPurchaseOrder(id: number | string) {
+  return apiClient.get<PurchaseOrder>(`/api/v1/purchase-orders/${id}`);
+}
+
 export function createPurchaseOrder(input: CreatePurchaseOrderInput) {
   return apiClient.post<PurchaseOrder>("/api/v1/purchase-orders", input);
 }

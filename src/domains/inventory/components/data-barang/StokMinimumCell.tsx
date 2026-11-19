@@ -13,8 +13,8 @@ export function peringatanStokMinimum(value: string): string {
   return /^(?:\d{1,9}(?:\.\d{1,3})?|\.\d{1,3})$/.test(value) ? '' : 'Maksimal 3 angka desimal.';
 }
 
-export default function StokMinimumCell({ item, onSaved }: { item: ItemListRow; onSaved: () => void }) {
-  const canUpdate = useCan('item.update');
+export default function StokMinimumCell({ item, onSaved, readOnly = false }: { item: ItemListRow; onSaved: () => void; readOnly?: boolean }) {
+  const canUpdate = useCan('item.update') && !readOnly;
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState('');
   const [error, setError] = useState('');
