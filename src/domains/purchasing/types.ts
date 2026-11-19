@@ -39,6 +39,8 @@ export interface SupplierPriceChange {
 }
 
 export interface PurchaseOrderLineInput {
+  // Index baris pada permintaan pembelian; dipakai backend untuk menandai baris yang sudah dipesan.
+  lineIndex?: number;
   kodeBarang: string;
   namaBarang: string;
   satuan: string;

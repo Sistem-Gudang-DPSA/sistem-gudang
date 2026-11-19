@@ -24,7 +24,27 @@ contoh dan tombol simpannya hanya menampilkan alert.
 - PO hanya bisa dibuat untuk permintaan pembelian berstatus Disetujui.
   Satu permintaan boleh punya beberapa PO. PIC supplier dan kode barang
   setiap baris sekarang wajib diisi karena backend mewajibkannya.
+- PO tidak dibuat mandiri: tombol **Buat Pesanan Baru** dan route form PO
+  tanpa permintaan sudah dihapus. PO selalu dimulai dari permintaan
+  pembelian PPIC.
 - Role Purchasing membutuhkan permission `purchase-order.create`.
+
+## Membagi permintaan menjadi beberapa PO
+
+- Form Buat PO memuat semua baris permintaan. Purchasing memilih satu
+  supplier untuk PO itu, lalu mencentang baris yang dibeli dari supplier
+  tersebut; baris lain dibuat PO terpisah. Hanya baris yang dicentang yang
+  dihitung pada total dan dikirim ke backend, masing-masing dengan
+  `lineIndex` baris permintaannya.
+- Baris yang sudah masuk PO aktif (bukan batal) ditandai **Sudah dipesan**
+  dan tidak bisa dicentang lagi. Daftar PO aktif dibaca lewat
+  `GET /purchase-orders?approvalRequestId=` lalu `GET /purchase-orders/{id}`
+  untuk barisnya. Backend tetap menolak baris yang sudah dipesan dengan 409.
+- Detail permintaan Purchasing menampilkan tabel PO milik permintaan
+  (nomor, tanggal, supplier, grand total) dan progres `purchaseStatus`.
+  Bila semua baris sudah dipesan, tombol Buat PO berganti menjadi keterangan
+  bahwa semua barang sudah dipesan.
+- Setelah PO tersimpan, layar kembali ke detail permintaan.
 
 ## Histori Harga Supplier
 
@@ -41,8 +61,9 @@ contoh dan tombol simpannya hanya menampilkan alert.
 
 ## Yang Belum Ada
 
-- Layar daftar dan detail PO. Backend sudah menyediakan `GET /purchase-orders`
-  dan `GET /purchase-orders/{id}`, tetapi FE belum punya layarnya.
+- Layar daftar dan detail PO tersendiri. Saat ini PO hanya terlihat di detail
+  permintaan pembelian Purchasing; belum ada halaman yang menampilkan isi
+  lengkap satu PO.
 - Tombol Download PDF di Detail Data Barang masih belum berfungsi.
 - Penawaran Harga PPIC atau SPH ditunda sampai Imel memperbarui branch-nya.
 - Tracking masih data tiruan di backend.

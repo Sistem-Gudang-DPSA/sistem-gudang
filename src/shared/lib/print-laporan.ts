@@ -22,6 +22,10 @@ const CSS_LAPORAN = `
   .r { text-align: right; }
   .sub { color: #555; font-size: 10px; }
   .b td { font-weight: bold; background: #f5f5f5; }
+  /* Kotak identitas dokumen di kanan atas kop: kecil, selebar isinya, tidak ikut lebar tabel laporan. */
+  .identitas-dokumen { width: auto; margin: 0 0 0 auto; border-collapse: collapse; font-size: 9px; flex: none; }
+  .identitas-dokumen td, .identitas-dokumen th { border: 1px solid #111; padding: 1mm 2mm; text-align: left; white-space: nowrap; }
+  .identitas-dokumen .kode { text-align: center; font-weight: 700; line-height: 1.3; }
 `;
 
 const logoUrl = (path: string) => new URL(path, window.location.origin).href;
@@ -42,7 +46,16 @@ export async function tungguGambarCetak(dokumen: Document): Promise<void> {
   );
 }
 
-export function kopLaporan(judul: string, meta: string[]): string {
+export type IdentitasDokumen = { kode: string; nomor: string; revisi: string; terbit: string };
+
+const kotakIdentitas = (identitas: IdentitasDokumen) => `<table class="identitas-dokumen">
+      <tbody>
+        <tr><td rowspan="2" class="kode">${escapeHtml(identitas.kode)}<br />${escapeHtml(identitas.nomor)}</td><td>Rev : ${escapeHtml(identitas.revisi)}</td></tr>
+        <tr><td>Terbit : ${escapeHtml(identitas.terbit)}</td></tr>
+      </tbody>
+    </table>`;
+
+export function kopLaporan(judul: string, meta: string[], identitas?: IdentitasDokumen): string {
   return `<header class="kop">
       <img class="logo" src="${escapeHtml(logoUrl(COMPANY_LOGO))}" alt="Logo perusahaan" />
       <div>
@@ -50,11 +63,12 @@ export function kopLaporan(judul: string, meta: string[]): string {
         <h1>${escapeHtml(judul)}</h1>
         ${meta.map((m) => `<p class="meta">${escapeHtml(m)}</p>`).join("")}
       </div>
+      ${identitas ? kotakIdentitas(identitas) : ""}
     </header>`;
 }
 
 // Dokumen HTML lengkap: kop di atas, lalu isi tabel laporan.
-export function dokumenLaporan(judul: string, meta: string[], isi: string, landscape = false): string {
+export function dokumenLaporan(judul: string, meta: string[], isi: string, landscape = false, identitas?: IdentitasDokumen): string {
   return `<!doctype html>
     <html lang="id">
       <head>
@@ -66,7 +80,7 @@ export function dokumenLaporan(judul: string, meta: string[], isi: string, lands
         </style>
       </head>
       <body>
-        ${kopLaporan(judul, meta)}
+        ${kopLaporan(judul, meta, identitas)}
         ${isi}
       </body>
     </html>`;
@@ -75,7 +89,7 @@ export function dokumenLaporan(judul: string, meta: string[], isi: string, lands
 export function cetakLaporan(
   judul: string,
   isi: string,
-  { meta = [], label = judul, landscape = false }: { meta?: string[]; label?: string; landscape?: boolean } = {},
+  { meta = [], label = judul, landscape = false, identitas }: { meta?: string[]; label?: string; landscape?: boolean; identitas?: IdentitasDokumen } = {},
 ): Promise<void> {
-  return cetakHtml(dokumenLaporan(judul, meta, isi, landscape), label, tungguGambarCetak);
+  return cetakHtml(dokumenLaporan(judul, meta, isi, landscape, identitas), label, tungguGambarCetak);
 }
