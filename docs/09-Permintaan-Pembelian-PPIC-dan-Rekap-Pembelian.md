@@ -72,9 +72,42 @@ dan catatan. Nama pelaku belum tampil karena backend hanya mengirim
   langkah workflow-nya. Pastikan role Purchasing dan PPIC memang punya
   langkah untuk `purchase-request` saat uji manual.
 
-## Tanggal pada form permintaan
+## Kolom tabel pada form permintaan
 
-Kolom **Dikirim Tanggal** pada form tambah, edit, dan revisi dipetakan ke
-field API `items[].deadlineTanggal`. Tanggal dari permintaan lama mengisi
-kolom yang sama dan tetap dikirim saat menyimpan. Baris yang hanya berisi
-tanggal tetap dianggap terisi dan wajib dilengkapi sebelum dikirim.
+Tabel pada form tambah, edit, dan revisi di Gudang maupun PPIC berisi
+**No**, **Nama Barang**, **QTY**, **SAT**, **Proyek**, dan **Keterangan**.
+Tanggal per barang, Supplier, dan Dikirim Tanggal tidak ditampilkan pada form.
+Tanggal Pengajuan tetap diisi pada bagian identitas permintaan.
+Permintaan baru tidak mengirim `tanggal`, `supplier`, atau `deadlineTanggal`
+per barang. Jika data lama memiliki ketiga field ini, nilainya dipertahankan
+saat edit/revisi. Menghapus baris ikut menghapus data lama milik baris tersebut.
+Baris yang hanya berisi Keterangan tetap wajib dilengkapi sebelum dikirim.
+
+## Pilihan pemohon pada form
+
+Kolom **Bagian/Sub bagian**, **Nama**, dan **Jabatan** pada form tambah, edit,
+dan revisi di Gudang maupun PPIC memakai dropdown. Pilihan sementara berupa
+data dummy di `src/domains/ppic/data/pemohon-pembelian.ts`, tanpa endpoint baru.
+Ketiga pilihan berdiri sendiri dan tetap wajib dipilih sebelum mengajukan.
+Nilainya dikirim sebagai `bagian`, `namaPemohon`, dan `jabatan` pada payload
+permintaan. Saat membuka data lama, nilai yang belum ada di daftar dummy tetap
+muncul dan dipertahankan saat disimpan.
+
+## Pilihan proyek pada rincian barang
+
+Kolom **Proyek** memakai dropdown yang dapat dicari pada setiap baris form
+Gudang dan PPIC. Pilihannya berasal dari `projectName` pada
+`GET /api/v1/tracking/spk`, sumber yang sama dengan halaman **Daftar Proyek**.
+Seluruh daftar diambil tanpa `limit`; nama yang kosong diabaikan dan nama
+berulang ditampilkan satu kali. Pilihan disimpan pada `items[].proyek`.
+Nilai proyek lama tetap ditampilkan saat edit/revisi walaupun sudah tidak ada
+dalam daftar tracking. Mengganti proyek mengosongkan `noSpk` lama pada baris
+agar nomor SPK sebelumnya tidak ikut dipakai untuk proyek baru.
+Jika tracking gagal dimuat, form menampilkan pesan kesalahan.
+
+## Judul halaman rekap
+
+Halaman Rekap Pembelian di PPIC dan Rekap Permintaan Pembelian di Purchasing
+memakai judul **DAFTAR PERMINTAAN PEMBELIAN** dengan teks pengantar
+**Kelola pengajuan permintaan pembelian barang.** Judul memakai ukuran dan
+gaya yang sama dengan halaman daftar permintaan pembelian.

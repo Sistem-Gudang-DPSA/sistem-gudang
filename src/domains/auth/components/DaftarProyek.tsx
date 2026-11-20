@@ -81,7 +81,7 @@ export default function DaftarProyekPage() {
       {/* Header Judul */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Daftar Proyek</h1>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Daftar diyek</h1>
           <p className="text-sm text-gray-500 mt-1">
             Daftar proyek yang tersedia.
           </p>
@@ -126,8 +126,8 @@ export default function DaftarProyekPage() {
               <tr className="border-b border-gray-100 text-gray-500 font-semibold uppercase tracking-wider">
                 <th className="py-3.5 px-4 w-12 text-center">No</th>
                 <th className="py-3.5 px-4 font-bold text-gray-700 min-w-48">Client</th>
-                <th className="py-3.5 px-4 font-bold text-gray-700 min-w-56">Nama Projek</th>
-                <th className="py-3.5 px-4 font-bold text-gray-700 min-w-44">No SPK</th>
+                <th className="py-3.5 px-4 font-bold text-gray-700 min-w-56">Nama Proyek</th>
+                <th className="py-3.5 px-4 font-bold text-gray-700 min-w-44">No. SPK</th>
                 <th className="py-3.5 px-4 font-bold text-gray-700 min-w-32">SPK Masuk</th>
               </tr>
             </thead>

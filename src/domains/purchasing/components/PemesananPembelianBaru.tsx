@@ -5,8 +5,8 @@ import React, { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { formatAngka } from "@/domains/ppic/data/dokubah";
-import { createPurchaseOrder } from "@/domains/purchasing/api";
-import { useSupplierSearch } from "@/domains/purchasing/use-supplier-search";
+import { createPurchaseOrder, listSuppliers } from "@/domains/purchasing/api";
+import { fetchAllPages } from "@/shared/lib/fetch-all";
 import SearchableSelect from "@/shared/components/SearchableSelect";
 import { decimalOnly, digitsOnly, parsePpn } from "@/shared/lib/input";
 import { PEMESAN } from "@/domains/purchasing/data/pembelian";
@@ -14,6 +14,11 @@ import type { PurchaseOrder, Supplier } from "@/domains/purchasing/types";
 import { ApiError } from "@/shared/lib/api-client";
 import { useItemSearch } from '@/domains/inventory/use-item-search';
 import { createPortal } from "react-dom";
+import { getDummyPicSupplier } from "@/domains/purchasing/data/pic-supplier";
+import { listTrackingSpk } from "@/domains/ppic/api";
+import { useApiData } from "@/shared/lib/use-api-data";
+import { printPurchaseOrder } from "@/domains/purchasing/export/print-po";
+import { useCan } from "@/domains/auth/user-context";
 
 type BarisBarang = {
     id: number;
@@ -54,11 +59,20 @@ const buatBarisBarang = (): BarisBarang => ({
 });
 
 export default function BuatPOBaruPage() {
+    const canCreate = useCan("purchase-order.create");
     const [saving, setSaving] = useState(false);
     const [dibuat, setDibuat] = useState<PurchaseOrder | null>(null);
+    const [printing, setPrinting] = useState(false);
+    const [printError, setPrintError] = useState("");
+    const submitting = useRef(false);
 
     const [tanggalPo, setTanggalPo] = useState("");
-    const { suppliers: hasilSupplier, onSearch: cariSupplier, pending: supplierPending, error: supplierError } = useSupplierSearch();
+    const { data: daftarSupplier, loading: supplierPending, error: supplierError } = useApiData(
+        () => fetchAllPages((page, pageSize) => listSuppliers({ page, pageSize })),
+        "po-baru-semua-supplier",
+        "Gagal memuat daftar supplier.",
+    );
+    const hasilSupplier = daftarSupplier ?? [];
     // Supplier terpilih disimpan sendiri supaya tetap ada walau di luar hasil pencarian terakhir.
     const [supplier, setSupplier] = useState<Supplier | null>(null);
     const [picSupplier, setPicSupplier] = useState("");
@@ -68,6 +82,13 @@ export default function BuatPOBaruPage() {
     ]);
 
     const [kebutuhanProyek, setKebutuhanProyek] = useState("");
+    const { data: daftarProyek, loading: proyekLoading, error: proyekError } = useApiData(
+        () => listTrackingSpk(),
+        "po-baru-daftar-proyek",
+        "Gagal memuat daftar proyek. Kebutuhan tetap dapat diisi manual.",
+    );
+    const pilihanProyek = [...new Set((daftarProyek ?? []).map((spk) => spk.projectName?.trim()).filter((name): name is string => !!name && name !== '-'))]
+        .sort((a, b) => a.localeCompare(b));
     const [persenPpn, setPersenPpn] = useState("12");
     const [jasa, setJasa] = useState("");
     const [formError, setFormError] = useState("");
@@ -144,10 +165,23 @@ export default function BuatPOBaruPage() {
         </div>
     );
 
+    const handlePrint = async (po: PurchaseOrder) => {
+        setPrinting(true);
+        setPrintError("");
+        try {
+            await printPurchaseOrder(po);
+        } catch {
+            setPrintError("PO sudah tersimpan, tetapi dialog cetak gagal dibuka. Klik Cetak Ulang PO untuk mencoba lagi.");
+        } finally {
+            setPrinting(false);
+        }
+    };
+
     const handleBuat = async (
         e: React.FormEvent<HTMLFormElement>
     ) => {
         e.preventDefault();
+        if (!canCreate || submitting.current) return;
         setFormError("");
 
         if (!tanggalPo) {
@@ -212,18 +246,15 @@ export default function BuatPOBaruPage() {
             return;
         }
 
+        submitting.current = true;
         setSaving(true);
 
         try {
-            /*
-             * PO dibuat langsung tanpa approvalRequestId.
-             * Pastikan tipe payload dan endpoint backend juga mendukung
-             * pembuatan PO mandiri tanpa ID permintaan pembelian.
-             */
             const payload = {
                 tanggalPo,
                 supplierId: supplier.id,
                 picSupplier: picSupplier.trim(),
+                kebutuhanProyek: kebutuhanProyek.trim() || undefined,
                 barang: barang.map((b) => ({
                     kodeBarang: b.kodeBarang.trim(),
                     namaBarang: b.namaBarang.trim(),
@@ -236,11 +267,10 @@ export default function BuatPOBaruPage() {
                 jasa: toNumber(jasa),
             };
 
-            const hasil = await createPurchaseOrder(
-                payload as Parameters<typeof createPurchaseOrder>[0]
-            );
+            const hasil = await createPurchaseOrder(payload);
 
             setDibuat(hasil);
+            await handlePrint(hasil);
         } catch (err) {
             setFormError(
                 err instanceof ApiError
@@ -248,6 +278,7 @@ export default function BuatPOBaruPage() {
                     : "Gagal membuat PO."
             );
         } finally {
+            submitting.current = false;
             setSaving(false);
         }
     };
@@ -290,6 +321,11 @@ export default function BuatPOBaruPage() {
                         Supplier {dibuat.supplierName}, grand total Rp.{" "}
                         {formatAngka(dibuat.grandTotal)}
                     </p>
+
+                    {printError && <p role="alert" className="mt-4 text-sm text-red-600">{printError}</p>}
+                    <button type="button" disabled={printing} onClick={() => void handlePrint(dibuat)} className={`${orangeButtonClass} inline-block mt-6 mr-3 disabled:opacity-60`}>
+                        {printing ? "Menyiapkan cetak..." : "Cetak Ulang PO"}
+                    </button>
 
                     <Link
                         href="/dashboard/purchasing/transaksi/buat-po-barang"
@@ -369,7 +405,9 @@ export default function BuatPOBaruPage() {
                                                 <SearchableSelect
                                                     value={supplier ? String(supplier.id) : ""}
                                                     onChange={(idSupplier) => {
-                                                        setSupplier((prev) => hasilSupplier.find((s) => String(s.id) === idSupplier) ?? (prev && String(prev.id) === idSupplier ? prev : null));
+                                                        const pilihan = hasilSupplier.find((s) => String(s.id) === idSupplier) ?? (supplier && String(supplier.id) === idSupplier ? supplier : null);
+                                                        setSupplier(pilihan);
+                                                        if (pilihan?.id !== supplier?.id) setPicSupplier(pilihan ? getDummyPicSupplier(pilihan.id) : "");
 
                                                         // Bersihkan barang yang sudah dipilih sebelumnya.
                                                         setBarisBarang((prev) =>
@@ -378,12 +416,12 @@ export default function BuatPOBaruPage() {
                                                                 kodeBarang: "",
                                                                 namaBarang: "",
                                                                 satuan: "",
+                                                                harga: "",
                                                             }))
                                                         );
 
                                                         setBarisAktif(null);
                                                     }}
-                                                    onSearch={cariSupplier}
                                                     pending={supplierPending}
                                                     options={[
                                                         ...(supplier && !hasilSupplier.some((s) => s.id === supplier.id) ? [{ value: String(supplier.id), label: supplier.name }] : []),
@@ -437,22 +475,10 @@ export default function BuatPOBaruPage() {
 
                                     <tr>
                                         <td className={infoLabelClass}>
-                                            <label htmlFor="po-pic-supplier">
-                                                PIC / Telp
-                                            </label>
+                                            PIC / Telp
                                         </td>
                                         <td className={infoValueClass}>
-                                            <input
-                                                id="po-pic-supplier"
-                                                type="text"
-                                                value={picSupplier}
-                                                onChange={(e) =>
-                                                    setPicSupplier(e.target.value)
-                                                }
-                                                className={cellInputClass}
-                                                placeholder="Nama PIC / nomor telepon"
-                                                required
-                                            />
+                                            {picSupplier || "-"}
                                         </td>
                                     </tr>
                                 </tbody>
@@ -508,13 +534,21 @@ export default function BuatPOBaruPage() {
                                         <td className={infoValueClass}>
                                             <input
                                                 type="text"
+                                                aria-label="Kebutuhan Proyek"
+                                                list="po-daftar-proyek"
+                                                maxLength={191}
                                                 value={kebutuhanProyek}
                                                 onChange={(e) =>
                                                     setKebutuhanProyek(e.target.value)
                                                 }
                                                 className={cellInputClass}
-                                                placeholder="Nama proyek / kebutuhan"
+                                                placeholder="Pilih proyek atau ketik kebutuhan internal"
                                             />
+                                            <datalist id="po-daftar-proyek">
+                                                {pilihanProyek.map((proyek) => <option key={proyek} value={proyek} />)}
+                                            </datalist>
+                                            {proyekLoading && <p className="mt-1 text-xs text-gray-500">Memuat daftar proyek...</p>}
+                                            {proyekError && <p role="alert" className="mt-1 text-xs text-red-600">{proyekError}</p>}
                                         </td>
                                     </tr>
 
@@ -579,20 +613,7 @@ export default function BuatPOBaruPage() {
                                     </td>
 
                                     <td className={cellClass}>
-                                        <input
-                                            type="text"
-                                            value={b.kodeBarang}
-                                            onChange={(e) =>
-                                                updateBaris(
-                                                    b.id,
-                                                    "kodeBarang",
-                                                    e.target.value
-                                                )
-                                            }
-                                            className={cellInputClass}
-                                            placeholder="Kode barang"
-                                            required
-                                        />
+                                        {b.kodeBarang}
                                     </td>
 
                                     <td className={cellClass}>
@@ -673,6 +694,7 @@ export default function BuatPOBaruPage() {
                                                                         updateBaris(b.id, "kodeBarang", item.code ?? "");
                                                                         updateBaris(b.id, "namaBarang", item.name);
                                                                         updateBaris(b.id, "satuan", item.unit ?? "");
+                                                                        updateBaris(b.id, "harga", String(item.price ?? 0));
 
                                                                         setBarisAktif(null);
                                                                     }}
@@ -681,6 +703,7 @@ export default function BuatPOBaruPage() {
                                                                             updateBaris(b.id, "kodeBarang", item.code ?? "");
                                                                             updateBaris(b.id, "namaBarang", item.name);
                                                                             updateBaris(b.id, "satuan", item.unit ?? "");
+                                                                            updateBaris(b.id, "harga", String(item.price ?? 0));
 
                                                                             setBarisAktif(null);
                                                                         }
@@ -708,20 +731,7 @@ export default function BuatPOBaruPage() {
                                     </td>
 
                                     <td className={cellClass}>
-                                        <input
-                                            type="text"
-                                            value={b.satuan}
-                                            onChange={(e) =>
-                                                updateBaris(
-                                                    b.id,
-                                                    "satuan",
-                                                    e.target.value
-                                                )
-                                            }
-                                            className={cellInputClass}
-                                            placeholder="Pcs, unit, dll."
-                                            required
-                                        />
+                                        {b.satuan}
                                     </td>
 
                                     <td className={cellClass}>
@@ -917,10 +927,10 @@ export default function BuatPOBaruPage() {
 
                     <button
                         type="submit"
-                        disabled={saving}
+                        disabled={saving || !canCreate}
                         className={`${orangeButtonClass} disabled:opacity-60 disabled:cursor-not-allowed`}
                     >
-                        {saving ? "Menyimpan..." : "Buat Purchase Order"}
+                        {saving ? "Menyimpan..." : "Cetak + Buat Purchase Order"}
                     </button>
                 </div>
             </form>

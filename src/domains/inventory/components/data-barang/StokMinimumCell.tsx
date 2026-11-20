@@ -1,6 +1,6 @@
 import { useId, useRef, useState } from 'react';
 import { Pencil } from 'lucide-react';
-import { useCan } from '@/domains/auth/user-context';
+import { useAuthUser, useCan } from '@/domains/auth/user-context';
 import { updateItem } from '@/domains/inventory/api';
 import type { ItemListRow } from '@/domains/inventory/types';
 import Modal from '@/shared/components/Modal';
@@ -13,8 +13,9 @@ export function peringatanStokMinimum(value: string): string {
   return /^(?:\d{1,9}(?:\.\d{1,3})?|\.\d{1,3})$/.test(value) ? '' : 'Maksimal 3 angka desimal.';
 }
 
-export default function StokMinimumCell({ item, onSaved }: { item: ItemListRow; onSaved: () => void }) {
-  const canUpdate = useCan('item.update');
+export default function StokMinimumCell({ item, onSaved, allowEdit = false }: { item: ItemListRow; onSaved: () => void; allowEdit?: boolean }) {
+  const user = useAuthUser();
+  const canUpdate = useCan('item.update') && allowEdit && (user?.isSuperadmin === true || user?.domainCode === 'ppic');
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState('');
   const [error, setError] = useState('');
@@ -24,7 +25,7 @@ export default function StokMinimumCell({ item, onSaved }: { item: ItemListRow; 
 
   const close = () => { if (!submitting.current) setOpen(false); };
   const save = async () => {
-    if (submitting.current) return;
+    if (!canUpdate || submitting.current) return;
     const warning = peringatanStokMinimum(value);
     if (warning) { setError(warning); return; }
     submitting.current = true;
@@ -53,7 +54,7 @@ export default function StokMinimumCell({ item, onSaved }: { item: ItemListRow; 
           <Pencil aria-hidden="true" className="h-3.5 w-3.5" />
         </button>}
       </span>
-      {open && <Modal title="Stok minimum" onClose={close} size="sm" footer={
+      {open && canUpdate && <Modal title="Stok minimum" onClose={close} size="sm" footer={
         <>
           <button type="button" disabled={saving} onClick={close} className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600">Batal</button>
           <button type="button" disabled={saving || !!peringatanStokMinimum(value)} onClick={() => void save()} className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{saving ? 'Menyimpan...' : 'Simpan'}</button>

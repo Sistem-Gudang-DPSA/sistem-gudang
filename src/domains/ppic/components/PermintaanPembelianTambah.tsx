@@ -6,18 +6,21 @@ import { useCan } from '@/domains/auth/user-context';
 import NoPermission from './NoPermission';
 import { ArrowLeft, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { createPurchaseRequest, editPurchaseRequest, resubmitApproval } from '@/domains/ppic/api';
+import { createPurchaseRequest, editPurchaseRequest, listTrackingSpk, resubmitApproval } from '@/domains/ppic/api';
 import { permintaan_pembelian_path, type PermintaanPembelian } from '@/domains/ppic/data/pembelian';
+import { PILIHAN_PEMOHON_PEMBELIAN } from '@/domains/ppic/data/pemohon-pembelian';
 import { todayIso } from '@/domains/inventory/date';
 import { ApiError } from '@/shared/lib/api-client';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 import { useItemSearch } from '@/domains/inventory/use-item-search';
+import { useApiData } from '@/shared/lib/use-api-data';
+import SearchableSelect from '@/shared/components/SearchableSelect';
 
 const emptyRow = { itemId: undefined as number | undefined, tanggal: "", supplier: "", keterangan: "", dikirimTanggal: "", namaBarang: "", qty: "", satuan: "", proyek: "", client: "", noSpk: "" };
 type Row = typeof emptyRow;
 
 const kolomWajib = (r: Row) => [r.namaBarang, r.qty, r.satuan, r.proyek];
-const barisTerisi = (r: Row) => [r.namaBarang, r.qty, r.satuan, r.proyek, r.tanggal, r.supplier, r.keterangan, r.dikirimTanggal].some(Boolean);
+const barisTerisi = (r: Row) => [r.namaBarang, r.qty, r.satuan, r.proyek, r.keterangan].some(Boolean);
 
 export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = permintaan_pembelian_path, editing = false }: { permintaan?: PermintaanPembelian; basePath?: string; editing?: boolean }) {
   const router = useRouter();
@@ -50,6 +53,15 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
   // Server errors per row, keyed by the row index in tableData.
   const [rowErrors, setRowErrors] = useState<Record<number, string>>({});
   const { items: dataBarang, onSearch: searchItems, error: itemError } = useItemSearch();
+
+  const { data: daftarProyek, loading: proyekLoading, error: proyekError } = useApiData(
+    () => canCreate ? listTrackingSpk() : Promise.resolve([]),
+    `permintaan-daftar-proyek|${canCreate}`,
+    'Gagal memuat daftar proyek.',
+  );
+  const pilihanProyek = [...new Set((daftarProyek ?? []).map((spk) => spk.projectName?.trim()).filter((name): name is string => !!name && name !== '-'))]
+    .sort((a, b) => a.localeCompare(b))
+    .map((name) => ({ value: name, label: name }));
 
   const handleChange = (index: number, field: keyof Row, value: string) => {
     setTableData((prev) => prev.map((row, i) => (i === index ? { ...row, [field]: value, ...(field === 'namaBarang' ? { itemId: undefined } : {}) } : row)));
@@ -169,17 +181,29 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
             <div className="flex items-center">
               <span className="w-45 text-[15px] font-semibold text-gray-700">Bagian/Sub bagian</span>
               <span className="w-8 text-center text-gray-700 font-semibold">:</span>
-              <input aria-label="Bagian / Sub Bagian" type="text"  value={header.bagian} maxLength={100} onChange={(e) => setHeader({ ...header, bagian: e.target.value })} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200" />
+              <select aria-label="Bagian / Sub Bagian" value={header.bagian} onChange={(e) => setHeader({ ...header, bagian: e.target.value })} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200">
+                <option value="">Pilih bagian / sub bagian</option>
+                {header.bagian && !PILIHAN_PEMOHON_PEMBELIAN.bagian.includes(header.bagian) && <option value={header.bagian}>{header.bagian}</option>}
+                {PILIHAN_PEMOHON_PEMBELIAN.bagian.map((value) => <option key={value} value={value}>{value}</option>)}
+              </select>
             </div>
             <div className="flex items-center">
               <span className="w-45 text-[15px] font-semibold text-gray-700">Nama</span>
               <span className="w-8 text-center text-gray-700 font-semibold">:</span>
-              <input aria-label="Nama pemohon" type="text"  value={header.namaPemohon} maxLength={191} onChange={(e) => setHeader({ ...header, namaPemohon: e.target.value })} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200" />
+              <select aria-label="Nama pemohon" value={header.namaPemohon} onChange={(e) => setHeader({ ...header, namaPemohon: e.target.value })} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200">
+                <option value="">Pilih nama</option>
+                {header.namaPemohon && !PILIHAN_PEMOHON_PEMBELIAN.namaPemohon.includes(header.namaPemohon) && <option value={header.namaPemohon}>{header.namaPemohon}</option>}
+                {PILIHAN_PEMOHON_PEMBELIAN.namaPemohon.map((value) => <option key={value} value={value}>{value}</option>)}
+              </select>
             </div>
             <div className="flex items-center">
               <span className="w-45 text-[15px] font-semibold text-gray-700">Jabatan</span>
               <span className="w-8 text-center text-gray-700 font-semibold">:</span>
-              <input aria-label="Jabatan" type="text"  value={header.jabatan} maxLength={100} onChange={(e) => setHeader({ ...header, jabatan: e.target.value })} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200" />
+              <select aria-label="Jabatan" value={header.jabatan} onChange={(e) => setHeader({ ...header, jabatan: e.target.value })} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200">
+                <option value="">Pilih jabatan</option>
+                {header.jabatan && !PILIHAN_PEMOHON_PEMBELIAN.jabatan.includes(header.jabatan) && <option value={header.jabatan}>{header.jabatan}</option>}
+                {PILIHAN_PEMOHON_PEMBELIAN.jabatan.map((value) => <option key={value} value={value}>{value}</option>)}
+              </select>
             </div>
             <div className="flex items-center">
               <span className="w-45 text-[15px] font-semibold text-gray-700">Tanggal Pengajuan</span>
@@ -201,13 +225,13 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
           {/* Table List Data */}
           <div className="overflow-hidden w-full border border-gray-200/80 rounded-xl shadow-sm">
             <div className="overflow-x-auto w-full">
-              <table className="w-full min-w-[1100px] table-fixed text-left text-sm border-collapse">
+              <table className="w-full min-w-[800px] table-fixed text-left text-sm border-collapse">
                 <colgroup>
-                  {[4, 12, 13, 24, 6, 6, 13, 11, 11].map((width, i) => <col key={i} style={{ width: `${width}%` }} />)}
+                  {[5, 35, 8, 8, 22, 22].map((width, i) => <col key={i} style={{ width: `${width}%` }} />)}
                 </colgroup>
                 <thead className="bg-gray-50 text-gray-700 text-xs font-bold">
                   <tr>
-                    {['No', 'Tanggal', 'Supplier', 'Nama Barang', 'QTY', 'SAT', 'Proyek', 'Keterangan', 'Dikirim Tanggal'].map((label) => (
+                    {['No', 'Nama Barang', 'QTY', 'SAT', 'Proyek', 'Keterangan'].map((label) => (
                       <th key={label} className="border border-gray-300 px-2 py-3 text-center">{label}</th>
                     ))}
                   </tr>
@@ -220,8 +244,6 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
                         <button type="button" aria-label={`Hapus baris ${i + 1}`} title="Hapus baris" onClick={() => patchRow(i, { ...emptyRow })} className="absolute inset-0 flex items-center justify-center text-red-500 opacity-0 hover:bg-red-50 group-hover:opacity-100 focus:opacity-100"><Trash2 className="h-3.5 w-3.5" /></button>
                       </td>
 
-                      <td className="p-0 border border-gray-300"><input aria-label={`Tanggal baris ${i + 1}`} type="date" value={row.tanggal} onChange={(e) => handleChange(i, 'tanggal', e.target.value)} className="w-full min-w-0 bg-transparent px-1 py-2.5 text-xs focus:outline-orange-400" /></td>
-                      <td className="p-0 border border-gray-300"><input aria-label={`Supplier baris ${i + 1}`} value={row.supplier} maxLength={191} onChange={(e) => handleChange(i, 'supplier', e.target.value)} placeholder="Nama supplier" className="w-full min-w-0 bg-transparent px-2 py-2.5 focus:outline-orange-400" /></td>
                       <td className="p-0 border border-gray-300">
                         <div className="w-full">
                           <input
@@ -329,9 +351,19 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
                       <td className="p-0 border border-gray-300">
                         <input aria-label={`Satuan baris ${i + 1}`} type="text" value={row.satuan} maxLength={50} placeholder="SAT" onChange={(e) => handleChange(i, 'satuan', e.target.value)} className="w-full h-full min-h-11 px-1 text-center bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 placeholder-gray-300 not-italic" />
                       </td>
-                      {(['proyek', 'keterangan', 'dikirimTanggal'] as const).map((field) => (
-                        <td key={field} className="p-0 border border-gray-300"><input aria-label={`${field === 'dikirimTanggal' ? 'Dikirim Tanggal' : field === 'proyek' ? 'Proyek' : 'Keterangan'} baris ${i + 1}`} type={field === 'dikirimTanggal' ? 'date' : 'text'} value={row[field]} maxLength={field === 'keterangan' ? 500 : 191} onChange={(e) => handleChange(i, field, e.target.value)} className="w-full min-w-0 bg-transparent px-2 py-2.5 focus:outline-orange-400" /></td>
-                      ))}
+                      <td className="p-0 border border-gray-300">
+                        <SearchableSelect
+                          aria-label={`Proyek baris ${i + 1}`}
+                          value={row.proyek}
+                          onChange={(value) => patchRow(i, { proyek: value, ...(value !== row.proyek ? { noSpk: '' } : {}) })}
+                          options={row.proyek && !pilihanProyek.some((option) => option.value === row.proyek) ? [{ value: row.proyek, label: row.proyek }, ...pilihanProyek] : pilihanProyek}
+                          placeholder="Pilih proyek"
+                          pending={proyekLoading}
+                          emptyText={proyekError || 'Belum ada proyek tersedia.'}
+                          className="w-full min-w-0 bg-transparent px-2 py-2.5 focus:outline-orange-400"
+                        />
+                      </td>
+                      <td className="p-0 border border-gray-300"><input aria-label={`Keterangan baris ${i + 1}`} type="text" value={row.keterangan} maxLength={500} onChange={(e) => handleChange(i, 'keterangan', e.target.value)} className="w-full min-w-0 bg-transparent px-2 py-2.5 focus:outline-orange-400" /></td>
                     </tr>
                   ))}
                 </tbody>
@@ -346,6 +378,7 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
           <div>Disetujui Oleh<p className="mt-12 text-xs">Mengikuti proses persetujuan sistem</p></div>
         </div>
         {/* Submit Action */}
+        {proyekError && <p role="alert" className="text-sm text-red-500 text-right mb-3">{proyekError}</p>}
         {(error || itemError) && <p className="text-sm text-red-500 text-right mb-3">{error || itemError}</p>}
         {Object.entries(rowErrors).map(([i, msg]) => <p key={i} className="text-sm text-red-500 text-right mb-1">Baris {Number(i) + 1}: {msg}</p>)}
         <div className="flex justify-end w-full">

@@ -330,7 +330,7 @@ export default function DataBarangGudang() {
       )
     ) },
     { label: 'Stok', sortKey: 'stock', cell: (item) => <StokCell stock={item.stock} /> },
-    { label: 'Stok Minimum', cell: (item) => <StokMinimumCell item={item} onSaved={reload} /> },
+    { label: 'Stok Minimum', cell: (item) => <StokMinimumCell item={item} onSaved={reload} allowEdit /> },
     { label: 'Satuan', tdClassName: 'px-6 py-4 text-gray-600', cell: (item) => item.unit },
     { label: 'Kategori', sortKey: 'category', cell: (item) => (
       edit.editing && canUpdate ? (

@@ -1,5 +1,9 @@
 import { COMPANY_NAME } from '@/shared/lib/company';
 
+export const po_barang_path = '/dashboard/purchasing/transaksi/buat-po-barang';
+
+export const detailPoPath = (id: number | string) => `${po_barang_path}/detail-po/${id}`;
+
 export const rekap_pembelian_path = '/dashboard/purchasing/laporan/rekap-pembelian';
 
 export const lihatPermintaanPath = (id: number | string) => `${rekap_pembelian_path}/permintaan-pembelian/${id}`;

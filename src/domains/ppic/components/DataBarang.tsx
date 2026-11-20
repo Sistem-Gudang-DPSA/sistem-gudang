@@ -127,7 +127,7 @@ export default function DataBarangPPIC() {
     { label: 'Supplier', sortKey: 'supplierName', cell: (item) => <SupplierCell name={supplierName(item.supplierId)} /> },
     { label: 'Stok & Satuan', sortKey: 'stock' },
     { label: 'Stok', sortKey: 'stock', cell: (item) => <StokCell stock={item.stock} /> },
-    { label: 'Stok Minimum', cell: (item) => <StokMinimumCell item={item} onSaved={reload} /> },
+    { label: 'Stok Minimum', cell: (item) => <StokMinimumCell item={item} onSaved={reload} allowEdit /> },
     { label: 'Satuan', tdClassName: 'px-6 py-4 text-gray-600', cell: (item) => item.unit },
     { label: 'Kategori', sortKey: 'category', cell: (item) => <KategoriBadge category={item.category} /> },
     { label: 'Harga (Rp)', sortKey: 'price', align: 'right', tdClassName: 'px-6 py-4 text-right font-mono text-gray-700', cell: (item) => item.price },

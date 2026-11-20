@@ -4,8 +4,15 @@
 
 Di **Data Barang** Gudang (termasuk Gudang Barang Jadi), PPIC, Purchasing,
 atau Superadmin, kolom **Stok Minimum** menampilkan batas masing-masing
-barang. Pengguna dengan permission `item.update` dapat menekan ikon pensil
-untuk mengubahnya. Batas menerima angka 0 sampai 999999999 dengan maksimal
+barang. Hanya Superadmin dan pengguna divisi PPIC dengan permission
+`item.update` yang dapat menekan ikon pensil untuk mengubahnya. Role lain,
+termasuk Gudang, Gudang Barang Jadi, Purchasing, Keuangan, dan Produksi,
+hanya dapat melihat batasnya, walaupun memiliki `item.update`. Tombol edit
+hanya tersedia pada halaman Data Barang **Superadmin dan PPIC**. Halaman
+Gudang, Gudang Barang Jadi, dan Purchasing selalu menampilkan stok minimum
+tanpa tombol edit, termasuk ketika dibuka oleh Superadmin. Backend
+juga menolak pengaturan batas oleh role lain melalui POST/PUT barang.
+Batas menerima angka 0 sampai 999999999 dengan maksimal
 3 angka desimal; gunakan koma untuk mengetik desimal. Kosongkan batas untuk
 menonaktifkan notifikasi barang tersebut. Barang lama belum memiliki batas
 sampai diatur; sistem tidak memasang angka minimum yang sama untuk semua
@@ -67,7 +74,7 @@ link divisi; frontend tidak mengirim ID pengguna.
 | Endpoint | Fungsi |
 |---|---|
 | `GET /api/v1/items` dan `GET /api/v1/items/:id` | Memuat `minimumStock`, angka atau `null` |
-| `PUT /api/v1/items/:id` | Menyimpan `{ "minimumStock": 10 }`, atau `null` untuk menonaktifkan; memerlukan `item.update` |
+| `PUT /api/v1/items/:id` | Menyimpan `{ "minimumStock": 10 }`, atau `null` untuk menonaktifkan; memerlukan `item.update` dan dibatasi untuk Superadmin atau divisi PPIC |
 | `GET /api/v1/notifications?page=1&pageSize=20&unreadOnly=true` | Daftar `rows`, `total`, `page`, `pageSize`, dan `unreadCount`; `pageSize` 1–100; `unreadOnly=true` hanya yang belum dibaca, `total` mengikuti filter |
 | `GET /api/v1/notifications/unread-count` | `{ "count": ... }` untuk pengguna yang masuk |
 | `POST /api/v1/notifications/:id/read` | Menandai satu peringatan dibaca; ID adalah ID barang |

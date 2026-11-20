@@ -27,6 +27,10 @@ export interface SupplierPriceRow {
 export interface SupplierPrices {
   supplierId: number;
   supplierName: string;
+  supplierAddress?: string;
+  supplierPhone?: string;
+  supplierNpwp?: string;
+  supplierBank?: string;
   pajak: Pajak;
   tahun: number;
   rows: SupplierPriceRow[];
@@ -52,10 +56,11 @@ export type UpdatePurchaseOrderInput = Omit<CreatePurchaseOrderInput, "approvalR
 
 // nomorPo and every total are computed by the backend, so they are not part of the input.
 export interface CreatePurchaseOrderInput {
-  approvalRequestId: number;
+  approvalRequestId?: number;
   tanggalPo: string;
   supplierId: number;
   picSupplier: string;
+  kebutuhanProyek?: string;
   barang: PurchaseOrderLineInput[];
   persenPpn: number;
   jasa: number;
@@ -66,11 +71,16 @@ export type PurchaseOrderStatus = "ISSUED" | "CANCELLED";
 export interface PurchaseOrder {
   id: number;
   nomorPo: string;
-  approvalRequestId: number;
+  approvalRequestId: number | null;
   tanggalPo: string;
   supplierId: number;
   supplierName: string;
+  supplierAddress?: string;
+  supplierPhone?: string;
+  supplierNpwp?: string;
+  supplierBank?: string;
   picSupplier: string;
+  kebutuhanProyek?: string | null;
   dppLain: number;
   persenPpn: number;
   jasa: number;
