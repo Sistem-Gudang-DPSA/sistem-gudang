@@ -22,7 +22,7 @@ describe('purchasing POBarang', () => {
       '/dashboard/purchasing/transaksi/buat-po-barang/permintaan-pembelian/1',
     );
     expect(screen.getByText('Buat PO').getAttribute('href')).toBe(
-      '/dashboard/purchasing/transaksi/buat-po-barang/buat-po/1',
+      '/dashboard/purchasing/transaksi/buat-po-barang/buat-po/1?from=po-barang',
     );
     fireEvent.click(screen.getByRole('button', { name: '3' }));
     await waitFor(() => expect(lastQ(api).get('page')).toBe('3'));
@@ -37,7 +37,7 @@ describe('purchasing POBarang', () => {
     render(<POBarang />);
     await screen.findByText('Permintaan 1');
     const links = screen.getAllByText('Buat PO').map((el) => el.getAttribute('href'));
-    expect(links).toEqual(['/dashboard/purchasing/transaksi/buat-po-barang/buat-po/1']);
+    expect(links).toEqual(['/dashboard/purchasing/transaksi/buat-po-barang/buat-po/1?from=po-barang']);
   });
 
   it('menyembunyikan Lihat Permintaan bagi pengguna yang hanya punya purchase-order.view', async () => {
