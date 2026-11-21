@@ -9,13 +9,19 @@ import { useApiData } from '@/shared/lib/use-api-data';
 import { usePage } from '@/shared/lib/use-page';
 import { formatTanggal } from '@/domains/ppic/data/dokubah';
 import { fetchPermintaanList } from '@/domains/ppic/data/pembelian';
-import { lihatPermintaanPath } from '@/domains/purchasing/data/pembelian';
+import { buatPoPath, lihatPermintaanPoPath } from '@/domains/purchasing/data/pembelian';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import { countActiveFilters, emptyBarangFilters } from '@/domains/inventory/components/BarangFilterPanel';
 import DateFilter from '@/shared/components/DateFilter';
+import { useCan } from '@/domains/auth/user-context';
+
 
 export default function POBarang() {
+  const canApproveRequest = useCan('purchase-request.approve');
+  const canCreatePo = useCan('purchase-order.create');
+  // Hanya pengguna yang meninjau permintaan atau membuat PO yang perlu membuka detailnya.
+  const canOpenPermintaan = canApproveRequest || canCreatePo;
   const [searchQuery, setSearchQuery] = useState('');
   const filterKey = searchQuery.trim();
   const { sort, toggle, params: sortParams } = useSort();
@@ -135,15 +141,24 @@ export default function POBarang() {
                   </td>
 
                   <td className="px-6 py-4">
-                    <div className="flex flex-col">
-                      <span className="font-bold text-gray-900">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {canOpenPermintaan && (
                         <Link
-                          href={lihatPermintaanPath(item.id)}
-                          className="inline-block px-3 py-1 bg-[#FF8A00] text-white text-xs font-semibold rounded-md hover:bg-orange-600 transition-colors"
+                          href={lihatPermintaanPoPath(item.id)}
+                          className="inline-block px-3 py-1 border border-[#FF8A00] text-[#FF8A00] text-xs font-semibold rounded-md hover:bg-orange-50 transition-colors"
                         >
                           Lihat Permintaan
                         </Link>
-                      </span>
+                      )}
+                      {canCreatePo && item.statusApi === 'approved' && item.purchaseStatus !== 'PURCHASED' && (
+                        <Link
+                          href={buatPoPath(item.id)}
+                          className="inline-block px-3 py-1 bg-[#FF8A00] text-white text-xs font-semibold rounded-md hover:bg-orange-600 transition-colors"
+                        >
+                          Buat PO
+                        </Link>
+                      )}
+                      {!canOpenPermintaan && !canCreatePo && <span className="text-gray-400">-</span>}
                     </div>
                   </td>
                 </tr>
