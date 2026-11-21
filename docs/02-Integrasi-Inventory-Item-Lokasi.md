@@ -128,6 +128,10 @@ endpoint backend-nya:
 - Edit dan hapus lokasi (tidak ada tombolnya di desain awal, dan
   `DELETE /locations/{id}` belum dipakai di frontend manapun).
 
+## Detail Penerimaan Barang Superadmin
+
+Kolom Aksi di Data Barang Superadmin menyediakan tombol ikon **i / Detail** untuk pengguna dengan permission `item.view`. Tombol membuka halaman `/dashboard/superadmin/master/data-barang/[id]` yang menampilkan nama dan kode barang dari `GET /api/v1/items/{id}` beserta tabel **Tanggal Masuk, Jumlah, Harga per Satuan, Supplier**. Tabel mengikuti tampilan Data Barang: header abu-abu, baris lega dengan latar selang-seling, jumlah tebal, dan inisial supplier. Riwayat ini memakai data dummy yang sama untuk setiap material, dengan beberapa tanggal, harga, dan supplier berbeda. Halaman menyediakan link kembali ke Data Barang Superadmin dan menandai data contoh secara jelas; jumlahnya tidak mewakili stok aktual. Fitur ini belum memakai endpoint riwayat penerimaan dan tidak mengubah data barang.
+
 ## Import Excel Data Barang
 
 Import Data Barang Superadmin memeriksa tiap baris sebelum dikirim ke `POST /api/v1/items/bulk`. Stok maksimal 1.000.000 dengan paling banyak 3 desimal, harga bilangan bulat maksimal 2.000.000.000, dan satu file maksimal 1.000 baris data. Nilai yang melanggar ditolak dengan pesan per baris, tidak dibulatkan diam-diam. Nomor baris di pesan sama dengan nomor baris di Excel, termasuk bila ada baris kosong di antaranya.

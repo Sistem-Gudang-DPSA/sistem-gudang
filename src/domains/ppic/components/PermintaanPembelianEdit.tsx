@@ -7,7 +7,7 @@ import { fetchPermintaan, permintaan_pembelian_path } from '../data/pembelian';
 import PermintaanPembelianTambah from './PermintaanPembelianTambah';
 import NoPermission from './NoPermission';
 
-export default function PermintaanPembelianEdit({ basePath = permintaan_pembelian_path }: { basePath?: string }) {
+export default function PermintaanPembelianEdit({ basePath = permintaan_pembelian_path, readOnlyPemohon = false }: { basePath?: string; readOnlyPemohon?: boolean }) {
   const { id } = useParams<{ id: string }>();
   const user = useAuthUser();
   const canCreate = useCan('purchase-request.create');
@@ -17,5 +17,5 @@ export default function PermintaanPembelianEdit({ basePath = permintaan_pembelia
   if (!data || !['pending', 'revision_requested'].includes(data.statusApi) || (user && !user.isSuperadmin && user.id !== data.requestedBy)) {
     return <p className="p-6">Permintaan ini tidak dapat diedit. Hanya pembuat permintaan yang masih diproses atau perlu revisi yang dapat mengedit.</p>;
   }
-  return <PermintaanPembelianTambah key={data.id} permintaan={data} basePath={basePath} editing />;
+  return <PermintaanPembelianTambah key={data.id} permintaan={data} basePath={basePath} editing readOnlyPemohon={readOnlyPemohon} />;
 }

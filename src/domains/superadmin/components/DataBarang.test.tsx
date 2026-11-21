@@ -79,6 +79,32 @@ describe('DataBarang superadmin: Ganti kode', () => {
 const openBulkMenu = () => fireEvent.click(screen.getByRole('button', { name: /Aksi Massal/ }));
 const closeBulkMenu = () => fireEvent.keyDown(document, { key: 'Escape' });
 
+describe('DataBarang superadmin: detail penerimaan dummy', () => {
+  it('mengarah ke halaman detail sesuai barang yang dipilih tanpa membuka popup', async () => {
+    const second = { ...item, id: 2, code: 'LEM014', name: 'Barang 2', unit: 'lembar' };
+    setup({}, {}, { rows: [item, second] });
+    expect((await screen.findByRole('link', { name: 'Detail Barang 2' })).getAttribute('href')).toBe('/dashboard/superadmin/master/data-barang/2');
+    expect(screen.getByRole('link', { name: 'Detail Barang 1' }).getAttribute('href')).toBe('/dashboard/superadmin/master/data-barang/1');
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('tersedia dengan item.view tanpa izin mengubah barang', async () => {
+    const user: AuthUser = { id: 1, username: 'u', email: 'u@x.id', roleId: 2, roleName: 'Staff', isSuperadmin: false, permissions: ['item.view'] };
+    setup({}, {}, { user });
+    expect(await screen.findByRole('link', { name: 'Detail Barang 1' })).not.toBeNull();
+    expect(screen.queryByTitle('Sesuaikan stok')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Hapus' })).toBeNull();
+  });
+
+  it('menyembunyikan tombol detail tanpa item.view', async () => {
+    const user: AuthUser = { id: 1, username: 'u', email: 'u@x.id', roleId: 2, roleName: 'Staff', isSuperadmin: false, permissions: ['item.adjust-stock'] };
+    setup({}, {}, { user });
+    await screen.findByText('Barang 1');
+    expect(screen.queryByRole('link', { name: 'Detail Barang 1' })).toBeNull();
+    expect(screen.getByTitle('Sesuaikan stok')).not.toBeNull();
+  });
+});
+
 describe('DataBarang superadmin: Ganti Kode Massal', () => {
   afterEach(() => vi.restoreAllMocks());
   const item2 = { ...item, id: 2, code: 'LEM014', name: 'Barang 2' };

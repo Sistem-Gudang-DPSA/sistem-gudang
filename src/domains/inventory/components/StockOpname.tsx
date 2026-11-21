@@ -1,23 +1,19 @@
 "use client";
 
-import { escapeHtml } from '@/shared/lib/escape-html';
-import { useCan } from '@/domains/auth/user-context';
+import { useAuthUser, useCan } from '@/domains/auth/user-context';
 import React, { useState } from 'react';
-import { Search, Plus, Eye, Download, Filter } from 'lucide-react';
+import { Search, Plus, Eye, Filter } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { gudangBasePath } from '../base-path';
 import { getStockOpname, listStockOpname } from '@/domains/inventory/api';
-import type { StockOpnameDetail } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
+import { opnameDraftKey, readOpnameDraft } from '../stock-opname-draft';
 import Pagination from '@/shared/components/Pagination';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import DateFilter from '@/shared/components/DateFilter';
 import { ExportExcellButton } from '@/shared/components/Tombol';
-import { cetakHtml } from "@/shared/lib/print-html";
-
-const cell = (value: unknown) => escapeHtml(value ?? '-');
 
 const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 const periodeLabel = (month: number, year: number) => `Stok Opname ${BULAN[month - 1]} ${year}`;
@@ -25,6 +21,8 @@ const periodeLabel = (month: number, year: number) => `Stok Opname ${BULAN[month
 export default function StockOpnameMasterGudang() {
   const canCreate = useCan('stock-opname.create');
   const base = gudangBasePath(usePathname());
+  const draftKey = opnameDraftKey(base, useAuthUser()?.id);
+  const { data: draft, error: draftError } = useApiData(() => Promise.resolve().then(() => canCreate ? readOpnameDraft(draftKey) : null), draftKey, 'Gagal memuat draft dari browser.');
   const { sort, toggle, params: sortParams } = useSort();
   const [showFilter, setShowFilter] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -33,9 +31,6 @@ export default function StockOpnameMasterGudang() {
   const [filterYear, setFilterYear] = useState("");
   const activeDateFilters = [filterMonth, filterYear].filter(Boolean).length;
 
-  const [detail, setDetail] = useState<StockOpnameDetail | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [detailError, setDetailError] = useState("");
   const [actionError, setActionError] = useState('');
 
   const filterKey = JSON.stringify([searchQuery, filterMonth, filterYear, sortParams]);
@@ -54,18 +49,6 @@ export default function StockOpnameMasterGudang() {
   const rows = result?.rows ?? [];
   const total = result?.total ?? 0;
   const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
-
-  const openDetail = async (id: number) => {
-    setDetailLoading(true);
-    setDetailError("");
-    try {
-      setDetail(await getStockOpname(id));
-    } catch (err) {
-      setDetailError(err instanceof ApiError ? err.message : "Gagal memuat detail stok opname.");
-    } finally {
-      setDetailLoading(false);
-    }
-  };
 
   const toggleRow = (id: number) =>
     setSelected((() => {
@@ -151,121 +134,6 @@ export default function StockOpnameMasterGudang() {
   };
 
   
-  const handlePrintPdf = async (id: number) => {
-    const item = rows.find((item) => Number(item.id) === Number(id));
-
-    if (!item) {
-      setActionError("Data stok opname tidak ditemukan.");
-      return;
-    }
-
-    setActionError("");
-
-    try {
-      // Ambil detail hanya untuk ID yang diklik
-      const detailData = await getStockOpname(id);
-
-      const period = periodeLabel(
-        detailData.month,
-        detailData.year
-      );
-
-      const lines = detailData.lines.map((line, index) => `
-        <tr>
-          <td class="center">${index + 1}</td>
-          <td>${cell(line.itemCode ?? "-")}</td>
-          <td>${cell(line.itemName)}</td>
-          <td class="center">${cell(line.unit)}</td>
-          <td>${cell(line.category)}</td>
-          <td class="center">${cell(line.systemQty)}</td>
-          <td class="center">${cell(line.physicalQty)}</td>
-          <td class="center">${cell(
-            line.difference > 0
-              ? `+${line.difference}`
-              : line.difference
-          )}</td>
-          <td>${cell(line.note ?? "-")}</td>
-        </tr>
-      `).join("");
-
-      const html = `<!doctype html>
-        <html lang="id">
-        <head>
-          <meta charset="utf-8">
-          <title>Stok Opname ${cell(period)}</title>
-          <style>
-            @page { size: A4 landscape; margin: 12mm; }
-            body {
-              font-family: Arial, sans-serif;
-              color: #111;
-              font-size: 11px;
-            }
-            h1 { font-size: 20px; }
-            h2 { font-size: 15px; }
-            table {
-              width: calc(100% - 2mm);
-              border-collapse: collapse;
-              font-size: 10px;
-            }
-            th, td {
-              border: 1px solid #999;
-              padding: 6px;
-              text-align: left;
-              vertical-align: top;
-            }
-            th { background: #eee; }
-            .center { text-align: center; }
-            .meta { color: #444; }
-            tr { page-break-inside: avoid; }
-          </style>
-        </head>
-        <body>
-          <h1>Rekap Stok Opname</h1>
-          <h2>${cell(period)}</h2>
-          <p class="meta">ID Stok Opname: ${cell(id)}</p>
-          ${
-            detailData.notes
-              ? `<p class="meta">Catatan: ${cell(detailData.notes)}</p>`
-              : ""
-          }
-          <table>
-            <thead>
-              <tr>
-                <th class="center">No</th>
-                <th>Kode Barang</th>
-                <th>Nama Barang</th>
-                <th class="center">Satuan</th>
-                <th>Kategori</th>
-                <th class="center">Jumlah Sistem</th>
-                <th class="center">Jumlah Fisik</th>
-                <th class="center">Selisih</th>
-                <th>Keterangan</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${
-                lines ||
-                '<tr><td colspan="9" class="center">Tidak ada detail barang.</td></tr>'
-              }
-            </tbody>
-          </table>
-        </body>
-        </html>`;
-
-      await cetakHtml(html, "stok opname");
-    } catch (err) {
-      setActionError(
-        err instanceof ApiError
-          ? err.message
-          : err instanceof Error
-            ? err.message
-            : "Gagal menyiapkan dokumen cetak stok opname."
-      );
-    }
-  };
-
-
-
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       <div className="flex flex-col justify-start mb-8 gap-2">
@@ -273,6 +141,13 @@ export default function StockOpnameMasterGudang() {
         <p className="text-gray-500 text-sm">Kelola riwayat pemeriksaan berkala stok inventaris gudang.</p>
       </div>
 
+      {draftError && <p role="alert" className="mb-4 text-sm text-red-600">{draftError}</p>}
+      {canCreate && draft && (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <div><p className="font-semibold text-amber-900">Draft: {periodeLabel(Number(draft.month), Number(draft.year))}</p><p className="mt-1 text-sm text-amber-800">{draft.rows.length} barang diisi. Tersimpan di browser ini, belum mengubah stok.</p></div>
+          <Link href={`${base}/transaksi/stock-opname/tambah`} className="rounded-lg bg-amber-100 px-4 py-2 text-sm font-bold text-amber-900 hover:bg-amber-200">Lanjutkan Draft</Link>
+        </div>
+      )}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
         {/* Table Toolbar */}
         <div className="p-5 border-b border-gray-100 bg-gray-50/50 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -326,7 +201,6 @@ export default function StockOpnameMasterGudang() {
           />
         )}
 
-        {detailError && <p className="px-6 pt-3 text-sm text-red-500">{detailError}</p>}
         {actionError && <p className="px-6 pt-3 text-sm text-red-500">{actionError}</p>}
 
         {/* Table Container */}
@@ -334,58 +208,45 @@ export default function StockOpnameMasterGudang() {
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
               <tr>
+                <th scope="col" className="px-4 py-4 print:hidden w-12">
+                  <input type="checkbox" aria-label="Pilih semua stok opname di halaman ini" checked={allSelected} onChange={toggleAll} className="w-4 h-4 accent-blue-600 cursor-pointer" />
+                </th>
                 <th scope="col" className="px-6 py-4 w-16 text-center">No</th>
                 <SortableTh label='Periode Stock Opname' sortKey='period' sort={sort} onSort={toggle} />
                 <th scope="col" className="px-6 py-4 text-center">Aksi</th>
-                <th scope="col" className="px-6 py-4 text-center print:hidden w-24">
-                  <div className="flex items-center justify-center gap-2">
-                    <span>Check</span>
-                    <input type="checkbox" checked={allSelected} onChange={toggleAll} className="w-4 h-4 accent-blue-600 cursor-pointer" />
-                  </div>
-                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading && (
-                <tr><td colSpan={3} className="px-6 py-10 text-center text-gray-400">Memuat data...</td></tr>
+                <tr><td colSpan={4} className="px-6 py-10 text-center text-gray-400">Memuat data...</td></tr>
               )}
               {!loading && error && (
-                <tr><td colSpan={3} className="px-6 py-10 text-center text-red-500">{error}</td></tr>
+                <tr><td colSpan={4} className="px-6 py-10 text-center text-red-500">{error}</td></tr>
               )}
               {!loading && !error && rows.map((item, index) => (
                 <tr key={item.id} className="hover:bg-[#FF8A00]/5 transition-colors group">
+                  <td className="px-4 py-4 print:hidden w-12">
+                    <input
+                      type="checkbox"
+                      aria-label={`Pilih ${periodeLabel(item.month, item.year)} #${item.id}`}
+                      checked={selected.has(item.id)}
+                      onChange={() => toggleRow(item.id)}
+                      className="w-4 h-4 accent-blue-600 cursor-pointer"
+                    />
+                  </td>
                   <td className="px-6 py-4 text-gray-500 text-center">{index + 1}.</td>
                   <td className="px-6 py-4 font-bold text-gray-900">
                     {periodeLabel(item.month, item.year)}
                   </td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center gap-2">
-                      <button
-                        onClick={() => openDetail(item.id)}
-                        disabled={detailLoading}
+                      <Link
+                        href={`${base}/transaksi/stock-opname/${item.id}`}
                         className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs hover:bg-blue-100 transition-all disabled:opacity-60"
                       >
                         <Eye className="h-3.5 w-3.5" />
                         Detail
-                      </button>
-                      <button
-                        type='button'
-                        onClick={() => handlePrintPdf(item.id)}
-                        className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-orange-50 text-orange-600 font-bold rounded-lg text-xs hover:bg-blue-100 transition-all disabled:opacity-60"
-                      >
-                        <Download className='h-3.5 w-3.5'/>
-                        Download
-                      </button>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-center print:hidden w-24">
-                    <div className="flex items-center justify-center">
-                      <input
-                        type="checkbox"
-                        checked={selected.has(item.id)}
-                        onChange={() => toggleRow(item.id)}
-                        className="w-4 h-4 accent-blue-600 cursor-pointer"
-                      />
+                      </Link>
                     </div>
                   </td>
                 </tr>
@@ -403,55 +264,7 @@ export default function StockOpnameMasterGudang() {
 
         <Pagination page={page} pageSize={20} total={total} onPageChange={setPage} />
       </div>
-      {detail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-225 max-h-[90vh] overflow-y-auto p-8 relative">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-[20px] font-extrabold text-gray-900 uppercase">{periodeLabel(detail.month, detail.year)}</h2>
-              <button onClick={() => setDetail(null)} className="text-gray-400 hover:text-gray-600 font-bold text-xl px-2">✕</button>
-            </div>
-            {detail.notes && <p className="text-sm text-gray-600 mb-4">{detail.notes}</p>}
-            <div className="overflow-x-auto border border-gray-200 rounded-lg">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-gray-50 text-gray-600 font-semibold">
-                  <tr>
-                    <th className="px-4 py-3">Barang</th>
-                    <th className="px-4 py-3">Satuan</th>
-                    <th className="px-4 py-3">Kategori</th>
-                    <th className="px-4 py-3 text-center">Sistem</th>
-                    <th className="px-4 py-3 text-center">Fisik</th>
-                    <th className="px-4 py-3 text-center">Selisih</th>
-                    {/* <th className="px-4 py-3 text-right">Harga</th> */}
-                    <th className="px-4 py-3">Keterangan</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {detail.lines.map((line) => (
-                    <tr key={line.itemId}>
-                      <td className="px-4 py-3">
-                        <span className="font-medium text-gray-900">{line.itemName}</span>
-                        <span className="block text-xs font-mono text-gray-500">{line.itemCode ?? '-'}</span>
-                      </td>
-                      <td className="px-4 py-3 text-gray-600">{line.unit}</td>
-                      <td className="px-4 py-3 text-gray-600">{line.category}</td>
-                      <td className="px-4 py-3 text-center">{line.systemQty}</td>
-                      <td className="px-4 py-3 text-center font-bold">{line.physicalQty}</td>
-                      <td className={`px-4 py-3 text-center font-bold ${line.difference < 0 ? 'text-red-600' : line.difference > 0 ? 'text-green-600' : 'text-gray-500'}`}>
-                        {line.difference > 0 ? `+${line.difference}` : line.difference}
-                      </td>
-                      {/* <td className="px-4 py-3 text-right">{rupiah(line.physicalPrice)}</td> */}
-                      <td className="px-4 py-3 text-gray-600">{line.note ?? '-'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="mt-6 text-right">
-              <button onClick={() => setDetail(null)} className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-md text-sm font-medium">Tutup</button>
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
 
   );

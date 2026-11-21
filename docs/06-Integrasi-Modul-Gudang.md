@@ -46,7 +46,7 @@ berubah dan mengabaikan respons yang sudah kedaluwarsa.
 |---|---|---|
 | Barang Masuk | `/inbound`, `POST /inbound/batch` | Pilih supplier dulu, lalu tambah barang lewat Scan Barang (scanner atau kamera) atau Input Manual. Barang dengan supplier berbeda ditandai merah. Semua baris tampil di Preview, lalu disimpan sekali lewat `/inbound/batch` dengan header `Idempotency-Key`. Tabel menampilkan kolom Supplier. Form Barang Kembali tidak ada. |
 | Barang Keluar | `/outbound` | Form punya Asal Gudang dan Tujuan/Penerima (wajib). Tabel diratakan satu baris per barang. Saat Preview terbuka, panel scan dan kamera ditutup dan scan baru diabaikan sampai Kembali Edit. Konfirmasi ditolak selama scan tertunda, memvalidasi ulang form, dan mengambil ulang stok (`GET /items/{id}`) hanya untuk baris yang qty-nya melebihi stok. |
-| Stock Opname | `/stock-opname` | Daftar dengan filter bulan dan tahun dari server, dan detail berisi stok sistem, fisik, dan selisih. Form konfirmasi sebelum menyimpan karena stok disetel ke jumlah fisik. Jumlah fisik boleh desimal (maks. 3 angka di belakang koma, maks. 1.000.000). Baris yang sudah diisi, termasuk hasil scan dari halaman lain, tetap tampil di tabel dan bisa dikosongkan agar tidak ikut dikirim. |
+| Stock Opname | `/stock-opname` | Daftar dengan filter bulan dan tahun dari server, dan detail berisi stok sistem, fisik, dan selisih. Form menyediakan Simpan Draft di browser dan Submit final dengan konfirmasi karena hanya submit yang menyetel stok ke jumlah fisik. Jumlah fisik boleh desimal (maks. 3 angka di belakang koma, maks. 1.000.000). Baris yang sudah diisi, termasuk hasil scan dari halaman lain, tetap tampil di tabel dan bisa dikosongkan agar tidak ikut dikirim. |
 | Laporan Barang Masuk dan Keluar | `/reports/inbound`, `/reports/outbound` | Kartu per kategori memakai `summary` dari backend (abaikan filter sumber). Kartu total Barang Masuk memakai `filteredSummary` (qty dan jumlah transaksi, mengikuti semua filter) agar cocok dengan tabel. Ada kolom Lokasi. |
 | Rekap Permintaan | `/reports/requests`, `/material-requests/{id}` | Export mendukung mode filter dan mode `ids`. |
 
@@ -138,3 +138,19 @@ Permintaan Pembelian tidak lagi ada di Gudang. Halamannya pindah ke PPIC, lihat 
 - Tabel laporan diberi lebar `calc(100% - 2mm)`. Tanpa jarak itu, border
   kanan kolom terakhir menempel tepat di tepi area cetak dan terpotong di
   PDF.
+
+
+## Draft dan submit Stok Opname
+
+Di Gudang dan Gudang Barang Jadi, **Simpan Draft** menyimpan periode dan seluruh jumlah fisik yang telah diisi ke penyimpanan browser, termasuk nilai nol dan barang dari halaman lain atau hasil scan. Satu draft aktif tersedia per akun dan divisi. Draft dapat dilanjutkan setelah meninggalkan halaman atau membuka ulang browser lewat **Lanjutkan Draft** di daftar Stok Opname. Menyimpan draft tidak memanggil endpoint transaksi dan tidak mengubah stok. Draft hanya tersedia pada akun dan browser yang sama; membersihkan data browser menghapus draft.
+
+Form sebelum submit menampilkan Nama Barang, Satuan, Kategori, dan Jumlah Fisik. Jumlah Administrasi, Jumlah Selisih, dan Keterangan tampil pada halaman detail setelah submit. Kartu scan juga menyembunyikan stok sistem, selisih, dan keterangan selama penghitungan.
+
+**Submit** memvalidasi jumlah fisik, lalu menampilkan dialog konfirmasi. Tombol **Ya, Submit** mengirim baris yang diisi ke `POST /api/v1/stock-opname`; baris kosong tidak mengubah stok barang tersebut. Draft dihapus setelah submit berhasil. Jika penyimpanan draft atau submit gagal, pesan kesalahan ditampilkan dan isian tetap tersedia.
+
+Detail hasil final diakses melalui halaman `[id]` di bawah rute daftar transaksi maupun laporan, dengan link kembali ke divisi dan daftar asal. Identitas dan hasil audit diambil dari `GET /api/v1/stock-opname/{id}`. Tombol **Download** per baris disembunyikan. Ekspor Excel pilihan periode tetap tersedia. Checkbox pilihan periode berada di kolom paling depan, sebelum No, tanpa tulisan Check; checkbox pada header memilih seluruh baris di halaman aktif. Tidak ada endpoint draft baru; penyimpanan draft sepenuhnya di frontend.
+
+
+## Filter sumber Rekap Barang Masuk
+
+Pilihan **Sumber Inbound** hanya disembunyikan pada Rekap Barang Masuk Gudang. Daftar, ekspor, dan cetak mencakup semua sumber penerimaan sesuai pencarian dan periode tanggal yang aktif. Rekap Barang Masuk Gudang Barang Jadi dan Purchasing tetap menyediakan filter sumber.
