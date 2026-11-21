@@ -130,3 +130,17 @@ lewat `dashboardPathFor` (`src/domains/auth/api.ts`): pengguna non-superadmin
 menuju `/dashboard/<divisi>` tempat dashboard divisinya tampil, sedangkan
 superadmin menuju `/dashboard/superadmin`. Untuk akun tanpa divisi, menu ini
 jatuh ke `/dashboard` yang menampilkan ringkasan akses.
+
+## Fitur yang disembunyikan
+
+Entri `NAV_DIVISIONS` dan item menu punya penanda `hidden: true`. Entri
+tersebut tidak tampil di sidebar (`visibleNav`) tetapi tetap dipakai
+`canAccess`, sehingga URL-nya masih dijaga permission dan bukan terbuka bebas.
+Saat ini yang disembunyikan (#6):
+
+- Divisi **Gudang Barang Jadi**, **Keuangan**, dan **Produksi**.
+- Gudang: **Checklist Dokubah**, **Rekap Dokubah**, **Realisasi Dokubah**.
+- PPIC: **Penawaran Harga**, **Dokubah**, **SPK Internal & Mutasi Stok**,
+  **Approval**.
+
+Untuk menampilkan kembali, hapus `hidden: true` pada entri terkait.
