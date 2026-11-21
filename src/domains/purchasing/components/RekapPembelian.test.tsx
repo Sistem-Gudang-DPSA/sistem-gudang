@@ -14,12 +14,16 @@ vi.mock('@/domains/ppic/data/pembelian', async (orig) => ({
 describe('RekapPembelian link per divisi', () => {
   it('purchasing', async () => {
     render(<RekapPembelianPurchasing />);
+    expect(screen.getByRole('heading', { level: 1, name: 'DAFTAR PERMINTAAN PEMBELIAN' })).toBeTruthy();
+    expect(screen.getByText('Kelola pengajuan permintaan pembelian barang.')).toBeTruthy();
     expect((await screen.findByText('Lihat Permintaan')).getAttribute('href')).toBe(
       '/dashboard/purchasing/laporan/rekap-pembelian/permintaan-pembelian/7',
     );
   });
   it('ppic', async () => {
     render(<RekapPembelianPpic />);
+    expect(screen.getByRole('heading', { level: 1, name: 'DAFTAR PERMINTAAN PEMBELIAN' })).toBeTruthy();
+    expect(screen.getByText('Kelola pengajuan permintaan pembelian barang.')).toBeTruthy();
     expect((await screen.findByText('Lihat Permintaan')).getAttribute('href')).toBe(
       '/dashboard/ppic/laporan/rekap-pembelian/permintaan-pembelian/7',
     );

@@ -1,1 +1,1 @@
-export { default } from "@/domains/inventory/components/DashboardRealisasiSpk";
+export { default } from "@/domains/inventory/components/RealisasiDokubahRedirect";
