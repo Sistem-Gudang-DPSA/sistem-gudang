@@ -28,7 +28,7 @@ export function saveSupplierPrices(id: number | string, tahun: number, prices: S
   return apiClient.put<SupplierPrices>(`/api/v1/suppliers/${id}/prices`, { tahun, prices });
 }
 
-export function listPurchaseOrders(params?: ListParams & { approvalRequestId?: number; status?: "ISSUED" | "CANCELLED" }) {
+export function listPurchaseOrders(params?: ListParams & SortParams & { approvalRequestId?: number; status?: "ISSUED" | "CANCELLED"; startDate?: string; endDate?: string }) {
   return apiClient.get<PaginatedResult<PurchaseOrder>>(`/api/v1/purchase-orders${toQuery(params)}`);
 }
 

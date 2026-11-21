@@ -26,6 +26,7 @@ describe('daftar PO permintaan', () => {
     installFakeApi(routes);
     render(<DaftarPoPermintaan permintaan={permintaan('PARTIALLY_PURCHASED')} />);
     expect(await screen.findByText('PO-005')).not.toBeNull();
+    expect(screen.getByText('PO-005').getAttribute('href')).toBe('/dashboard/purchasing/transaksi/buat-po-barang/detail-po/5');
     expect(screen.getByText('PT Kayu')).not.toBeNull();
     expect(screen.getByText('Rp. 1.100.000')).not.toBeNull();
     expect(screen.getByText('Sebagian dipesan')).not.toBeNull();
