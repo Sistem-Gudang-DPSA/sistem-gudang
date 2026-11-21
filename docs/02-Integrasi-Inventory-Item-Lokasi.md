@@ -115,6 +115,11 @@ di-resolve ke kode lokasi yang bisa dibaca (misal "A04") lewat
 yang sempat hilang di halaman Gudang saat migrasi ke API asli juga
 dikembalikan.
 
+Kolom harga pada Data Barang PPIC, Purchasing, dan Superadmin memakai label
+**Harga Terbaru** dan format ribuan `id-ID` yang sama (contoh `1.000`).
+Nilainya tetap `item.price` dari `GET /items`; Superadmin masih dapat
+mengeditnya di mode edit bila punya `item.set-price`.
+
 ## Status dan Langkah Berikutnya
 
 Selesai untuk cakupan Item dan Location sesuai `docs/api-1.json` terbaru,
@@ -125,9 +130,23 @@ endpoint backend-nya:
   beda dari `PATCH /items/{id}/stock`: endpoint itu untuk penyesuaian
   langsung dengan alasan bebas, bukan pencatatan transaksi barang
   masuk/keluar yang terstruktur (nomor referensi, supplier, dsb).
-- Edit dan hapus lokasi (tidak ada tombolnya di desain awal, dan
-  `DELETE /locations/{id}` belum dipakai di frontend manapun).
+- Edit lokasi lewat tombol **Edit** di kolom Aksi setiap baris (`location.update`),
+  lalu **Simpan**/**Batal** di baris yang sama. Hapus lokasi memakai
+  `DELETE /locations/{id}` dan hanya ditampilkan untuk role **Superadmin**.
+  Import Excel Data Lokasi juga hanya untuk Superadmin; Gudang tetap punya
+  Tambah Batch dan Tambah Data selama punya `location.create`.
 
 ## Import Excel Data Barang
 
 Import Data Barang Superadmin memeriksa tiap baris sebelum dikirim ke `POST /api/v1/items/bulk`. Stok maksimal 1.000.000 dengan paling banyak 3 desimal, harga bilangan bulat maksimal 2.000.000.000, dan satu file maksimal 1.000 baris data. Nilai yang melanggar ditolak dengan pesan per baris, tidak dibulatkan diam-diam. Nomor baris di pesan sama dengan nomor baris di Excel, termasuk bila ada baris kosong di antaranya.
+
+## Cetak label QR
+
+Tombol **QR** per baris dan **Cetak Label QR** untuk barang terpilih membuka
+dialog **Cetak label QR**. Dialog menanyakan **Jumlah label per barang**
+(bilangan bulat 1–100) sehingga stok fisik yang sama bisa diberi beberapa
+label, misalnya 5 kaleng memakai 5 label. Label setiap barang diulang sesuai
+jumlah tersebut (`buildLabelsHtml(items, copies)`); isi QR tetap `items.code`,
+jadi semua label untuk barang yang sama identik. Tombol cetak menampilkan
+total label (`barang × jumlah`) dan pesan kesalahan bila dialog cetak gagal
+dibuka.
