@@ -138,3 +138,14 @@ endpoint backend-nya:
 ## Import Excel Data Barang
 
 Import Data Barang Superadmin memeriksa tiap baris sebelum dikirim ke `POST /api/v1/items/bulk`. Stok maksimal 1.000.000 dengan paling banyak 3 desimal, harga bilangan bulat maksimal 2.000.000.000, dan satu file maksimal 1.000 baris data. Nilai yang melanggar ditolak dengan pesan per baris, tidak dibulatkan diam-diam. Nomor baris di pesan sama dengan nomor baris di Excel, termasuk bila ada baris kosong di antaranya.
+
+## Cetak label QR
+
+Tombol **QR** per baris dan **Cetak Label QR** untuk barang terpilih membuka
+dialog **Cetak label QR**. Dialog menanyakan **Jumlah label per barang**
+(bilangan bulat 1–100) sehingga stok fisik yang sama bisa diberi beberapa
+label, misalnya 5 kaleng memakai 5 label. Label setiap barang diulang sesuai
+jumlah tersebut (`buildLabelsHtml(items, copies)`); isi QR tetap `items.code`,
+jadi semua label untuk barang yang sama identik. Tombol cetak menampilkan
+total label (`barang × jumlah`) dan pesan kesalahan bila dialog cetak gagal
+dibuka.
