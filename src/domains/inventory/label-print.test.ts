@@ -14,6 +14,15 @@ describe('buildLabelsHtml', () => {
     expect(html).not.toContain('Tanpa kode');
   });
 
+  it('repeats every label when a copy count is given', async () => {
+    const html = await buildLabelsHtml([
+      { code: 'A1-03', name: 'Kaleng' },
+      { code: null, name: 'Tanpa kode' },
+    ], 5);
+    expect(html.match(/class="label"/g)?.length).toBe(5);
+    expect(html.match(/A1-03/g)?.length).toBe(5);
+  });
+
   it('shows Kode bawaan in brackets and the location code when given', async () => {
     const html = await buildLabelsHtml([{ code: 'LBR001', name: 'Triplex', externalCode: 'TH 852 J', locationCode: 'A01' }]);
     expect(html).toContain('[TH 852 J]');
