@@ -115,6 +115,11 @@ di-resolve ke kode lokasi yang bisa dibaca (misal "A04") lewat
 yang sempat hilang di halaman Gudang saat migrasi ke API asli juga
 dikembalikan.
 
+Kolom harga pada Data Barang PPIC, Purchasing, dan Superadmin memakai label
+**Harga Terbaru** dan format ribuan `id-ID` yang sama (contoh `1.000`).
+Nilainya tetap `item.price` dari `GET /items`; Superadmin masih dapat
+mengeditnya di mode edit bila punya `item.set-price`.
+
 ## Status dan Langkah Berikutnya
 
 Selesai untuk cakupan Item dan Location sesuai `docs/api-1.json` terbaru,
