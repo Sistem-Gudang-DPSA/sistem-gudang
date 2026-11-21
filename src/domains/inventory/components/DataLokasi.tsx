@@ -224,7 +224,7 @@ export default function DataLokasiGudang({
                 className="flex items-center gap-2 px-5 py-2.5 border border-[#ff8a00] text-[#ff8a00] rounded-lg hover:bg-orange-50 transition-all duration-200 font-semibold text-sm"
               >
                 <Plus className="w-4 h-4" strokeWidth={2.5} />
-                Tambah Batch
+                Batch
               </button>
             )}
             {canCreate && (
@@ -233,7 +233,7 @@ export default function DataLokasiGudang({
                 className="flex items-center gap-2 px-5 py-2.5 bg-[#ff8a00] text-white rounded-lg hover:bg-[#eb7d00] hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm shadow-sm"
               >
                 <Plus className="w-4 h-4" strokeWidth={2.5} />
-                Tambah Data
+                Data
               </button>
             )}
           </div>

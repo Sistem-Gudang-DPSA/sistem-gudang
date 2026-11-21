@@ -2,11 +2,11 @@
 
 import React, { useState } from "react";
 import { Search, Loader2, Eye, AlertCircle} from "lucide-react";
-import { getStockOpname, listStockOpname } from "@/domains/inventory/api";
+import { listStockOpname } from "@/domains/inventory/api";
 import { displayDate } from "@/domains/inventory/date";
-import type { StockOpnameDetail } from "@/domains/inventory/types";
-import { ApiError } from "@/shared/lib/api-client";
 import { useApiData } from "@/shared/lib/use-api-data";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import Pagination from "@/shared/components/Pagination";
 import SortableTh, { useSort } from "@/shared/components/SortableTh";
 
@@ -18,8 +18,7 @@ export default function RekapStokOpname() {
 
     const [searchQuery, setSearchQuery] = useState("");
     const [filterDate, setFilterDate] = useState<string>("");
-    const [selectedDetail, setSelectedDetail] = useState<StockOpnameDetail | null>(null);
-    const [actionError, setActionError] = useState("");
+    const pathname = usePathname();
 
     // Stock opname is per month, so the date input narrows to that month and year.
     const filters = {
@@ -41,15 +40,6 @@ export default function RekapStokOpname() {
         "Gagal memuat rekap stok opname.",
     );
     const filteredData = report?.rows ?? [];
-
-    const openDetail = async (id: number) => {
-        setActionError("");
-        try {
-            setSelectedDetail(await getStockOpname(id));
-        } catch (err) {
-            setActionError(err instanceof ApiError ? err.message : "Gagal memuat detail stok opname.");
-        }
-    };
 
     return(
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -144,59 +134,23 @@ export default function RekapStokOpname() {
                                 <span className="font-medium text-gray-900">User #{item.createdBy}</span>
                             </td>
                             <td className="flex justify-center px-4 py-3 text-center">
-                                <button
-                                onClick={() => openDetail(item.id)}
+                                <Link
+                                href={`${pathname}/${item.id}`}
                                 className="flex-1 lg:flex-none flex items-center justify-center gap-2 text-blue-600 hover:text-blue-800 font-medium text-xs bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded border border-blue-200 transition-colors"
                                 >
                                 <Eye className='h-4 w-4'></Eye>
                                 <span>View Detail</span>
-                                </button>
+                                </Link>
                             </td>
                             </tr>
                         ))
                         )}  
                         </tbody>
                     </table>
-                    {actionError && <p className="px-4 py-2 text-sm text-red-500">{actionError}</p>}
                     <Pagination page={page} pageSize={PAGE_SIZE} total={report?.total ?? 0} onPageChange={setPage} />
                 </div>
             </div>
 
-            {selectedDetail && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in">
-                    <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full p-6 border border-gray-100 max-h-[90vh] overflow-y-auto">
-                        <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-100">
-                            <h3 className="text-lg font-bold text-gray-900">Stok Opname {BULAN[selectedDetail.month - 1]} {selectedDetail.year}</h3>
-                            <button onClick={() => setSelectedDetail(null)} className="text-gray-400 hover:text-gray-600 font-bold text-xl px-2">✕</button>
-                        </div>
-                        <table className="min-w-full text-xs">
-                            <thead className="bg-gray-100 font-semibold text-gray-700">
-                                <tr>
-                                    <th className="px-3 py-2 text-left">Barang</th>
-                                    <th className="px-3 py-2 text-center">Administrasi</th>
-                                    <th className="px-3 py-2 text-center">Fisik</th>
-                                    <th className="px-3 py-2 text-center">Selisih</th>
-                                    <th className="px-3 py-2 text-left">Keterangan</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {selectedDetail.lines.map((line) => (
-                                    <tr key={line.itemId}>
-                                        <td className="px-3 py-2 text-gray-900">{line.itemName}<span className="block text-gray-500">{line.itemCode ?? '-'}</span></td>
-                                        <td className="px-3 py-2 text-center">{line.systemQty} {line.unit}</td>
-                                        <td className="px-3 py-2 text-center">{line.physicalQty} {line.unit}</td>
-                                        <td className="px-3 py-2 text-center font-bold">{line.difference}</td>
-                                        <td className="px-3 py-2 text-gray-600">{line.note ?? ''}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                        <div className="mt-6 text-right">
-                            <button onClick={() => setSelectedDetail(null)} className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">Tutup</button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     )
 }
