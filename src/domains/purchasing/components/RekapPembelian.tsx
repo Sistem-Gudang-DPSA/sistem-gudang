@@ -11,7 +11,11 @@ import { lihatPermintaanPath } from '@/domains/purchasing/data/pembelian';
 
 const cellClass = 'px-4 py-3 border-b border-r border-gray-300';
 
-export default function RekapPembelian({
+export default function RekapPembelian() {
+  return <RekapPembelianReport />;
+}
+
+export function RekapPembelianReport({
   lihatPath = lihatPermintaanPath,
 }: {
   lihatPath?: (id: number | string) => string;
@@ -32,8 +36,9 @@ export default function RekapPembelian({
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-4">
-        <h1 className="text-[18px] font-extrabold text-black tracking-wide">Rekap Pembelian</h1>
+      <div className="mb-8">
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1 uppercase">DAFTAR PERMINTAAN PEMBELIAN</h1>
+        <p className="text-gray-500 text-sm">Kelola pengajuan permintaan pembelian barang.</p>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">

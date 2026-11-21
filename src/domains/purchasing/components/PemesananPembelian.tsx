@@ -16,6 +16,7 @@ import type { PurchaseOrder, Supplier } from '@/domains/purchasing/types';
 import { useCan } from '@/domains/auth/user-context';
 import { ApiError } from '@/shared/lib/api-client';
 import { lineSudahDipesan, usePoPermintaan } from '@/domains/purchasing/use-po-permintaan';
+import { printPurchaseOrder } from '@/domains/purchasing/export/print-po';
 
 type BarisHarga = { kodeBarang: string; harga: string; diskon: string };
 
@@ -79,6 +80,8 @@ function FormPemesanan({ permintaan }: { permintaan: PermintaanPembelian }) {
 
   const [saving, setSaving] = useState(false);
   const [dibuat, setDibuat] = useState<PurchaseOrder | null>(null);
+  const [printing, setPrinting] = useState(false);
+  const [printError, setPrintError] = useState('');
   const [tanggalPo, setTanggalPo] = useState('');
   const { suppliers, onSearch: cariSupplier, pending: supplierPending, error: supplierError } = useSupplierSearch();
   // Supplier terpilih disimpan sendiri supaya tetap ada walau di luar hasil pencarian terakhir.
@@ -195,6 +198,18 @@ function FormPemesanan({ permintaan }: { permintaan: PermintaanPembelian }) {
     }
   };
 
+  const handlePrint = async (po: PurchaseOrder) => {
+    setPrinting(true);
+    setPrintError('');
+    try {
+      await printPurchaseOrder(po);
+    } catch {
+      setPrintError('PO sudah tersimpan, tetapi dialog cetak gagal dibuka. Klik Cetak PO untuk mencoba lagi.');
+    } finally {
+      setPrinting(false);
+    }
+  };
+
   if (dibuat) {
     return (
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -202,7 +217,9 @@ function FormPemesanan({ permintaan }: { permintaan: PermintaanPembelian }) {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-6 py-10 text-center">
           <p className="text-base font-bold text-gray-900">PO {dibuat.nomorPo} berhasil dibuat</p>
           <p className="mt-2 text-sm text-gray-600">Supplier {dibuat.supplierName}, grand total Rp. {formatAngka(dibuat.grandTotal)}</p>
-          <Link href={backPath} className={`${orangeButtonClass} inline-block mt-6`}>Kembali ke Detail Permintaan</Link>
+          {printError && <p role="alert" className="mt-4 text-sm text-red-600">{printError}</p>}
+          <button type="button" onClick={() => void handlePrint(dibuat)} disabled={printing} className={`${orangeButtonClass} inline-block mt-6 disabled:opacity-50`}>{printing ? 'Menyiapkan cetak...' : 'Cetak PO'}</button>
+          <Link href={backPath} className={`${orangeButtonClass} inline-block mt-6 ml-3`}>Kembali ke Detail Permintaan</Link>
         </div>
       </div>
     );
