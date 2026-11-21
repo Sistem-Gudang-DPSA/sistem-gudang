@@ -8,8 +8,16 @@ import { useApiData } from '@/shared/lib/use-api-data';
 import { formatTanggal } from '@/domains/ppic/data/dokubah';
 import { fetchPermintaanList } from '@/domains/ppic/data/pembelian';
 import { lihatPermintaanPath } from '@/domains/purchasing/data/pembelian';
+import StatusBadge, { type BadgeTone } from '@/shared/components/StatusBadge';
+import type { ApprovalStatus } from '@/domains/ppic/types';
 
-const cellClass = 'px-4 py-3 border-b border-r border-gray-300';
+const STATUS_TONE: Record<ApprovalStatus, BadgeTone> = {
+  pending: 'amber',
+  approved: 'green',
+  rejected: 'red',
+  revision_requested: 'blue',
+  cancelled: 'gray',
+};
 
 export default function RekapPembelian() {
   return <RekapPembelianReport />;
@@ -57,25 +65,27 @@ export function RekapPembelianReport({
         </div>
 
         {/* Tabel */}
-        <div className="overflow-x-auto border-t border-l border-gray-300 rounded-sm">
-          <table className="w-full text-left text-sm whitespace-nowrap border-collapse">
-            <thead className="bg-gray-100 text-gray-900 font-bold text-base">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm whitespace-nowrap">
+            <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
               <tr>
-                <th scope="col" className={`${cellClass} w-16`}>No</th>
-                <th scope="col" className={cellClass}>Tanggal</th>
-                <th scope="col" className={`${cellClass} w-1/3`}>Permintaan</th>
-                <th scope="col" className={`${cellClass} text-center`}>Status</th>
-                <th scope="col" className={`${cellClass} text-center`}>Action</th>
+                <th scope="col" className="px-6 py-4 w-16 text-center">No</th>
+                <th scope="col" className="px-6 py-4">Tanggal</th>
+                <th scope="col" className="px-6 py-4">Permintaan</th>
+                <th scope="col" className="px-6 py-4 text-center">Status</th>
+                <th scope="col" className="px-6 py-4 text-center">Aksi</th>
               </tr>
             </thead>
-            <tbody className="text-gray-800">
+            <tbody className="divide-y divide-gray-50">
               {filteredData.map((item, index) => (
-                <tr key={item.id} className="hover:bg-orange-50/20 transition-colors">
-                  <td className={cellClass}>{(page - 1) * 20 + index + 1}.</td>
-                  <td className={cellClass}>{formatTanggal(item.tanggal)}</td>
-                  <td className={cellClass}>{item.permintaan}</td>
-                  <td className={`${cellClass} text-center font-bold text-gray-900`}>{item.status}</td>
-                  <td className={`${cellClass} text-center`}>
+                <tr key={item.id} className="hover:bg-[#FF8A00]/5 transition-colors">
+                  <td className="px-6 py-4 text-gray-500 text-center font-medium">{(page - 1) * 20 + index + 1}.</td>
+                  <td className="px-6 py-4 text-gray-500 font-bold">{formatTanggal(item.tanggal)}</td>
+                  <td className="px-6 py-4 text-gray-700">{item.permintaan}</td>
+                  <td className="px-6 py-4 text-center">
+                    <StatusBadge tone={STATUS_TONE[item.statusApi]}>{item.status}</StatusBadge>
+                  </td>
+                  <td className="px-6 py-4 text-center">
                     <Link
                       href={lihatPath(item.id)}
                       className="inline-block px-3 py-1 bg-[#FF8A00] text-white text-xs font-semibold rounded-md hover:bg-orange-600 transition-colors"
@@ -87,14 +97,14 @@ export function RekapPembelianReport({
               ))}
               {(loading || error) && (
                 <tr>
-                  <td colSpan={5} className={`${cellClass} px-6 py-10 text-center ${error ? 'text-red-600' : 'text-gray-400 italic'}`}>
+                  <td colSpan={5} className={`px-6 py-10 text-center ${error ? 'text-red-500' : 'text-gray-400 italic'}`}>
                     {error || 'Memuat data...'}
                   </td>
                 </tr>
               )}
               {!loading && !error && filteredData.length === 0 && (
                 <tr>
-                  <td colSpan={5} className={`${cellClass} px-6 py-10 text-center text-gray-400 italic`}>
+                  <td colSpan={5} className="px-6 py-10 text-center text-gray-400 italic">
                     Data tidak ditemukan.
                   </td>
                 </tr>
