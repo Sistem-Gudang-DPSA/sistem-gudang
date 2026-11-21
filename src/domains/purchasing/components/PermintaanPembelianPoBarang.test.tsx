@@ -34,6 +34,14 @@ describe('detail permintaan yang dibuka dari PO Barang', () => {
     expect(screen.queryByRole('button', { name: 'Setuju' })).toBeNull();
   });
 
+  it('meneruskan asal PO Barang ke form Buat PO', async () => {
+    installFakeApi({ 'GET /api/v1/approvals/7': request('approved'), 'GET /api/v1/purchase-orders': paged([]) });
+    render(<AuthUserProvider user={purchasing(['purchase-order.create'])}><Page /></AuthUserProvider>);
+
+    const link = await screen.findByText('Buat PO');
+    expect(link.getAttribute('href')).toBe('/dashboard/purchasing/transaksi/buat-po-barang/buat-po/7?from=permintaan-po-barang');
+  });
+
   it('menampilkan status disetujui tanpa tombol Buat PO saat pengguna hanya punya purchase-order.view', async () => {
     installFakeApi({ 'GET /api/v1/approvals/7': request('approved'), 'GET /api/v1/purchase-orders': paged([]) });
     render(<AuthUserProvider user={purchasing(['purchase-order.view'])}><Page /></AuthUserProvider>);
