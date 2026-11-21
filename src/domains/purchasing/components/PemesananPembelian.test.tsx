@@ -8,7 +8,7 @@ vi.setConfig({ testTimeout: 20000 });
 
 vi.mock('next/navigation', () => ({ useParams: () => ({ id: '7' }), useRouter: () => ({ push: vi.fn() }), usePathname: () => '/' }));
 
-const print = vi.hoisted(() => ({ printPurchaseOrder: vi.fn(async (_po: import('@/domains/purchasing/types').PurchaseOrder) => {}) }));
+const print = vi.hoisted(() => ({ printPurchaseOrder: vi.fn<(po: import('@/domains/purchasing/types').PurchaseOrder) => Promise<void>>(async () => {}) }));
 vi.mock('@/domains/purchasing/export/print-po', () => print);
 
 const request = (status: string) => ({
