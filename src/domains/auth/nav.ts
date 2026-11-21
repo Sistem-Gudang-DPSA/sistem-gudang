@@ -80,8 +80,8 @@ export const NAV_DIVISIONS: NavDivision[] = [
       {
         title: "Master",
         items: [
-          { href: "/dashboard/gudang/master/data-barang", label: "Data Barang", anyOf: ["item.view"] },
           { href: "/dashboard/gudang/master/data-lokasi", label: "Data Lokasi", anyOf: ["location.view"] },
+          { href: "/dashboard/gudang/master/data-barang", label: "Data Barang", anyOf: ["item.view"] },
         ],
       },
       {
