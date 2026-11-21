@@ -152,7 +152,7 @@ export default function POBarang() {
                       )}
                       {canCreatePo && item.statusApi === 'approved' && item.purchaseStatus !== 'PURCHASED' && (
                         <Link
-                          href={buatPoPath(item.id)}
+                          href={`${buatPoPath(item.id)}?from=po-barang`}
                           className="inline-block px-3 py-1 bg-[#FF8A00] text-white text-xs font-semibold rounded-md hover:bg-orange-600 transition-colors"
                         >
                           Buat PO
