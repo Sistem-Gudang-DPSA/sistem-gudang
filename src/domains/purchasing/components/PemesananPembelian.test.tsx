@@ -69,6 +69,14 @@ describe('PemesananPembelian guards', () => {
     nav.query = '';
   });
 
+  it('kembali ke detail permintaan versi PO Barang saat dibuka dari tombol Buat PO di sana', async () => {
+    nav.query = 'from=permintaan-po-barang';
+    setup('approved');
+    await ready();
+    expect(screen.getByLabelText('Kembali').getAttribute('href')).toBe('/dashboard/purchasing/transaksi/buat-po-barang/permintaan-pembelian/7');
+    nav.query = '';
+  });
+
   it('shows load error', async () => {
     setup('approved', { 'GET /api/v1/approvals/7': fail(404, 'Approval tidak ada') });
     expect(await screen.findByText('Approval tidak ada')).not.toBeNull();

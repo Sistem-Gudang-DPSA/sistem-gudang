@@ -59,6 +59,10 @@ contoh dan tombol simpannya hanya menampilkan alert.
   Panah kembali dan tombol di layar sukses mengarah ke daftar PO Barang;
   tanpa parameter itu (dibuka dari detail permintaan) kembali ke detail
   permintaan.
+- Tombol **Buat PO** di detail permintaan yang dibuka dari PO Barang membawa
+  `?from=permintaan-po-barang`, sehingga kembali dari form menuju detail
+  permintaan versi PO Barang (sidebar tetap di PO Barang), bukan Rekap
+  Permintaan Pembelian.
 - Di halaman Detail PO, tautan **Lihat Permintaan Pembelian Asal** memakai
   URL PO di atas, sehingga panah kembali menuju daftar PO Barang, bukan
   Rekap Pembelian.
