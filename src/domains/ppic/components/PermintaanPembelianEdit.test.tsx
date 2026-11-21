@@ -32,6 +32,7 @@ describe('purchase request edit routes', () => {
     const api = installFakeApi({
       'GET /api/v1/approvals/7': { request: request(status), actions: [] },
       'GET /api/v1/items': paged([]),
+      'GET /api/v1/tracking/spk': [],
       'PUT /api/v1/approvals/7': null,
     });
     render(withUser(<Page />, ['purchase-request.create']));

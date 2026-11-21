@@ -112,6 +112,34 @@ Disetujui Oleh. Baris kosong tidak ikut tercetak; bila belum ada baris
 terisi, tabel menampilkan **Belum ada barang**. Isi kolom di-escape dan
 pencetakan memakai `cetakLaporan` (iframe tersembunyi), bukan pop-up.
 
+## Pilihan pemohon pada form
+
+Kolom **Bagian/Sub bagian**, **Nama**, dan **Jabatan** pada form tambah, edit,
+dan revisi di Gudang maupun PPIC memakai dropdown. Pilihan sementara berupa
+data dummy di `src/domains/ppic/data/pemohon-pembelian.ts`, tanpa endpoint baru.
+Ketiga pilihan berdiri sendiri dan tetap wajib dipilih sebelum mengajukan.
+Nilainya dikirim sebagai `bagian`, `namaPemohon`, dan `jabatan` pada payload
+permintaan. Saat membuka data lama, nilai yang belum ada di daftar dummy tetap
+muncul dan dipertahankan saat disimpan.
+
+## Pilihan proyek pada rincian barang
+
+Kolom **Proyek** memakai dropdown yang dapat dicari pada setiap baris form
+Gudang dan PPIC. Pilihannya berasal dari `projectName` pada
+`GET /api/v1/tracking/spk`, sumber yang sama dengan halaman **Daftar Proyek**.
+Seluruh daftar diambil tanpa `limit`; nama yang kosong diabaikan dan nama
+berulang ditampilkan satu kali. Pilihan disimpan pada `items[].proyek`.
+Nilai proyek lama tetap ditampilkan saat edit/revisi walaupun sudah tidak ada
+dalam daftar tracking. Mengganti proyek mengosongkan `noSpk` lama pada baris
+agar nomor SPK sebelumnya tidak ikut dipakai untuk proyek baru.
+Jika tracking gagal dimuat, form menampilkan pesan kesalahan.
+
+## Judul halaman rekap
+
+Halaman Rekap Pembelian di PPIC dan Rekap Permintaan Pembelian di Purchasing
+memakai judul **DAFTAR PERMINTAAN PEMBELIAN** dengan teks pengantar
+**Kelola pengajuan permintaan pembelian barang.**
+
 ## Tanggal pada form permintaan
 
 Kolom **Dikirim Tanggal** pada form tambah, edit, dan revisi dipetakan ke
