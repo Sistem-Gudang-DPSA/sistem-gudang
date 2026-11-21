@@ -3,6 +3,7 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { installFakeApi, paged } from '@/test/fake-api';
 import { downloadBlob } from '@/shared/lib/download';
 import POBarang from './POBarang';
+import { AuthUserProvider } from '@/domains/auth/user-context';
 
 vi.mock('@/shared/lib/download', () => ({ downloadBlob: vi.fn() }));
 
@@ -17,12 +18,37 @@ describe('purchasing POBarang', () => {
     const api = installFakeApi({ 'GET /api/v1/approvals': paged([request(1)], { total: 45 }) });
     render(<POBarang />);
     await screen.findByText('Permintaan 1');
+    expect(screen.getByText('Lihat Permintaan').getAttribute('href')).toBe(
+      '/dashboard/purchasing/transaksi/buat-po-barang/permintaan-pembelian/1',
+    );
+    expect(screen.getByText('Buat PO').getAttribute('href')).toBe(
+      '/dashboard/purchasing/transaksi/buat-po-barang/buat-po/1',
+    );
     fireEvent.click(screen.getByRole('button', { name: '3' }));
     await waitFor(() => expect(lastQ(api).get('page')).toBe('3'));
     fireEvent.click(screen.getByRole('button', { name: /Tanggal/ }));
     await waitFor(() => expect(lastQ(api).get('sortBy')).toBe('date'));
     expect(lastQ(api).get('sortDir')).toBe('asc');
     expect(lastQ(api).get('page')).toBe('1');
+  });
+
+  it('menyembunyikan Buat PO saat permintaan belum disetujui atau sudah dipesan semua', async () => {
+    installFakeApi({ 'GET /api/v1/approvals': paged([request(1), { ...request(2), purchaseStatus: 'PURCHASED' }, { ...request(3), status: 'pending' }]) });
+    render(<POBarang />);
+    await screen.findByText('Permintaan 1');
+    const links = screen.getAllByText('Buat PO').map((el) => el.getAttribute('href'));
+    expect(links).toEqual(['/dashboard/purchasing/transaksi/buat-po-barang/buat-po/1']);
+  });
+
+  it('menyembunyikan Lihat Permintaan bagi pengguna yang hanya punya purchase-order.view', async () => {
+    installFakeApi({ 'GET /api/v1/approvals': paged([request(1)]) });
+    render(
+      <AuthUserProvider user={{ id: 1, username: 'p', email: 'p@example.test', roleId: 4, roleName: 'Staf Purchasing', isSuperadmin: false, domainCode: 'purchasing', permissions: ['purchase-order.view'] }}>
+        <POBarang />
+      </AuthUserProvider>,
+    );
+    await screen.findByText('Permintaan 1');
+    expect(screen.queryByText('Lihat Permintaan')).toBeNull();
   });
 
   it('exports a CSV with matching headers, escaped fields, and can export twice', async () => {
