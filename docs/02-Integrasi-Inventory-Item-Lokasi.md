@@ -125,8 +125,10 @@ endpoint backend-nya:
   beda dari `PATCH /items/{id}/stock`: endpoint itu untuk penyesuaian
   langsung dengan alasan bebas, bukan pencatatan transaksi barang
   masuk/keluar yang terstruktur (nomor referensi, supplier, dsb).
-- Edit dan hapus lokasi (tidak ada tombolnya di desain awal, dan
-  `DELETE /locations/{id}` belum dipakai di frontend manapun).
+- Edit lokasi lewat mode edit baris (`location.update`). Hapus lokasi memakai
+  `DELETE /locations/{id}` dan hanya ditampilkan untuk role **Superadmin**.
+  Import Excel Data Lokasi juga hanya untuk Superadmin; Gudang tetap punya
+  Tambah Batch dan Tambah Data selama punya `location.create`.
 
 ## Import Excel Data Barang
 
