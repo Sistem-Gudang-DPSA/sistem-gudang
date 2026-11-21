@@ -6,6 +6,8 @@ export interface NavItem {
   label: string;
   // Visible when the user has ANY of these permissions. Omitted = visible to anyone who sees the division.
   anyOf?: string[];
+  // Disembunyikan dari menu, tetapi tetap dipakai guard route (mis. fitur yang belum dipakai).
+  hidden?: boolean;
 }
 
 export interface NavGroup {
@@ -27,6 +29,8 @@ export interface NavDivision {
   // Divisi codes (user.domainCode) that get this division. Omitted = no divisi filter.
   domains?: string[];
   groups: NavGroup[];
+  // Disembunyikan dari menu, tetapi route-nya tetap dijaga canAccess.
+  hidden?: boolean;
 }
 
 // Merge resolution: keep the dev route structure and permissions intact, while exposing the newer
@@ -85,7 +89,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
         items: [
           { href: "/dashboard/gudang/transaksi/barang-masuk", label: "Barang Masuk", anyOf: ["inbound.view"] },
           { href: "/dashboard/gudang/transaksi/barang-keluar", label: "Barang Keluar", anyOf: ["outbound.view"] },
-           { href: "/dashboard/gudang/transaksi/ceklist-dokubah", label: "Checklist Dokubah", anyOf: ["checklist-dokubah.view"] },
+           { href: "/dashboard/gudang/transaksi/ceklist-dokubah", label: "Checklist Dokubah", anyOf: ["checklist-dokubah.view"], hidden: true },
           { href: "/dashboard/gudang/transaksi/stock-opname", label: "Stock Opname", anyOf: ["stock-opname.view"] },
           { href: "/dashboard/gudang/transaksi/permintaan-pembelian", label: "Permintaan Pembelian", anyOf: ["purchase-request.create"] },
         ],
@@ -97,9 +101,9 @@ export const NAV_DIVISIONS: NavDivision[] = [
           { href: "/dashboard/gudang/laporan/barang-keluar", label: "Rekap Data Barang Keluar", anyOf: ["report.view"] },
           { href: "/dashboard/gudang/laporan/rekap-permintaan", label: "Rekap Permintaan", anyOf: ["report.view"] },
           { href: "/dashboard/gudang/laporan/stock-opname", label: "Rekap Stok Opname", anyOf: ["report.view"] },
-          { href: "/dashboard/gudang/laporan/dokubah", label: "Rekap Dokubah", anyOf: ["dokubah.view"] },
+          { href: "/dashboard/gudang/laporan/dokubah", label: "Rekap Dokubah", anyOf: ["dokubah.view"], hidden: true },
           { href: "/dashboard/gudang/laporan/kartu-stok", label: "Kartu Stok", anyOf: ["item.view"] },
-          { href: "/dashboard/gudang/laporan/realisasi-dokubah", label: "Realisasi Dokubah", anyOf: ["dokubah.view"] },
+          { href: "/dashboard/gudang/laporan/realisasi-dokubah", label: "Realisasi Dokubah", anyOf: ["dokubah.view"], hidden: true },
         ],
       },
     ],
@@ -113,6 +117,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
     // Own routes (re-exporting the Gudang screens) so only one division's link lights up in the sidebar.
     // report.view is shared with PPIC reports, so it must not open the Gudang division by itself.
     anyOf: ["inbound.view", "outbound.view", "stock-opname.view", "location.view"],
+    hidden: true,
     groups: [
       {
         title: "Master",
@@ -154,16 +159,16 @@ export const NAV_DIVISIONS: NavDivision[] = [
         title: "Master",
         items: [
           { href: "/dashboard/ppic/master/data-barang", label: "Data Barang", anyOf: ["item.view"] },
-          { href: "/dashboard/ppic/master/penawaran-harga", label: "Penawaran Harga", anyOf: ["penawaran-harga.view"] },
+          { href: "/dashboard/ppic/master/penawaran-harga", label: "Penawaran Harga", anyOf: ["penawaran-harga.view"], hidden: true },
         ],
       },
       {
         title: "Transaksi",
         items: [
-          { href: "/dashboard/ppic/transaksi/dokubah", label: "Dokubah", anyOf: ["dokubah.view"] },
-          { href: "/dashboard/ppic/transaksi/spk-mutasi-internal", label: "SPK Internal & Mutasi Stok", anyOf: ["spk-internal.view"] },
+          { href: "/dashboard/ppic/transaksi/dokubah", label: "Dokubah", anyOf: ["dokubah.view"], hidden: true },
+          { href: "/dashboard/ppic/transaksi/spk-mutasi-internal", label: "SPK Internal & Mutasi Stok", anyOf: ["spk-internal.view"], hidden: true },
           { href: "/dashboard/ppic/transaksi/permintaan-pembelian", label: "Permintaan Pembelian", anyOf: ["purchase-request.create"] },
-          { href: "/dashboard/ppic/transaksi/approval", label: "Approval", anyOf: ["material-request.create", "purchase-request.create"] },
+          { href: "/dashboard/ppic/transaksi/approval", label: "Approval", anyOf: ["material-request.create", "purchase-request.create"], hidden: true },
         ],
       },
       {
@@ -220,6 +225,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
     theme: "emerald",
     domains: ["keuangan"],
     anyOf: ["report.view"],
+    hidden: true,
     groups: [{
       title: "Laporan",
       items: [
@@ -237,6 +243,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
     theme: "blue",
     domains: ["produksi"],
     anyOf: ["report.view"],
+    hidden: true,
     groups: [{
       title: "Laporan",
       items: [
@@ -258,12 +265,13 @@ const canSeeDivision = (user: AuthUser, division: NavDivision) =>
   user.isSuperadmin || (!division.superadminOnly && inDomain(user, division) && can(user, division.anyOf));
 
 // Divisions and items the user may see, with empty groups and divisions dropped.
+// `hidden` entries stay out of the menu but remain in NAV_DIVISIONS for the route guard.
 export function visibleNav(user: AuthUser): NavDivision[] {
-  return NAV_DIVISIONS.filter((d) => canSeeDivision(user, d))
+  return NAV_DIVISIONS.filter((d) => !d.hidden && canSeeDivision(user, d))
     .map((d) => ({
       ...d,
       groups: d.groups
-        .map((g) => ({ ...g, items: g.items.filter((i) => can(user, i.anyOf)) }))
+        .map((g) => ({ ...g, items: g.items.filter((i) => !i.hidden && can(user, i.anyOf)) }))
         .filter((g) => g.items.length > 0),
     }))
     .filter((d) => d.groups.length > 0);
