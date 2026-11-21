@@ -53,6 +53,15 @@ contoh dan tombol simpannya hanya menampilkan alert.
   Tombol hanya tampil untuk pengguna dengan `purchase-request.approve` atau
   `purchase-order.create`; pengguna `purchase-order.view` hanya melihat "-"
   pada kolom aksi.
+- Baris yang permintaannya sudah disetujui dan belum dipesan semua juga
+  menampilkan tombol **Buat PO** menuju form Buat PO permintaan tersebut.
+  Tombol ini butuh `purchase-order.create`.
+- Di halaman Detail PO, tautan **Lihat Permintaan Pembelian Asal** memakai
+  URL PO di atas, sehingga panah kembali menuju daftar PO Barang, bukan
+  Rekap Pembelian.
+- Daftar **Rekap Permintaan Pembelian** memakai gaya tabel yang sama dengan
+  daftar lain: kartu putih, pencarian, baris bergaris tipis, badge status
+  berwarna, dan paginasi.
 - Status permintaan tampil sebagai badge di samping judul detail, sehingga
   tetap terlihat walau pengguna tidak memiliki tombol aksi (approve atau
   buat PO).
