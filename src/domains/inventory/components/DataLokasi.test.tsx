@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { installFakeApi, paged } from '@/test/fake-api';
 import { AuthUserProvider } from '@/domains/auth/user-context';
 import type { AuthUser } from '@/domains/auth/types';
@@ -18,6 +18,18 @@ async function renderAs(isSuperadmin: boolean) {
   render(<AuthUserProvider user={user(isSuperadmin)}><DataLokasi /></AuthUserProvider>);
   await screen.findByText('A.1.1');
 }
+
+describe('DataLokasi: mode edit di kolom Aksi', () => {
+  it('menampilkan tombol Edit di baris dan Simpan/Batal setelah masuk mode edit', async () => {
+    await renderAs(true);
+    expect(screen.queryByText('Mode Edit')).toBeNull();
+    const edit = screen.getByRole('button', { name: 'Edit lokasi A.1.1' });
+    fireEvent.click(edit);
+    expect(screen.getByLabelText('Nama rak A.1.1')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Simpan' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Batal' })).toBeTruthy();
+  });
+});
 
 describe('DataLokasi: import dan hapus hanya Superadmin', () => {
   it('menampilkan Import Excel dan Hapus untuk Superadmin', async () => {
