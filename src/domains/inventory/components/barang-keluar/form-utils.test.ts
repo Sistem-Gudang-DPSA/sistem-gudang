@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatNamaPengambil, inputJumlah, jumlahValid } from "./form-utils";
+import { formatNamaPengambil, inputJumlah, jumlahValid, peringatanDokubah } from "./form-utils";
 
 describe("jumlah pengambilan", () => {
   it.each(["1", "0.5", ".25", "1.25", "1.234", "0.001", ".123", "1000000"])("accepts %s", (value) => {
@@ -15,6 +15,16 @@ describe("jumlah pengambilan", () => {
     expect(inputJumlah("0,75")).toBe("0.75");
     expect(inputJumlah("1.25")).toBe("1.25");
     expect(inputJumlah("e-1.5")).toBe("e-1.5");
+  });
+});
+
+describe("nilai dokubah", () => {
+  it.each(["", "1.125", "0.75", "0.001", "1000000"])("accepts %s", (value) => {
+    expect(peringatanDokubah(value)).toBe("");
+  });
+
+  it.each(["0", "1.", "1.2345", "1000000.001"])("rejects %s", (value) => {
+    expect(peringatanDokubah(value)).not.toBe("");
   });
 });
 
