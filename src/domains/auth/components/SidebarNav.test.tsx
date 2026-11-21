@@ -22,6 +22,27 @@ describe("notifications sidebar", () => {
   });
 });
 
+describe("dashboard sidebar", () => {
+  it("menampilkan Dashboard menuju divisi role dan bukan Overview", () => {
+    const ppic: AuthUser = {
+      ...user, username: "ppic", isSuperadmin: false, domainCode: "ppic",
+      permissions: ["purchase-request.create", "material-request.create", "item.view"],
+    };
+    render(<SidebarNav user={ppic} pathname="/dashboard/ppic" />);
+    expect(screen.queryByText("Overview")).toBeNull();
+    const link = screen.getByRole("link", { name: "Dashboard" });
+    expect(link.getAttribute("href")).toBe("/dashboard/ppic");
+    expect(link.className).toContain("bg-blue-600");
+  });
+
+  it("superadmin hanya punya satu Dashboard menuju /dashboard/superadmin", () => {
+    render(<SidebarNav user={user} pathname="/dashboard/superadmin" />);
+    const links = screen.getAllByRole("link", { name: "Dashboard" });
+    expect(links).toHaveLength(1);
+    expect(links[0].getAttribute("href")).toBe("/dashboard/superadmin");
+  });
+});
+
 describe("production sidebar", () => {
   it("highlights only the production link in blue on a production detail page", () => {
     const onNavigate = vi.fn();
