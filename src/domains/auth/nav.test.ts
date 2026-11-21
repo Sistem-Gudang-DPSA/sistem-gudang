@@ -43,6 +43,29 @@ describe("visibleNav", () => {
     expect(canAccess({ ...production, permissions: [] }, "/dashboard/produksi/laporan/data-barang")).toBe(false);
   });
 
+  it("allows PO readers and creators into PO Barang with their own action permissions", () => {
+    const path = "/dashboard/purchasing/transaksi/buat-po-barang";
+    for (const permission of ["purchase-order.view", "purchase-order.create"]) {
+      const purchasing = withDomain(user(["item.set-price", permission]), "purchasing");
+      expect(canAccess(purchasing, path)).toBe(true);
+      expect(itemsOf(purchasing, "purchasing")).toContain("PO Barang");
+    }
+    const withoutPo = withDomain(user(["item.set-price"]), "purchasing");
+    expect(canAccess(withoutPo, path)).toBe(false);
+    expect(itemsOf(withoutPo, "purchasing")).not.toContain("PO Barang");
+  });
+
+  it("guards the purchasing realization report with report.view and its own division", () => {
+    const path = "/dashboard/purchasing/laporan/realisasi-dokubah";
+    const purchasing = withDomain(user(["item.set-price", "report.view"]), "purchasing");
+    const withoutReport = { ...purchasing, permissions: ["item.set-price"] };
+    expect(itemsOf(purchasing, "purchasing")).toContain("Realisasi Dokubah");
+    expect(canAccess(purchasing, path)).toBe(true);
+    expect(itemsOf(withoutReport, "purchasing")).not.toContain("Realisasi Dokubah");
+    expect(canAccess(withoutReport, path)).toBe(false);
+    expect(canAccess(withDomain(purchasing, "inventory"), path)).toBe(false);
+  });
+
   it("keeps keuangan away from ppic and purchasing users who also hold report.view", () => {
     expect(labels(withDomain(user(SEEDED.ppic), "ppic"))).toEqual(["ppic"]);
     expect(labels(withDomain(user(SEEDED.kPurchasing), "purchasing"))).toEqual(["purchasing"]);
@@ -171,7 +194,7 @@ describe("sidebar per seeded role", () => {
     expect(labels(p)).toEqual(["purchasing"]);
     expect(itemsOf(p, "purchasing")).toEqual([
       "Data Barang", "Data Supplier", "PO Barang", "Penawaran Harga / SPH", "Retur ke Supplier",
-      "Rekap Data Barang Masuk", "Rekap Data Barang Keluar", "Rekap Stock Opname", "Rekap Pembelian",
+      "Rekap Data Barang Masuk", "Rekap Data Barang Keluar", "Rekap Stock Opname", "Rekap Permintaan Pembelian", "Realisasi Dokubah",
     ]);
     expect(canAccess(p, "/dashboard/ppic/transaksi/permintaan-pembelian")).toBe(false);
     expect(canAccess(p, "/dashboard/purchasing/laporan/rekap-pembelian/buat-po/3")).toBe(true);
