@@ -9,7 +9,7 @@ import { useApiData } from '@/shared/lib/use-api-data';
 import { usePage } from '@/shared/lib/use-page';
 import { formatTanggal } from '@/domains/ppic/data/dokubah';
 import { fetchPermintaanList } from '@/domains/ppic/data/pembelian';
-import { lihatPermintaanPath } from '@/domains/purchasing/data/pembelian';
+import { lihatPermintaanPoPath } from '@/domains/purchasing/data/pembelian';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import { countActiveFilters, emptyBarangFilters } from '@/domains/inventory/components/BarangFilterPanel';
@@ -138,7 +138,7 @@ export default function POBarang() {
                     <div className="flex flex-col">
                       <span className="font-bold text-gray-900">
                         <Link
-                          href={lihatPermintaanPath(item.id)}
+                          href={lihatPermintaanPoPath(item.id)}
                           className="inline-block px-3 py-1 bg-[#FF8A00] text-white text-xs font-semibold rounded-md hover:bg-orange-600 transition-colors"
                         >
                           Lihat Permintaan

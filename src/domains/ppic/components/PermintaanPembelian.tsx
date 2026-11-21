@@ -8,6 +8,16 @@ import { ArrowLeft } from 'lucide-react';
 import { formatAngka, formatTanggal } from '@/domains/ppic/data/dokubah';
 import { AKSI_LABEL, fetchPermintaan, rekap_pembelian_path, revisiPath, type PermintaanPembelian } from '@/domains/ppic/data/pembelian';
 import { useApiData } from '@/shared/lib/use-api-data';
+import StatusBadge, { type BadgeTone } from '@/shared/components/StatusBadge';
+import type { ApprovalStatus } from '@/domains/ppic/types';
+
+const STATUS_TONE: Record<ApprovalStatus, BadgeTone> = {
+  pending: 'amber',
+  approved: 'green',
+  rejected: 'red',
+  revision_requested: 'blue',
+  cancelled: 'gray',
+};
 
 const cellClass = 'px-4 py-3 border-b border-r border-gray-300';
 const readOnlyFieldClass = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 bg-gray-50 cursor-default focus:outline-none';
@@ -38,24 +48,25 @@ function Lampiran({ label, file }: { label: string; file?: string }) {
 
 // `actions` mengganti tampilan status dengan tombol aksi dan `sections` menambah bagian
 // (mis. daftar PO) di detail; keduanya dipakai halaman Purchasing.
-export default function PermintaanPembelianPPIC({ backPath = rekap_pembelian_path, actions, sections }: { backPath?: string; actions?: (permintaan: PermintaanPembelian, reload: () => void) => React.ReactNode; sections?: (permintaan: PermintaanPembelian) => React.ReactNode }) {
+export default function PermintaanPembelianPPIC({ backPath = rekap_pembelian_path, title = 'Permintaan Pembelian', actions, sections }: { backPath?: string; title?: string; actions?: (permintaan: PermintaanPembelian, reload: () => void) => React.ReactNode; sections?: (permintaan: PermintaanPembelian) => React.ReactNode }) {
   const { id } = useParams<{ id: string }>();
   const canResubmit = useCan('purchase-request.create');
   const { data: permintaan, loading, error, reload } = useApiData(() => fetchPermintaan(id), id, 'Gagal memuat permintaan pembelian.');
 
-  const header = (
-    <div className="flex items-center gap-3 mb-6">
-      <Link href={backPath} aria-label="Kembali ke Rekap Pembelian" className="text-gray-800 hover:opacity-70 transition-opacity">
+  const header = (status?: { api: ApprovalStatus; label: string }) => (
+    <div className="flex flex-wrap items-center gap-3 mb-6">
+      <Link href={backPath} aria-label="Kembali" className="text-gray-800 hover:opacity-70 transition-opacity">
         <ArrowLeft className="w-5 h-5" strokeWidth={2.5} />
       </Link>
-      <h1 className="text-[18px] font-extrabold text-black tracking-wide">Permintaan Pembelian Gudang</h1>
+      <h1 className="text-[18px] font-extrabold text-black tracking-wide">{title}</h1>
+      {status && <StatusBadge tone={STATUS_TONE[status.api]}>{status.label}</StatusBadge>}
     </div>
   );
 
   if (!permintaan) {
     return (
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
-        {header}
+        {header()}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-6 py-10 text-center text-gray-400 italic">
           {loading ? 'Memuat data...' : error || 'Permintaan pembelian tidak ditemukan.'}
         </div>
@@ -65,7 +76,7 @@ export default function PermintaanPembelianPPIC({ backPath = rekap_pembelian_pat
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
-      {header}
+      {header({ api: permintaan.statusApi, label: permintaan.status })}
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <h2 className="text-base font-bold text-gray-900 text-center mb-6">Permintaan Pembelian</h2>
