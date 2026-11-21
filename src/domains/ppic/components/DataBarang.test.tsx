@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { installFakeApi, paged } from '@/test/fake-api';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
+import { fail, installFakeApi, paged } from '@/test/fake-api';
 import DataBarangPPIC from './DataBarang';
 
 vi.mock('next/navigation', () => ({
@@ -41,6 +41,62 @@ describe('DataBarang PPIC: header dan sel tabel', () => {
     const table = row?.closest('table');
     expect(row?.querySelectorAll('td').length).toBe(table?.querySelectorAll('thead th').length);
     expect(screen.queryByText('Stok & Satuan')).toBeNull();
+  });
+});
+
+describe('DataBarang PPIC: plotting stok minimum massal', () => {
+  const item2 = { ...item, id: 2, code: 'LEM014', name: 'Barang 2' };
+
+  function setupDuaBarang(extra: Record<string, unknown> = {}) {
+    const api = installFakeApi({
+      'GET /api/v1/items': paged([item, item2]),
+      'GET /api/v1/locations': paged([]),
+      'GET /api/v1/suppliers': paged([]),
+      'GET /api/v1/items/categories': [{ id: 1, name: 'Lembaran' }],
+      'GET /api/v1/items/units': [{ id: 1, name: 'pcs' }],
+      'PUT /api/v1/items/1': { ...item, minimumStock: 10 },
+      'PUT /api/v1/items/2': { ...item2, minimumStock: 10 },
+      ...extra,
+    });
+    render(<DataBarangPPIC />);
+    return api;
+  }
+
+  it('menampilkan checkbox di kolom pertama', async () => {
+    setupDuaBarang();
+    await screen.findByText('Barang 1');
+    const firstHeader = screen.getAllByRole('columnheader')[0];
+    expect(within(firstHeader).getByRole('checkbox', { name: 'Pilih semua barang di halaman ini' })).toBeTruthy();
+    expect(screen.getByRole('checkbox', { name: 'Pilih Barang 1' })).toBeTruthy();
+  });
+
+  it('menyimpan satu batas stok minimum ke semua barang yang dicentang', async () => {
+    const api = setupDuaBarang();
+    await screen.findByText('Barang 1');
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Pilih Barang 1' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Pilih Barang 2' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Atur Stok Minimum (2)' }));
+    fireEvent.change(screen.getByLabelText('Batas stok minimum'), { target: { value: '10' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan ke 2 barang' }));
+
+    await waitFor(() => expect(api.calls('PUT /api/v1/items/1')).toHaveLength(1));
+    expect(api.calls('PUT /api/v1/items/1')[0].body).toEqual({ minimumStock: 10 });
+    expect(api.calls('PUT /api/v1/items/2')[0].body).toEqual({ minimumStock: 10 });
+    expect((await screen.findByRole('status')).textContent).toContain('Berhasil (2): Barang 1, Barang 2');
+  });
+
+  it('menampilkan semua hasil bila ada barang yang gagal disimpan', async () => {
+    setupDuaBarang({ 'PUT /api/v1/items/2': fail(500, 'Gagal menyimpan batas') });
+    await screen.findByText('Barang 1');
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Pilih semua barang di halaman ini' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Atur Stok Minimum (2)' }));
+    fireEvent.change(screen.getByLabelText('Batas stok minimum'), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan ke 2 barang' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('Gagal (1):');
+    expect(alert.textContent).toContain('Barang 2: Gagal menyimpan batas');
+    expect(screen.getByRole('status').textContent).toContain('Berhasil (1): Barang 1');
   });
 });
 

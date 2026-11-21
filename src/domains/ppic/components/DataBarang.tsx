@@ -6,7 +6,7 @@ import StokMinimumCell from '@/domains/inventory/components/data-barang/StokMini
 import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import { useCan } from '@/domains/auth/user-context';
-import { Plus, Edit2, Trash2, Filter, MoreHorizontal, Images } from 'lucide-react';
+import { Plus, Edit2, Trash2, Filter, MoreHorizontal, Images, ListChecks } from 'lucide-react';
 import { createItem, deleteItem, updateItem } from '@/domains/inventory/api';
 import type { ItemListRow } from '@/domains/inventory/types';
 import { downloadCsv } from '@/shared/lib/csv';
@@ -18,6 +18,7 @@ import { useDataBarang } from '@/domains/inventory/components/data-barang/useDat
 import DataBarangTable, { type BarangColumn, KategoriBadge, StokCell, SupplierCell } from '@/domains/inventory/components/data-barang/DataBarangTable';
 import DataBarangToolbar from '@/domains/inventory/components/data-barang/DataBarangToolbar';
 import ItemFormModal, { type ItemForm } from '@/domains/inventory/components/data-barang/modals/ItemFormModal';
+import BulkStokMinimumModal from '@/domains/inventory/components/data-barang/BulkStokMinimumModal';
 const BulkPhotoModal = dynamic(() => import('@/domains/inventory/components/BulkPhotoModal'), { ssr: false });
 
 const emptyForm: ItemForm = { name: '', unit: '', category: '', price: '', supplierId: '' };
@@ -40,6 +41,10 @@ export default function DataBarangPPIC() {
 
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkUploaded, setBulkUploaded] = useState(false); // centangan dikosongkan hanya bila sudah ada upload
+  const [bulkStokOpen, setBulkStokOpen] = useState(false);
+  const [bulkStokApplied, setBulkStokApplied] = useState(false);
+  // Checkbox dipakai untuk foto massal dan plotting stok minimum massal.
+  const showSelection = canUploadPhoto || canUpdate;
   const error = actionError || d.error;
 
   const handleSimpan = async () => {
@@ -175,6 +180,17 @@ export default function DataBarangPPIC() {
           onSearchChange={d.setSearchQuery}
           searchInputClassName="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 sm:text-sm transition-all"
           bulkActions={<>
+            {canUpdate && (
+              <button
+                type="button"
+                onClick={() => setBulkStokOpen(true)}
+                disabled={selected.size === 0}
+                className="flex items-center gap-2 px-3 py-2 bg-orange-50 border border-orange-300 text-orange-700 rounded-lg hover:bg-orange-100 transition-colors text-sm font-medium disabled:opacity-50"
+              >
+                <ListChecks className="w-4 h-4" />
+                {`Atur Stok Minimum (${selected.size})`}
+              </button>
+            )}
             {canUploadPhoto && (
               <button
                 type="button"
@@ -214,12 +230,12 @@ export default function DataBarangPPIC() {
         <DataBarangTable
           rows={dataBarang}
           loading={d.loading}
-          colSpan={canUploadPhoto ? 15 : 14}
+          colSpan={showSelection ? 15 : 14}
           columns={columns}
           sort={d.sort}
           onSort={d.toggle}
           photo={{ canUpload: canUploadPhoto, onUploaded: reload }}
-          selection={canUploadPhoto ? {
+          selection={showSelection ? {
             selected,
             allOnPage: d.pageAllSelected,
             onToggleRow: d.toggleRow,
@@ -232,6 +248,14 @@ export default function DataBarangPPIC() {
         />
         <Pagination page={page} pageSize={d.pageSize} total={total} onPageChange={setPage} activeClass="bg-purple-500 text-white border-purple-500" />
       </div>
+
+      {bulkStokOpen && (
+        <BulkStokMinimumModal
+          items={[...selected.values()]}
+          onClose={() => { setBulkStokOpen(false); if (bulkStokApplied) setSelected(new Map()); setBulkStokApplied(false); }}
+          onApplied={() => { setBulkStokApplied(true); reload(); }}
+        />
+      )}
 
       {bulkOpen && (
         <BulkPhotoModal
