@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, cleanup, screen, fireEvent } from '@testing-library/react';
+import { render, cleanup, screen, fireEvent, waitFor } from '@testing-library/react';
 import { installFakeApi, paged, fail } from '@/test/fake-api';
 import PemesananPembelian from './PemesananPembelian';
 import { AuthUserProvider } from '@/domains/auth/user-context';
@@ -7,6 +7,9 @@ import { AuthUserProvider } from '@/domains/auth/user-context';
 vi.setConfig({ testTimeout: 20000 });
 
 vi.mock('next/navigation', () => ({ useParams: () => ({ id: '7' }), useRouter: () => ({ push: vi.fn() }), usePathname: () => '/' }));
+
+const print = vi.hoisted(() => ({ printPurchaseOrder: vi.fn<(po: import('@/domains/purchasing/types').PurchaseOrder) => Promise<void>>(async () => {}) }));
+vi.mock('@/domains/purchasing/export/print-po', () => print);
 
 const request = (status: string) => ({
   request: {
@@ -130,6 +133,21 @@ describe('PemesananPembelian submit', () => {
     expect(body).not.toHaveProperty('nomorPo');
     expect(body).not.toHaveProperty('dppLain');
     expect(screen.getByText('Kembali ke Detail Permintaan').getAttribute('href')).toBe('/dashboard/purchasing/laporan/rekap-pembelian/permintaan-pembelian/7');
+  });
+
+  it('prints the saved PO without creating a new one', async () => {
+    print.printPurchaseOrder.mockClear();
+    const api = setup('approved', {
+      'POST /api/v1/purchase-orders': { id: 1, nomorPo: 'PO/2026/0001', supplierName: 'PT Kayu', grandTotal: 16395 },
+    });
+    await ready();
+    await fillValid();
+    submit();
+    await screen.findByText('PO PO/2026/0001 berhasil dibuat');
+    fireEvent.click(screen.getByRole('button', { name: 'Cetak PO' }));
+    await waitFor(() => expect(print.printPurchaseOrder).toHaveBeenCalledTimes(1));
+    expect(print.printPurchaseOrder.mock.calls[0][0]).toMatchObject({ id: 1, nomorPo: 'PO/2026/0001' });
+    expect(api.calls('POST /api/v1/purchase-orders')).toHaveLength(1);
   });
 
   it('shows backend 409 and stays on the form', async () => {

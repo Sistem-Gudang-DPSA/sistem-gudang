@@ -42,9 +42,30 @@ contoh dan tombol simpannya hanya menampilkan alert.
   untuk barisnya. Backend tetap menolak baris yang sudah dipesan dengan 409.
 - Detail permintaan Purchasing menampilkan tabel PO milik permintaan
   (nomor, tanggal, supplier, grand total) dan progres `purchaseStatus`.
+  Nomor PO di tabel membuka halaman Detail PO Barang untuk pengguna dengan
+  `purchase-order.view`.
   Bila semua baris sudah dipesan, tombol Buat PO berganti menjadi keterangan
   bahwa semua barang sudah dipesan.
 - Setelah PO tersimpan, layar kembali ke detail permintaan.
+
+## Detail PO dan cetak PO
+
+- Halaman **Detail PO Barang** ada di
+  `/dashboard/purchasing/transaksi/buat-po-barang/detail-po/{id}` dan membaca
+  `GET /api/v1/purchase-orders/{id}`. Halaman butuh `purchase-order.view`;
+  link ke permintaan asal hanya tampil untuk `purchase-request.approve`.
+  Isinya mengikuti form Buat PO: nomor/tanggal dan status di atas, tabel
+  Tujuan Pemesanan (Supplier) dan Pemesan berdampingan, rincian barang, lalu
+  ringkasan biaya. Alamat, telepon, NPWP, dan bank supplier berasal dari data
+  yang dikembalikan endpoint detail PO. PO batal menampilkan alasannya.
+- Setelah PO tersimpan, layar sukses menampilkan nomor dan grand total serta
+  tombol **Cetak PO**. Tombol ini hanya mencetak PO yang sudah tersimpan
+  (`printPurchaseOrder`), termasuk saat mencetak ulang setelah dialog cetak
+  gagal. Mencetak tidak membuat PO baru atau mengubah status PO.
+- Template A4 portrait mengikuti dokumen PO: kop dan logo perusahaan,
+  nomor/tanggal PO, tabel supplier dan pemesan, rincian barang dan harga,
+  DPP/PPN/jasa/grand total, enam catatan pemesanan, dan kolom tanda tangan
+  kosong. Angka dan total selalu berasal dari PO yang dibuat backend.
 
 ## Histori Harga Supplier
 
@@ -61,9 +82,9 @@ contoh dan tombol simpannya hanya menampilkan alert.
 
 ## Yang Belum Ada
 
-- Layar daftar dan detail PO tersendiri. Saat ini PO hanya terlihat di detail
-  permintaan pembelian Purchasing; belum ada halaman yang menampilkan isi
-  lengkap satu PO.
+- Layar daftar PO tersendiri. Saat ini PO hanya terlihat di detail
+  permintaan pembelian Purchasing dan satu PO dapat dibuka lewat halaman
+  Detail PO Barang; belum ada halaman daftar yang mengumpulkan semua PO.
 - Tombol Download PDF di Detail Data Barang masih belum berfungsi.
 - Penawaran Harga PPIC atau SPH ditunda sampai Imel memperbarui branch-nya.
 - Tracking masih data tiruan di backend.

@@ -1,9 +1,11 @@
 "use client";
 
+import Link from 'next/link';
 import { formatAngka, formatTanggal } from '@/domains/ppic/data/dokubah';
 import type { PermintaanPembelian } from '@/domains/ppic/data/pembelian';
 import { useCan } from '@/domains/auth/user-context';
 import { usePoPermintaan } from '../use-po-permintaan';
+import { detailPoPath } from '../data/pembelian';
 
 const cellClass = 'px-4 py-3 border-b border-r border-gray-300';
 
@@ -21,6 +23,7 @@ export default function DaftarPoPermintaan({ permintaan }: { permintaan: Permint
 }
 
 function Isi({ permintaan }: { permintaan: PermintaanPembelian }) {
+  const canView = useCan('purchase-order.view');
   const { pos, loading, error } = usePoPermintaan(permintaan.id);
   const progres = permintaan.purchaseStatus;
 
@@ -56,7 +59,9 @@ function Isi({ permintaan }: { permintaan: PermintaanPembelian }) {
             <tbody className="text-gray-600">
               {pos.map((po) => (
                 <tr key={po.id}>
-                  <td className={`${cellClass} font-semibold text-gray-900`}>{po.nomorPo}</td>
+                  <td className={`${cellClass} font-semibold text-gray-900`}>
+                    {canView ? <Link href={detailPoPath(po.id)} className="text-orange-600 hover:underline">{po.nomorPo}</Link> : po.nomorPo}
+                  </td>
                   <td className={cellClass}>{formatTanggal(po.tanggalPo?.slice(0, 10) ?? '')}</td>
                   <td className={cellClass}>{po.supplierName}</td>
                   <td className={`${cellClass} text-right`}>Rp. {formatAngka(po.grandTotal)}</td>
