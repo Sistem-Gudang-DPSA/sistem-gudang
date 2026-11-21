@@ -1,11 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import Link from "next/link";
-import { Loader2, RefreshCw, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import Pagination from "@/shared/components/Pagination";
 import { listTrackingSpk } from "@/domains/ppic/api";
-import { ApiError } from "@/shared/lib/api-client";
 import { useApiData } from "@/shared/lib/use-api-data";
 import { useDebouncedValue } from "@/shared/lib/use-debounced-value";
 import { usePage } from "@/shared/lib/use-page";
@@ -27,29 +25,11 @@ export default function DaftarProyekPage() {
   // Search or page size change resets to page 1.
   const [currentPage, setCurrentPage] = usePage(`${debouncedSearch}|${pageSize}`);
 
-  const [refreshing, setRefreshing] = useState(false);
-  const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
-
-  const { data: spkList, loading, error, reload } = useApiData(
+  const { data: spkList, loading, error } = useApiData(
     () => listTrackingSpk(debouncedSearch || undefined),
     `daftar-proyek|${debouncedSearch}`,
   );
 
-  // refresh=1 reloads the backend's tracking cache; then reload() refetches the table from the fresh cache.
-  // Dropdowns (useSpkSearch / useClientSearch) have no client cache, so they pick the new data up on their next query.
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    setNotice(null);
-    try {
-      await listTrackingSpk(debouncedSearch || undefined, undefined, undefined, true);
-      reload();
-      setNotice({ ok: true, text: "Data tracking berhasil diperbarui." });
-    } catch (err) {
-      setNotice({ ok: false, text: err instanceof ApiError ? err.message : "Gagal memperbarui data tracking." });
-    } finally {
-      setRefreshing(false);
-    }
-  };
   const dataProyek: Proyek[] = (spkList ?? []).map((spk) => ({
     client: spk.client,
     namaProyek: spk.projectName ?? "-",
@@ -86,22 +66,7 @@ export default function DaftarProyekPage() {
             Daftar proyek yang tersedia.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={handleRefresh}
-          disabled={refreshing}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl text-xs font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {refreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-          {refreshing ? "Memuat ulang..." : "Refresh data tracking"}
-        </button>
       </div>
-
-      {notice && (
-        <div className={`mb-6 p-3 text-sm rounded-lg ${notice.ok ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
-          {notice.text}
-        </div>
-      )}
 
       {/* Card Kontainer Utama */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
@@ -210,6 +175,10 @@ export default function DaftarProyekPage() {
           </div>
         )}
       </div>
+
+      <p role="status" className="mt-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+        Sistem melakukan refresh setiap 30 menit.
+      </p>
     </div>
   );
 }

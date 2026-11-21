@@ -26,6 +26,14 @@ describe('DaftarProyek', () => {
     expect(cells('SPK-2')[4].textContent).toBe('-');
   });
 
+  it('tidak menampilkan tombol refresh dan memberi info refresh 30 menit', async () => {
+    installFakeApi({ 'GET /api/v1/tracking/spk': many });
+    render(<DaftarProyekPage />);
+    await screen.findByText('SPK-1');
+    expect(screen.queryByRole('button', { name: /refresh/i })).toBeNull();
+    expect(screen.getByRole('status').textContent).toContain('Sistem melakukan refresh setiap 30 menit');
+  });
+
   it('requests the full list without a limit', async () => {
     const api = installFakeApi({ 'GET /api/v1/tracking/spk': many });
     render(<DaftarProyekPage />);

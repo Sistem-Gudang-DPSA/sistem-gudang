@@ -170,6 +170,7 @@ describe('DataBarang QR labels', () => {
     expect((screen.getByText('Cetak Label QR').closest('button') as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByLabelText('Pilih Barang 1'));
     fireEvent.click(screen.getByText(/Cetak Label QR \(1\)/));
+    fireEvent.click(screen.getByRole('button', { name: 'Cetak 1 label' }));
     const frame = await labelFrame();
     const html = frame.srcdoc;
     expect(html).toContain('BRG-1');
@@ -183,8 +184,21 @@ describe('DataBarang QR labels', () => {
     const api = setup();
     await ready(api);
     fireEvent.click(screen.getByTitle('Cetak label QR'));
+    fireEvent.click(screen.getByRole('button', { name: 'Cetak 1 label' }));
     const frame = await labelFrame();
     expect(frame.srcdoc).toContain('<svg');
+    frame.remove();
+  });
+
+  it('mencetak beberapa label untuk barang yang sama sesuai jumlah yang diisi', async () => {
+    const api = setup();
+    await ready(api);
+    fireEvent.click(screen.getByTitle('Cetak label QR'));
+    fireEvent.change(screen.getByLabelText('Jumlah label per barang'), { target: { value: '5' } });
+    expect(screen.getByText(/1 barang × 5 = 5 label/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Cetak 5 label' }));
+    const frame = await labelFrame();
+    expect(frame.srcdoc.match(/class="label"/g)?.length).toBe(5);
     frame.remove();
   });
 
@@ -193,6 +207,7 @@ describe('DataBarang QR labels', () => {
     const api = setup();
     await ready(api);
     fireEvent.click(screen.getByTitle('Cetak label QR'));
+    fireEvent.click(screen.getByRole('button', { name: 'Cetak 1 label' }));
     expect(await screen.findByText(/Dokumen cetak tidak dapat dibuka/)).not.toBeNull();
     expect(document.querySelector('iframe[title="Cetak label barang"]')).toBeNull();
   });
