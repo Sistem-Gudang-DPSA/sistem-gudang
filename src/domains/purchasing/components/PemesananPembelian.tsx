@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { formatAngka } from '@/domains/ppic/data/dokubah';
 import { fetchPermintaan, type PermintaanPembelian } from '@/domains/ppic/data/pembelian';
@@ -11,7 +11,7 @@ import { createPurchaseOrder } from '@/domains/purchasing/api';
 import { useSupplierSearch } from '@/domains/purchasing/use-supplier-search';
 import SearchableSelect from '@/shared/components/SearchableSelect';
 import { INTEGER_INPUT, decimalOnly, digitsOnly, parsePpn } from '@/shared/lib/input';
-import { lihatPermintaanPath, PEMESAN, rekap_pembelian_path } from '@/domains/purchasing/data/pembelian';
+import { lihatPermintaanPath, lihatPermintaanPoPath, PEMESAN, po_barang_path, rekap_pembelian_path } from '@/domains/purchasing/data/pembelian';
 import type { PurchaseOrder, Supplier } from '@/domains/purchasing/types';
 import { useCan } from '@/domains/auth/user-context';
 import { ApiError } from '@/shared/lib/api-client';
@@ -100,7 +100,13 @@ function FormPemesanan({ permintaan }: { permintaan: PermintaanPembelian }) {
   const [dipilih, setDipilih] = useState<Record<number, boolean>>({});
   const terpilih = (index: number) => dipilih[index] ?? !sudahDipesan.has(index);
 
-  const backPath = lihatPermintaanPath(permintaan.id);
+  // Asal halaman menentukan tujuan kembali: daftar PO Barang, detail permintaan versi PO Barang, atau detail Rekap.
+  const from = useSearchParams().get('from');
+  const backPath = from === 'po-barang'
+    ? po_barang_path
+    : from === 'permintaan-po-barang'
+      ? lihatPermintaanPoPath(permintaan.id)
+      : lihatPermintaanPath(permintaan.id);
 
   const header = (
     <div className="flex items-center gap-3 mb-6">
@@ -219,7 +225,7 @@ function FormPemesanan({ permintaan }: { permintaan: PermintaanPembelian }) {
           <p className="mt-2 text-sm text-gray-600">Supplier {dibuat.supplierName}, grand total Rp. {formatAngka(dibuat.grandTotal)}</p>
           {printError && <p role="alert" className="mt-4 text-sm text-red-600">{printError}</p>}
           <button type="button" onClick={() => void handlePrint(dibuat)} disabled={printing} className={`${orangeButtonClass} inline-block mt-6 disabled:opacity-50`}>{printing ? 'Menyiapkan cetak...' : 'Cetak PO'}</button>
-          <Link href={backPath} className={`${orangeButtonClass} inline-block mt-6 ml-3`}>Kembali ke Detail Permintaan</Link>
+          <Link href={backPath} className={`${orangeButtonClass} inline-block mt-6 ml-3`}>Kembali ke {from === 'po-barang' ? 'PO Barang' : 'Detail Permintaan'}</Link>
         </div>
       </div>
     );
