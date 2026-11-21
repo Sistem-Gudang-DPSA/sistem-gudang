@@ -18,6 +18,19 @@ memunculkan peringatan; stok 10 atau kurang memunculkan **Stok menipis:
 Triplex 2 mm**, dengan sisa stok dan satuannya. Stok 0 atau kurang memakai
 judul **Stok habis**.
 
+## Plotting massal di PPIC
+
+Di **Data Barang PPIC**, pengguna dengan `item.update` mendapat kolom
+centang di kolom pertama. Centang beberapa barang (termasuk lintas halaman)
+lalu tekan **Atur Stok Minimum (n)** di toolbar untuk memetakan satu nilai
+batas ke semua barang terpilih. Nilai memakai validasi yang sama dengan
+editor per baris; kosongkan untuk menonaktifkan notifikasi. Setiap barang
+disimpan lewat `PUT /items/{id}` dengan `{ minimumStock }`; hasil lengkap
+(berhasil dan gagal beserta alasannya) ditampilkan setelah proses selesai.
+Pilihan dikosongkan setelah modal ditutup, dan daftar dimuat ulang bila ada
+yang berhasil disimpan. Kolom centang yang sama dipakai untuk Pasang Foto
+Massal.
+
 ## Bel notifikasi
 
 Notifikasi stok tersedia bagi Superadmin serta pengguna dengan `item.view`
