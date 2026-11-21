@@ -75,7 +75,7 @@ function AksiPurchasing({ permintaan, reload }: { permintaan: PermintaanPembelia
         </div>
       )}
       {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center justify-end gap-4">
         {mode ? (
           <>
             <button type="button" disabled={busy} onClick={() => { setMode(null); setError(''); }} className={ghostClass}>Batal</button>
@@ -93,10 +93,10 @@ function AksiPurchasing({ permintaan, reload }: { permintaan: PermintaanPembelia
   );
 }
 
-export default function PermintaanPembelianPurchasing() {
+export default function PermintaanPembelianPurchasing({ backPath = rekap_pembelian_path }: { backPath?: string } = {}) {
   return (
     <PermintaanPembelianPPIC
-      backPath={rekap_pembelian_path}
+      backPath={backPath}
       actions={(permintaan, reload) => <AksiPurchasing permintaan={permintaan} reload={reload} />}
       sections={(permintaan) => <DaftarPoPermintaan permintaan={permintaan} />}
     />

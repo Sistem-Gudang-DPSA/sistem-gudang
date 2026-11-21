@@ -6,7 +6,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useCan } from '@/domains/auth/user-context';
 import { formatAngka, formatRupiah, formatTanggal } from '@/domains/ppic/data/dokubah';
 import { getPurchaseOrder } from '@/domains/purchasing/api';
-import { lihatPermintaanPath, PEMESAN, po_barang_path } from '@/domains/purchasing/data/pembelian';
+import { lihatPermintaanPoPath, PEMESAN, po_barang_path } from '@/domains/purchasing/data/pembelian';
 import StatusBadge from '@/shared/components/StatusBadge';
 import { useApiData } from '@/shared/lib/use-api-data';
 
@@ -120,7 +120,7 @@ export default function DetailPOBarang() {
             ].map(([label, value]) => <div key={label} className={`flex items-center justify-between gap-4 ${label === 'Grand Total' ? 'border-t border-gray-400 pt-4 mt-6' : ''}`}><dt className="font-semibold uppercase text-xs">{label}</dt><dd className="w-40 sm:w-64 max-w-full shrink-0 border border-gray-300 rounded-lg px-3 py-2 text-right">{value}</dd></div>)}
           </dl>
           {canReview && po.approvalRequestId !== null && (
-            <Link href={lihatPermintaanPath(po.approvalRequestId)} className="inline-block mt-6 text-sm font-semibold text-orange-600 hover:underline">Lihat Permintaan Pembelian Asal</Link>
+            <Link href={lihatPermintaanPoPath(po.approvalRequestId)} className="inline-block mt-6 text-sm font-semibold text-orange-600 hover:underline">Lihat Permintaan Pembelian Asal</Link>
           )}
         </div>
       )}
