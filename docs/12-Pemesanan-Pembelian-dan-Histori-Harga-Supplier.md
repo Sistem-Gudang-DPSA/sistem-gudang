@@ -46,19 +46,28 @@ contoh dan tombol simpannya hanya menampilkan alert.
   `purchase-order.view`.
   Bila semua baris sudah dipesan, tombol Buat PO berganti menjadi keterangan
   bahwa semua barang sudah dipesan.
-- Tombol **Lihat Permintaan** pada daftar PO Barang membuka
+- Halaman **PO Barang** (`/dashboard/purchasing/transaksi/buat-po-barang`)
+  menampilkan PO yang sudah dibuat, bukan daftar permintaan. Datanya dari
+  `GET /purchase-orders`: nomor PO, tanggal, supplier, dan status. Pencarian
+  mencocokkan nomor PO atau nama supplier; pengurutan, filter tanggal,
+  paginasi, ekspor CSV per halaman, dan cetak massal memakai data PO ini.
+  Halaman butuh `purchase-order.view`; tanpa izin itu daftar kosong dengan
+  pesan.
+- Aksi per baris: **Lihat Detail PO** (`purchase-order.view`) dan
+  **Lihat Permintaan** (`purchase-request.approve`, hanya jika PO punya
+  `approvalRequestId`). Tautan permintaan membuka
   `/dashboard/purchasing/transaksi/buat-po-barang/permintaan-pembelian/{id}`;
   panah kembali menuju daftar PO Barang. Detail permintaan dari Rekap
   Pembelian tetap memakai URL lama dan kembali ke Rekap Pembelian.
-  Tombol hanya tampil untuk pengguna dengan `purchase-request.approve` atau
-  `purchase-order.create`; pengguna `purchase-order.view` hanya melihat "-"
-  pada kolom aksi.
-- Baris yang permintaannya sudah disetujui dan belum dipesan semua juga
-  menampilkan tombol **Buat PO** menuju form Buat PO permintaan tersebut
-  dengan `?from=po-barang`. Tombol ini butuh `purchase-order.create`.
-  Panah kembali dan tombol di layar sukses mengarah ke daftar PO Barang;
-  tanpa parameter itu (dibuka dari detail permintaan) kembali ke detail
-  permintaan.
+- Cetak massal: centang PO (per baris atau semua di halaman), tombol **Print**
+  mengambil detail tiap PO lewat `GET /purchase-orders/{id}` lalu membuka satu
+  dialog cetak. Pilihan bertahan lintas halaman dan direset saat pencarian
+  atau filter tanggal berubah. Jika satu detail gagal dimuat, seluruh cetak
+  dibatalkan dan pesan menampilkan PO yang berhasil dan gagal.
+- **Rekap Permintaan Pembelian** di Purchasing dan PPIC membaca
+  `GET /approvals?type=purchase-request` sehingga memuat permintaan yang
+  diajukan Gudang maupun PPIC. Halaman ini sengaja tetap berupa daftar
+  permintaan; PO yang sudah dibuat ada di halaman PO Barang.
 - Tombol **Buat PO** di detail permintaan yang dibuka dari PO Barang membawa
   `?from=permintaan-po-barang`, sehingga kembali dari form menuju detail
   permintaan versi PO Barang (sidebar tetap di PO Barang), bukan Rekap
@@ -110,9 +119,6 @@ contoh dan tombol simpannya hanya menampilkan alert.
 
 ## Yang Belum Ada
 
-- Layar daftar PO tersendiri. Saat ini PO hanya terlihat di detail
-  permintaan pembelian Purchasing dan satu PO dapat dibuka lewat halaman
-  Detail PO Barang; belum ada halaman daftar yang mengumpulkan semua PO.
 - Tombol Download PDF di Detail Data Barang masih belum berfungsi.
 - Penawaran Harga PPIC atau SPH ditunda sampai Imel memperbarui branch-nya.
 - Tracking masih data tiruan di backend.
