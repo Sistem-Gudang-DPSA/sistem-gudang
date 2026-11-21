@@ -1,9 +1,8 @@
-import JumlahInput from "../../JumlahInput";
 import JumlahPengambilanInput from "./JumlahPengambilanInput";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import type { useItemSearch } from "@/domains/inventory/use-item-search";
 import SearchableSelect from "@/shared/components/SearchableSelect";
-import { peringatanJumlah, peringatanDokubah, MAX_JUMLAH, tambahSatu } from "../form-utils";
+import { peringatanJumlah, MAX_JUMLAH, tambahSatu } from "../form-utils";
 import { formCellClass, formHeadClass } from "../styles";
 import type { BarisForm } from "../types";
 
@@ -25,6 +24,7 @@ export default function BarisBarangKeluarTable({
   patchBaris: (key: string, patch: Partial<BarisForm>) => void;
   setBaris: (fn: (baris: BarisForm[]) => BarisForm[]) => void;
 }) {
+  const adaBaris = baris.length > 0;
   return (
     <div className="mt-4 overflow-x-auto border-t border-l border-gray-300 rounded-sm">
       <table className="w-full text-sm border-collapse">
@@ -45,22 +45,24 @@ export default function BarisBarangKeluarTable({
             <th scope="col" className={`${formHeadClass} min-w-24`}>
               Kode
             </th>
-            <th scope="col" className={`${formHeadClass} min-w-28`}>
+            {/* <th scope="col" className={`${formHeadClass} min-w-28`}>
               Dokubah
-            </th>
+            </th> */}
             <th scope="col" className={`${formHeadClass} min-w-36`}>
               Pengambilan
             </th>
-            <th scope="col" className={`${formHeadClass} w-10`}>
-              <span className="sr-only">Hapus</span>
-            </th>
+            {adaBaris && (
+              <th scope="col" className={`${formHeadClass} w-10`}>
+                <span className="sr-only">Hapus</span>
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
           {baris.length === 0 && (
             <tr>
               <td
-                colSpan={7}
+                colSpan={5}
                 className={`${formCellClass} px-4 py-8 text-center text-gray-400`}
               >
                 Belum ada barang. Tekan Scan Barang lalu scan QR
@@ -128,7 +130,7 @@ export default function BarisBarangKeluarTable({
                 >
                   {b.code}
                 </td>
-                <td className={`${formCellClass} px-2 text-center`}>
+                {/* <td className={`${formCellClass} px-2 text-center`}>
                   <JumlahInput
                     validate={peringatanDokubah}
                     value={b.dokubah}
@@ -139,7 +141,7 @@ export default function BarisBarangKeluarTable({
                     aria-label={`Dokubah ${nama}`}
                     className="w-full min-w-28 border border-gray-300 rounded-md px-2 py-1.5 text-sm"
                   />
-                </td>
+                </td> */}
                 <td className={`${formCellClass} px-2 py-1.5`}>
                   <div className="flex items-center justify-center">
                     <button
