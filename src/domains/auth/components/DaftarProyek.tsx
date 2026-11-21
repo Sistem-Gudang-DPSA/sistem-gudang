@@ -126,8 +126,8 @@ export default function DaftarProyekPage() {
               <tr className="border-b border-gray-100 text-gray-500 font-semibold uppercase tracking-wider">
                 <th className="py-3.5 px-4 w-12 text-center">No</th>
                 <th className="py-3.5 px-4 font-bold text-gray-700 min-w-48">Client</th>
-                <th className="py-3.5 px-4 font-bold text-gray-700 min-w-56">Nama Projek</th>
-                <th className="py-3.5 px-4 font-bold text-gray-700 min-w-44">No SPK</th>
+                <th className="py-3.5 px-4 font-bold text-gray-700 min-w-56">Nama Proyek</th>
+                <th className="py-3.5 px-4 font-bold text-gray-700 min-w-44">No. SPK</th>
                 <th className="py-3.5 px-4 font-bold text-gray-700 min-w-32">SPK Masuk</th>
               </tr>
             </thead>
