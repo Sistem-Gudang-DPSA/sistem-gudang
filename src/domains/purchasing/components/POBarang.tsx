@@ -14,8 +14,14 @@ import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import { countActiveFilters, emptyBarangFilters } from '@/domains/inventory/components/BarangFilterPanel';
 import DateFilter from '@/shared/components/DateFilter';
+import { useCan } from '@/domains/auth/user-context';
+
 
 export default function POBarang() {
+  const canApproveRequest = useCan('purchase-request.approve');
+  const canCreatePo = useCan('purchase-order.create');
+  // Hanya pengguna yang meninjau permintaan atau membuat PO yang perlu membuka detailnya.
+  const canOpenPermintaan = canApproveRequest || canCreatePo;
   const [searchQuery, setSearchQuery] = useState('');
   const filterKey = searchQuery.trim();
   const { sort, toggle, params: sortParams } = useSort();
@@ -137,12 +143,12 @@ export default function POBarang() {
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
                       <span className="font-bold text-gray-900">
-                        <Link
+                        {canOpenPermintaan ? <Link
                           href={lihatPermintaanPoPath(item.id)}
                           className="inline-block px-3 py-1 bg-[#FF8A00] text-white text-xs font-semibold rounded-md hover:bg-orange-600 transition-colors"
                         >
                           Lihat Permintaan
-                        </Link>
+                        </Link> : <span className="text-gray-400">-</span>}
                       </span>
                     </div>
                   </td>
