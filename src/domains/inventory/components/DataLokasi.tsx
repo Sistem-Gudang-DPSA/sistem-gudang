@@ -1,6 +1,6 @@
 "use client";
 
-import { useCan } from '@/domains/auth/user-context';
+import { useAuthUser, useCan } from '@/domains/auth/user-context';
 import React, { useState } from 'react';
 import { Search, Plus } from 'lucide-react';
 import { createLocation, deleteLocation, importLocationData, listLocations, updateLocation } from '../api';
@@ -66,6 +66,8 @@ export default function DataLokasiGudang({
   const canDelete = useCan('location.delete');
   const canCreate = useCan('location.create');
   const canUpdate = useCan('location.update');
+  // Import Excel dan hapus lokasi hanya untuk role Superadmin, bukan sekadar pemegang permission.
+  const isSuperadmin = useAuthUser()?.isSuperadmin === true;
   const { sort, toggle, params: sortParams } = useSort();
   const edit = useBatchEdit();
   const [searchQuery, setSearchQuery] = useState("");
@@ -188,7 +190,7 @@ export default function DataLokasiGudang({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {canCreate && (
+            {isSuperadmin && canCreate && (
               <ImportExcelButton
                 templateHeaders={LocationTemplateHeaders}
                 templateExample={LocationTemplateExample}
@@ -304,7 +306,7 @@ export default function DataLokasiGudang({
                         )}
                       </td>
                       <td className="px-6 py-4 text-gray-600 text-center whitespace-nowrap">
-                        {canDelete && (
+                        {isSuperadmin && canDelete && (
                           <button onClick={() => handleHapus(item.id)} className="px-3 py-1 bg-red-50 text-red-600 font-bold rounded-lg text-xs hover:bg-red-100 transition-all border border-red-100">
                             Hapus
                           </button>
