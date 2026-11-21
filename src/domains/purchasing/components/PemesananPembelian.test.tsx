@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, cleanup, screen, fireEvent } from '@testing-library/react';
+import { render, cleanup, screen, fireEvent, waitFor } from '@testing-library/react';
 import { installFakeApi, paged, fail } from '@/test/fake-api';
 import PemesananPembelian from './PemesananPembelian';
 import { AuthUserProvider } from '@/domains/auth/user-context';
@@ -7,6 +7,9 @@ import { AuthUserProvider } from '@/domains/auth/user-context';
 vi.setConfig({ testTimeout: 20000 });
 
 vi.mock('next/navigation', () => ({ useParams: () => ({ id: '7' }), useRouter: () => ({ push: vi.fn() }), usePathname: () => '/' }));
+
+const print = vi.hoisted(() => ({ printPurchaseOrder: vi.fn<(po: import('@/domains/purchasing/types').PurchaseOrder) => Promise<void>>(async () => {}) }));
+vi.mock('@/domains/purchasing/export/print-po', () => print);
 
 const request = (status: string) => ({
   request: {
@@ -24,7 +27,7 @@ const request = (status: string) => ({
 const suppliers = paged([{ id: 3, code: 'S3', name: 'PT Kayu', bank: 'BCA 123', npwp: '01.2', phone: '0812', address: 'Jl. Mawar', pajak: 'PKP' }]);
 
 function setup(status = 'approved', extra: Record<string, unknown> = {}) {
-  const api = installFakeApi({ 'GET /api/v1/approvals/7': request(status), 'GET /api/v1/suppliers': suppliers, ...extra });
+  const api = installFakeApi({ 'GET /api/v1/approvals/7': request(status), 'GET /api/v1/suppliers': suppliers, 'GET /api/v1/purchase-orders': paged([]), ...extra });
   render(<PemesananPembelian />);
   return api;
 }
@@ -121,15 +124,30 @@ describe('PemesananPembelian submit', () => {
       supplierId: 3,
       picSupplier: 'Andi / 0811',
       barang: [
-        { kodeBarang: 'TRP-1', namaBarang: 'Triplex', satuan: 'lbr', jumlah: 10, hargaSatuan: 1000, diskon: 500 },
-        { kodeBarang: 'PKU-1', namaBarang: 'Paku', satuan: 'kg', jumlah: 2, hargaSatuan: 2500, diskon: 0 },
+        { lineIndex: 0, kodeBarang: 'TRP-1', namaBarang: 'Triplex', satuan: 'lbr', jumlah: 10, hargaSatuan: 1000, diskon: 500 },
+        { lineIndex: 1, kodeBarang: 'PKU-1', namaBarang: 'Paku', satuan: 'kg', jumlah: 2, hargaSatuan: 2500, diskon: 0 },
       ],
       persenPpn: 12,
       jasa: 300,
     });
     expect(body).not.toHaveProperty('nomorPo');
     expect(body).not.toHaveProperty('dppLain');
-    expect(screen.getByText('Kembali ke Rekap Pembelian').getAttribute('href')).toBe('/dashboard/purchasing/laporan/rekap-pembelian');
+    expect(screen.getByText('Kembali ke Detail Permintaan').getAttribute('href')).toBe('/dashboard/purchasing/laporan/rekap-pembelian/permintaan-pembelian/7');
+  });
+
+  it('prints the saved PO without creating a new one', async () => {
+    print.printPurchaseOrder.mockClear();
+    const api = setup('approved', {
+      'POST /api/v1/purchase-orders': { id: 1, nomorPo: 'PO/2026/0001', supplierName: 'PT Kayu', grandTotal: 16395 },
+    });
+    await ready();
+    await fillValid();
+    submit();
+    await screen.findByText('PO PO/2026/0001 berhasil dibuat');
+    fireEvent.click(screen.getByRole('button', { name: 'Cetak PO' }));
+    await waitFor(() => expect(print.printPurchaseOrder).toHaveBeenCalledTimes(1));
+    expect(print.printPurchaseOrder.mock.calls[0][0]).toMatchObject({ id: 1, nomorPo: 'PO/2026/0001' });
+    expect(api.calls('POST /api/v1/purchase-orders')).toHaveLength(1);
   });
 
   it('shows backend 409 and stays on the form', async () => {
@@ -186,10 +204,59 @@ describe('PemesananPembelian submit', () => {
   });
 });
 
+describe('pemilihan baris per PO', () => {
+  const poLama = (lines: number[]) => ({
+    id: 11, nomorPo: 'PO-1', approvalRequestId: 7, status: 'ISSUED', supplierName: 'PT Lama', tanggalPo: '2026-03-01', grandTotal: 1000,
+    barang: lines.map((lineIndex) => ({ lineIndex, kodeBarang: 'X', namaBarang: lineIndex === 0 ? 'Triplex' : 'Paku', satuan: 'x', jumlah: 1, hargaSatuan: 1, diskon: 0 })),
+  });
+
+  it('hanya mengirim baris yang dicentang untuk PO ini', async () => {
+    const api = setup('approved', { 'POST /api/v1/purchase-orders': { id: 1, nomorPo: 'PO/1', supplierName: 'PT Kayu', grandTotal: 5000 } });
+    await ready();
+    await fillValid();
+    fireEvent.click(screen.getByLabelText('Pilih Paku'));
+    submit();
+    await screen.findByText('PO PO/1 berhasil dibuat');
+    const body = api.calls('POST /api/v1/purchase-orders')[0].body as { barang: unknown[] };
+    expect(body.barang).toEqual([{ lineIndex: 0, kodeBarang: 'TRP-1', namaBarang: 'Triplex', satuan: 'lbr', jumlah: 10, hargaSatuan: 1000, diskon: 500 }]);
+  });
+
+  it('menandai baris yang sudah masuk PO aktif dan tidak mengirimnya lagi', async () => {
+    const lama = poLama([0]);
+    const api = setup('approved', {
+      'GET /api/v1/purchase-orders': paged([lama]),
+      'GET /api/v1/purchase-orders/11': lama,
+      'POST /api/v1/purchase-orders': { id: 2, nomorPo: 'PO/2', supplierName: 'PT Kayu', grandTotal: 5000 },
+    });
+    await ready();
+    await screen.findByText('Sudah dipesan');
+    expect(screen.queryByLabelText('Pilih Triplex')).toBeNull();
+    expect(screen.getByLabelText('Pilih Paku')).not.toBeNull();
+    await fillValid();
+    submit();
+    await screen.findByText('PO PO/2 berhasil dibuat');
+    const body = api.calls('POST /api/v1/purchase-orders')[0].body as { barang: { lineIndex: number }[] };
+    expect(body.barang.map((b) => b.lineIndex)).toEqual([1]);
+  });
+
+  it('menolak membuat PO saat semua baris sudah dipesan', async () => {
+    const lama = poLama([0, 1]);
+    const api = setup('approved', {
+      'GET /api/v1/purchase-orders': paged([lama]),
+      'GET /api/v1/purchase-orders/11': lama,
+    });
+    await ready();
+    expect(await screen.findByText('Semua barang pada permintaan ini sudah masuk PO.')).not.toBeNull();
+    submit();
+    expect(await screen.findByText('Pilih minimal satu barang untuk PO ini.')).not.toBeNull();
+    expect(api.calls('POST /api/v1/purchase-orders')).toHaveLength(0);
+  });
+});
+
 describe('permissions', () => {
   const user = (permissions: string[], isSuperadmin = false) => ({ id: 1, username: 'u', email: 'u@x.id', roleId: 1, roleName: 'R', isSuperadmin, permissions });
   const renderAs = (u: ReturnType<typeof user>) => {
-    installFakeApi({ 'GET /api/v1/approvals/7': request('approved'), 'GET /api/v1/suppliers': suppliers });
+    installFakeApi({ 'GET /api/v1/approvals/7': request('approved'), 'GET /api/v1/suppliers': suppliers, 'GET /api/v1/purchase-orders': paged([]) });
     render(<AuthUserProvider user={u}><PemesananPembelian /></AuthUserProvider>);
   };
   it('without purchase-order.create shows a message instead of the form', async () => {

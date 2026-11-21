@@ -72,6 +72,74 @@ dan catatan. Nama pelaku belum tampil karena backend hanya mengirim
   langkah workflow-nya. Pastikan role Purchasing dan PPIC memang punya
   langkah untuk `purchase-request` saat uji manual.
 
+## Rekomendasi restock
+
+Form Tambah, Edit, dan Revisi menampilkan panel **Rekomendasi Restock** di
+atas rincian barang. Panel memuat barang yang batas stok minimumnya sudah
+diatur dan stoknya sama dengan atau di bawah batas tersebut, diurutkan dari
+yang paling kritis. Setiap baris menampilkan nama, kode, stok, batas
+minimum, satuan, supplier terdaftar, dan **Saran QTY** sebesar
+`minimum − stok` (minimal 1, dibulatkan ke atas). Tombol **Tambah**
+mengisi satu baris form dengan barang tersebut, qty saran, satuan, dan
+supplier dari master barang; PPIC tetap dapat mengubah qty dan kolom lain.
+Barang yang sudah ada di form ditandai **Sudah ada** dan tidak dapat
+ditambahkan dua kali. Barang tanpa batas minimum tidak pernah muncul.
+Panel tertutup secara default dan hanya dimuat untuk pengguna dengan
+`item.view`; daftar diambil dari `GET /api/v1/items` seluruh halaman.
+
+Selain rekomendasi, baris tetap bisa diisi manual untuk kebutuhan proyek
+atau SPK yang tidak terkait stok minimum.
+
+## Supplier pada form permintaan
+
+Kolom **Supplier** bersifat hanya-baca. Nilainya terisi otomatis dari
+supplier terdaftar pada master barang saat barang dipilih dari pencarian,
+dan dikosongkan lagi bila nama barang diubah. PPIC tidak memilih supplier;
+supplier final ditentukan Purchasing saat membuat PO, karena satu PO
+memakai satu supplier dan pemetaan supplier barang adalah kewenangan
+Purchasing (`item.set-supplier`). Barang yang belum dipetakan menampilkan
+kolom supplier kosong; usulan supplier lain bisa ditulis di Keterangan.
+
+## Cetak form permintaan
+
+Tombol **Cetak** di samping tombol simpan mencetak isi form apa adanya,
+sebelum maupun sesudah permintaan dikirim. Kop perusahaan dilengkapi kotak
+identitas formulir di kanan atas: **PPIC 002**, **Rev : 00**, dan
+**Terbit : MM/YY** yang diambil dari tanggal pengajuan surat (bukan tanggal
+tetap). Dokumen memuat identitas pemohon (bagian, nama, jabatan, tanggal pengajuan, periode bila
+diisi), tabel barang yang sudah terisi, dan kolom tanda tangan Dibuat serta
+Disetujui Oleh. Baris kosong tidak ikut tercetak; bila belum ada baris
+terisi, tabel menampilkan **Belum ada barang**. Isi kolom di-escape dan
+pencetakan memakai `cetakLaporan` (iframe tersembunyi), bukan pop-up.
+
+## Pilihan pemohon pada form
+
+Kolom **Bagian/Sub bagian**, **Nama**, dan **Jabatan** pada form tambah, edit,
+dan revisi di Gudang maupun PPIC memakai dropdown. Pilihan sementara berupa
+data dummy di `src/domains/ppic/data/pemohon-pembelian.ts`, tanpa endpoint baru.
+Ketiga pilihan berdiri sendiri dan tetap wajib dipilih sebelum mengajukan.
+Nilainya dikirim sebagai `bagian`, `namaPemohon`, dan `jabatan` pada payload
+permintaan. Saat membuka data lama, nilai yang belum ada di daftar dummy tetap
+muncul dan dipertahankan saat disimpan.
+
+## Pilihan proyek pada rincian barang
+
+Kolom **Proyek** memakai dropdown yang dapat dicari pada setiap baris form
+Gudang dan PPIC. Pilihannya berasal dari `projectName` pada
+`GET /api/v1/tracking/spk`, sumber yang sama dengan halaman **Daftar Proyek**.
+Seluruh daftar diambil tanpa `limit`; nama yang kosong diabaikan dan nama
+berulang ditampilkan satu kali. Pilihan disimpan pada `items[].proyek`.
+Nilai proyek lama tetap ditampilkan saat edit/revisi walaupun sudah tidak ada
+dalam daftar tracking. Mengganti proyek mengosongkan `noSpk` lama pada baris
+agar nomor SPK sebelumnya tidak ikut dipakai untuk proyek baru.
+Jika tracking gagal dimuat, form menampilkan pesan kesalahan.
+
+## Judul halaman rekap
+
+Halaman Rekap Pembelian di PPIC dan Rekap Permintaan Pembelian di Purchasing
+memakai judul **DAFTAR PERMINTAAN PEMBELIAN** dengan teks pengantar
+**Kelola pengajuan permintaan pembelian barang.**
+
 ## Tanggal pada form permintaan
 
 Kolom **Dikirim Tanggal** pada form tambah, edit, dan revisi dipetakan ke

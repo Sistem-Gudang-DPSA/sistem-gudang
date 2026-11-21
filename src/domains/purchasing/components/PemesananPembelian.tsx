@@ -15,6 +15,8 @@ import { lihatPermintaanPath, PEMESAN, rekap_pembelian_path } from '@/domains/pu
 import type { PurchaseOrder, Supplier } from '@/domains/purchasing/types';
 import { useCan } from '@/domains/auth/user-context';
 import { ApiError } from '@/shared/lib/api-client';
+import { lineSudahDipesan, usePoPermintaan } from '@/domains/purchasing/use-po-permintaan';
+import { printPurchaseOrder } from '@/domains/purchasing/export/print-po';
 
 type BarisHarga = { kodeBarang: string; harga: string; diskon: string };
 
@@ -54,27 +56,51 @@ export default function PemesananPembelianPurchasing() {
     return <div className="py-10 text-center text-sm text-gray-500">Anda tidak memiliki izin untuk membuat PO.</div>;
   }
 
+  if (!permintaan) {
+    return (
+      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+        <div className="flex items-center gap-3 mb-6">
+          <Link href={rekap_pembelian_path} aria-label="Kembali" className="text-gray-800 hover:opacity-70 transition-opacity">
+            <ArrowLeft className="w-5 h-5" strokeWidth={2.5} />
+          </Link>
+          <h1 className="text-[18px] font-extrabold text-black tracking-wide">Rekap Pembelian Gudang</h1>
+        </div>
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-6 py-10 text-center text-gray-400 italic">
+          Permintaan pembelian tidak ditemukan.
+        </div>
+      </div>
+    );
+  }
+
   // Formnya baru dibuat setelah permintaan siap, supaya baris harga awal sesuai jumlah barang.
-  return <FormPemesanan permintaan={permintaan ?? undefined} />;
+  return <FormPemesanan permintaan={permintaan} />;
 }
 
-function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
+function FormPemesanan({ permintaan }: { permintaan: PermintaanPembelian }) {
 
   const [saving, setSaving] = useState(false);
   const [dibuat, setDibuat] = useState<PurchaseOrder | null>(null);
+  const [printing, setPrinting] = useState(false);
+  const [printError, setPrintError] = useState('');
   const [tanggalPo, setTanggalPo] = useState('');
   const { suppliers, onSearch: cariSupplier, pending: supplierPending, error: supplierError } = useSupplierSearch();
   // Supplier terpilih disimpan sendiri supaya tetap ada walau di luar hasil pencarian terakhir.
   const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [picSupplier, setPicSupplier] = useState('');
   const [barisHarga, setBarisHarga] = useState<BarisHarga[]>(
-    () => (permintaan?.barang ?? []).map(() => ({ kodeBarang: '', harga: '', diskon: '' })),
+    () => permintaan.barang.map(() => ({ kodeBarang: '', harga: '', diskon: '' })),
   );
   const [persenPpn, setPersenPpn] = useState('12');
   const [jasa, setJasa] = useState('');
   const [formError, setFormError] = useState('');
 
-  const backPath = permintaan ? lihatPermintaanPath(permintaan.id) : rekap_pembelian_path;
+  // Baris permintaan yang sudah masuk PO aktif tidak boleh dipesan lagi.
+  const { pos, loading: poLoading, error: poError } = usePoPermintaan(permintaan.id);
+  const sudahDipesan = lineSudahDipesan(pos);
+  const [dipilih, setDipilih] = useState<Record<number, boolean>>({});
+  const terpilih = (index: number) => dipilih[index] ?? !sudahDipesan.has(index);
+
+  const backPath = lihatPermintaanPath(permintaan.id);
 
   const header = (
     <div className="flex items-center gap-3 mb-6">
@@ -85,25 +111,16 @@ function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
     </div>
   );
 
-  if (!permintaan) {
-    return (
-      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
-        {header}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-6 py-10 text-center text-gray-400 italic">
-          Permintaan pembelian tidak ditemukan.
-        </div>
-      </div>
-    );
-  }
-
   const kebutuhanProyek = Array.from(new Set(permintaan.barang.map((b) => b.proyek))).join(', ');
 
-  const barang = permintaan.barang.map((b, index) => {
+  const barisSemua = permintaan.barang.map((b, index) => {
     const baris = barisHarga[index];
     const hargaSatuan = toNumber(baris.harga);
     const diskon = toNumber(baris.diskon);
-    return { ...b, kodeBarang: baris.kodeBarang, hargaSatuan, diskon, total: b.qty * hargaSatuan - diskon };
+    return { ...b, index, kodeBarang: baris.kodeBarang, hargaSatuan, diskon, total: b.qty * hargaSatuan - diskon, dipilih: terpilih(index) };
   });
+  // Hanya baris yang dicentang yang masuk PO ini; sisanya untuk PO supplier lain.
+  const barang = barisSemua.filter((b) => b.dipilih);
 
   const totalSetelahDiskon = barang.reduce((sum, b) => sum + b.total, 0);
   // DPP nilai lain = 11/12 dari harga jual; PPN dihitung dari DPP ini
@@ -119,6 +136,10 @@ function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
 
   const handleBuat = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (barang.length === 0) {
+      setFormError('Pilih minimal satu barang untuk PO ini.');
+      return;
+    }
     if (tanggalPo === '') {
       setFormError('Tanggal PO wajib diisi.');
       return;
@@ -158,6 +179,7 @@ function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
           supplierId: supplier.id,
           picSupplier: picSupplier.trim(),
           barang: barang.map((b) => ({
+            lineIndex: b.index,
             kodeBarang: b.kodeBarang.trim(),
             namaBarang: b.namaBarang,
             satuan: b.satuan,
@@ -176,6 +198,18 @@ function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
     }
   };
 
+  const handlePrint = async (po: PurchaseOrder) => {
+    setPrinting(true);
+    setPrintError('');
+    try {
+      await printPurchaseOrder(po);
+    } catch {
+      setPrintError('PO sudah tersimpan, tetapi dialog cetak gagal dibuka. Klik Cetak PO untuk mencoba lagi.');
+    } finally {
+      setPrinting(false);
+    }
+  };
+
   if (dibuat) {
     return (
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -183,7 +217,9 @@ function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-6 py-10 text-center">
           <p className="text-base font-bold text-gray-900">PO {dibuat.nomorPo} berhasil dibuat</p>
           <p className="mt-2 text-sm text-gray-600">Supplier {dibuat.supplierName}, grand total Rp. {formatAngka(dibuat.grandTotal)}</p>
-          <Link href={rekap_pembelian_path} className={`${orangeButtonClass} inline-block mt-6`}>Kembali ke Rekap Pembelian</Link>
+          {printError && <p role="alert" className="mt-4 text-sm text-red-600">{printError}</p>}
+          <button type="button" onClick={() => void handlePrint(dibuat)} disabled={printing} className={`${orangeButtonClass} inline-block mt-6 disabled:opacity-50`}>{printing ? 'Menyiapkan cetak...' : 'Cetak PO'}</button>
+          <Link href={backPath} className={`${orangeButtonClass} inline-block mt-6 ml-3`}>Kembali ke Detail Permintaan</Link>
         </div>
       </div>
     );
@@ -310,10 +346,13 @@ function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
 
         {/* Daftar barang */}
         <h3 className="text-xs font-bold text-gray-900 mb-3">Daftar / Spesifikasi Barang Yang Dipesan :</h3>
+        {poError && <p role="alert" className="mb-3 text-sm text-red-600">{poError}</p>}
+        {poLoading && <p className="mb-3 text-sm text-gray-500">Memuat PO sebelumnya...</p>}
         <div className="overflow-x-auto border-t border-l border-gray-300 rounded-sm">
           <table className="w-full text-left text-sm whitespace-nowrap border-collapse">
             <thead className="bg-gray-100 text-gray-900 font-bold text-xs">
               <tr>
+                <th scope="col" className={`${cellClass} w-24 text-center`}>Pilih</th>
                 <th scope="col" className={`${cellClass} w-12 text-center`}>No.</th>
                 <th scope="col" className={`${cellClass} text-center`}>Kode Barang</th>
                 <th scope="col" className={`${cellClass} text-center`}>Nama Item / Barang</th>
@@ -325,50 +364,61 @@ function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
               </tr>
             </thead>
             <tbody className="text-gray-800">
-              {barang.map((b, index) => (
-                <tr key={`${b.namaBarang}-${index}`}>
-                  <td className={`${cellClass} text-center`}>{index + 1}.</td>
-                  <td className={cellClass}>
-                    <input
-                      type="text"
-                      maxLength={191}
-                      value={barisHarga[index].kodeBarang}
-                      onChange={(e) => updateBaris(index, 'kodeBarang', e.target.value)}
-                      aria-label={`Kode barang ${b.namaBarang}`}
-                      className={cellInputClass}
-                    />
-                  </td>
-                  <td className={cellClass}>{b.namaBarang}</td>
-                  <td className={`${cellClass} text-center`}>{b.satuan}</td>
-                  <td className={`${cellClass} text-center`}>{formatAngka(b.qty)}</td>
-                  <td className={cellClass}>
-                    <input
-                      {...INTEGER_INPUT}
-                      maxLength={9}
-                      value={barisHarga[index].harga}
-                      onChange={(e) => updateBaris(index, 'harga', digitsOnly(e.target.value))}
-                      placeholder="0"
-                      aria-label={`Harga satuan ${b.namaBarang}`}
-                      className={`${cellInputClass} text-right`}
-                    />
-                  </td>
-                  <td className={cellClass}>
-                    <input
-                      {...INTEGER_INPUT}
-                      maxLength={9}
-                      value={barisHarga[index].diskon}
-                      onChange={(e) => updateBaris(index, 'diskon', digitsOnly(e.target.value))}
-                      placeholder="0"
-                      aria-label={`Diskon ${b.namaBarang}`}
-                      className={`${cellInputClass} text-right`}
-                    />
-                  </td>
-                  <td className={`${cellClass} text-right font-semibold ${b.total < 0 ? 'text-red-600' : ''}`}>{formatAngka(b.total)}</td>
-                </tr>
-              ))}
-              {barang.length === 0 && (
+              {barisSemua.map((b) => {
+                const sudah = sudahDipesan.has(b.index);
+                return (
+                  <tr key={`${b.namaBarang}-${b.index}`} className={b.dipilih ? '' : 'opacity-50'}>
+                    <td className={`${cellClass} text-center`}>
+                      {sudah ? (
+                        <span className="text-xs text-gray-400">Sudah dipesan</span>
+                      ) : (
+                        <input type="checkbox" checked={b.dipilih} onChange={() => setDipilih((prev) => ({ ...prev, [b.index]: !b.dipilih }))}
+                          aria-label={`Pilih ${b.namaBarang}`} />
+                      )}
+                    </td>
+                    <td className={`${cellClass} text-center`}>{b.index + 1}.</td>
+                    <td className={cellClass}>
+                      <input
+                        type="text"
+                        maxLength={191}
+                        value={barisHarga[b.index].kodeBarang}
+                        onChange={(e) => updateBaris(b.index, 'kodeBarang', e.target.value)}
+                        aria-label={`Kode barang ${b.namaBarang}`}
+                        className={cellInputClass}
+                      />
+                    </td>
+                    <td className={cellClass}>{b.namaBarang}</td>
+                    <td className={`${cellClass} text-center`}>{b.satuan}</td>
+                    <td className={`${cellClass} text-center`}>{formatAngka(b.qty)}</td>
+                    <td className={cellClass}>
+                      <input
+                        {...INTEGER_INPUT}
+                        maxLength={9}
+                        value={barisHarga[b.index].harga}
+                        onChange={(e) => updateBaris(b.index, 'harga', digitsOnly(e.target.value))}
+                        placeholder="0"
+                        aria-label={`Harga satuan ${b.namaBarang}`}
+                        className={`${cellInputClass} text-right`}
+                      />
+                    </td>
+                    <td className={cellClass}>
+                      <input
+                        {...INTEGER_INPUT}
+                        maxLength={9}
+                        value={barisHarga[b.index].diskon}
+                        onChange={(e) => updateBaris(b.index, 'diskon', digitsOnly(e.target.value))}
+                        placeholder="0"
+                        aria-label={`Diskon ${b.namaBarang}`}
+                        className={`${cellInputClass} text-right`}
+                      />
+                    </td>
+                    <td className={`${cellClass} text-right font-semibold ${b.total < 0 ? 'text-red-600' : ''}`}>{formatAngka(b.total)}</td>
+                  </tr>
+                );
+              })}
+              {permintaan.barang.length === 0 && (
                 <tr>
-                  <td colSpan={8} className={`${cellClass} px-6 py-10 text-center text-gray-400 italic`}>
+                  <td colSpan={9} className={`${cellClass} px-6 py-10 text-center text-gray-400 italic`}>
                     Belum ada barang pada permintaan ini.
                   </td>
                 </tr>
@@ -376,6 +426,9 @@ function FormPemesanan({ permintaan }: { permintaan?: PermintaanPembelian }) {
             </tbody>
           </table>
         </div>
+        {permintaan.barang.length > 0 && barang.length === 0 && (
+          <p className="mt-3 text-sm text-gray-500">Semua barang pada permintaan ini sudah masuk PO.</p>
+        )}
 
         {/* Perhitungan total */}
         <div className="flex items-center gap-4 mt-6">

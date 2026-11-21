@@ -17,6 +17,8 @@ export interface PermintaanPembelian {
   barang: BarangPermintaan[];
   periode?: string;
   requestedBy?: number;
+  // Progres pembelian dari backend: dihitung dari qty PO aktif (tidak termasuk PO batal).
+  purchaseStatus?: 'NOT_PURCHASED' | 'PARTIALLY_PURCHASED' | 'PURCHASED';
   catatan?: string;
   riwayat?: ApprovalAction[];
   lampiranRekapDokubah?: string;
@@ -50,6 +52,7 @@ const toPermintaan = (req: ApprovalRequest): PermintaanPembelian => {
     barang,
     periode: p?.periode,
     requestedBy: req.requestedBy,
+    purchaseStatus: req.purchaseStatus,
     catatan: p?.notes,
     // Lampiran belum ada di payload purchase-request, jadi selalu kosong.
   };

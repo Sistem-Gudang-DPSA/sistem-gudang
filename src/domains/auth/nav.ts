@@ -99,7 +99,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
           { href: "/dashboard/gudang/laporan/stock-opname", label: "Rekap Stok Opname", anyOf: ["report.view"] },
           { href: "/dashboard/gudang/laporan/dokubah", label: "Rekap Dokubah", anyOf: ["dokubah.view"] },
           { href: "/dashboard/gudang/laporan/kartu-stok", label: "Kartu Stok", anyOf: ["item.view"] },
-          { href: "/dashboard/gudang/laporan/realisasi-spk", label: "Realisasi Dokubah", anyOf: ["dokubah.view"] },
+          { href: "/dashboard/gudang/laporan/realisasi-dokubah", label: "Realisasi Dokubah", anyOf: ["dokubah.view"] },
         ],
       },
     ],
@@ -196,7 +196,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
         // Placeholder pages for now; items without a dedicated permission use the division's own set.
         title: "Transaksi",
         items: [
-          { href: "/dashboard/purchasing/transaksi/buat-po-barang", label: "PO Barang", anyOf: ["purchase-order.create"] },
+          { href: "/dashboard/purchasing/transaksi/buat-po-barang", label: "PO Barang", anyOf: ["purchase-order.view", "purchase-order.create"] },
           { href: "/dashboard/purchasing/transaksi/penawaran-harga", label: "Penawaran Harga / SPH", anyOf: ["penawaran-harga.view"] },
           { href: "/dashboard/purchasing/transaksi/retur-supplier", label: "Retur ke Supplier", anyOf: ["item.set-price", "supplier.create", "supplier.update"] },
         ],
@@ -207,7 +207,8 @@ export const NAV_DIVISIONS: NavDivision[] = [
           { href: "/dashboard/purchasing/laporan/barang-masuk", label: "Rekap Data Barang Masuk", anyOf: ["item.set-price", "supplier.create", "supplier.update"] },
           { href: "/dashboard/purchasing/laporan/barang-keluar", label: "Rekap Data Barang Keluar", anyOf: ["item.set-price", "supplier.create", "supplier.update"] },
           { href: "/dashboard/purchasing/laporan/stock-opname", label: "Rekap Stock Opname", anyOf: ["item.set-price", "supplier.create", "supplier.update"] },
-          { href: "/dashboard/purchasing/laporan/rekap-pembelian", label: "Rekap Pembelian", anyOf: ["purchase-request.approve"] },
+          { href: "/dashboard/purchasing/laporan/rekap-pembelian", label: "Rekap Permintaan Pembelian", anyOf: ["purchase-request.approve"] },
+          { href: "/dashboard/purchasing/laporan/realisasi-dokubah", label: "Realisasi Dokubah", anyOf: ["report.view"] },
         ],
       },
     ],
@@ -272,7 +273,10 @@ export function visibleNav(user: AuthUser): NavDivision[] {
 // Paths that are not part of any division fall through so Next.js can answer 404.
 export function canAccess(user: AuthUser, pathname: string): boolean {
   if (user.isSuperadmin) return true;
-  const path = pathname.replace(/\/+$/, "") || "/";
+  const normalized = pathname.replace(/\/+$/, "") || "/";
+  const path = normalized === "/dashboard/gudang/laporan/realisasi-spk"
+    ? "/dashboard/gudang/laporan/realisasi-dokubah"
+    : normalized;
   if (path === "/dashboard") return true;
   if (path === "/dashboard/superadmin" || path.startsWith("/dashboard/superadmin/")) return false;
 

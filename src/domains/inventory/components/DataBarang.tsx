@@ -111,7 +111,8 @@ export default function DataBarangGudang({
     { label: 'Kode Bawaan', tdClassName: 'px-6 py-4 text-gray-600', cell: (item) => item.externalCode || '-' },
     { label: 'Supplier', sortKey: 'supplierName', cell: (item) => <SupplierCell name={supplierName(item.supplierId)} /> },
     { label: 'Stok', sortKey: 'stock', cell: (item) => <StokCell stock={item.stock} /> },
-    { label: 'Stok Minimum', cell: (item) => <StokMinimumCell item={item} onSaved={reload} /> },
+    // Stok minimum hanya diatur PPIC dan Superadmin.
+    { label: 'Stok Minimum', cell: (item) => <StokMinimumCell item={item} onSaved={reload} readOnly /> },
     { label: 'Satuan', tdClassName: 'px-6 py-4 text-gray-600', cell: (item) => item.unit },
     { label: 'Kategori', sortKey: 'category', cell: (item) => <KategoriBadge category={item.category} /> },
     { label: 'Lokasi', sortKey: 'locationCode', cell: (item) => (

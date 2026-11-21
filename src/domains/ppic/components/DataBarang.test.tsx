@@ -34,6 +34,16 @@ async function ubahKategori(kategori: string) {
   fireEvent.click(screen.getByRole('button', { name: 'Simpan' }));
 }
 
+describe('DataBarang PPIC: header dan sel tabel', () => {
+  it('setiap baris punya jumlah sel sama dengan jumlah header', async () => {
+    setup({});
+    const row = (await screen.findByText('Barang 1')).closest('tr');
+    const table = row?.closest('table');
+    expect(row?.querySelectorAll('td').length).toBe(table?.querySelectorAll('thead th').length);
+    expect(screen.queryByText('Stok & Satuan')).toBeNull();
+  });
+});
+
 describe('DataBarang PPIC: notifikasi kode saat kategori berubah', () => {
   it('menampilkan kode baru bila BE memberi kode baru', async () => {
     const api = setup({ ...item, category: 'Permesinan', code: 'PER201' });

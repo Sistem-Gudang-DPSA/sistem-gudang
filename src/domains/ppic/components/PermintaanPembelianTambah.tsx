@@ -6,17 +6,29 @@ import { useCan } from '@/domains/auth/user-context';
 import NoPermission from './NoPermission';
 import { ArrowLeft, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { createPurchaseRequest, editPurchaseRequest, resubmitApproval } from '@/domains/ppic/api';
+import { createPurchaseRequest, editPurchaseRequest, listTrackingSpk, resubmitApproval } from '@/domains/ppic/api';
 import { permintaan_pembelian_path, type PermintaanPembelian } from '@/domains/ppic/data/pembelian';
+import { PILIHAN_PEMOHON_PEMBELIAN } from '@/domains/ppic/data/pemohon-pembelian';
 import { todayIso } from '@/domains/inventory/date';
 import { ApiError } from '@/shared/lib/api-client';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 import { useItemSearch } from '@/domains/inventory/use-item-search';
+import { useApiData } from '@/shared/lib/use-api-data';
+import SearchableSelect from '@/shared/components/SearchableSelect';
+import type { ItemListRow } from '@/domains/inventory/types';
+import RekomendasiStokMinimum, { qtySaranRestock } from './RekomendasiStokMinimum';
+import { cetakLaporan } from '@/shared/lib/print-laporan';
+import { escapeHtml } from '@/shared/lib/escape-html';
 
 const emptyRow = { itemId: undefined as number | undefined, tanggal: "", supplier: "", keterangan: "", dikirimTanggal: "", namaBarang: "", qty: "", satuan: "", proyek: "", client: "", noSpk: "" };
 type Row = typeof emptyRow;
 
 const kolomWajib = (r: Row) => [r.namaBarang, r.qty, r.satuan, r.proyek];
+// Tanggal terbit formulir mengikuti tanggal surat (tanggal pengajuan), format MM/YY.
+const tanggalTerbit = (iso: string) => {
+  const [tahun, bulan] = iso.split('-');
+  return tahun && bulan ? `${bulan}/${tahun.slice(-2)}` : '-';
+};
 const barisTerisi = (r: Row) => [r.namaBarang, r.qty, r.satuan, r.proyek, r.tanggal, r.supplier, r.keterangan, r.dikirimTanggal].some(Boolean);
 
 export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = permintaan_pembelian_path, editing = false }: { permintaan?: PermintaanPembelian; basePath?: string; editing?: boolean }) {
@@ -51,12 +63,74 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
   const [rowErrors, setRowErrors] = useState<Record<number, string>>({});
   const { items: dataBarang, onSearch: searchItems, error: itemError } = useItemSearch();
 
+  const { data: daftarProyek, loading: proyekLoading, error: proyekError } = useApiData(
+    () => canCreate ? listTrackingSpk() : Promise.resolve([]),
+    `permintaan-daftar-proyek|${canCreate}`,
+    'Gagal memuat daftar proyek.',
+  );
+  const pilihanProyek = [...new Set((daftarProyek ?? []).map((spk) => spk.projectName?.trim()).filter((name): name is string => !!name && name !== '-'))]
+    .sort((a, b) => a.localeCompare(b))
+    .map((name) => ({ value: name, label: name }));
+
   const handleChange = (index: number, field: keyof Row, value: string) => {
-    setTableData((prev) => prev.map((row, i) => (i === index ? { ...row, [field]: value, ...(field === 'namaBarang' ? { itemId: undefined } : {}) } : row)));
+    setTableData((prev) => prev.map((row, i) => (i === index ? { ...row, [field]: value, ...(field === 'namaBarang' ? { itemId: undefined, satuan: '', supplier: '' } : {}) } : row)));
   };
 
   const patchRow = (index: number, patch: Partial<Row>) =>
     setTableData((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+
+  // Supplier mengikuti master barang dan hanya Purchasing yang memutuskan supplier final di PO.
+  const tambahDariRekomendasi = (item: ItemListRow) => {
+    const barisBaru = { ...emptyRow, itemId: item.id, namaBarang: item.name, satuan: item.unit, supplier: item.supplierName ?? '', qty: String(qtySaranRestock(item)) };
+    setTableData((rows) => {
+      const kosong = rows.findIndex((row) => !barisTerisi(row));
+      return kosong >= 0 ? rows.map((row, i) => (i === kosong ? barisBaru : row)) : [...rows, barisBaru];
+    });
+  };
+  const itemIdsTerpilih = new Set(tableData.flatMap((row) => (row.itemId === undefined ? [] : [row.itemId])));
+
+  // Mencetak isi form saat ini (baris yang sudah terisi), tanpa menunggu disimpan.
+  const handleCetak = async () => {
+    const isiBaris = tableData.filter(barisTerisi).map((row, i) => `<tr>
+        <td class="c">${i + 1}</td>
+        <td>${row.tanggal ? escapeHtml(row.tanggal) : '-'}</td>
+        <td>${row.supplier ? escapeHtml(row.supplier) : '-'}</td>
+        <td>${row.namaBarang ? escapeHtml(row.namaBarang) : '-'}</td>
+        <td class="c">${row.qty ? escapeHtml(row.qty) : '-'}</td>
+        <td class="c">${row.satuan ? escapeHtml(row.satuan) : '-'}</td>
+        <td>${row.proyek ? escapeHtml(row.proyek) : '-'}</td>
+        <td>${row.keterangan ? escapeHtml(row.keterangan) : '-'}</td>
+        <td>${row.dikirimTanggal ? escapeHtml(row.dikirimTanggal) : '-'}</td>
+      </tr>`).join('');
+    const isi = `<table>
+        <colgroup><col style="width:5%" /><col style="width:12%" /><col style="width:16%" /><col style="width:22%" /><col style="width:6%" /><col style="width:6%" /><col style="width:12%" /><col style="width:12%" /><col style="width:9%" /></colgroup>
+        <thead><tr>
+          <th class="c">No</th><th>Tanggal</th><th>Supplier</th><th>Nama Barang</th><th class="c">QTY</th><th class="c">SAT</th><th>Proyek</th><th>Keterangan</th><th>Dikirim Tanggal</th>
+        </tr></thead>
+        <tbody>${isiBaris || '<tr><td colspan="9" class="c">Belum ada barang.</td></tr>'}</tbody>
+      </table>
+      <table style="border:0; margin-top:14mm; font-size:12px;">
+        <tbody><tr>
+          <td style="border:0; text-align:center; width:50%;">Dibuat<div style="height:16mm"></div>Kepala Gudang</td>
+          <td style="border:0; text-align:center; width:50%;">Disetujui Oleh<div style="height:16mm"></div>Bag. Purchasing</td>
+        </tr></tbody>
+      </table>`;
+    try {
+      await cetakLaporan('Form Permintaan Pembelian Bahan Baku', isi, {
+        meta: [
+          `Bagian/Sub bagian: ${header.bagian || '-'}`,
+          `Nama: ${header.namaPemohon || '-'}  |  Jabatan: ${header.jabatan || '-'}`,
+          `Tanggal Pengajuan: ${header.tanggalPengajuan || '-'}`,
+          ...(header.periode.trim() ? [`Periode: ${header.periode.trim()}`] : []),
+        ],
+        label: 'permintaan pembelian',
+        // Identitas formulir PPIC di kanan atas; tanggal terbit mengikuti tanggal surat.
+        identitas: { kode: 'PPIC', nomor: '002', revisi: '00', terbit: tanggalTerbit(header.tanggalPengajuan || todayIso()) },
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal mencetak permintaan pembelian.');
+    }
+  };
 
   const handleSubmit = async () => {
     if (submitting.current) return;
@@ -169,17 +243,29 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
             <div className="flex items-center">
               <span className="w-45 text-[15px] font-semibold text-gray-700">Bagian/Sub bagian</span>
               <span className="w-8 text-center text-gray-700 font-semibold">:</span>
-              <input aria-label="Bagian / Sub Bagian" type="text"  value={header.bagian} maxLength={100} onChange={(e) => setHeader({ ...header, bagian: e.target.value })} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200" />
+              <select aria-label="Bagian / Sub Bagian" value={header.bagian} onChange={(e) => setHeader({ ...header, bagian: e.target.value })} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200">
+                <option value="">Pilih bagian / sub bagian</option>
+                {header.bagian && !PILIHAN_PEMOHON_PEMBELIAN.bagian.includes(header.bagian) && <option value={header.bagian}>{header.bagian}</option>}
+                {PILIHAN_PEMOHON_PEMBELIAN.bagian.map((value) => <option key={value} value={value}>{value}</option>)}
+              </select>
             </div>
             <div className="flex items-center">
               <span className="w-45 text-[15px] font-semibold text-gray-700">Nama</span>
               <span className="w-8 text-center text-gray-700 font-semibold">:</span>
-              <input aria-label="Nama pemohon" type="text"  value={header.namaPemohon} maxLength={191} onChange={(e) => setHeader({ ...header, namaPemohon: e.target.value })} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200" />
+              <select aria-label="Nama pemohon" value={header.namaPemohon} onChange={(e) => setHeader({ ...header, namaPemohon: e.target.value })} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200">
+                <option value="">Pilih nama</option>
+                {header.namaPemohon && !PILIHAN_PEMOHON_PEMBELIAN.namaPemohon.includes(header.namaPemohon) && <option value={header.namaPemohon}>{header.namaPemohon}</option>}
+                {PILIHAN_PEMOHON_PEMBELIAN.namaPemohon.map((value) => <option key={value} value={value}>{value}</option>)}
+              </select>
             </div>
             <div className="flex items-center">
               <span className="w-45 text-[15px] font-semibold text-gray-700">Jabatan</span>
               <span className="w-8 text-center text-gray-700 font-semibold">:</span>
-              <input aria-label="Jabatan" type="text"  value={header.jabatan} maxLength={100} onChange={(e) => setHeader({ ...header, jabatan: e.target.value })} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200" />
+              <select aria-label="Jabatan" value={header.jabatan} onChange={(e) => setHeader({ ...header, jabatan: e.target.value })} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200">
+                <option value="">Pilih jabatan</option>
+                {header.jabatan && !PILIHAN_PEMOHON_PEMBELIAN.jabatan.includes(header.jabatan) && <option value={header.jabatan}>{header.jabatan}</option>}
+                {PILIHAN_PEMOHON_PEMBELIAN.jabatan.map((value) => <option key={value} value={value}>{value}</option>)}
+              </select>
             </div>
             <div className="flex items-center">
               <span className="w-45 text-[15px] font-semibold text-gray-700">Tanggal Pengajuan</span>
@@ -191,6 +277,8 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
           {/* Divider Custom */}
           <div className="w-full h-px bg-gray-200 mb-8 mt-2"></div>
 
+          <RekomendasiStokMinimum existingItemIds={itemIdsTerpilih} onAdd={tambahDariRekomendasi} />
+
           <div className="mb-4 text-left">
             <h3 className="text-[16px] font-bold text-gray-900 flex items-center gap-2">
               <span className="w-2 h-6 bg-[#FF8A00] rounded-full"></span>
@@ -201,7 +289,7 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
           {/* Table List Data */}
           <div className="overflow-hidden w-full border border-gray-200/80 rounded-xl shadow-sm">
             <div className="overflow-x-auto w-full">
-              <table className="w-full min-w-[1100px] table-fixed text-left text-sm border-collapse">
+              <table className="w-full min-w-275 table-fixed text-left text-sm border-collapse">
                 <colgroup>
                   {[4, 12, 13, 24, 6, 6, 13, 11, 11].map((width, i) => <col key={i} style={{ width: `${width}%` }} />)}
                 </colgroup>
@@ -221,7 +309,7 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
                       </td>
 
                       <td className="p-0 border border-gray-300"><input aria-label={`Tanggal baris ${i + 1}`} type="date" value={row.tanggal} onChange={(e) => handleChange(i, 'tanggal', e.target.value)} className="w-full min-w-0 bg-transparent px-1 py-2.5 text-xs focus:outline-orange-400" /></td>
-                      <td className="p-0 border border-gray-300"><input aria-label={`Supplier baris ${i + 1}`} value={row.supplier} maxLength={191} onChange={(e) => handleChange(i, 'supplier', e.target.value)} placeholder="Nama supplier" className="w-full min-w-0 bg-transparent px-2 py-2.5 focus:outline-orange-400" /></td>
+                      <td className="p-0 border border-gray-300"><input aria-label={`Supplier baris ${i + 1}`} value={row.supplier} readOnly tabIndex={-1} placeholder="Dari master barang" className="w-full min-w-0 cursor-default bg-gray-50/60 px-2 py-2.5 text-gray-600 focus:outline-none" /></td>
                       <td className="p-0 border border-gray-300">
                         <div className="w-full">
                           <input
@@ -249,10 +337,8 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
                             onChange={(e) => {
                               const keyword = e.target.value;
 
+                              // Nama barang berubah: satuan dan supplier ikut dikosongkan (lihat handleChange).
                               handleChange(i, 'namaBarang', keyword);
-
-                              // Kosongkan satuan ketika nama barang diubah.
-                              handleChange(i, 'satuan', '');
 
                               const rect = e.currentTarget.getBoundingClientRect();
 
@@ -291,13 +377,13 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
                                       onMouseDown={(e) => {
                                         e.preventDefault();
 
-                                        patchRow(i, { itemId: item.id, namaBarang: item.name, satuan: item.unit ?? '' });
+                                        patchRow(i, { itemId: item.id, namaBarang: item.name, satuan: item.unit ?? '', supplier: item.supplierName ?? '' });
 
                                         setBarisAktif(null);
                                       }}
                                       onKeyDown={(e) => {
                                         if (e.key === 'Enter') {
-                                          patchRow(i, { itemId: item.id, namaBarang: item.name, satuan: item.unit ?? '' });
+                                          patchRow(i, { itemId: item.id, namaBarang: item.name, satuan: item.unit ?? '', supplier: item.supplierName ?? '' });
 
                                           setBarisAktif(null);
                                         }
@@ -329,9 +415,20 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
                       <td className="p-0 border border-gray-300">
                         <input aria-label={`Satuan baris ${i + 1}`} type="text" value={row.satuan} maxLength={50} placeholder="SAT" onChange={(e) => handleChange(i, 'satuan', e.target.value)} className="w-full h-full min-h-11 px-1 text-center bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 placeholder-gray-300 not-italic" />
                       </td>
-                      {(['proyek', 'keterangan', 'dikirimTanggal'] as const).map((field) => (
-                        <td key={field} className="p-0 border border-gray-300"><input aria-label={`${field === 'dikirimTanggal' ? 'Dikirim Tanggal' : field === 'proyek' ? 'Proyek' : 'Keterangan'} baris ${i + 1}`} type={field === 'dikirimTanggal' ? 'date' : 'text'} value={row[field]} maxLength={field === 'keterangan' ? 500 : 191} onChange={(e) => handleChange(i, field, e.target.value)} className="w-full min-w-0 bg-transparent px-2 py-2.5 focus:outline-orange-400" /></td>
-                      ))}
+                      <td className="p-0 border border-gray-300">
+                        <SearchableSelect
+                          aria-label={`Proyek baris ${i + 1}`}
+                          value={row.proyek}
+                          onChange={(value) => patchRow(i, { proyek: value, ...(value !== row.proyek ? { noSpk: '' } : {}) })}
+                          options={row.proyek && !pilihanProyek.some((option) => option.value === row.proyek) ? [{ value: row.proyek, label: row.proyek }, ...pilihanProyek] : pilihanProyek}
+                          placeholder="Pilih proyek"
+                          pending={proyekLoading}
+                          emptyText={proyekError || 'Belum ada proyek tersedia.'}
+                          className="w-full min-w-0 bg-transparent px-2 py-2.5 focus:outline-orange-400"
+                        />
+                      </td>
+                      <td className="p-0 border border-gray-300"><input aria-label={`Keterangan baris ${i + 1}`} type="text" value={row.keterangan} maxLength={500} onChange={(e) => handleChange(i, 'keterangan', e.target.value)} className="w-full min-w-0 bg-transparent px-2 py-2.5 focus:outline-orange-400" /></td>
+                      <td className="p-0 border border-gray-300"><input aria-label={`Dikirim Tanggal baris ${i + 1}`} type="date" value={row.dikirimTanggal} onChange={(e) => handleChange(i, 'dikirimTanggal', e.target.value)} className="w-full min-w-0 bg-transparent px-2 py-2.5 focus:outline-orange-400" /></td>
                     </tr>
                   ))}
                 </tbody>
@@ -342,13 +439,15 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
 
         <button type="button" onClick={() => setTableData((rows) => [...rows, { ...emptyRow }])} className="mb-6 text-sm font-semibold text-orange-600">+ Tambah Baris</button>
         <div className="grid grid-cols-2 gap-8 mb-8 text-center text-sm text-gray-600">
-          <div>Dibuat<p className="mt-12 font-semibold">{header.namaPemohon || 'Nama pemohon'}</p></div>
-          <div>Disetujui Oleh<p className="mt-12 text-xs">Mengikuti proses persetujuan sistem</p></div>
+          <div>Dibuat<p className="mt-12 font-semibold">Kepala Gudang</p></div>
+          <div>Disetujui Oleh<p className="mt-12 font-semibold">Bag. Purchasing</p></div>
         </div>
         {/* Submit Action */}
+        {proyekError && <p role="alert" className="text-sm text-red-500 text-right mb-3">{proyekError}</p>}
         {(error || itemError) && <p className="text-sm text-red-500 text-right mb-3">{error || itemError}</p>}
         {Object.entries(rowErrors).map(([i, msg]) => <p key={i} className="text-sm text-red-500 text-right mb-1">Baris {Number(i) + 1}: {msg}</p>)}
-        <div className="flex justify-end w-full">
+        <div className="flex justify-end w-full gap-3">
+          <button type="button" onClick={() => void handleCetak()} className="px-6 py-2.5 border border-[#ff8a00] text-[#ff8a00] rounded-lg hover:bg-orange-50 transition-colors font-semibold text-[14px]">Cetak</button>
           <button onClick={handleSubmit} disabled={saving} className="disabled:opacity-60 px-8 py-2.5 bg-[#ff8a00] text-white rounded-lg hover:bg-[#eb7d00] transition-all duration-200 font-semibold text-[14px] shadow-sm hover:shadow-md hover:-translate-y-0.5">
             {saving ? 'Menyimpan...' : editing ? 'Simpan Perubahan' : permintaan ? 'Kirim Ulang' : 'Ajukan Permintaan Pembelian'}
           </button>
