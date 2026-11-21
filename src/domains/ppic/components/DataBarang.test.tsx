@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { installFakeApi, paged } from '@/test/fake-api';
 import DataBarangPPIC from './DataBarang';
 
@@ -41,6 +41,13 @@ describe('DataBarang PPIC: header dan sel tabel', () => {
     const table = row?.closest('table');
     expect(row?.querySelectorAll('td').length).toBe(table?.querySelectorAll('thead th').length);
     expect(screen.queryByText('Stok & Satuan')).toBeNull();
+  });
+
+  it('menampilkan kolom Harga Terbaru dengan format ribuan seperti Superadmin', async () => {
+    setup({});
+    const row = (await screen.findByText('Barang 1')).closest('tr');
+    expect(screen.getByRole('columnheader', { name: 'Harga Terbaru' })).toBeTruthy();
+    expect(within(row!).getByText('1.000')).toBeTruthy();
   });
 });
 
