@@ -1,1 +1,1 @@
-export {default} from "@/domains/purchasing/components/PermintaanPembelian"
+export {default} from "@/domains/purchasing/components/PermintaanPembelianPoBarang"

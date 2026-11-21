@@ -93,10 +93,10 @@ function AksiPurchasing({ permintaan, reload }: { permintaan: PermintaanPembelia
   );
 }
 
-export default function PermintaanPembelianPurchasing() {
+export default function PermintaanPembelianPurchasing({ backPath = rekap_pembelian_path }: { backPath?: string } = {}) {
   return (
     <PermintaanPembelianPPIC
-      backPath={rekap_pembelian_path}
+      backPath={backPath}
       actions={(permintaan, reload) => <AksiPurchasing permintaan={permintaan} reload={reload} />}
       sections={(permintaan) => <DaftarPoPermintaan permintaan={permintaan} />}
     />

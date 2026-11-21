@@ -17,6 +17,9 @@ describe('purchasing POBarang', () => {
     const api = installFakeApi({ 'GET /api/v1/approvals': paged([request(1)], { total: 45 }) });
     render(<POBarang />);
     await screen.findByText('Permintaan 1');
+    expect(screen.getByText('Lihat Permintaan').getAttribute('href')).toBe(
+      '/dashboard/purchasing/transaksi/buat-po-barang/permintaan-pembelian/1',
+    );
     fireEvent.click(screen.getByRole('button', { name: '3' }));
     await waitFor(() => expect(lastQ(api).get('page')).toBe('3'));
     fireEvent.click(screen.getByRole('button', { name: /Tanggal/ }));

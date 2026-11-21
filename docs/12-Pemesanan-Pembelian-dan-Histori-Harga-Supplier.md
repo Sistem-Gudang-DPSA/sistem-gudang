@@ -46,6 +46,13 @@ contoh dan tombol simpannya hanya menampilkan alert.
   `purchase-order.view`.
   Bila semua baris sudah dipesan, tombol Buat PO berganti menjadi keterangan
   bahwa semua barang sudah dipesan.
+- Tombol **Lihat Permintaan** pada daftar PO Barang membuka
+  `/dashboard/purchasing/transaksi/buat-po-barang/permintaan-pembelian/{id}`;
+  panah kembali menuju daftar PO Barang. Detail permintaan dari Rekap
+  Pembelian tetap memakai URL lama dan kembali ke Rekap Pembelian.
+- Status permintaan tampil sebagai badge di samping judul detail, sehingga
+  tetap terlihat walau pengguna tidak memiliki tombol aksi (approve atau
+  buat PO).
 - Setelah PO tersimpan, layar kembali ke detail permintaan.
 
 ## Detail PO dan cetak PO
