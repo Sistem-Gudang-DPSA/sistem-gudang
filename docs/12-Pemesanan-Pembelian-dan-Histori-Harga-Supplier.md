@@ -50,9 +50,14 @@ contoh dan tombol simpannya hanya menampilkan alert.
   `/dashboard/purchasing/transaksi/buat-po-barang/permintaan-pembelian/{id}`;
   panah kembali menuju daftar PO Barang. Detail permintaan dari Rekap
   Pembelian tetap memakai URL lama dan kembali ke Rekap Pembelian.
+  Tombol hanya tampil untuk pengguna dengan `purchase-request.approve` atau
+  `purchase-order.create`; pengguna `purchase-order.view` hanya melihat "-"
+  pada kolom aksi.
 - Status permintaan tampil sebagai badge di samping judul detail, sehingga
   tetap terlihat walau pengguna tidak memiliki tombol aksi (approve atau
   buat PO).
+- Baris tombol aksi memakai `flex-wrap`, jadi tetap tersusun tanpa meluber
+  di layar sempit.
 - Setelah PO tersimpan, layar kembali ke detail permintaan.
 
 ## Detail PO dan cetak PO

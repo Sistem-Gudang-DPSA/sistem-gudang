@@ -171,7 +171,7 @@ export default function PermintaanPembelianPPIC({ backPath = rekap_pembelian_pat
       </div>
 
       {/* PPIC hanya melihat status. Approve, tolak, dan revisi dilakukan Purchasing lewat `actions`. */}
-      <div className="flex items-center justify-end gap-4 mt-8">
+      <div className="flex flex-wrap items-center justify-end gap-4 mt-8">
         {actions?.(permintaan, reload) ?? (
           <>
             <p className="text-sm text-gray-600">Status permintaan: <span className="font-bold text-gray-900">{permintaan.status}</span></p>
