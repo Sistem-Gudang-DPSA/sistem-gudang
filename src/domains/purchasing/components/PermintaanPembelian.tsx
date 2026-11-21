@@ -14,7 +14,7 @@ const buttonClass = 'min-w-24 px-8 py-2.5 bg-[#FF8A00] text-white font-semibold 
 const ghostClass = 'min-w-24 px-8 py-2.5 border border-gray-300 text-gray-800 font-semibold rounded-xl hover:bg-gray-50 transition-all text-sm disabled:opacity-50';
 
 // Purchasing memutuskan permintaan yang masih menunggu. Setelah disetujui, tombol berganti menjadi Buat PO.
-function AksiPurchasing({ permintaan, reload }: { permintaan: PermintaanPembelian; reload: () => void }) {
+function AksiPurchasing({ permintaan, reload, fromPoBarang = false }: { permintaan: PermintaanPembelian; reload: () => void; fromPoBarang?: boolean }) {
   const canApprove = useCan('purchase-request.approve');
   const canCreatePo = useCan('purchase-order.create');
   const [mode, setMode] = useState<'revisi' | 'tolak' | null>(null);
@@ -27,7 +27,7 @@ function AksiPurchasing({ permintaan, reload }: { permintaan: PermintaanPembelia
     if (permintaan.purchaseStatus === 'PURCHASED') {
       return <p className="text-sm text-gray-600">Semua barang sudah dipesan lewat PO.</p>;
     }
-    return canCreatePo ? <Link href={buatPoPath(permintaan.id)} className={buttonClass}>Buat PO</Link> : null;
+    return canCreatePo ? <Link href={`${buatPoPath(permintaan.id)}${fromPoBarang ? '?from=permintaan-po-barang' : ''}`} className={buttonClass}>Buat PO</Link> : null;
   }
   if (permintaan.statusApi !== 'pending') {
     return <p className="text-sm text-gray-600">Status permintaan: <span className="font-bold text-gray-900">{permintaan.status}</span></p>;
@@ -93,12 +93,17 @@ function AksiPurchasing({ permintaan, reload }: { permintaan: PermintaanPembelia
   );
 }
 
-export default function PermintaanPembelianPurchasing({ backPath = rekap_pembelian_path }: { backPath?: string } = {}) {
+// Varian halaman dengan konteks asal; halaman route hanya mengekspor komponen tanpa prop.
+export function PermintaanPembelianDetail({ backPath = rekap_pembelian_path, fromPoBarang = false }: { backPath?: string; fromPoBarang?: boolean }) {
   return (
     <PermintaanPembelianPPIC
       backPath={backPath}
-      actions={(permintaan, reload) => <AksiPurchasing permintaan={permintaan} reload={reload} />}
+      actions={(permintaan, reload) => <AksiPurchasing permintaan={permintaan} reload={reload} fromPoBarang={fromPoBarang} />}
       sections={(permintaan) => <DaftarPoPermintaan permintaan={permintaan} />}
     />
   );
+}
+
+export default function PermintaanPembelianPurchasing() {
+  return <PermintaanPembelianDetail />;
 }
