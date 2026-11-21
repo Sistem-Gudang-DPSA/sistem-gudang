@@ -1,9 +1,14 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.setConfig({ testTimeout: 30000 });
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { fail, installFakeApi, paged, type FakeRequest } from '@/test/fake-api';
 import DaftarPermintaanPembelianPPIC from './DaftarPermintaanPembelian';
 import { withUser } from '@/test/as-user';
+import PermintaanPembelianGudang from '@/domains/inventory/components/PermintaanPembelian';
+
+const cetak = vi.hoisted(() => ({ cetakLaporan: vi.fn(async () => {}) }));
+vi.mock('@/shared/lib/print-laporan', () => ({ cetakLaporan: cetak.cetakLaporan }));
+beforeEach(() => cetak.cetakLaporan.mockClear());
 
 const row = (id: number, status: string, over: Record<string, unknown> = {}) => ({
   id, type: 'purchase-request', requestedBy: 1, requestedByDomainId: 1, currentStepOrder: 1, cycle: 1, status,
@@ -13,6 +18,70 @@ const row = (id: number, status: string, over: Record<string, unknown> = {}) => 
     items: [{ namaBarang: 'Triplex', qty: 5, satuan: 'Lbr', proyek: 'Kantor', noSpk: 'SPK-1' }],
   },
   ...over,
+});
+
+describe.each([
+  ['PPIC', DaftarPermintaanPembelianPPIC, '/dashboard/ppic/transaksi/permintaan-pembelian'],
+] as const)('Cetak daftar permintaan %s', (_, Component, basePath) => {
+  it('mencetak data permintaan yang dipilih tanpa menyimpan ulang dan mempertahankan link divisi', async () => {
+    const request = row(1, 'pending');
+    request.payload.items[0] = { ...request.payload.items[0], namaBarang: '<b>Triplex</b>' };
+    const api = installFakeApi({ 'GET /api/v1/approvals': paged([request]) });
+    render(withUser(<Component />, ['purchase-request.create']));
+    const button = await screen.findByRole('button', { name: 'Cetak' });
+    fireEvent.click(button);
+    expect((screen.getByRole('button', { name: 'Mencetak...' }) as HTMLButtonElement).disabled).toBe(true);
+    await waitFor(() => expect(cetak.cetakLaporan).toHaveBeenCalledTimes(1));
+    const [title, html, options] = cetak.cetakLaporan.mock.calls[0] as unknown as [string, string, { meta: string[] }];
+    expect(title).toBe('Form Permintaan Pembelian Bahan Baku');
+    expect(html).toContain('&lt;b&gt;Triplex&lt;/b&gt;');
+    expect(html).not.toContain('<b>Triplex</b>');
+    expect(html).toContain('Kantor');
+    expect(html).toContain('Kepala Gudang');
+    expect(options.meta.join(' ')).toContain('Budi');
+    expect(options.meta.join(' ')).toContain('2026-03-05');
+    expect(api.calls('POST /api/v1/purchase-requests')).toHaveLength(0);
+    expect(screen.getByRole('link', { name: 'Edit' }).getAttribute('href')).toBe(`${basePath}/1/edit`);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Cetak' })).not.toBeNull());
+  });
+
+  it('menampilkan kegagalan cetak dan mengaktifkan kembali tombol', async () => {
+    cetak.cetakLaporan.mockRejectedValueOnce(new Error('Gagal membuka cetak'));
+    installFakeApi({ 'GET /api/v1/approvals': paged([row(1, 'approved')]) });
+    render(withUser(<Component />, ['approval.view']));
+    fireEvent.click(await screen.findByRole('button', { name: 'Cetak' }));
+    expect((await screen.findByRole('alert')).textContent).toBe('Gagal membuka cetak');
+    expect((screen.getByRole('button', { name: 'Cetak' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('menonaktifkan cetak jika payload tidak tersedia', async () => {
+    installFakeApi({ 'GET /api/v1/approvals': paged([row(1, 'pending', { payload: null })]) });
+    render(withUser(<Component />, ['approval.view']));
+    const button = await screen.findByRole('button', { name: 'Cetak' });
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(button);
+    expect(cetak.cetakLaporan).not.toHaveBeenCalled();
+  });
+
+  it('menyembunyikan cetak tanpa izin membaca permintaan', async () => {
+    installFakeApi({ 'GET /api/v1/approvals': paged([row(1, 'pending')]) });
+    render(withUser(<Component />, []));
+    await screen.findByText('Produksi - 1 barang (Triplex)');
+    expect(screen.queryByRole('button', { name: 'Cetak' })).toBeNull();
+  });
+});
+
+describe('Daftar permintaan Gudang tanpa cetak', () => {
+  it.each(['purchase-request.create', 'approval.view'])('menyembunyikan Cetak untuk %s dan tetap membuka Detail', async (permission) => {
+    installFakeApi({ 'GET /api/v1/approvals': paged([row(1, 'pending')]) });
+    render(withUser(<PermintaanPembelianGudang />, [permission]));
+    fireEvent.click(await screen.findByRole('button', { name: 'Detail' }));
+    expect(screen.getByText('Tanggal Pengajuan')).not.toBeNull();
+    expect(screen.queryByRole('button', { name: 'Cetak' })).toBeNull();
+    expect(cetak.cetakLaporan).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Tutup' }));
+    expect(screen.queryByRole('button', { name: 'Cetak' })).toBeNull();
+  });
 });
 
 describe('DaftarPermintaanPembelian', () => {

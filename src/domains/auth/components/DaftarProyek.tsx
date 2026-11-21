@@ -31,8 +31,8 @@ export default function DaftarProyekPage() {
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
 
   const { data: spkList, loading, error, reload } = useApiData(
-    () => listTrackingSpk(debouncedSearch || undefined),
-    `daftar-proyek|${debouncedSearch}`,
+    () => listTrackingSpk(),
+    'daftar-proyek',
   );
 
   // refresh=1 reloads the backend's tracking cache; then reload() refetches the table from the fresh cache.
@@ -41,7 +41,7 @@ export default function DaftarProyekPage() {
     setRefreshing(true);
     setNotice(null);
     try {
-      await listTrackingSpk(debouncedSearch || undefined, undefined, undefined, true);
+      await listTrackingSpk(undefined, undefined, undefined, true);
       reload();
       setNotice({ ok: true, text: "Data tracking berhasil diperbarui." });
     } catch (err) {
@@ -61,11 +61,9 @@ export default function DaftarProyekPage() {
   }));
 
   // Filter Data Berdasarkan Input Pencarian
-  const filteredData = dataProyek.filter(
-    (item) =>
-      item.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.namaProyek.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.noSpk.toLowerCase().includes(searchTerm.toLowerCase())
+  const query = debouncedSearch.trim().toLowerCase();
+  const filteredData = dataProyek.filter((item) =>
+    Object.values(item).some((value) => value.toLowerCase().includes(query))
   );
 
   // Logika Pagination Data
@@ -111,7 +109,8 @@ export default function DaftarProyekPage() {
             <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Cari client, proyek, atau SPK..."
+              placeholder="Cari di semua kolom..."
+              aria-label="Cari di semua kolom Daftar Proyek"
               value={searchTerm}
               onChange={handleSearchChange}
               className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-xs text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
