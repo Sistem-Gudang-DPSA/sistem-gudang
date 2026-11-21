@@ -4,6 +4,9 @@ export const po_barang_path = '/dashboard/purchasing/transaksi/buat-po-barang';
 
 export const detailPoPath = (id: number | string) => `${po_barang_path}/detail-po/${id}`;
 
+// Detail permintaan dibuka dari daftar PO Barang; halaman kembali ke daftar itu.
+export const lihatPermintaanPoPath = (id: number | string) => `${po_barang_path}/permintaan-pembelian/${id}`;
+
 export const rekap_pembelian_path = '/dashboard/purchasing/laporan/rekap-pembelian';
 
 export const lihatPermintaanPath = (id: number | string) => `${rekap_pembelian_path}/permintaan-pembelian/${id}`;

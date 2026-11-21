@@ -52,7 +52,7 @@ describe('Detail PO Barang', () => {
     await screen.findByText('PO-054');
     const link = screen.queryByRole('link', { name: 'Lihat Permintaan Pembelian Asal' });
     expect(!!link).toBe(canReview);
-    if (link) expect(link.getAttribute('href')).toBe('/dashboard/purchasing/laporan/rekap-pembelian/permintaan-pembelian/9');
+    if (link) expect(link.getAttribute('href')).toBe('/dashboard/purchasing/transaksi/buat-po-barang/permintaan-pembelian/9');
   });
 
   it('does not fetch PO data without purchase-order.view', async () => {
