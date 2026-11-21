@@ -6,7 +6,8 @@ import { AuthUserProvider } from '@/domains/auth/user-context';
 
 vi.setConfig({ testTimeout: 20000 });
 
-vi.mock('next/navigation', () => ({ useParams: () => ({ id: '7' }), useRouter: () => ({ push: vi.fn() }), usePathname: () => '/' }));
+const nav = vi.hoisted(() => ({ query: '' }));
+vi.mock('next/navigation', () => ({ useParams: () => ({ id: '7' }), useRouter: () => ({ push: vi.fn() }), usePathname: () => '/', useSearchParams: () => new URLSearchParams(nav.query) }));
 
 const print = vi.hoisted(() => ({ printPurchaseOrder: vi.fn<(po: import('@/domains/purchasing/types').PurchaseOrder) => Promise<void>>(async () => {}) }));
 vi.mock('@/domains/purchasing/export/print-po', () => print);
@@ -58,6 +59,14 @@ describe('PemesananPembelian guards', () => {
     setup(st);
     expect(await screen.findByText('PO baru bisa dibuat setelah permintaan pembelian disetujui.')).not.toBeNull();
     expect(screen.queryByText('Pemesanan Pembelian')).toBeNull();
+  });
+
+  it('kembali ke daftar PO Barang saat dibuka dengan ?from=po-barang', async () => {
+    nav.query = 'from=po-barang';
+    setup('approved');
+    await ready();
+    expect(screen.getByLabelText('Kembali').getAttribute('href')).toBe('/dashboard/purchasing/transaksi/buat-po-barang');
+    nav.query = '';
   });
 
   it('shows load error', async () => {
