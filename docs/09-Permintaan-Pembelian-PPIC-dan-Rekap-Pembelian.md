@@ -102,7 +102,7 @@ kolom supplier kosong; usulan supplier lain bisa ditulis di Keterangan.
 
 ## Cetak form permintaan
 
-Tombol **Cetak** di samping tombol simpan mencetak isi form apa adanya,
+Form pengajuan dan edit di Gudang tidak menampilkan tombol **Cetak**. Pada form PPIC, tombol **Cetak** di samping tombol simpan mencetak isi form apa adanya,
 sebelum maupun sesudah permintaan dikirim. Kop perusahaan dilengkapi kotak
 identitas formulir di kanan atas: **PPIC 002**, **Rev : 00**, dan
 **Terbit : MM/YY** yang diambil dari tanggal pengajuan surat (bukan tanggal
@@ -112,15 +112,19 @@ Disetujui Oleh. Baris kosong tidak ikut tercetak; bila belum ada baris
 terisi, tabel menampilkan **Belum ada barang**. Isi kolom di-escape dan
 pencetakan memakai `cetakLaporan` (iframe tersembunyi), bukan pop-up.
 
+Daftar Permintaan Pembelian Gudang tidak menampilkan tombol **Cetak**. Di daftar PPIC, tombol **Cetak** tersedia pada kolom Aksi setiap permintaan bagi pengguna dengan `purchase-request.create` atau `approval.view`. Tombol mencetak data permintaan yang sudah tersimpan memakai format formulir yang sama, tanpa menyimpan atau mengajukan ulang. Jika payload permintaan tidak tersedia, tombol dinonaktifkan. Kegagalan cetak ditampilkan pada halaman dan tombol dapat dicoba lagi.
+
 ## Pilihan pemohon pada form
 
 Kolom **Bagian/Sub bagian**, **Nama**, dan **Jabatan** pada form tambah, edit,
-dan revisi di Gudang maupun PPIC memakai dropdown. Pilihan sementara berupa
+dan revisi di PPIC memakai dropdown. Di Gudang, ketiganya ditampilkan sebagai kolom baca saja tanpa dropdown. Pilihan sementara berupa
 data dummy di `src/domains/ppic/data/pemohon-pembelian.ts`, tanpa endpoint baru.
-Ketiga pilihan berdiri sendiri dan tetap wajib dipilih sebelum mengajukan.
+Ketiga pilihan berdiri sendiri dan wajib terisi sebelum mengajukan.
 Nilainya dikirim sebagai `bagian`, `namaPemohon`, dan `jabatan` pada payload
 permintaan. Saat membuka data lama, nilai yang belum ada di daftar dummy tetap
 muncul dan dipertahankan saat disimpan.
+
+Pada pengajuan baru di Gudang, ketiga kolom otomatis terisi dari akun login: **Bagian/Sub bagian** dari divisi akun, **Nama** dari `username`, dan **Jabatan** dari `roleName`. Jika akun tidak memiliki divisi yang dikenali, bagian memakai **Gudang**. Ketiga nilai identitas dikunci dan tidak dapat diubah di form Gudang; username dan role akun ditampilkan langsung. Edit atau revisi mempertahankan identitas pada permintaan yang tersimpan. Form PPIC tetap memakai pilihan awalnya.
 
 ## Pilihan proyek pada rincian barang
 

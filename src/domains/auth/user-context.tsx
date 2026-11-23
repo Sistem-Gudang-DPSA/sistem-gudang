@@ -18,3 +18,9 @@ export const useCan = (permission: string) => {
   const user = useAuthUser();
   return !user || user.isSuperadmin || user.permissions.includes(permission);
 };
+
+// True when the user holds at least one of `permissions`, matching an `anyOf` entry in the nav.
+export const useCanAny = (...permissions: string[]) => {
+  const user = useAuthUser();
+  return !user || user.isSuperadmin || permissions.some((permission) => user.permissions.includes(permission));
+};

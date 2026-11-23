@@ -153,3 +153,10 @@ Halaman **Daftar Proyek** membaca seluruh daftar `GET /tracking/spk` tanpa
 di bawah daftar ada keterangan **"Sistem melakukan refresh setiap 30 menit."**
 Angka 30 menit mengikuti cache backend (`TRACKING_CACHE_TTL_MINUTES`, default
 30) yang memuat ulang data tracking di latar belakang.
+
+Pencarian berjalan di sisi klien atas seluruh kolom yang tampil: Client, Nama
+Proyek, No. SPK, dan SPK Masuk dalam format tanggal yang tampil (misalnya
+`5 Jan 2026`). Huruf besar/kecil dan spasi di awal/akhir pencarian diabaikan.
+Pencarian tidak dikirim ke `GET /tracking/spk` dan tidak memuat ulang daftar;
+mengubahnya mengembalikan halaman ke 1. Nomor urut **No** hanyalah penomoran
+tampilan, bukan field data proyek.
