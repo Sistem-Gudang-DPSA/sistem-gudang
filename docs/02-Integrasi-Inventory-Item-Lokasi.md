@@ -145,6 +145,12 @@ endpoint backend-nya:
   `DELETE /locations/{id}` dan hanya ditampilkan untuk role **Superadmin**.
   Import Excel Data Lokasi juga hanya untuk Superadmin; Gudang tetap punya
   Tambah Batch dan Tambah Data selama punya `location.create`.
+- Tambah Batch mendeteksi kode yang sudah ada sejak input masih diketik.
+  Daftar kode dibaca sekali lewat `GET /locations` saat modal dibuka, kode
+  duplikat ditandai pada preview dan dihitung di peringatan, lalu hanya kode
+  baru yang dikirim ke `POST /locations/bulk`. Bila daftar gagal dimuat,
+  modal memberi tahu dan penyimpanan tetap bisa dilakukan karena backend
+  tetap melewati kode duplikat dan melaporkannya di `skipped`.
 
 ## Detail Penerimaan Barang Superadmin
 
