@@ -12,7 +12,7 @@ import { useApiData } from '@/shared/lib/use-api-data';
 import { fetchAllPagesResult } from '@/shared/lib/fetch-all';
 import { mapConcurrent } from '@/shared/lib/map-concurrent';
 import { useSelection } from '@/shared/lib/use-selection';
-import { opnameDraftKey, readOpnameDraft } from '../stock-opname-draft';
+import { opnameDraftKey, listOpnameDrafts } from '../stock-opname-draft';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import DateFilter from '@/shared/components/DateFilter';
 import ScrollableTable, { STICKY_HEAD_CLASS } from '@/shared/components/ScrollableTable';
