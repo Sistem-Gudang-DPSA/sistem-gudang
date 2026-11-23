@@ -68,13 +68,45 @@ describe('DaftarProyek', () => {
     expect(rowCount()).toBe(100);
   });
 
-  it('resets to page 1 when the search changes', async () => {
+  it('resets to page 1 when the search changes, without refetching per keystroke', async () => {
     const api = installFakeApi({ 'GET /api/v1/tracking/spk': many });
     render(<DaftarProyekPage />);
     await screen.findByText('SPK-1');
     fireEvent.click(screen.getByRole('button', { name: 'Selanjutnya' }));
-    fireEvent.change(screen.getByPlaceholderText('Cari client, proyek, atau SPK...'), { target: { value: 'Klien' } });
-    await waitFor(() => expect(api.calls('GET /api/v1/tracking/spk').some((c) => c.query.get('search') === 'Klien')).toBe(true));
-    expect(screen.getByRole('button', { name: '1' }).getAttribute('aria-current')).toBe('page');
+    expect(screen.getByRole('button', { name: '2' }).getAttribute('aria-current')).toBe('page');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Cari di semua kolom Daftar Proyek' }), { target: { value: 'Klien 12' } });
+    await waitFor(() => expect(screen.getByRole('button', { name: '1' }).getAttribute('aria-current')).toBe('page'));
+    expect(api.calls('GET /api/v1/tracking/spk')).toHaveLength(1);
+    expect(api.calls('GET /api/v1/tracking/spk')[0].query.has('search')).toBe(false);
+  });
+
+  it.each([
+    ['client', '  kLiEn 120  '],
+    ['nama proyek', 'Proyek 120'],
+    ['nomor SPK', 'SPK-120'],
+    ['SPK masuk', new Date('2026-01-05T00:00:00').toLocaleDateString('id-ID', { dateStyle: 'medium' })],
+  ])('mencari kolom %s pada seluruh data, termasuk halaman lain', async (_, query) => {
+    const rows = many.map((item, index) => ({ ...item, tanggalMasuk: index === 119 ? '2026-01-05' : null }));
+    // The backend only returns the full list; the search runs on the client.
+    const api = installFakeApi({ 'GET /api/v1/tracking/spk': rows });
+    render(<DaftarProyekPage />);
+    await screen.findByText('SPK-1');
+    expect(screen.queryByText('SPK-120')).toBeNull();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Cari di semua kolom Daftar Proyek' }), { target: { value: query } });
+    expect(await screen.findByText('SPK-120')).not.toBeNull();
+    expect(rowCount()).toBe(1);
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: '' } });
+    await waitFor(() => expect(rowCount()).toBe(20));
+    expect(footer()).toContain('dari 120 data');
+    expect(api.calls('GET /api/v1/tracking/spk')).toHaveLength(1);
+  });
+
+  it('menampilkan hasil kosong saat pencarian tidak cocok', async () => {
+    installFakeApi({ 'GET /api/v1/tracking/spk': many });
+    render(<DaftarProyekPage />);
+    await screen.findByText('SPK-1');
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'tidak ada' } });
+    expect(await screen.findByText('Data proyek tidak ditemukan.')).not.toBeNull();
   });
 });

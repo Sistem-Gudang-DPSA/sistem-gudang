@@ -25,9 +25,10 @@ export default function DaftarProyekPage() {
   // Search or page size change resets to page 1.
   const [currentPage, setCurrentPage] = usePage(`${debouncedSearch}|${pageSize}`);
 
+  // The whole list is fetched once and searched on the client, so every column counts.
   const { data: spkList, loading, error } = useApiData(
-    () => listTrackingSpk(debouncedSearch || undefined),
-    `daftar-proyek|${debouncedSearch}`,
+    () => listTrackingSpk(),
+    'daftar-proyek',
   );
 
   const dataProyek: Proyek[] = (spkList ?? []).map((spk) => ({
@@ -40,12 +41,10 @@ export default function DaftarProyekPage() {
       : "-",
   }));
 
-  // Filter Data Berdasarkan Input Pencarian
-  const filteredData = dataProyek.filter(
-    (item) =>
-      item.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.namaProyek.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.noSpk.toLowerCase().includes(searchTerm.toLowerCase())
+  // Pencarian mencakup semua kolom yang tampil, termasuk SPK Masuk yang sudah diformat.
+  const query = debouncedSearch.trim().toLowerCase();
+  const filteredData = dataProyek.filter((item) =>
+    Object.values(item).some((value) => value.toLowerCase().includes(query))
   );
 
   // Logika Pagination Data
@@ -76,7 +75,8 @@ export default function DaftarProyekPage() {
             <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Cari client, proyek, atau SPK..."
+              placeholder="Cari di semua kolom..."
+              aria-label="Cari di semua kolom Daftar Proyek"
               value={searchTerm}
               onChange={handleSearchChange}
               className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-xs text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCan } from '@/domains/auth/user-context';
+import { useAuthUser, useCan } from '@/domains/auth/user-context';
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown, Camera } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
@@ -11,6 +11,9 @@ import { ApiError } from '@/shared/lib/api-client';
 import { PHYSICAL_QTY_INPUT, decimalOnlyMax, physicalQtyValid } from '@/shared/lib/input';
 import Pagination from '@/shared/components/Pagination';
 import { useSort, type Sort } from '@/shared/components/SortableTh';
+import { useApiData } from '@/shared/lib/use-api-data';
+import { clearOpnameDraft, opnameDraftKey, readOpnameDraft, writeOpnameDraft, type OpnameDraft, type OpnameDraftRow } from '../stock-opname-draft';
+import Modal from '@/shared/components/Modal';
 import QrCameraScanner from '@/domains/inventory/components/QrCameraScanner';
 
 // SortableTh has no rowSpan, and this header spans two rows, so the same sort button is written here.
@@ -31,21 +34,23 @@ function SortTh({ label, sortKey, sort, onSort, className, rowSpan }: SortThProp
 const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 // stock is kept on the row so the confirm count is right for items scanned in from another page
 // The item info is kept too, so a row scanned in from another page can still be shown and corrected.
-type Row = { itemId: string; itemName: string; code: string | null; unit: string; category: string; price: number; stock: number; jumlah: string; keterangan: string };
+type Row = OpnameDraftRow;
 const rowInfo = (item: Item | ItemListRow) => ({ itemName: item.name, code: item.code, unit: item.unit, category: item.category, price: item.price, stock: item.stock });
 const toNum = (v: string) => Number(v.replace(",", "."));
 
-export default function TambahStockOpnameGudang() {
+function StockOpnameForm({ draft, draftKey, warning }: { draft: OpnameDraft | null; draftKey: string; warning?: string }) {
   const router = useRouter();
   const base = gudangBasePath(usePathname());
   const canCreate = useCan('stock-opname.create');
 
   const now = new Date();
-  const [month, setMonth] = useState(String(now.getMonth() + 1));
-  const [year, setYear] = useState(String(now.getFullYear()));
+  const [month, setMonth] = useState(draft?.month ?? String(now.getMonth() + 1));
+  const [year, setYear] = useState(draft?.year ?? String(now.getFullYear()));
   const [items, setItems] = useState<ItemListRow[]>([]);
-  const [data, setData] = useState<Row[]>([]);
+  const [data, setData] = useState<Row[]>(draft?.rows ?? []);
   const [saving, setSaving] = useState(false);
+  const [confirmSubmit, setConfirmSubmit] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize] = useState(25);
@@ -178,7 +183,12 @@ export default function TambahStockOpnameGudang() {
     setScanned(null);
   };
 
-  const handleSimpan = async () => {
+  const handleSubmit = async (confirmed = false) => {
+    if (saving || submitted) return;
+    if (scanned && scanned.jumlah !== '') {
+      setError('Masukkan hasil scan ke opname sebelum menyimpan atau submit.');
+      return;
+    }
     // Only rows with a physical count go to the API; an empty row must not zero that item's stock.
     const filled = data.filter((row) => row.jumlah !== "");
     if (filled.length === 0) {
@@ -194,9 +204,9 @@ export default function TambahStockOpnameGudang() {
       setError("Satu barang hanya boleh muncul sekali per stok opname.");
       return;
     }
-    // Stock opname overwrites stock with the physical count, so confirm first.
-    const changed = filled.filter((row) => toNum(row.jumlah) !== row.stock).length;
-    if (!window.confirm(`Stok ${filled.length} barang akan disetel ke jumlah fisik (${changed} berbeda dari stok sistem). Lanjutkan?`)) {
+    if (!confirmed) {
+      setError("");
+      setConfirmSubmit(true);
       return;
     }
     setSaving(true);
@@ -211,11 +221,32 @@ export default function TambahStockOpnameGudang() {
           note: row.keterangan || undefined,
         })),
       });
+      setSubmitted(true);
+      setConfirmSubmit(false);
+      try { clearOpnameDraft(draftKey); } catch {
+        setError('Stok opname berhasil disubmit, tetapi draft browser belum bisa dihapus. Jangan submit ulang draft ini. Kembali ke daftar untuk melihat hasil final.');
+        return;
+      }
       router.push(`${base}/transaksi/stock-opname`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Gagal menyimpan stok opname.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveDraft = () => {
+    if (saving || submitted) return;
+    if (scanned && scanned.jumlah !== '') {
+      setError('Masukkan hasil scan ke opname sebelum menyimpan atau submit.');
+      return;
+    }
+    setError("");
+    try {
+      writeOpnameDraft(draftKey, { version: 1, month, year, rows: data.filter((row) => row.jumlah !== ''), savedAt: new Date().toISOString() });
+      router.push(`${base}/transaksi/stock-opname`);
+    } catch {
+      setError("Draft gagal disimpan. Periksa ruang penyimpanan dan izin browser, lalu coba lagi. Isian tetap ada di halaman ini.");
     }
   };
 
@@ -234,10 +265,12 @@ export default function TambahStockOpnameGudang() {
           <ArrowLeft className="w-5 h-5" strokeWidth={2.5} />
         </button>
         <h1 className="text-[19px] font-extrabold text-black tracking-wide">
-          Tambah Stok Opname {BULAN[Number(month) - 1]} {year}
+          {draft ? 'Lanjutkan' : 'Tambah'} Stok Opname {BULAN[Number(month) - 1]} {year}
         </h1>
       </div>
 
+      {warning && <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{warning} Draft lama tidak dimuat. Isi hitungan baru di bawah ini; menyimpan draft baru akan menggantikannya.</p>}
+      <p className="mb-6 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">{draft ? 'Draft dimuat. ' : ''}Simpan Draft untuk melanjutkan penghitungan di browser dan akun yang sama. Draft belum mengubah stok. Submit setelah seluruh penghitungan selesai.</p>
       <div className="max-w-5xl">
         <div className="flex gap-3 mb-6">
           <select
@@ -252,7 +285,7 @@ export default function TambahStockOpnameGudang() {
             onChange={(e) => setYear(e.target.value)}
             className="border border-gray-200 rounded-xl py-2.5 px-3 shadow-sm text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20"
           >
-            {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => <option key={y} value={y}>{y}</option>)}
+            {[...new Set([Number(year), now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1])].sort((a, b) => a - b).map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>
 
@@ -277,8 +310,7 @@ export default function TambahStockOpnameGudang() {
               />
               {scanError && <p role="alert" className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{scanError}</p>}
               {scanned && (() => {
-                const { item, jumlah, keterangan } = scanned;
-                const selisih = jumlah === "" ? null : toNum(jumlah) - item.stock;
+                const { item, jumlah } = scanned;
                 return (
                   <div className="mb-4 p-4 max-w-sm bg-white border border-gray-200 rounded-xl shadow-sm text-sm">
                     <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
@@ -290,25 +322,13 @@ export default function TambahStockOpnameGudang() {
                         <dt className="text-gray-500">Kode bawaan</dt>
                         <dd className="font-mono text-gray-700">{item.externalCode}</dd>
                       </>}
-                      <dt className="text-gray-500">Stok sistem</dt>
-                      <dd className="text-gray-700">{item.stock.toLocaleString('id-ID')} {item.unit}</dd>
                     </dl>
                     <div className="grid grid-cols-2 gap-3 mt-4">
                       <label className="flex flex-col gap-1 text-gray-500">
                         Jumlah fisik
                         <input {...PHYSICAL_QTY_INPUT} aria-label="Jumlah fisik" value={jumlah} placeholder="0" onChange={(e) => setScanned((s) => s && { ...s, jumlah: decimalOnlyMax(e.target.value, 3) })} className="border border-gray-200 rounded-lg px-3 py-2 text-center text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20" />
                       </label>
-                      <div className="flex flex-col gap-1 text-gray-500">
-                        Selisih
-                        <span className={`py-2 text-center font-bold ${selisih === null ? '' : selisih < 0 ? 'text-red-600' : selisih === 0 ? 'text-green-600' : 'text-gray-900'}`}>
-                          {selisih === null ? '' : selisih.toLocaleString('id-ID')}
-                        </span>
-                      </div>
                     </div>
-                    <label className="flex flex-col gap-1 text-gray-500 mt-3">
-                      Keterangan
-                      <input type="text" maxLength={255} aria-label="Keterangan" value={keterangan} placeholder="Tambahkan catatan..." onChange={(e) => setScanned((s) => s && { ...s, keterangan: e.target.value })} className="border border-gray-200 rounded-lg px-3 py-2 text-gray-900 italic focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20" />
-                    </label>
                     <button
                       type="button"
                       onClick={handleMasukkan}
@@ -335,30 +355,15 @@ export default function TambahStockOpnameGudang() {
               <table className="w-full table-auto text-left text-sm border-collapse">
                 <thead className="bg-gray-50/80 text-gray-500 uppercase tracking-wider text-xs font-semibold">
                   <tr>
-                    <th rowSpan={2} className="border-r border-b border-gray-200 px-6 py-4 align-top w-12 whitespace-nowrap text-center">No</th>
-                    <SortTh rowSpan={2} label="Nama Barang" sortKey="name" sort={sort} onSort={sortBy} className="border-r border-b border-gray-200 px-6 py-4 align-top whitespace-nowrap" />
-                    <SortTh rowSpan={2} label="Satuan" sortKey="unit" sort={sort} onSort={sortBy} className="border-r border-b border-gray-200 px-6 py-4 align-top whitespace-nowrap" />
-                    <SortTh rowSpan={2} label="Kategori" sortKey="category" sort={sort} onSort={sortBy} className="border-r border-b border-gray-200 px-6 py-4 align-top whitespace-nowrap" />
-                    <th colSpan={2} className="border-r border-b border-gray-200 px-6 py-2.5 text-center whitespace-nowrap">Administrasi</th>
-                    <th colSpan={2} className="border-r border-b border-gray-200 px-6 py-2.5 text-center whitespace-nowrap">Fisik</th>
-                    <th colSpan={2} className="border-r border-b border-gray-200 px-6 py-2.5 text-center whitespace-nowrap">Selisih</th>
-                    <th rowSpan={2} className="border-b border-gray-200 px-6 py-4 align-top whitespace-nowrap">Keterangan</th>
-                  </tr>
-                  <tr>
-                    <th colSpan={2} className="border-r border-b border-gray-200 px-6 py-2.5 font-semibold whitespace-nowrap text-center">Jumlah</th>
-                    {/* <th className="border-r border-b border-gray-200 px-6 py-2.5 font-semibold whitespace-nowrap text-center">Harga</th> */}
-                    <th colSpan={2} className="border-r border-b border-gray-200 px-6 py-2.5 font-semibold whitespace-nowrap text-center">Jumlah</th>
-                    {/* <th className="border-r border-b border-gray-200 px-6 py-2.5 font-semibold whitespace-nowrap text-center">Harga</th> */}
-                    <th colSpan={2} className="border-r border-b border-gray-200 px-6 py-2.5 font-semibold whitespace-nowrap text-center">Jumlah</th>
-                    {/* <th className="border-r border-b border-gray-200 px-6 py-2.5 font-semibold whitespace-nowrap text-center">Harga</th> */}
+                    <th className="border-r border-b border-gray-200 px-6 py-4 align-top w-12 whitespace-nowrap text-center">No</th>
+                    <SortTh label="Nama Barang" sortKey="name" sort={sort} onSort={sortBy} className="border-r border-b border-gray-200 px-6 py-4 align-top whitespace-nowrap" />
+                    <SortTh label="Satuan" sortKey="unit" sort={sort} onSort={sortBy} className="border-r border-b border-gray-200 px-6 py-4 align-top whitespace-nowrap" />
+                    <SortTh label="Kategori" sortKey="category" sort={sort} onSort={sortBy} className="border-r border-b border-gray-200 px-6 py-4 align-top whitespace-nowrap" />
+                    <th className="border-b border-gray-200 px-6 py-4 align-top whitespace-nowrap text-center">Jumlah Fisik</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {pageData.map((row, index) => {
-                    // Administrasi = system stock; Fisik harga and Selisih are derived (the API only takes physical qty).
-                    const adm = { qty: row.stock, harga: row.stock * row.price };
-                    const fsk = row.jumlah !== "" ? { qty: toNum(row.jumlah), harga: toNum(row.jumlah) * row.price } : null;
-                    const fmt = (n?: number) => (n === undefined ? '' : n.toLocaleString('id-ID'));
                     return (
                       <tr key={row.itemId} className="bg-white hover:bg-orange-50/10 transition-colors duration-150">
                         <td className="border-r border-b border-gray-100/50 h-12 text-gray-400 font-medium text-center text-xs"> {index + 1}</td>
@@ -374,16 +379,8 @@ export default function TambahStockOpnameGudang() {
                         <td className="border-r border-b border-gray-100/50 p-0 w-32">
                           <input type="text" readOnly value={row.category} placeholder="Kategori" className="w-full h-full min-h-12 px-4 py-2 bg-transparent text-center text-gray-700 text-sm placeholder-gray-300 focus:outline-none" />
                         </td>
-                        <td colSpan={2} className="border-r border-b border-gray-100/50 px-4 py-2 w-28 text-center text-gray-600">{fmt(adm.qty)}</td>
-                        {/* <td className="border-r border-b border-gray-100/50 px-4 py-2 w-36 text-center text-gray-600">{fmt(adm?.harga)}</td> */}
-                        <td colSpan={2} className="border-r border-b border-gray-100/50 p-0 w-28">
+                        <td className="border-b border-gray-100/50 p-0 w-28">
                           <input {...PHYSICAL_QTY_INPUT} value={row.jumlah} placeholder="0" onChange={(e) => handleChange(row.itemId, { jumlah: decimalOnlyMax(e.target.value, 3) })} className="w-full h-full min-h-12 px-4 py-2 bg-transparent text-center focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 text-gray-700 text-sm transition-all placeholder-gray-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                        </td>
-                        {/* <td className="border-r border-b border-gray-100/50 px-4 py-2 w-36 text-center text-gray-600">{fmt(fsk?.harga)}</td> */}
-                        <td colSpan={2} className="border-r border-b border-gray-100/50 px-4 py-2 w-28 text-center text-gray-600 font-bold bg-gray-50/50">{fsk ? fmt(fsk.qty - adm.qty) : ''}</td>
-                        {/* <td className="border-r border-b border-gray-100/50 px-4 py-2 w-36 text-center text-gray-600 font-bold bg-gray-50/50">{fsk && adm ? fmt(fsk.harga - adm.harga) : ''}</td> */}
-                        <td className="border-b border-gray-100/50 p-0">
-                          <input type="text" maxLength={255} value={row.keterangan} placeholder="Tambahkan catatan..." onChange={(e) => handleChange(row.itemId, { keterangan: e.target.value })} className="w-full h-full min-h-12 px-6 py-2 bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 text-gray-700 text-sm transition-all placeholder-gray-300 italic" />
                         </td>
                       </tr>
                     );
@@ -402,17 +399,47 @@ export default function TambahStockOpnameGudang() {
         </div>
       </div>
 
-      {/* Simpan Button underneath */}
+      {confirmSubmit && (
+        <Modal title="Submit Stok Opname?" onClose={() => { if (!saving) setConfirmSubmit(false); }} footer={<>
+          <button type="button" disabled={saving} onClick={() => setConfirmSubmit(false)} className="px-4 py-2 rounded-lg border border-gray-200 disabled:opacity-60">Batal</button>
+          <button type="button" disabled={saving} onClick={() => void handleSubmit(true)} className="px-4 py-2 rounded-lg bg-[#ff8a00] text-white disabled:opacity-60">{saving ? 'Mengirim...' : 'Ya, Submit'}</button>
+        </>}>
+          <p className="text-sm text-gray-700">Stok {data.filter((row) => row.jumlah !== '').length} barang akan disetel sesuai jumlah fisik. Setelah disubmit, stok opname menjadi final. Pastikan seluruh penghitungan sudah selesai.</p>
+          {error && <p role="alert" className="mt-3 text-sm text-red-600">{error}</p>}
+        </Modal>
+      )}
       {error && <p className="text-sm text-red-500 text-right mt-4">{error}</p>}
-      <div className="flex justify-end mt-6">
+      <div className="flex justify-end gap-3 mt-6">
+        <button type="button" onClick={handleSaveDraft} disabled={saving || loadingItems || submitted} className="px-6 py-2.5 border border-orange-300 text-orange-700 rounded-lg font-semibold text-sm disabled:opacity-60">Simpan Draft</button>
         <button
-          onClick={handleSimpan}
-          disabled={saving}
+          onClick={() => void handleSubmit()}
+          disabled={saving || loadingItems || submitted}
           className="px-8 py-2.5 bg-[#ff8a00] text-white rounded-lg shadow-sm hover:shadow-md hover:-translate-y-0.5 hover:bg-[#eb7d00] transition-all duration-200 font-semibold text-sm disabled:opacity-60"
         >
-          {saving ? 'Menyimpan...' : 'Simpan'}
+          {saving ? 'Mengirim...' : 'Submit'}
         </button>
       </div>
     </div>
   );
+}
+
+type DraftLoad = { draft: OpnameDraft | null; warning: string };
+
+export default function TambahStockOpnameGudang() {
+  const base = gudangBasePath(usePathname());
+  const userId = useAuthUser()?.id;
+  const canCreate = useCan('stock-opname.create');
+  const key = opnameDraftKey(base, userId);
+  // A damaged or unreadable draft must not lock the form: open it empty with a warning instead.
+  const { data, loading } = useApiData<DraftLoad>(() => Promise.resolve().then((): DraftLoad => {
+    if (!canCreate) return { draft: null, warning: '' };
+    try {
+      return { draft: readOpnameDraft(key), warning: '' };
+    } catch {
+      return { draft: null, warning: 'Draft stok opname tidak dapat dibaca.' };
+    }
+  }), key);
+  if (!canCreate) return <div className="p-6 text-sm text-gray-600">Anda tidak punya izin untuk membuat stock opname.</div>;
+  if (loading) return <p role="status">Memuat draft stok opname...</p>;
+  return <StockOpnameForm key={key} draft={data?.draft ?? null} warning={data?.warning} draftKey={key} />;
 }

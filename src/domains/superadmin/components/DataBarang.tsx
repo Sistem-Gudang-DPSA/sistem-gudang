@@ -6,7 +6,7 @@ import StokMinimumCell from '@/domains/inventory/components/data-barang/StokMini
 import dynamic from 'next/dynamic';
 import { useAuthUser, useCan } from '@/domains/auth/user-context';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { Images, RefreshCw, Trash2, Edit2, Truck } from 'lucide-react';
+import { Images, RefreshCw, Trash2, Edit2, Truck, Info } from 'lucide-react';
 import { adjustItemStock, assignItemLocation, bulkRecodeItems, deleteItem, listItems, recodeItem, updateItem } from '@/domains/inventory/api';
 import type { ItemListRow, UpdateItemInput } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
@@ -27,6 +27,7 @@ import DataBarangToolbar, { FilterToggle } from '@/domains/inventory/components/
 import { useBulkSupplierAction, type SupplierMappingResult } from '@/domains/inventory/components/data-barang/useBulkSupplierAction';
 import ActionMenu from '@/shared/components/ActionMenu';
 import AdjustStokModal from '@/domains/inventory/components/data-barang/modals/AdjustStokModal';
+import Link from 'next/link';
 import RecodeNotice from '@/domains/inventory/components/data-barang/modals/RecodeModal';
 import { MasterData, mstrDataTemplateExample, mstrDataTemplateHeaders, type MasterDataImportRow, MAX_IMPORT_ROWS } from '@/domains/inventory/components/data-barang/modals/ImportMasterData';
 
@@ -46,7 +47,8 @@ export default function DataBarangGudang() {
   const canAssign = useCan('item.assign-location');
   const canAdjust = useCan('item.adjust-stock');
   const canDelete = useCan('item.delete');
-  const showAksi = canAdjust || canDelete;
+  const canView = useCan('item.view');
+  const showAksi = canView || canAdjust || canDelete;
   // BE allows recode for a superadmin only; no user in context means the route guard already let us in, as in useCan
   const isSuperadmin = useAuthUser()?.isSuperadmin ?? true;
   const canUpdate = useCan('item.update');
@@ -369,6 +371,15 @@ export default function DataBarangGudang() {
 
   const renderRowActions = (item: ItemListRow) => (
     <div className="flex items-center justify-center gap-2">
+      {canView && <Link
+        href={`/dashboard/superadmin/master/data-barang/${item.id}`}
+        className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-sky-50 text-sky-700 text-xs font-bold rounded-lg hover:bg-sky-100 transition-colors"
+        aria-label={`Detail ${item.name}`}
+        title="Detail barang"
+      >
+        <Info className="w-3.5 h-3.5" strokeWidth={2.5} />
+        Detail
+      </Link>}
       {canAdjust && <button
         onClick={() => openStockModal(item)}
         className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-100 transition-all duration-200 opacity-90 group-hover:opacity-100"
