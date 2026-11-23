@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { installFakeApi, paged } from '@/test/fake-api';
 import { AuthUserProvider } from '@/domains/auth/user-context';
 import type { AuthUser } from '@/domains/auth/types';
@@ -31,6 +31,17 @@ describe('superadmin DataSupplier', () => {
   it('hides Import Excel without supplier.create', async () => {
     await setup(userWith([]));
     expect(screen.queryByRole('button', { name: /Import Excel/ })).toBeNull();
+  });
+
+  it('uses the same table as purchasing: no No column, Pajak filter, or inline edit', async () => {
+    await setup(userWith(['supplier.update']));
+    expect([...screen.getAllByRole('columnheader')].map((h) => h.textContent)).toEqual(
+      ['Kode', 'Nama Supplier', 'Bank', 'NPWP', 'Pajak', 'Kontak', 'Alamat', 'Aksi'],
+    );
+    expect(screen.queryByLabelText('Filter pajak')).toBeNull();
+    expect(screen.queryByText('Mode Edit')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    expect(screen.getByRole('heading', { name: 'DATA SUPPLIER', level: 2 })).toBeTruthy();
   });
 
   it('links the detail button back to the superadmin screen', async () => {
