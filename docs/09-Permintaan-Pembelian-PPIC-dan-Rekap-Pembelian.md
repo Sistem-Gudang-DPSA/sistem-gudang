@@ -138,12 +138,6 @@ dalam daftar tracking. Mengganti proyek mengosongkan `noSpk` lama pada baris
 agar nomor SPK sebelumnya tidak ikut dipakai untuk proyek baru.
 Jika tracking gagal dimuat, form menampilkan pesan kesalahan.
 
-## Pencarian Daftar Proyek
-
-Pencarian **Daftar Proyek** mencakup Client, Nama Proyek, No. SPK, dan SPK Masuk sesuai tanggal yang tampil di tabel (misalnya `5 Jan 2026`). Huruf besar/kecil dan spasi di awal/akhir pencarian diabaikan. Nomor urut **No** merupakan penomoran tampilan, bukan field data proyek.
-
-Halaman mengambil seluruh daftar dari `GET /api/v1/tracking/spk` tanpa `search` atau `limit`, lalu mencari pada semua data sebelum paginasi. Mengubah pencarian mengembalikan halaman ke 1; mengosongkannya menampilkan seluruh daftar. **Refresh data tracking** memperbarui seluruh daftar dengan `refresh=1` dan tetap menerapkan pencarian yang aktif.
-
 ## Judul halaman rekap
 
 Halaman Rekap Pembelian di PPIC dan Rekap Permintaan Pembelian di Purchasing

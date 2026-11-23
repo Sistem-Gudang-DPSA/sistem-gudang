@@ -3,6 +3,7 @@
 import React, { Suspense } from "react";
 import Link from "next/link";
 import { visibleNav, type NavTheme } from "../nav";
+import { dashboardPathFor } from "../api";
 import type { AuthUser } from "../types";
 import { Bell, ChevronDown, KeyRound, LayoutDashboard, ShieldCheck, Users, Folder, MessageSquareWarning, ScrollText } from "lucide-react";
 import LaporMasalahButton from "./LaporMasalahButton";
@@ -89,6 +90,9 @@ interface Props {
 
 export default function SidebarNav({ user, pathname, onNavigate }: Props) {
   const divisions = visibleNav(user);
+  // Dashboard mengikuti divisi role-nya; tanpa divisi, jatuh ke halaman ringkasan /dashboard.
+  const dashboardHref = dashboardPathFor(user);
+  const dashboardActive = pathname === dashboardHref;
 
   return (
     <nav className="space-y-2">
@@ -96,7 +100,7 @@ export default function SidebarNav({ user, pathname, onNavigate }: Props) {
         <>
         <Link href="/dashboard/superadmin" onClick={onNavigate} className={topLink(pathname === "/dashboard/superadmin")}>
           <ShieldCheck className="w-5 h-5" />
-          <span className="font-medium">Dashboard SA</span>
+          <span className="font-medium">Dashboard</span>
         </Link>
         <Link href="/dashboard/superadmin/laporan-masalah" onClick={onNavigate} className={topLink(checkActive(pathname, "/dashboard/superadmin/laporan-masalah"))}>
           <MessageSquareWarning className="w-5 h-5" />
@@ -112,10 +116,12 @@ export default function SidebarNav({ user, pathname, onNavigate }: Props) {
         <Bell className="w-5 h-5" />
         <span className="font-medium">Notifications</span>
       </Link>
-      <Link href="/dashboard" onClick={onNavigate} className={topLink(pathname === "/dashboard")}>
-        <LayoutDashboard className="w-5 h-5" />
-        <span className="font-medium">Overview</span>
-      </Link>
+      {!user.isSuperadmin && (
+        <Link href={dashboardHref} onClick={onNavigate} className={topLink(dashboardActive)}>
+          <LayoutDashboard className="w-5 h-5" />
+          <span className="font-medium">Dashboard</span>
+        </Link>
+      )}
       <Link href="/dashboard/daftar-proyek" onClick={onNavigate} className={topLink(checkActive(pathname, "/dashboard/daftar-proyek"))}>
         <Folder className="w-5 h-5" />
         <span className="font-medium">Daftar Proyek</span>
