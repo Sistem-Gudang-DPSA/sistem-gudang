@@ -3,7 +3,7 @@
 import { useAuthUser, useCan } from '@/domains/auth/user-context';
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown, Camera } from 'lucide-react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { gudangBasePath } from '../base-path';
 import { createStockOpname, getItemByCode, listItems } from '@/domains/inventory/api';
 import type { Item, ItemListRow } from '@/domains/inventory/types';
@@ -13,6 +13,7 @@ import Pagination from '@/shared/components/Pagination';
 import { useSort, type Sort } from '@/shared/components/SortableTh';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { clearOpnameDraft, opnameDraftKey, readOpnameDraft, writeOpnameDraft, type OpnameDraft, type OpnameDraftRow } from '../stock-opname-draft';
+import { randomId } from '@/shared/lib/random-id';
 import Modal from '@/shared/components/Modal';
 import QrCameraScanner from '@/domains/inventory/components/QrCameraScanner';
 
@@ -38,8 +39,9 @@ type Row = OpnameDraftRow;
 const rowInfo = (item: Item | ItemListRow) => ({ itemName: item.name, code: item.code, unit: item.unit, category: item.category, price: item.price, stock: item.stock });
 const toNum = (v: string) => Number(v.replace(",", "."));
 
-function StockOpnameForm({ draft, draftKey, warning }: { draft: OpnameDraft | null; draftKey: string; warning?: string }) {
+function StockOpnameForm({ draft, draftKey, draftId, warning }: { draft: OpnameDraft | null; draftKey: string; draftId?: string; warning?: string }) {
   const router = useRouter();
+  const [id] = useState(() => draftId ?? randomId());
   const base = gudangBasePath(usePathname());
   const canCreate = useCan('stock-opname.create');
 
@@ -223,7 +225,7 @@ function StockOpnameForm({ draft, draftKey, warning }: { draft: OpnameDraft | nu
       });
       setSubmitted(true);
       setConfirmSubmit(false);
-      try { clearOpnameDraft(draftKey); } catch {
+      try { clearOpnameDraft(draftKey, id); } catch {
         setError('Stok opname berhasil disubmit, tetapi draft browser belum bisa dihapus. Jangan submit ulang draft ini. Kembali ke daftar untuk melihat hasil final.');
         return;
       }
@@ -243,7 +245,7 @@ function StockOpnameForm({ draft, draftKey, warning }: { draft: OpnameDraft | nu
     }
     setError("");
     try {
-      writeOpnameDraft(draftKey, { version: 1, month, year, rows: data.filter((row) => row.jumlah !== ''), savedAt: new Date().toISOString() });
+      writeOpnameDraft(draftKey, id, { version: 1, month, year, rows: data.filter((row) => row.jumlah !== ''), savedAt: new Date().toISOString() });
       router.push(`${base}/transaksi/stock-opname`);
     } catch {
       setError("Draft gagal disimpan. Periksa ruang penyimpanan dan izin browser, lalu coba lagi. Isian tetap ada di halaman ini.");
@@ -269,7 +271,7 @@ function StockOpnameForm({ draft, draftKey, warning }: { draft: OpnameDraft | nu
         </h1>
       </div>
 
-      {warning && <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{warning} Draft lama tidak dimuat. Isi hitungan baru di bawah ini; menyimpan draft baru akan menggantikannya.</p>}
+      {warning && <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{warning} Draft tidak dimuat. Isian baru akan disimpan sebagai draft terpisah; data draft sebelumnya tetap disimpan di browser.</p>}
       <p className="mb-6 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">{draft ? 'Draft dimuat. ' : ''}Simpan Draft untuk melanjutkan penghitungan di browser dan akun yang sama. Draft belum mengubah stok. Submit setelah seluruh penghitungan selesai.</p>
       <div className="max-w-5xl">
         <div className="flex gap-3 mb-6">
@@ -430,16 +432,18 @@ export default function TambahStockOpnameGudang() {
   const userId = useAuthUser()?.id;
   const canCreate = useCan('stock-opname.create');
   const key = opnameDraftKey(base, userId);
+  const draftId = useSearchParams().get('draft');
   // A damaged or unreadable draft must not lock the form: open it empty with a warning instead.
   const { data, loading } = useApiData<DraftLoad>(() => Promise.resolve().then((): DraftLoad => {
-    if (!canCreate) return { draft: null, warning: '' };
+    if (!canCreate || !draftId) return { draft: null, warning: '' };
     try {
-      return { draft: readOpnameDraft(key), warning: '' };
+      const draft = readOpnameDraft(key, draftId);
+      return { draft, warning: draft ? '' : 'Draft stok opname tidak ditemukan.' };
     } catch {
       return { draft: null, warning: 'Draft stok opname tidak dapat dibaca.' };
     }
-  }), key);
+  }), `${key}|${draftId ?? 'new'}`);
   if (!canCreate) return <div className="p-6 text-sm text-gray-600">Anda tidak punya izin untuk membuat stock opname.</div>;
   if (loading) return <p role="status">Memuat draft stok opname...</p>;
-  return <StockOpnameForm key={key} draft={data?.draft ?? null} warning={data?.warning} draftKey={key} />;
+  return <StockOpnameForm key={`${key}|${draftId ?? 'new'}`} draft={data?.draft ?? null} warning={data?.warning} draftKey={key} draftId={data?.draft && draftId ? draftId : undefined} />;
 }

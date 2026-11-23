@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, cleanup, screen, fireEvent, waitFor } from '@testing-library/react';
-import { installFakeApi, paged, fail } from '@/test/fake-api';
+import { render, cleanup, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { installFakeApi, paged, fail, type FakeRequest } from '@/test/fake-api';
 import PemesananPembelian from './PemesananPembelian';
 import { AuthUserProvider } from '@/domains/auth/user-context';
 
@@ -19,7 +19,7 @@ const request = (status: string) => ({
       bagian: 'Produksi', namaPemohon: 'Budi', jabatan: 'Staff', tanggalPengajuan: '2026-03-05',
       items: [
         { namaBarang: 'Triplex', qty: 10, satuan: 'lbr', proyek: 'Proyek A', noSpk: 'SPK-1' },
-        { namaBarang: 'Paku', qty: 2, satuan: 'kg', proyek: 'Proyek B', noSpk: 'SPK-2' },
+        { namaBarang: 'Paku', qty: 2, satuan: 'kg', proyek: 'Proyek A', noSpk: 'SPK-2' },
       ],
     },
   },
@@ -37,6 +37,7 @@ const type = (label: string, value: string) => fireEvent.change(screen.getByLabe
 
 async function ready() {
   await screen.findByText('Pemesanan Pembelian');
+  await waitFor(() => expect(screen.queryByText('Memuat PO sebelumnya...')).toBeNull());
 }
 async function pickSupplier() {
   fireEvent.click(screen.getByLabelText('Data Supplier'));
@@ -88,7 +89,7 @@ describe('PemesananPembelian guards', () => {
     expect(screen.getByLabelText('Harga satuan Triplex')).not.toBeNull();
     expect(screen.getByLabelText('Harga satuan Paku')).not.toBeNull();
     expect(val('PPN (persen)')).toBe('12');
-    expect(screen.getByText('Proyek A, Proyek B')).not.toBeNull();
+    expect(screen.getByText('Proyek A')).not.toBeNull();
     // no nomor PO input at all: backend generates it
     expect(screen.queryByLabelText(/nomor po/i)).toBeNull();
   });
@@ -101,7 +102,7 @@ describe('PemesananPembelian preview totals', () => {
     await fillValid();
     type('Jasa', '300');
     expect(val('Total harga setelah diskon')).toBe('14.500');
-    expect((document.getElementById('po-dpp') as HTMLInputElement).value).toBe('13.292');
+    expect(val('DPP Lain :')).toBe('13.292');
     expect(val('Nilai PPN')).toBe('1.595');
     expect(val('Total harga setelah PPN')).toBe('16.095');
     expect(val('Grand total')).toBe('16.395');
@@ -140,6 +141,7 @@ describe('PemesananPembelian submit', () => {
       tanggalPo: '2026-03-10',
       supplierId: 3,
       picSupplier: 'Andi / 0811',
+      kebutuhanProyek: 'Proyek A',
       barang: [
         { lineIndex: 0, kodeBarang: 'TRP-1', namaBarang: 'Triplex', satuan: 'lbr', jumlah: 10, hargaSatuan: 1000, diskon: 500 },
         { lineIndex: 1, kodeBarang: 'PKU-1', namaBarang: 'Paku', satuan: 'kg', jumlah: 2, hargaSatuan: 2500, diskon: 0 },
@@ -263,9 +265,9 @@ describe('pemilihan baris per PO', () => {
       'GET /api/v1/purchase-orders/11': lama,
     });
     await ready();
-    expect(await screen.findByText('Semua barang pada permintaan ini sudah masuk PO.')).not.toBeNull();
+    expect(await screen.findByText('Semua barang pada proyek ini sudah masuk PO.')).not.toBeNull();
     submit();
-    expect(await screen.findByText('Pilih minimal satu barang untuk PO ini.')).not.toBeNull();
+    expect((screen.getByRole('button', { name: 'Buat' }) as HTMLButtonElement).disabled).toBe(true);
     expect(api.calls('POST /api/v1/purchase-orders')).toHaveLength(0);
   });
 });
@@ -287,5 +289,124 @@ describe('permissions', () => {
     cleanup();
     renderAs(user([], true));
     await screen.findByText('Pemesanan Pembelian');
+  });
+});
+
+describe('pemisahan otomatis per proyek', () => {
+  function multiProject() {
+    const data = request('approved');
+    data.request.payload.items[1].proyek = 'Proyek B';
+    data.request.payload.items.push({ namaBarang: 'Lem', qty: 3, satuan: 'kaleng', proyek: ' Proyek A ', noSpk: 'SPK-1' });
+    return data;
+  }
+
+  async function fillProject(name: string, items: string[], supplierName = 'S3 - PT Kayu') {
+    const form = within(screen.getByRole('form', { name: `PO ${name}` }));
+    fireEvent.change(form.getByLabelText('Tanggal PO'), { target: { value: '2026-03-10' } });
+    fireEvent.click(form.getByLabelText('Data Supplier'));
+    fireEvent.click(await form.findByText(supplierName));
+    fireEvent.change(form.getByLabelText('PIC / Telp'), { target: { value: `PIC ${name}` } });
+    for (const item of items) {
+      fireEvent.change(form.getByLabelText(`Kode barang ${item}`), { target: { value: `K-${item}` } });
+      fireEvent.change(form.getByLabelText(`Harga satuan ${item}`), { target: { value: '1000' } });
+    }
+    return form;
+  }
+
+  it('mengelompokkan barang, mempertahankan indeks asli, dan menyimpan supplier serta biaya per proyek', async () => {
+    const api = setup('approved', {
+      'GET /api/v1/approvals/7': multiProject(),
+      'GET /api/v1/suppliers': paged([...suppliers.rows, { ...suppliers.rows[0], id: 4, code: 'S4', name: 'PT Cat' }]),
+      'POST /api/v1/purchase-orders': (req: FakeRequest) => ({ ...req.body as object, id: 1, nomorPo: 'PO-A', supplierName: 'PT Kayu', grandTotal: 15000 }),
+    });
+    const a = within(await screen.findByRole('form', { name: 'PO Proyek A' }));
+    const b = within(screen.getByRole('form', { name: 'PO Proyek B' }));
+    expect(a.queryByLabelText('Harga satuan Paku')).toBeNull();
+    expect(b.queryByLabelText('Harga satuan Triplex')).toBeNull();
+    expect(a.getByLabelText('Harga satuan Lem')).not.toBeNull();
+    const formA = await fillProject('Proyek A', ['Triplex', 'Lem']);
+    fireEvent.change(formA.getByLabelText('Jasa'), { target: { value: '300' } });
+    expect((b.getByLabelText('Jasa') as HTMLInputElement).value).toBe('');
+    expect((formA.getByLabelText('Total harga setelah diskon') as HTMLInputElement).value).toBe('13.000');
+    const formB = await fillProject('Proyek B', ['Paku'], 'S4 - PT Cat');
+    fireEvent.change(formB.getByLabelText('PPN (persen)'), { target: { value: '11' } });
+    fireEvent.click(formA.getByRole('button', { name: 'Buat' }));
+    await screen.findByText('PO PO-A berhasil dibuat');
+    fireEvent.click(formB.getByRole('button', { name: 'Buat' }));
+    await waitFor(() => expect(api.calls('POST /api/v1/purchase-orders')).toHaveLength(2));
+    const bodies = api.calls('POST /api/v1/purchase-orders').map((call) => call.body as { barang: { lineIndex: number }[] });
+    expect(bodies[0]).toMatchObject({ approvalRequestId: 7, kebutuhanProyek: 'Proyek A', supplierId: 3, jasa: 300, persenPpn: 12 });
+    expect(bodies[0].barang.map((line) => line.lineIndex)).toEqual([0, 2]);
+    expect(bodies[1]).toMatchObject({ approvalRequestId: 7, kebutuhanProyek: 'Proyek B', supplierId: 4, jasa: 0, persenPpn: 11 });
+    expect(bodies[1].barang.map((line) => line.lineIndex)).toEqual([1]);
+    const ids = [...document.querySelectorAll('[id]')].map((element) => element.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('mempertahankan hasil proyek yang berhasil dan isian proyek gagal saat dicoba lagi', async () => {
+    let gagal = true;
+    const api = setup('approved', {
+      'GET /api/v1/approvals/7': multiProject(),
+      'POST /api/v1/purchase-orders': (req: FakeRequest) => {
+        const body = req.body as { kebutuhanProyek: string };
+        return body.kebutuhanProyek === 'Proyek B' && gagal
+          ? fail(500, 'Gagal menyimpan Proyek B')
+          : { id: body.kebutuhanProyek === 'Proyek A' ? 1 : 2, nomorPo: body.kebutuhanProyek, supplierName: 'PT Kayu', grandTotal: 1000 };
+      },
+    });
+    await screen.findByRole('form', { name: 'PO Proyek A' });
+    const a = await fillProject('Proyek A', ['Triplex', 'Lem']);
+    const b = await fillProject('Proyek B', ['Paku']);
+    fireEvent.click(a.getByRole('button', { name: 'Buat' }));
+    await screen.findByText('PO Proyek A berhasil dibuat');
+    fireEvent.click(b.getByRole('button', { name: 'Buat' }));
+    await b.findByText('Gagal menyimpan Proyek B');
+    expect(screen.getByText('PO Proyek A berhasil dibuat')).not.toBeNull();
+    expect((b.getByLabelText('Harga satuan Paku') as HTMLInputElement).value).toBe('1000');
+    gagal = false;
+    fireEvent.click(b.getByRole('button', { name: 'Buat' }));
+    await screen.findByText('PO Proyek B berhasil dibuat');
+    expect(api.calls('POST /api/v1/purchase-orders').map((call) => (call.body as { kebutuhanProyek: string }).kebutuhanProyek)).toEqual(['Proyek A', 'Proyek B', 'Proyek B']);
+  });
+
+  it('membuat PO berikutnya untuk sisa barang tanpa memesan ulang baris yang berhasil', async () => {
+    const api = setup('approved', {
+      'POST /api/v1/purchase-orders': { id: 1, nomorPo: 'PO-1', supplierName: 'PT Kayu', grandTotal: 1000 },
+    });
+    await ready();
+    await fillValid();
+    fireEvent.click(screen.getByLabelText('Pilih Paku'));
+    submit();
+    fireEvent.click(await screen.findByRole('button', { name: /Buat PO berikutnya/ }));
+    expect(screen.queryByLabelText('Pilih Triplex')).toBeNull();
+    expect(screen.getByText('Sudah dipesan')).not.toBeNull();
+    expect((screen.getByLabelText('Pilih Paku') as HTMLInputElement).checked).toBe(true);
+    await pickSupplier();
+    type('PIC / Telp', 'PIC kedua');
+    submit();
+    await screen.findByText('PO PO-1 berhasil dibuat');
+    expect((api.calls('POST /api/v1/purchase-orders')[1].body as { barang: { lineIndex: number }[] }).barang.map((line) => line.lineIndex)).toEqual([1]);
+  });
+
+  it('memblokir penyimpanan jika daftar PO sebelumnya gagal dimuat dan menyediakan coba lagi', async () => {
+    let gagal = true;
+    const api = setup('approved', { 'GET /api/v1/purchase-orders': () => gagal ? fail(500, 'Daftar PO gagal') : paged([]) });
+    await screen.findByText('Daftar PO gagal');
+    expect((screen.getByRole('button', { name: 'Buat' }) as HTMLButtonElement).disabled).toBe(true);
+    gagal = false;
+    fireEvent.click(screen.getByRole('button', { name: 'Coba lagi' }));
+    await waitFor(() => expect((screen.getByRole('button', { name: 'Buat' }) as HTMLButtonElement).disabled).toBe(false));
+    expect(api.calls('POST /api/v1/purchase-orders')).toHaveLength(0);
+  });
+
+  it('menampilkan barang tanpa proyek dan memblokir pembuatan PO-nya', async () => {
+    const data = request('approved');
+    data.request.payload.items.forEach((item) => { item.proyek = ''; });
+    const api = setup('approved', { 'GET /api/v1/approvals/7': data });
+    await screen.findByRole('form', { name: 'PO Belum diisi' });
+    expect(screen.getByText('Proyek barang belum diisi. Perbaiki permintaan pembelian terlebih dahulu.')).not.toBeNull();
+    expect(screen.getByLabelText('Harga satuan Triplex')).not.toBeNull();
+    expect((screen.getByRole('button', { name: 'Buat' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(api.calls('POST /api/v1/purchase-orders')).toHaveLength(0);
   });
 });

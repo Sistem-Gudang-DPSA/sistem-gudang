@@ -167,7 +167,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
         items: [
           { href: "/dashboard/ppic/transaksi/dokubah", label: "Dokubah", anyOf: ["dokubah.view"], hidden: true },
           { href: "/dashboard/ppic/transaksi/spk-mutasi-internal", label: "SPK Internal & Mutasi Stok", anyOf: ["spk-internal.view"], hidden: true },
-          { href: "/dashboard/ppic/transaksi/permintaan-pembelian", label: "Permintaan Pembelian", anyOf: ["purchase-request.create"] },
+          { href: "/dashboard/ppic/transaksi/permintaan-pembelian", label: "Permintaan Pembelian", anyOf: ["purchase-request.approve", "purchase-request.create"] },
           { href: "/dashboard/ppic/transaksi/approval", label: "Approval", anyOf: ["material-request.create", "purchase-request.create"], hidden: true },
         ],
       },
@@ -177,7 +177,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
           { href: "/dashboard/ppic/laporan/rekap-dokubah", label: "Rekap Dokubah", anyOf: ["dokubah.view"] },
           { href: "/dashboard/ppic/laporan/rekap-mutasi", label: "Rekap Mutasi Barang", anyOf: ["report.view"] },
           { href: "/dashboard/ppic/laporan/rekap-stock", label: "Rekap Stok Opname & Mutasi Stok", anyOf: ["report.view"] },
-          { href: "/dashboard/ppic/laporan/rekap-pembelian", label: "Rekap Pembelian", anyOf: ["purchase-request.create"] },
+          { href: "/dashboard/ppic/laporan/rekap-pembelian", label: "Rekap Pembelian", anyOf: ["purchase-request.create", "purchase-request.approve"] },
         ],
       },
     ],
@@ -262,7 +262,7 @@ const inDomain = (user: AuthUser, division: NavDivision) =>
   !user.domainCode || !division.domains || division.domains.includes(user.domainCode);
 
 const canSeeDivision = (user: AuthUser, division: NavDivision) =>
-  user.isSuperadmin || (!division.superadminOnly && inDomain(user, division) && can(user, division.anyOf));
+  user.isSuperadmin || (!division.superadminOnly && inDomain(user, division) && (can(user, division.anyOf) || (division.key === "ppic" && user.domainCode === "ppic" && user.permissions.includes("purchase-request.approve"))));
 
 // Divisions and items the user may see, with empty groups and divisions dropped.
 // `hidden` entries stay out of the menu but remain in NAV_DIVISIONS for the route guard.
