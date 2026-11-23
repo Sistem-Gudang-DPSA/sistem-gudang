@@ -37,11 +37,34 @@ describe('Laporan Barang Keluar', () => {
     const html = (print.cetakHtml.mock.calls[0] as unknown as [string])[0];
     expect(html).toContain('2 Transaksi / 12 Qty');
   });
+
+  it('memuat semua halaman dan nomor baris tetap lanjut', async () => {
+    installFakeApi({
+      'GET /api/v1/reports/outbound': (req: { query: URLSearchParams }) => ({
+        rows: req.query.get('page') === '2' ? [keluar(101, [5])] : [keluar(1, [3, 4])],
+        total: 150,
+        page: Number(req.query.get('page')),
+        pageSize: 100,
+        summary: { bahanBaku: 20, wip: 0, barangJadi: 0 },
+      }),
+    });
+    render(<LaporanBarangKeluar />);
+    await screen.findAllByText('SPK-1');
+    expect(await screen.findAllByText('SPK-101')).not.toBeNull();
+    expect(screen.queryByText('Selanjutnya')).toBeNull();
+    // nomor lanjut di seluruh data, bukan mulai dari 1 lagi di tiap halaman
+    expect(screen.getByText('SPK-101', { selector: 'td' }).closest('tr')!.textContent).toContain('2');
+    fireEvent.click(screen.getByTitle('Print'));
+    await waitFor(() => expect(print.cetakHtml).toHaveBeenCalled());
+    const html = (print.cetakHtml.mock.calls[0] as unknown as [string])[0];
+    expect(html).toContain('2 Transaksi / 12 Qty');
+  });
 });
 
 describe('Laporan Barang Masuk', () => {
-  it('PDF menjumlah baris halaman, bukan summary global', async () => {
-    const summary = { total: 99, supplier: 90, produksi: 9, klien: 0, qtyTotal: 999, qtySupplier: 900, qtyProduksi: 99, qtyKlien: 0 };
+  const summary = { total: 99, supplier: 90, produksi: 9, klien: 0, qtyTotal: 999, qtySupplier: 900, qtyProduksi: 99, qtyKlien: 0 };
+
+  it('PDF menjumlah semua baris terfilter, bukan summary global', async () => {
     installFakeApi({
       'GET /api/v1/reports/inbound': {
         rows: [masuk(1, 'SUPPLIER', 10), masuk(2, 'SUPPLIER', 5), masuk(3, 'PRODUKSI', 7)], total: 3, page: 1, pageSize: 20, summary,
@@ -57,5 +80,27 @@ describe('Laporan Barang Masuk', () => {
     expect(html).toContain('15 Qty (2 Transaksi)');
     expect(html).toContain('7 Qty (1 Transaksi)');
     expect(html).not.toContain('999 Qty');
+  });
+
+  it('memuat dan mencetak baris dari halaman berikutnya', async () => {
+    installFakeApi({
+      'GET /api/v1/reports/inbound': (req: { query: URLSearchParams }) => ({
+        rows: req.query.get('page') === '2' ? [masuk(101, 'SUPPLIER', 5)] : [masuk(1, 'SUPPLIER', 10)],
+        total: 150,
+        page: Number(req.query.get('page')),
+        pageSize: 100,
+        summary,
+        filteredSummary: summary,
+      }),
+    });
+    render(<LaporanBarangMasuk />);
+    await screen.findByText('PO-1');
+    expect(await screen.findByText('PO-101')).not.toBeNull();
+    expect(screen.queryByText('Selanjutnya')).toBeNull();
+    fireEvent.click(screen.getByTitle('Print'));
+    await waitFor(() => expect(print.cetakHtml).toHaveBeenCalled());
+    const html = (print.cetakHtml.mock.calls[0] as unknown as [string])[0];
+    expect(html).toContain('15 Qty / 2 Transaksi');
+    expect(html).not.toContain('(halaman ini)');
   });
 });

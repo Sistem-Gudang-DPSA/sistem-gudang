@@ -8,17 +8,16 @@ import { displayDate, displayDateTime, monthStart, todayIso } from '@/domains/in
 import { cetakHtml } from '@/shared/lib/print-html';
 import { cancelInbound, exportInboundReport, getInboundReport } from '@/domains/inventory/api';
 import BatalkanTransaksi, { BadgeDibatalkan, InfoPembatalan } from './BatalkanTransaksi';
-import type { InboundRow, InboundSource } from '@/domains/inventory/types';
+import type { InboundReport, InboundRow, InboundSource } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
-import { usePage } from '@/shared/lib/use-page';
-import Pagination from '@/shared/components/Pagination';
+import { fetchAllPagesResult } from '@/shared/lib/fetch-all';
+import ScrollableTable, { STICKY_HEAD_CLASS } from '@/shared/components/ScrollableTable';
+import TableFooter from '@/shared/components/TableFooter';
 import StatusBadge from '@/shared/components/StatusBadge';
 import { QC_STATUS } from '@/domains/inventory/status';
 import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
-
-const PAGE_SIZE = 20;
 
 const SUMBER_LABEL: Record<InboundSource, string> = {
   SUPPLIER: 'Supplier External',
@@ -68,8 +67,8 @@ export default function LaporanBarangMasuk() {
     source: !showSourceFilter || filterSumber === 'ALL' ? undefined : filterSumber,
   };
 
+  const [visibleRows, setVisibleRows] = useState(20);
   const filterKey = JSON.stringify([filters, sortParams]);
-  const [page, setPage] = usePage(filterKey);
 
   const {
     data: report,
@@ -77,8 +76,8 @@ export default function LaporanBarangMasuk() {
     error,
     reload,
   } = useApiData(
-    () => getInboundReport({ ...filters, ...sortParams, page, pageSize: PAGE_SIZE }),
-    `${filterKey}|${page}`,
+    () => fetchAllPagesResult<InboundRow, Pick<InboundReport, 'summary' | 'filteredSummary'>>((page, pageSize) => getInboundReport({ ...filters, ...sortParams, page, pageSize })),
+    `${filterKey}|all`,
     'Gagal memuat laporan barang masuk.',
   );
 
@@ -152,7 +151,7 @@ export default function LaporanBarangMasuk() {
             </style>
           </head>
           <body>
-            <h1>Rekap Barang Masuk (halaman ini)</h1>
+            <h1>Rekap Barang Masuk</h1>
             <p class="meta">Periode: ${escapeHtml(periodeText)} &nbsp;|&nbsp; Sumber: ${escapeHtml(sumberText)}${
               searchQuery ? ` &nbsp;|&nbsp; Pencarian: ${escapeHtml(searchQuery)}` : ''
             }</p>
@@ -186,9 +185,9 @@ export default function LaporanBarangMasuk() {
   };
 
   const rows = report?.rows ?? [];
-  const summary = report?.summary ?? emptySummary;
+  const summary = report?.first.summary ?? emptySummary;
   // the total card follows the source filter like the table; the other cards stay per category
-  const totalSummary = report?.filteredSummary ?? summary;
+  const totalSummary = report?.first.filteredSummary ?? summary;
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -295,8 +294,9 @@ export default function LaporanBarangMasuk() {
           </div>
         </div>
         {actionError && <p className="px-4 pb-2 text-sm text-red-500">{actionError}</p>}
+        <ScrollableTable visibleRows={visibleRows} rowHeightPx={56} className="border-t border-gray-100" ariaLabel="Tabel rekap barang masuk">
         <table className="min-w-full divide-y divide-gray-200 text-sm">
-          <thead className="bg-gray-100 font-semibold text-gray-700">
+          <thead className={`${STICKY_HEAD_CLASS} bg-gray-100 font-semibold text-gray-700`}>
             <tr>
               <th scope="col" className="px-4 py-3 text-center w-12">
                 No
@@ -376,8 +376,11 @@ export default function LaporanBarangMasuk() {
             )}
           </tbody>
         </table>
+        </ScrollableTable>
 
-        <Pagination page={page} pageSize={PAGE_SIZE} total={report?.total ?? 0} onPageChange={setPage} />
+        <div className="px-4 pb-4">
+          <TableFooter total={report?.total ?? rows.length} visibleRows={visibleRows} onVisibleRowsChange={setVisibleRows} unit="transaksi" />
+        </div>
       </div>
 
       {selectedDetail && (

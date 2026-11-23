@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 import SortableTh, { type Sort } from '@/shared/components/SortableTh';
+import ScrollableTable, { STICKY_HEAD_CLASS } from '@/shared/components/ScrollableTable';
+import SelectAllCheckbox from '@/shared/components/SelectAllCheckbox';
 import ItemPhoto from '@/domains/inventory/components/ItemPhoto';
 import type { ItemListRow } from '@/domains/inventory/types';
 
@@ -14,7 +16,7 @@ export type BarangColumn = {
 
 export type BarangSelection = {
   selected: Map<number, ItemListRow>;
-  allOnPage: boolean;
+  allSelected: boolean;
   onToggleRow: (item: ItemListRow) => void;
   onToggleAll: () => void;
   checkboxClassName?: string;
@@ -28,7 +30,8 @@ type Props = {
   columns: BarangColumn[];
   sort: Sort;
   onSort: (by: string) => void;
-  numberOffset?: number;
+  // Baris yang terlihat sekaligus di area scroll; semua baris tetap dirender.
+  visibleRows: number;
   photo: { canUpload: boolean; onUploaded?: () => void };
   selection?: BarangSelection;
   rowActions?: (item: ItemListRow) => ReactNode;
@@ -37,15 +40,22 @@ type Props = {
 };
 
 // Tabel Data Barang: kolom No, Foto, kolom per peran, dan Aksi. Kolom centang hanya bila `selection` diisi.
-export default function DataBarangTable({ rows, loading, colSpan, columns, sort, onSort, numberOffset = 0, photo, selection, rowActions, rowClassName, tbodyClassName }: Props) {
+export default function DataBarangTable({ rows, loading, colSpan, columns, sort, onSort, visibleRows, photo, selection, rowActions, rowClassName, tbodyClassName }: Props) {
   return (
-    <div className="overflow-x-auto">
+    <ScrollableTable visibleRows={visibleRows} rowHeightPx={72} ariaLabel="Tabel Data Barang">
       <table className="w-full text-left text-sm whitespace-nowrap">
-        <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
+        <thead className={`${STICKY_HEAD_CLASS} bg-gray-50 text-gray-600 font-semibold border-b border-gray-100`}>
           <tr>
             {selection && (
               <th scope="col" className="px-4 py-4">
-                <input type="checkbox" aria-label="Pilih semua barang di halaman ini" checked={selection.allOnPage} disabled={!!selection.disableAllWhenEmpty && rows.length === 0} onChange={selection.onToggleAll} className={selection.checkboxClassName} />
+                <SelectAllCheckbox
+                  ariaLabel="Pilih semua barang"
+                  checked={selection.allSelected}
+                  indeterminate={rows.some((item) => selection.selected.has(item.id))}
+                  disabled={!!selection.disableAllWhenEmpty && rows.length === 0}
+                  onChange={selection.onToggleAll}
+                  className={selection.checkboxClassName}
+                />
               </th>
             )}
             <th scope="col" className="px-6 py-4">No</th>
@@ -72,7 +82,7 @@ export default function DataBarangTable({ rows, loading, colSpan, columns, sort,
                   <input type="checkbox" aria-label={`Pilih ${item.name}`} checked={selection.selected.has(item.id)} onChange={() => selection.onToggleRow(item)} className={selection.checkboxClassName} />
                 </td>
               )}
-              <td className="px-6 py-4 text-gray-500">{numberOffset + index + 1}</td>
+              <td className="px-6 py-4 text-gray-500">{index + 1}</td>
               <td className="px-6 py-4">
                 <ItemPhoto item={item} canUpload={photo.canUpload} onUploaded={photo.onUploaded} />
               </td>
@@ -84,7 +94,7 @@ export default function DataBarangTable({ rows, loading, colSpan, columns, sort,
           ))}
         </tbody>
       </table>
-    </div>
+    </ScrollableTable>
   );
 }
 

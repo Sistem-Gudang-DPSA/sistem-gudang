@@ -5,16 +5,15 @@ import StockNotificationDetail from '@/domains/inventory/components/data-barang/
 import StokMinimumCell from '@/domains/inventory/components/data-barang/StokMinimumCell';
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
-import { listItems, updateItem } from '@/domains/inventory/api';
+import { updateItem } from '@/domains/inventory/api';
 import type { ItemListRow } from '@/domains/inventory/types';
 import { downloadCsv } from '@/shared/lib/csv';
 import { ApiError } from '@/shared/lib/api-client';
-import { fetchAllPages } from '@/shared/lib/fetch-all';
 import { digitsOnly, INTEGER_INPUT } from '@/shared/lib/input';
 import { useCan } from '@/domains/auth/user-context';
-import Pagination from '@/shared/components/Pagination';
 import { ExportExcellButton } from '@/shared/components/Tombol';
-import BarangFilterPanel, { countActiveFilters, toItemFilterParams } from '@/domains/inventory/components/BarangFilterPanel';
+import TableFooter from '@/shared/components/TableFooter';
+import BarangFilterPanel, { countActiveFilters } from '@/domains/inventory/components/BarangFilterPanel';
 import { useDataBarang } from '@/domains/inventory/components/data-barang/useDataBarang';
 import DataBarangTable, { type BarangColumn, KategoriBadge, StokCell, SupplierCell } from '@/domains/inventory/components/data-barang/DataBarangTable';
 import DataBarangToolbar, { FilterToggle } from '@/domains/inventory/components/data-barang/DataBarangToolbar';
@@ -29,7 +28,7 @@ export default function DataBarangPurchasing() {
   // PUT /items/:id menolak perubahan supplierId tanpa item.set-supplier.
   const canAssignSupplier = canUpdateItem && canSetSupplier;
   const d = useDataBarang();
-  const { dataBarang, supplierName, locationCode, reload, selected, setSelected, toggleRow, togglePage, pageAllSelected } = d;
+  const { dataBarang, total, visibleRows, setVisibleRows, supplierName, locationCode, reload, selected, setSelected, toggleRow, toggleAll, allSelected } = d;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -81,13 +80,12 @@ export default function DataBarangPurchasing() {
     }
   };
 
-  // Semua barang sesuai pencarian/filter aktif, bukan hanya halaman yang tampil
-  const handleExportCSV = async () => {
+  // Semua barang sesuai pencarian/filter aktif sudah dimuat, jadi export mencakup seluruhnya.
+  const handleExportCSV = () => {
     setExportError('');
     try {
-      const all = await fetchAllPages((p) => listItems({ page: p, pageSize: 100, search: d.debouncedSearch || undefined, ...toItemFilterParams(d.filters), ...d.sortParams }));
       const rows: unknown[][] = [['No', 'Kode Barang', 'Kode Bawaan', 'Nama Barang', 'Supplier', 'Jumlah Stok', 'Satuan', 'Kategori', 'Harga', 'Lokasi']];
-      all.forEach((item, index) => rows.push([index + 1, item.code ?? '-', item.externalCode ?? '-', item.name, supplierName(item.supplierId), item.stock, item.unit, item.category, item.price, locationCode(item.locationId)]));
+      dataBarang.forEach((item, index) => rows.push([index + 1, item.code ?? '-', item.externalCode ?? '-', item.name, supplierName(item.supplierId), item.stock, item.unit, item.category, item.price, locationCode(item.locationId)]));
       downloadCsv('Data_Barang_Purchasing.csv', rows);
     } catch (err) {
       setExportError(err instanceof Error ? err.message : 'Gagal export data barang.');
@@ -183,18 +181,19 @@ export default function DataBarangPurchasing() {
           sort={d.sort}
           onSort={d.toggle}
           photo={{ canUpload: false }}
+          visibleRows={visibleRows}
           selection={canAssignSupplier ? {
             selected,
-            allOnPage: pageAllSelected,
+            allSelected,
             onToggleRow: toggleRow,
-            onToggleAll: togglePage,
+            onToggleAll: toggleAll,
             disableAllWhenEmpty: true,
           } : undefined}
           rowActions={renderRowActions}
           rowClassName={() => 'hover:bg-purple-50/30 transition-colors group'}
           tbodyClassName="divide-y divide-gray-50"
         />
-        <Pagination page={d.page} pageSize={d.pageSize} total={d.total} onPageChange={d.setPage} activeClass="bg-teal-500 text-white border-teal-500" />
+        <TableFooter total={total} visibleRows={visibleRows} onVisibleRowsChange={setVisibleRows} unit="barang" />
       </div>
 
       {/* Modal Lengkapi Data */}

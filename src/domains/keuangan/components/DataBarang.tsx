@@ -1,37 +1,30 @@
 "use client";
 
 import { useState } from 'react';
-import { listItems } from '@/domains/inventory/api';
 import { downloadCsv } from '@/shared/lib/csv';
-import { fetchAllPages } from '@/shared/lib/fetch-all';
-import Pagination from '@/shared/components/Pagination';
 import { ExportExcellButton } from '@/shared/components/Tombol';
+import TableFooter from '@/shared/components/TableFooter';
 import { printItemLabels } from '@/domains/inventory/label-print';
-import BarangFilterPanel, { countActiveFilters, toItemFilterParams } from '@/domains/inventory/components/BarangFilterPanel';
+import BarangFilterPanel, { countActiveFilters } from '@/domains/inventory/components/BarangFilterPanel';
 import { useDataBarang } from '@/domains/inventory/components/data-barang/useDataBarang';
 import DataBarangTable, { type BarangColumn, KategoriBadge, StokCell, SupplierCell } from '@/domains/inventory/components/data-barang/DataBarangTable';
 import DataBarangToolbar, { FilterToggle } from '@/domains/inventory/components/data-barang/DataBarangToolbar';
 
-export default function DataBarangGudang({
-  paginationActiveClass,
-}: {
-  paginationActiveClass?: string;
-}) {
+export default function DataBarangGudang() {
   const d = useDataBarang();
-  const { dataBarang, total, page, pageSize, setPage, selected, supplierName, locationCode } = d;
+  const { dataBarang, total, visibleRows, setVisibleRows, selected, supplierName, locationCode } = d;
   const [printError, setPrintError] = useState("");
 
   // only items with a code have a label to print
   const selectedPrintable = [...selected.values()].filter((it) => it.code);
   const printSelected = async () => setPrintError(await printItemLabels(selectedPrintable) ?? "");
 
-  // Semua barang sesuai pencarian/filter aktif, bukan hanya halaman yang tampil
-  const handleExportExcel = async () => {
+  // Semua barang sesuai pencarian/filter aktif sudah dimuat, jadi export mencakup seluruhnya.
+  const handleExportExcel = () => {
     setPrintError("");
     try {
-      const all = await fetchAllPages((p) => listItems({ page: p, pageSize: 100, search: d.debouncedSearch || undefined, ...toItemFilterParams(d.filters), ...d.sortParams }));
       const rows: unknown[][] = [['No', 'Kode Barang', 'Kode Bawaan', 'Nama Barang', 'Supplier', 'Jumlah Stok', 'Satuan', 'Kategori', 'Lokasi']];
-      all.forEach((item, index) => rows.push([index + 1, item.code ?? '-', item.externalCode ?? '-', item.name, supplierName(item.supplierId), item.stock, item.unit, item.category, locationCode(item.locationId)]));
+      dataBarang.forEach((item, index) => rows.push([index + 1, item.code ?? '-', item.externalCode ?? '-', item.name, supplierName(item.supplierId), item.stock, item.unit, item.category, locationCode(item.locationId)]));
       downloadCsv('Data_Barang_Keuangan.csv', rows);
     } catch (err) {
       setPrintError(err instanceof Error ? err.message : "Gagal export data barang.");
@@ -76,7 +69,7 @@ export default function DataBarangGudang({
               className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-600 hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
             </button>
-            <ExportExcellButton onClick={handleExportExcel} />
+            <ExportExcellButton onClick={handleExportExcel} disabled={d.loading || dataBarang.length === 0} />
           </>}
           filter={<FilterToggle open={d.showFilter} count={countActiveFilters(d.filters)} onToggle={() => d.setShowFilter((v) => !v)} />}
         />
@@ -104,18 +97,19 @@ export default function DataBarangGudang({
           sort={d.sort}
           onSort={d.toggle}
           photo={{ canUpload: false }}
+          visibleRows={visibleRows}
           selection={{
             selected,
-            allOnPage: d.pageAllSelected,
+            allSelected: d.allSelected,
             onToggleRow: d.toggleRow,
-            onToggleAll: d.togglePage,
+            onToggleAll: d.toggleAll,
             disableAllWhenEmpty: true,
           }}
           rowClassName={() => 'hover:bg-[#FF8A00]/5 transition-colors group'}
           tbodyClassName="divide-y divide-gray-50"
         />
 
-        <Pagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} activeClass={paginationActiveClass} />
+        <TableFooter total={total} visibleRows={visibleRows} onVisibleRowsChange={setVisibleRows} unit="barang" />
       </div>
     </div>
   );
