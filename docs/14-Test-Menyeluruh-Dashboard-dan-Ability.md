@@ -73,9 +73,10 @@ Kartu dan tabel hanya tampil untuk user yang punya permission endpoint-nya.
 ## Perubahan Lain
 
 - Laporan memakai `summary` backend atas seluruh data, bukan jumlah dari
-  100 baris pertama. Data Barang, Stock Opname, Barang Keluar, serta Laporan
-  Barang Masuk dan Keluar memuat semua baris terfilter dalam tabel scroll;
-  select-all, cetak, dan export memakai seluruh data itu. Pencarian
+  100 baris pertama. Data Barang, Stock Opname, Barang Masuk, Barang Keluar,
+  serta Laporan Barang Masuk dan Keluar memuat semua baris terfilter dalam
+  tabel scroll; select-all, cetak, dan export memakai seluruh data itu.
+  Pencarian
   Permintaan Pembelian dikirim ke backend, dan riwayat persetujuan
   menampilkan nama pelaku. Kartu Barang Keluar memakai `total` (ikut filter
   penerima), kartu Barang Masuk memakai `summary` yang berlabel semua

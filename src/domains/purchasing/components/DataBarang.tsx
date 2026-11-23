@@ -13,6 +13,7 @@ import { digitsOnly, INTEGER_INPUT } from '@/shared/lib/input';
 import { useCan } from '@/domains/auth/user-context';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import TableFooter from '@/shared/components/TableFooter';
+import SelectionBanner from '@/shared/components/SelectionBanner';
 import BarangFilterPanel, { countActiveFilters } from '@/domains/inventory/components/BarangFilterPanel';
 import { useDataBarang } from '@/domains/inventory/components/data-barang/useDataBarang';
 import DataBarangTable, { type BarangColumn, KategoriBadge, StokCell, SupplierCell } from '@/domains/inventory/components/data-barang/DataBarangTable';
@@ -28,7 +29,7 @@ export default function DataBarangPurchasing() {
   // PUT /items/:id menolak perubahan supplierId tanpa item.set-supplier.
   const canAssignSupplier = canUpdateItem && canSetSupplier;
   const d = useDataBarang();
-  const { dataBarang, total, visibleRows, setVisibleRows, supplierName, locationCode, reload, selected, setSelected, toggleRow, toggleAll, allSelected } = d;
+  const { dataBarang, total, supplierName, locationCode, reload, selected, setSelected, clearSelection, toggleRow, toggleAll, allSelected } = d;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -160,6 +161,8 @@ export default function DataBarangPurchasing() {
           />
         )}
 
+        <SelectionBanner count={selected.size} onClear={clearSelection} />
+
         {error && (
           <div className="mx-5 mt-5 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>
         )}
@@ -181,7 +184,6 @@ export default function DataBarangPurchasing() {
           sort={d.sort}
           onSort={d.toggle}
           photo={{ canUpload: false }}
-          visibleRows={visibleRows}
           selection={canAssignSupplier ? {
             selected,
             allSelected,
@@ -193,7 +195,7 @@ export default function DataBarangPurchasing() {
           rowClassName={() => 'hover:bg-purple-50/30 transition-colors group'}
           tbodyClassName="divide-y divide-gray-50"
         />
-        <TableFooter total={total} visibleRows={visibleRows} onVisibleRowsChange={setVisibleRows} unit="barang" />
+        <TableFooter total={total} unit="barang" />
       </div>
 
       {/* Modal Lengkapi Data */}

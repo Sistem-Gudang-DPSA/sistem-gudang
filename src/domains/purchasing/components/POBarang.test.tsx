@@ -163,7 +163,7 @@ describe('printing checked purchase orders', () => {
     expect((screen.getByRole('checkbox', { name: 'Centang PO-1' }) as HTMLInputElement).checked).toBe(false);
   });
 
-  it('keeps selections across pages, prints them together, and resets when search changes', async () => {
+  it('keeps selections across pages and search, and prints them together', async () => {
     installFakeApi({
       'GET /api/v1/purchase-orders': (req: FakeRequest) => paged([order(req.query.get('page') === '2' ? 21 : 1)], { total: 21 }),
       'GET /api/v1/purchase-orders/1': savedOrder(1),
@@ -180,7 +180,8 @@ describe('printing checked purchase orders', () => {
     await waitFor(() => expect(print.printPurchaseOrders).toHaveBeenCalledWith([savedOrder(1), savedOrder(21)]));
     await screen.findByText('Dialog cetak dibuka untuk 2 PO: PO-1, PO-21.');
     fireEvent.change(screen.getByRole('textbox', { name: 'Cari PO Barang' }), { target: { value: 'PO-1' } });
-    expect((screen.getByRole('button', { name: 'Print' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText('2 PO dipilih')).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Print' }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('reports every load outcome and prints nothing if any selected PO fails to load', async () => {

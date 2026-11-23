@@ -18,6 +18,7 @@ import DateFilter from '@/shared/components/DateFilter';
 import ScrollableTable, { STICKY_HEAD_CLASS } from '@/shared/components/ScrollableTable';
 import SelectAllCheckbox from '@/shared/components/SelectAllCheckbox';
 import TableFooter from '@/shared/components/TableFooter';
+import SelectionBanner from '@/shared/components/SelectionBanner';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 
 const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -39,9 +40,8 @@ export default function StockOpnameMasterGudang() {
   const [actionError, setActionError] = useState('');
 
   const filterKey = JSON.stringify([searchQuery, filterMonth, filterYear, sortParams]);
-  const [visibleRows, setVisibleRows] = useState(20);
-  // Pilihan di-reset saat filter berubah, bukan saat urutan berubah.
-  const selection = useSelection<{ id: number }>(JSON.stringify([searchQuery, filterMonth, filterYear]));
+  // Pilihan bertahan lintas pencarian/filter/urutan; hilang saat layar ditutup.
+  const selection = useSelection<{ id: number }>();
   const { data: result, loading, error } = useApiData(
     () => fetchAllPagesResult((page, pageSize) => listStockOpname({ page, pageSize, search: searchQuery || undefined, month: filterMonth ? Number(filterMonth) : undefined, year: filterYear ? Number(filterYear) : undefined, ...sortParams })),
     `${filterKey}|all`,
@@ -192,14 +192,16 @@ export default function StockOpnameMasterGudang() {
           />
         )}
 
+        <SelectionBanner count={selection.size} onClear={selection.clear} />
+
         {actionError && <p className="px-6 pt-3 text-sm text-red-500">{actionError}</p>}
 
         {/* Table Container */}
-        <ScrollableTable visibleRows={visibleRows} rowHeightPx={56} ariaLabel="Tabel stok opname">
+        <ScrollableTable ariaLabel="Tabel stok opname">
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className={`${STICKY_HEAD_CLASS} bg-gray-50 text-gray-600 font-semibold border-b border-gray-100`}>
               <tr>
-                <th scope="col" className="px-4 py-4 print:hidden w-12">
+                <th scope="col" className="px-4 py-3 print:hidden w-12">
                   <SelectAllCheckbox
                     ariaLabel="Pilih semua stok opname"
                     checked={allSelected}
@@ -208,9 +210,9 @@ export default function StockOpnameMasterGudang() {
                     className="w-4 h-4 accent-blue-600 cursor-pointer"
                   />
                 </th>
-                <th scope="col" className="px-6 py-4 w-16 text-center">No</th>
+                <th scope="col" className="px-6 py-3 w-16 text-center">No</th>
                 <SortableTh label='Periode Stock Opname' sortKey='period' sort={sort} onSort={toggle} />
-                <th scope="col" className="px-6 py-4 text-center">Aksi</th>
+                <th scope="col" className="px-6 py-3 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -222,7 +224,7 @@ export default function StockOpnameMasterGudang() {
               )}
               {!loading && !error && rows.map((item, index) => (
                 <tr key={item.id} className="hover:bg-[#FF8A00]/5 transition-colors group">
-                  <td className="px-4 py-4 print:hidden w-12">
+                  <td className="px-4 py-3 print:hidden w-12">
                     <input
                       type="checkbox"
                       aria-label={`Pilih ${periodeLabel(item.month, item.year)} #${item.id}`}
@@ -231,11 +233,11 @@ export default function StockOpnameMasterGudang() {
                       className="w-4 h-4 accent-blue-600 cursor-pointer"
                     />
                   </td>
-                  <td className="px-6 py-4 text-gray-500 text-center">{index + 1}.</td>
-                  <td className="px-6 py-4 font-bold text-gray-900">
+                  <td className="px-6 py-3 text-gray-500 text-center">{index + 1}.</td>
+                  <td className="px-6 py-3 font-bold text-gray-900">
                     {periodeLabel(item.month, item.year)}
                   </td>
-                  <td className="px-6 py-4 text-center">
+                  <td className="px-6 py-3 text-center">
                     <div className="flex items-center justify-center gap-2">
                       <Link
                         href={`${base}/transaksi/stock-opname/${item.id}`}
@@ -259,7 +261,7 @@ export default function StockOpnameMasterGudang() {
           </table>
         </ScrollableTable>
 
-        <TableFooter total={total} visibleRows={visibleRows} onVisibleRowsChange={setVisibleRows} unit="stok opname" />
+        <TableFooter total={total} unit="stok opname" />
       </div>
 
     </div>

@@ -13,6 +13,7 @@ import { ApiError } from '@/shared/lib/api-client';
 import { randomId } from '@/shared/lib/random-id';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import TableFooter from '@/shared/components/TableFooter';
+import SelectionBanner from '@/shared/components/SelectionBanner';
 import { ImportExcelButton, addReferenceColumns } from '@/shared/components/ImportExcelButton';
 import ImportBarangMapping from './ImportBarangMapping';
 const BulkPhotoModal = dynamic(() => import('@/domains/inventory/components/BulkPhotoModal'), { ssr: false });
@@ -58,7 +59,7 @@ export default function DataBarangGudang() {
   const edit = useBatchEdit();
   const seen = useRef(new Map<number, ItemListRow>()); // semua baris yang pernah tampil, untuk menyimpan perubahan dari halaman lain
   const d = useDataBarang();
-  const { dataBarang, total, visibleRows, setVisibleRows, selected, setSelected, toggleRow, toggleAll, allSelected, reload, loaded, locations, suppliers, categories, units, supplierName, locationCode, debouncedSearch, filters } = d;
+  const { dataBarang, total, selected, setSelected, clearSelection, toggleRow, toggleAll, allSelected, reload, loaded, locations, suppliers, categories, units, supplierName, locationCode, debouncedSearch, filters } = d;
 
   const [pendingImport, setPendingImport] = useState<MasterDataImportRow[]>([]);
   const [importNote, setImportNote] = useState('');
@@ -488,6 +489,8 @@ export default function DataBarangGudang() {
           />
         )}
 
+        <SelectionBanner count={selected.size} onClear={clearSelection} />
+
         {pendingImport.length > 0 && (
           <ImportBarangMapping
             rows={pendingImport}
@@ -527,7 +530,6 @@ export default function DataBarangGudang() {
           columns={columns}
           sort={d.sort}
           onSort={d.toggle}
-          visibleRows={visibleRows}
           photo={{ canUpload: canUploadPhoto, onUploaded: reload }}
           selection={canSelect ? {
             selected,
@@ -540,7 +542,7 @@ export default function DataBarangGudang() {
           rowClassName={(item, index) => `${edit.isDirty(item.id) ? 'bg-amber-50' : index % 2 ? 'bg-gray-50' : 'bg-white'} hover:bg-[#FF8A00]/5 transition-colors group`}
         />
 
-        <TableFooter total={total} visibleRows={visibleRows} onVisibleRowsChange={setVisibleRows} unit="barang" />
+        <TableFooter total={total} unit="barang" />
       </div>
 
       {bulkOpen && (

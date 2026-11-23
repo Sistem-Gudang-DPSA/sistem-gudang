@@ -19,6 +19,7 @@ import DataBarangTable, { type BarangColumn, KategoriBadge, StokCell, SupplierCe
 import DataBarangToolbar from '@/domains/inventory/components/data-barang/DataBarangToolbar';
 import ItemFormModal, { type ItemForm } from '@/domains/inventory/components/data-barang/modals/ItemFormModal';
 import BulkStokMinimumModal from '@/domains/inventory/components/data-barang/BulkStokMinimumModal';
+import SelectionBanner from '@/shared/components/SelectionBanner';
 const BulkPhotoModal = dynamic(() => import('@/domains/inventory/components/BulkPhotoModal'), { ssr: false });
 
 const emptyForm: ItemForm = { name: '', unit: '', category: '', price: '', supplierId: '' };
@@ -29,7 +30,7 @@ export default function DataBarangPPIC() {
   const canDelete = useCan("item.delete");
   const canUploadPhoto = useCan("item.upload-photo");
   const d = useDataBarang({ cacheReferenceLists: true });
-  const { dataBarang, total, visibleRows, setVisibleRows, selected, setSelected, reload, supplierName, locationCode } = d;
+  const { dataBarang, total, selected, setSelected, clearSelection, reload, supplierName, locationCode } = d;
 
   const [actionError, setActionError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -221,6 +222,8 @@ export default function DataBarangPPIC() {
           )}
         />
 
+        <SelectionBanner count={selected.size} onClear={clearSelection} />
+
         {notice && <div className="mx-5 mt-5 p-3 bg-green-50 text-green-700 text-sm rounded-lg">{notice}</div>}
 
         {error && (
@@ -235,7 +238,6 @@ export default function DataBarangPPIC() {
           sort={d.sort}
           onSort={d.toggle}
           photo={{ canUpload: canUploadPhoto, onUploaded: reload }}
-          visibleRows={visibleRows}
           selection={showSelection ? {
             selected,
             allSelected: d.allSelected,
@@ -247,7 +249,7 @@ export default function DataBarangPPIC() {
           rowClassName={() => 'hover:bg-purple-50/30 transition-colors group'}
           tbodyClassName="divide-y divide-gray-50"
         />
-        <TableFooter total={total} visibleRows={visibleRows} onVisibleRowsChange={setVisibleRows} unit="barang" />
+        <TableFooter total={total} unit="barang" />
       </div>
 
       {bulkStokOpen && (

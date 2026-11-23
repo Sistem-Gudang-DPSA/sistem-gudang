@@ -89,7 +89,7 @@ describe('DataBarang PPIC: plotting stok minimum massal', () => {
     await waitFor(() => expect(api.calls('PUT /api/v1/items/1')).toHaveLength(1));
     expect(api.calls('PUT /api/v1/items/1')[0].body).toEqual({ minimumStock: 10 });
     expect(api.calls('PUT /api/v1/items/2')[0].body).toEqual({ minimumStock: 10 });
-    expect((await screen.findByRole('status')).textContent).toContain('Berhasil (2): Barang 1, Barang 2');
+    expect(await screen.findByText(/Berhasil \(2\): Barang 1, Barang 2/)).toBeTruthy();
   });
 
   it('menampilkan semua hasil bila ada barang yang gagal disimpan', async () => {
@@ -103,7 +103,7 @@ describe('DataBarang PPIC: plotting stok minimum massal', () => {
     const alert = await screen.findByRole('alert');
     expect(alert.textContent).toContain('Gagal (1):');
     expect(alert.textContent).toContain('Barang 2: Gagal menyimpan batas');
-    expect(screen.getByRole('status').textContent).toContain('Berhasil (1): Barang 1');
+    expect(screen.getByText(/Berhasil \(1\): Barang 1/)).toBeTruthy();
   });
 });
 

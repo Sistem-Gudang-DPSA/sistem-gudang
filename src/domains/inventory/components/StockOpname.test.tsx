@@ -36,6 +36,21 @@ describe('StockOpname list', () => {
     expect(second.checked).toBe(true);
   });
 
+  it('keeps the checked periods when the search changes', async () => {
+    installFakeApi({ 'GET /api/v1/stock-opname': paged([row(1), row(2)]) });
+    render(<StockOpname />);
+    const first = await screen.findByLabelText('Pilih Stok Opname Maret 2026 #1') as HTMLInputElement;
+    fireEvent.click(first);
+    expect(screen.getByRole('status').textContent).toContain('1 baris dipilih');
+    fireEvent.change(screen.getByPlaceholderText('Cari periode stok opname...'), { target: { value: 'Maret' } });
+    await waitFor(() => expect((first as HTMLInputElement).checked).toBe(true));
+    expect(screen.getByRole('status').textContent).toContain('1 baris dipilih');
+    fireEvent.click(screen.getByLabelText('Pilih Stok Opname Maret 2026 #2'));
+    expect(screen.getByRole('status').textContent).toContain('2 baris dipilih');
+    fireEvent.click(screen.getByRole('button', { name: 'Bersihkan pilihan' }));
+    await waitFor(() => expect((screen.getByLabelText('Pilih Stok Opname Maret 2026 #1') as HTMLInputElement).checked).toBe(false));
+  });
+
   it('filters by month and year, without a day select, and sorts by period', async () => {
     const api = installFakeApi({ 'GET /api/v1/stock-opname': paged([row(1)]) });
     render(<StockOpname />);

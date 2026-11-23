@@ -67,7 +67,6 @@ export default function LaporanBarangMasuk() {
     source: !showSourceFilter || filterSumber === 'ALL' ? undefined : filterSumber,
   };
 
-  const [visibleRows, setVisibleRows] = useState(20);
   const filterKey = JSON.stringify([filters, sortParams]);
 
   const {
@@ -294,20 +293,20 @@ export default function LaporanBarangMasuk() {
           </div>
         </div>
         {actionError && <p className="px-4 pb-2 text-sm text-red-500">{actionError}</p>}
-        <ScrollableTable visibleRows={visibleRows} rowHeightPx={56} className="border-t border-gray-100" ariaLabel="Tabel rekap barang masuk">
+        <ScrollableTable className="border-t border-gray-100" ariaLabel="Tabel rekap barang masuk">
         <table className="min-w-full divide-y divide-gray-200 text-sm">
           <thead className={`${STICKY_HEAD_CLASS} bg-gray-100 font-semibold text-gray-700`}>
             <tr>
-              <th scope="col" className="px-4 py-3 text-center w-12">
+              <th scope="col" className="px-4 py-2 text-center w-12">
                 No
               </th>
               <SortableTh label="Tanggal & Jam Penerimaan" sortKey="date" sort={sort} onSort={toggle} />
               <SortableTh label="No. Referensi" sortKey="referenceNo" sort={sort} onSort={toggle} />
               <SortableTh label="Sumber / Pemasok" sortKey="supplierName" sort={sort} onSort={toggle} />
-              <th className="px-4 py-3 text-right">Total Volume Item (Qty)</th>
-              <th className="px-4 py-3 text-center">Status QC</th>
-              <th className="px-4 py-3 text-center">Lokasi</th>
-              <th className="px-4 py-3 text-center print:hidden">Aksi</th>
+              <th className="px-4 py-2 text-right">Total Volume Item (Qty)</th>
+              <th className="px-4 py-2 text-center">Status QC</th>
+              <th className="px-4 py-2 text-center">Lokasi</th>
+              <th className="px-4 py-2 text-center print:hidden">Aksi</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
@@ -338,31 +337,31 @@ export default function LaporanBarangMasuk() {
             ) : (
               rows.map((item, index) => (
                 <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 text-center text-gray-500">{index + 1}</td>
-                  <td className="px-4 py-3 text-gray-700 font-medium">{displayDateTime(item.date, item.createdAt)}</td>
-                  <td className="px-4 py-3 font-mono font-semibold text-blue-600">
+                  <td className="px-4 py-2 text-center text-gray-500">{index + 1}</td>
+                  <td className="px-4 py-2 text-gray-700 font-medium">{displayDateTime(item.date, item.createdAt)}</td>
+                  <td className="px-4 py-2 font-mono font-semibold text-blue-600">
                     {item.referenceNo ?? '-'}
                     {item.supplierDeliveryNo && (
                       <span className="block text-xs font-normal text-gray-500">(SJ: {item.supplierDeliveryNo})</span>
                     )}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-2">
                     <span className="font-medium text-gray-900">{sumberName(item)}</span>
                     <span className="block text-xs text-gray-500">({SUMBER_LABEL[item.source]})</span>
                     <BadgeDibatalkan row={item} />
                   </td>
-                  <td className="px-4 py-3 text-right font-bold text-gray-800">{item.qtyArrived}</td>
-                  <td className="px-4 py-3 text-center">
+                  <td className="px-4 py-2 text-right font-bold text-gray-800">{item.qtyArrived}</td>
+                  <td className="px-4 py-2 text-center">
                     {item.statusQc ? (
                       <StatusBadge tone={QC_STATUS[item.statusQc].tone}>{QC_STATUS[item.statusQc].label}</StatusBadge>
                     ) : (
                       <span className="text-gray-400">-</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-center">
+                  <td className="px-4 py-2 text-center">
                     <span className="font-medium text-gray-900">{item.locationCode ?? '-'}</span>
                   </td>
-                  <td className="px-4 py-3 text-center print:hidden">
+                  <td className="px-4 py-2 text-center print:hidden">
                     <button
                       onClick={() => setSelectedDetail(item)}
                       className="flex-1 lg:flex-none flex items-center justify-center gap-2 text-blue-600 hover:text-blue-800 font-medium text-xs bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded border border-blue-200 transition-colors"
@@ -379,7 +378,7 @@ export default function LaporanBarangMasuk() {
         </ScrollableTable>
 
         <div className="px-4 pb-4">
-          <TableFooter total={report?.total ?? rows.length} visibleRows={visibleRows} onVisibleRowsChange={setVisibleRows} unit="transaksi" />
+          <TableFooter total={report?.total ?? rows.length} unit="transaksi" />
         </div>
       </div>
 

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { downloadCsv } from '@/shared/lib/csv';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import TableFooter from '@/shared/components/TableFooter';
+import SelectionBanner from '@/shared/components/SelectionBanner';
 import { printItemLabels } from '@/domains/inventory/label-print';
 import BarangFilterPanel, { countActiveFilters } from '@/domains/inventory/components/BarangFilterPanel';
 import { useDataBarang } from '@/domains/inventory/components/data-barang/useDataBarang';
@@ -12,7 +13,7 @@ import DataBarangToolbar, { FilterToggle } from '@/domains/inventory/components/
 
 export default function DataBarangGudang() {
   const d = useDataBarang();
-  const { dataBarang, total, visibleRows, setVisibleRows, selected, supplierName, locationCode } = d;
+  const { dataBarang, total, selected, clearSelection, supplierName, locationCode } = d;
   const [printError, setPrintError] = useState("");
 
   // only items with a code have a label to print
@@ -85,6 +86,8 @@ export default function DataBarangGudang() {
           />
         )}
 
+        <SelectionBanner count={selected.size} onClear={clearSelection} />
+
         {(d.error || printError) && (
           <div className="mx-5 mt-5 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{d.error || printError}</div>
         )}
@@ -97,7 +100,6 @@ export default function DataBarangGudang() {
           sort={d.sort}
           onSort={d.toggle}
           photo={{ canUpload: false }}
-          visibleRows={visibleRows}
           selection={{
             selected,
             allSelected: d.allSelected,
@@ -109,7 +111,7 @@ export default function DataBarangGudang() {
           tbodyClassName="divide-y divide-gray-50"
         />
 
-        <TableFooter total={total} visibleRows={visibleRows} onVisibleRowsChange={setVisibleRows} unit="barang" />
+        <TableFooter total={total} unit="barang" />
       </div>
     </div>
   );
