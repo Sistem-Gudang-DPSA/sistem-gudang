@@ -11,7 +11,9 @@ ditemukan dan diperbaiki sekaligus.
 ## Alur Pengguna
 
 - Centang barang pada satu atau beberapa halaman. Pilihan disimpan per id,
-  jadi tidak hilang saat pindah halaman, mencari, atau mengurutkan.
+  jadi tidak hilang saat pindah halaman, mencari, atau mengurutkan, dan
+  hilang saat layar ditutup. Banner hijau di atas tabel menampilkan jumlah
+  barang terpilih beserta tombol **Bersihkan pilihan**.
 - Tekan Edit Supplier. Tombol menampilkan jumlah barang yang dicentang.
 - Pilih supplier pada dropdown yang bisa dicari, atau pilih Kosongkan
   supplier untuk menghapus supplierId.

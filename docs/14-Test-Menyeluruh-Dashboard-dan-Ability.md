@@ -66,18 +66,23 @@ Kartu dan tabel hanya tampil untuk user yang punya permission endpoint-nya.
 - Tombol aksi disembunyikan bila user tidak punya permission yang
   dibutuhkan endpoint-nya, dan form yang membutuhkan izin menampilkan pesan
   "Anda tidak punya izin". Pemetaan permission dibaca dari rute backend.
-- Edit harga barang di Purchasing membutuhkan `item.update` dan
-  `item.set-price` sekaligus, karena backend mensyaratkan keduanya saat
-  harga berubah.
+- Edit harga barang hanya di Data Barang Superadmin (mode edit), membutuhkan
+  `item.update` dan `item.set-price` sekaligus karena backend mensyaratkan
+  keduanya saat harga berubah. Purchasing hanya menampilkan harga read-only;
+  baris tanggal **per tanggal** di sel Harga Terbaru tampil bila `GET /items`
+  mengirim `priceUpdatedAt`.
 
 ## Perubahan Lain
 
 - Laporan memakai `summary` backend atas seluruh data, bukan jumlah dari
-  100 baris pertama, dan daftar utama dipaginasi dari server. Pencarian
+  100 baris pertama. Data Barang, Stock Opname, Barang Masuk, Barang Keluar,
+  serta Laporan Barang Masuk dan Keluar memuat semua baris terfilter dalam
+  tabel scroll; select-all, cetak, dan export memakai seluruh data itu.
+  Pencarian
   Permintaan Pembelian dikirim ke backend, dan riwayat persetujuan
   menampilkan nama pelaku. Kartu Barang Keluar memakai `total` (ikut filter
   penerima), kartu Barang Masuk memakai `summary` yang berlabel semua
-  sumber, dan PDF "(halaman ini)" menjumlah baris yang dicetak.
+  sumber, dan cetak PDF menjumlah semua baris terfilter.
 - Filter Periode di Rekap Dokubah PPIC berubah dari pilihan bulan menjadi
   dua kolom tanggal, karena pilihan bulan dibangun dari baris yang dimuat.
 - Kode mati dihapus: `rekapold.tsx`, `Dokubah.tsx` milik Purchasing, dan

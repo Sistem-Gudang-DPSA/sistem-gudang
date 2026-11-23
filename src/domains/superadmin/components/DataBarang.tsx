@@ -7,22 +7,22 @@ import dynamic from 'next/dynamic';
 import { useAuthUser, useCan } from '@/domains/auth/user-context';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Images, RefreshCw, Trash2, Edit2, Truck, Info } from 'lucide-react';
-import { adjustItemStock, assignItemLocation, bulkRecodeItems, deleteItem, listItems, recodeItem, updateItem } from '@/domains/inventory/api';
+import { adjustItemStock, assignItemLocation, bulkRecodeItems, deleteItem, recodeItem, updateItem } from '@/domains/inventory/api';
 import type { ItemListRow, UpdateItemInput } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
-import Pagination from '@/shared/components/Pagination';
 import { randomId } from '@/shared/lib/random-id';
-import { fetchAllPages } from '@/shared/lib/fetch-all';
 import { ExportExcellButton } from '@/shared/components/Tombol';
+import TableFooter from '@/shared/components/TableFooter';
+import SelectionBanner from '@/shared/components/SelectionBanner';
 import { ImportExcelButton, addReferenceColumns } from '@/shared/components/ImportExcelButton';
 import ImportBarangMapping from './ImportBarangMapping';
 const BulkPhotoModal = dynamic(() => import('@/domains/inventory/components/BulkPhotoModal'), { ssr: false });
-import BarangFilterPanel, { countActiveFilters, toItemFilterParams } from '@/domains/inventory/components/BarangFilterPanel';
+import BarangFilterPanel, { countActiveFilters } from '@/domains/inventory/components/BarangFilterPanel';
 import EditModeBar, { useBatchEdit } from '@/shared/components/EditModeBar';
 import { kodeKategoriNotice, type CodeChange } from '@/domains/inventory/item-code-notice';
 import { printItemLabels } from '@/domains/inventory/label-print';
 import { useDataBarang } from '@/domains/inventory/components/data-barang/useDataBarang';
-import DataBarangTable, { type BarangColumn, KategoriBadge, StokCell, SupplierCell } from '@/domains/inventory/components/data-barang/DataBarangTable';
+import DataBarangTable, { type BarangColumn, HargaCell, KategoriBadge, StokCell, SupplierCell } from '@/domains/inventory/components/data-barang/DataBarangTable';
 import DataBarangToolbar, { FilterToggle } from '@/domains/inventory/components/data-barang/DataBarangToolbar';
 import { useBulkSupplierAction, type SupplierMappingResult } from '@/domains/inventory/components/data-barang/useBulkSupplierAction';
 import ActionMenu from '@/shared/components/ActionMenu';
@@ -33,8 +33,6 @@ import { MasterData, mstrDataTemplateExample, mstrDataTemplateHeaders, type Mast
 
 export { MasterData, mstrDataTemplateExample, mstrDataTemplateHeaders };
 export type { MasterDataImportRow };
-
-const PAGE_SIZE_OPTIONS = [20, 50, 100];
 
 type CodeLabel = { code: string | null; name: string; externalCode?: string | null; locationCode: string };
 
@@ -61,7 +59,7 @@ export default function DataBarangGudang() {
   const edit = useBatchEdit();
   const seen = useRef(new Map<number, ItemListRow>()); // semua baris yang pernah tampil, untuk menyimpan perubahan dari halaman lain
   const d = useDataBarang();
-  const { dataBarang, total, page, pageSize, setPage, setPageSize, selected, setSelected, toggleRow, togglePage, pageAllSelected, reload, loaded, locations, suppliers, categories, units, supplierName, locationCode, sortParams, debouncedSearch, filters } = d;
+  const { dataBarang, total, selected, setSelected, clearSelection, toggleRow, toggleAll, allSelected, reload, loaded, locations, suppliers, categories, units, supplierName, locationCode, debouncedSearch, filters } = d;
 
   const [pendingImport, setPendingImport] = useState<MasterDataImportRow[]>([]);
   const [importNote, setImportNote] = useState('');
@@ -99,22 +97,6 @@ export default function DataBarangGudang() {
 
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkUploaded, setBulkUploaded] = useState(false); // centangan dikosongkan hanya bila sudah ada upload
-  // Semua barang sesuai pencarian/filter aktif (semua halaman); dipakai export dan pilih semua
-  const fetchAllFiltered = () =>
-    fetchAllPages((p) => listItems({ page: p, pageSize: 100, search: debouncedSearch || undefined, ...toItemFilterParams(filters), ...sortParams }));
-  const [selectingAll, setSelectingAll] = useState(false);
-  const selectAllFiltered = async () => {
-    setSelectingAll(true);
-    setActionError('');
-    try {
-      const rows = await fetchAllFiltered();
-      setSelected((prev) => new Map([...prev, ...rows.map((r) => [r.id, r] as const)]));
-    } catch (e) {
-      setActionError(e instanceof Error ? e.message : 'Gagal memilih semua barang.');
-    } finally {
-      setSelectingAll(false);
-    }
-  };
   useEffect(() => {
     loaded?.rows.forEach((r) => seen.current.set(r.id, r));
   }, [loaded]);
@@ -196,7 +178,7 @@ export default function DataBarangGudang() {
     let inUse = 0;
     const errors: string[] = [];
     try {
-      const rows = await fetchAllFiltered();
+      const rows = dataBarang;
       for (const [n, r] of rows.entries()) {
         setDeletingAll(`Menghapus ${n + 1}/${rows.length}...`);
         try {
@@ -286,13 +268,13 @@ export default function DataBarangGudang() {
     ...(canSetSupplier ? { 'Daftar Supplier': suppliers.map((x) => x.name) } : {}),
   });
 
-  // Semua barang sesuai pencarian/filter aktif, bukan hanya halaman yang tampil
+  // Semua barang sesuai pencarian/filter aktif sudah dimuat, jadi export mencakup seluruhnya.
   const handleExportExcel = async () => {
     setActionError('');
     try {
       const [XLSX, rows] = await Promise.all([
         import('xlsx'),
-        fetchAllFiltered(),
+        Promise.resolve(dataBarang),
       ]);
       // Kode Barang (internal) dibuat sistem; ikut di-export sebagai info, diabaikan saat import
       const headers = [...mstrDataTemplateHeaders, 'Kode Barang'];
@@ -346,7 +328,7 @@ export default function DataBarangGudang() {
     { label: 'Harga Terbaru', sortKey: 'price', tdClassName: 'px-6 py-4 text-gray-700', cell: (item) => (
       edit.editing && canSetPrice ? (
         <input aria-label={`Harga ${item.name}`} inputMode="numeric" className={`${cellInput} min-w-24`} maxLength={9} value={edit.value(item.id, 'price', String(item.price))} onChange={(e) => edit.set(item.id, 'price', e.target.value.replace(/\D/g, ''), String(item.price))} />
-      ) : item.price.toLocaleString('id-ID')
+      ) : <HargaCell price={item.price} updatedAt={item.priceUpdatedAt} />
     ) },
     // Lokasi: dipilih langsung di barisnya
     { label: 'Lokasi', sortKey: 'locationCode', cell: (item) => (
@@ -507,6 +489,8 @@ export default function DataBarangGudang() {
           />
         )}
 
+        <SelectionBanner count={selected.size} onClear={clearSelection} />
+
         {pendingImport.length > 0 && (
           <ImportBarangMapping
             rows={pendingImport}
@@ -539,18 +523,6 @@ export default function DataBarangGudang() {
         )}
 
         {/* Table Container */}
-        {pageAllSelected && total > dataBarang.length && (
-          <div className="px-5 py-2 bg-orange-50 border-b border-orange-100 text-sm text-gray-700 flex flex-wrap items-center gap-3">
-            <span>{selected.size} barang dipilih.</span>
-            {selected.size < total && (
-              <button type="button" onClick={selectAllFiltered} disabled={selectingAll} className="font-semibold text-[#FF8A00] hover:underline disabled:opacity-50">
-                {selectingAll ? 'Memuat...' : `Pilih semua ${total} barang${debouncedSearch || countActiveFilters(filters) ? ' sesuai pencarian/filter' : ''}`}
-              </button>
-            )}
-            <button type="button" onClick={() => setSelected(new Map())} className="font-semibold text-gray-500 hover:underline">Batalkan pilihan</button>
-          </div>
-        )}
-
         <DataBarangTable
           rows={dataBarang}
           loading={d.loading}
@@ -558,34 +530,19 @@ export default function DataBarangGudang() {
           columns={columns}
           sort={d.sort}
           onSort={d.toggle}
-          numberOffset={(page - 1) * pageSize}
           photo={{ canUpload: canUploadPhoto, onUploaded: reload }}
           selection={canSelect ? {
             selected,
-            allOnPage: pageAllSelected,
+            allSelected,
             onToggleRow: toggleRow,
-            onToggleAll: togglePage,
+            onToggleAll: toggleAll,
             checkboxClassName: 'w-4 h-4 rounded border-gray-300 text-[#FF8A00] focus:ring-[#FF8A00]',
           } : undefined}
           rowActions={showAksi ? renderRowActions : undefined}
           rowClassName={(item, index) => `${edit.isDirty(item.id) ? 'bg-amber-50' : index % 2 ? 'bg-gray-50' : 'bg-white'} hover:bg-[#FF8A00]/5 transition-colors group`}
         />
 
-        {total > 0 && (
-          <div className="flex flex-col gap-3 border-t border-gray-100 px-5 py-4">
-            <label className="flex items-center justify-end gap-2 text-xs text-gray-500">
-              Baris per halaman
-              <select
-                value={pageSize}
-                onChange={(e) => setPageSize(Number(e.target.value))}
-                className="px-2 py-1 bg-white border border-gray-200 rounded-md text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
-              >
-                {PAGE_SIZE_OPTIONS.map((size) => <option key={size} value={size}>{size}</option>)}
-              </select>
-            </label>
-            <Pagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} activeClass="bg-indigo-500 text-white border-indigo-500" />
-          </div>
-        )}
+        <TableFooter total={total} unit="barang" />
       </div>
 
       {bulkOpen && (

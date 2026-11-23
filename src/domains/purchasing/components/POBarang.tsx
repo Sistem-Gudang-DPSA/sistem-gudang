@@ -14,6 +14,7 @@ import { detailPoPath, lihatPermintaanPoPath } from '@/domains/purchasing/data/p
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';
 import DateFilter from '@/shared/components/DateFilter';
+import SelectionBanner from '@/shared/components/SelectionBanner';
 import { useCan } from '@/domains/auth/user-context';
 import { useSelection } from '@/shared/lib/use-selection';
 import { printPurchaseOrders } from '@/domains/purchasing/export/print-po';
@@ -40,7 +41,7 @@ export default function POBarang() {
   );
   const filteredData = result?.rows ?? [];
   const total = result?.total ?? 0;
-  const selection = useSelection<Omit<PurchaseOrder, 'barang'>>(`${canView}|${filterKey}|${JSON.stringify(range)}`);
+  const selection = useSelection<Omit<PurchaseOrder, 'barang'>>(String(canView));
   const [printing, setPrinting] = useState(false);
   const printingRef = useRef(false);
   const [printNotice, setPrintNotice] = useState<{ error: boolean; text: string } | null>(null);
@@ -140,10 +141,13 @@ export default function POBarang() {
         )}
 
 
-        {selection.size > 0 && <div className="flex items-center gap-3 px-5 py-3 text-sm text-orange-700">
-          <span>{selection.size} PO dipilih</span>
-          <button type="button" aria-label="Reset pilihan PO" onClick={() => { selection.clear(); setPrintNotice(null); }} disabled={printing} className="font-semibold hover:underline disabled:opacity-50">Reset pilihan</button>
-        </div>}
+        <SelectionBanner
+          count={selection.size}
+          unit="PO"
+          clearLabel="Reset pilihan PO"
+          disabled={printing}
+          onClear={() => { selection.clear(); setPrintNotice(null); }}
+        />
         {printNotice && <p role={printNotice.error ? 'alert' : 'status'} className={`mx-5 my-3 rounded-lg p-3 text-sm ${printNotice.error ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'}`}>{printNotice.text}</p>}
 
         {/* Tabel */}
