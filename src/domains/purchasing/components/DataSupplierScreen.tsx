@@ -11,52 +11,42 @@ import { useCan } from '@/domains/auth/user-context';
 import { useClampPage, usePage } from '@/shared/lib/use-page';
 import Pagination from '@/shared/components/Pagination';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
-import EditModeBar, { useBatchEdit } from '@/shared/components/EditModeBar';
 import type { SupplierImportRow } from '@/domains/purchasing/modal/supplier';
 import ImportSupplierModal from '@/domains/purchasing/components/ImportSupplierModal';
 import ImportSupplierMapping from '@/domains/purchasing/components/ImportSupplierMapping';
-
-// kolom teks yang bisa diubah langsung di tabel pada mode edit (batas panjang mengikuti kolom BE)
-type TextKey = 'code' | 'name' | 'bank' | 'npwp' | 'phone' | 'address';
 
 export type DataSupplierProps = {
   /** link tombol Detail Barang, khusus divisi */
   detailHref: (id: number) => string;
   /** kelas halaman aktif pada paginasi */
   paginationActiveClass: string;
-  /** true: edit massal langsung di tabel (tanpa modal edit) */
-  inlineEdit?: boolean;
-  /** true: filter pajak, tombol Reset, dan kolom No */
-  filterAndNumber?: boolean;
 };
 
 const emptyForm: { code: string; name: string; bank: string; npwp: string; phone: string; address: string; pajak: Pajak } = {
   code: '', name: '', bank: '', npwp: '', phone: '', address: '', pajak: 'NON_PKP',
 };
 
-export default function DataSupplierScreen({ detailHref, paginationActiveClass, inlineEdit = false, filterAndNumber = false }: DataSupplierProps) {
+export default function DataSupplierScreen({ detailHref, paginationActiveClass }: DataSupplierProps) {
   const canCreate = useCan('supplier.create');
   const canUpdate = useCan('supplier.update');
   const canDelete = useCan('supplier.delete');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const edit = useBatchEdit();
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState("");
-  const { sort, toggle, reset: resetSort, params: sortParams } = useSort();
+  const { sort, toggle, params: sortParams } = useSort();
   const [importOpen, setImportOpen] = useState(false);
   const [pendingSupplier, setPendingSupplier] = useState<SupplierImportRow[] | null>(null);
   const [importNote, setImportNote] = useState('');
 
   const [actionError, setActionError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterPajak, setFilterPajak] = useState<Pajak | ''>('');
 
-  const [page, setPage] = usePage(`${searchTerm}|${filterPajak}|${JSON.stringify(sortParams)}`);
+  const [page, setPage] = usePage(`${searchTerm}|${JSON.stringify(sortParams)}`);
   const { data: loaded, loading, error: loadError, reload } = useApiData(
-    () => listSuppliers({ search: searchTerm || undefined, pajak: filterPajak || undefined, page, pageSize: 20, ...sortParams }),
-    `${searchTerm}|${filterPajak}|${JSON.stringify(sortParams)}|${page}`,
+    () => listSuppliers({ search: searchTerm || undefined, page, pageSize: 20, ...sortParams }),
+    `${searchTerm}|${JSON.stringify(sortParams)}|${page}`,
     "Gagal memuat data supplier.",
   );
   const dataSupplier = loaded?.rows ?? [];
@@ -86,12 +76,6 @@ export default function DataSupplierScreen({ detailHref, paginationActiveClass, 
       setActionError(err instanceof ApiError ? err.message : "Gagal menghapus supplier.");
     }
   };
-
-  const simpanSemua = () =>
-    edit.save((id, patch) => {
-      if (Object.values(patch).some((v) => v.trim() === '')) return Promise.reject(new Error('Kolom tidak boleh kosong.'));
-      return updateSupplier(id, patch as Partial<typeof emptyForm>).then(() => undefined);
-    }, reload);
 
   const handleSimpan = async () => {
     if (!formData.code || !formData.name || !formData.bank || !formData.npwp || !formData.phone || !formData.address) {
@@ -141,26 +125,7 @@ export default function DataSupplierScreen({ detailHref, paginationActiveClass, 
                 placeholder="Cari supplier, npwp, atau kode..."
               />
             </div>
-            {filterAndNumber && (
-              <>
-                <select
-                  aria-label="Filter pajak"
-                  value={filterPajak}
-                  onChange={(e) => setFilterPajak(e.target.value as Pajak | '')}
-                  className="py-2.5 pl-3 pr-8 border border-gray-200 rounded-xl bg-white text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#FF8A00]/20 focus:border-[#FF8A00] shadow-sm"
-                >
-                  <option value="">Semua pajak</option>
-                  <option value="PKP">PKP</option>
-                  <option value="NON_PKP">Non PKP</option>
-                </select>
-                {(searchTerm || filterPajak || sort) && (
-                  <button type="button" onClick={() => { setSearchTerm(''); setFilterPajak(''); resetSort(); }} className="text-sm text-gray-500 hover:underline">Reset</button>
-                )}
-              </>
-            )}
           </div>
-
-          {inlineEdit && canUpdate && <EditModeBar editing={edit.editing} dirty={edit.dirty} saving={edit.saving} onToggle={edit.toggle} onSave={simpanSemua} onCancel={edit.cancel} />}
 
           {canCreate && (
             <div className="flex flex-col lg:flex-row items-center gap-2 w-full lg:w-auto shrink-0">
@@ -217,7 +182,6 @@ export default function DataSupplierScreen({ detailHref, paginationActiveClass, 
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
               <tr>
-                {filterAndNumber && <th scope="col" className="px-6 py-4 w-16 text-center">No</th>}
                 <SortableTh label="Kode" sortKey="code" sort={sort} onSort={toggle} align="center" className="px-6 py-4 w-20" />
                 <SortableTh label="Nama Supplier" sortKey="name" sort={sort} onSort={toggle} />
                 <SortableTh label="Bank" sortKey="bank" sort={sort} onSort={toggle} align="center" />
@@ -230,42 +194,27 @@ export default function DataSupplierScreen({ detailHref, paginationActiveClass, 
             </thead>
             <tbody className="divide-y divide-gray-50 text-gray-600">
               {loading && (
-                <tr><td colSpan={filterAndNumber ? 9 : 8} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
+                <tr><td colSpan={8} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
               )}
               {!loading && dataSupplier.length === 0 && (
-                <tr><td colSpan={filterAndNumber ? 9 : 8} className="px-6 py-6 text-center text-gray-400">Belum ada data supplier.</td></tr>
+                <tr><td colSpan={8} className="px-6 py-6 text-center text-gray-400">Belum ada data supplier.</td></tr>
               )}
-              {!loading && dataSupplier.map((item, i) => {
-                const cell = "w-full min-w-28 border border-gray-200 rounded-lg py-1.5 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
-                const text = (key: TextKey, max: number) => edit.editing ? (
-                  <input aria-label={`${key} ${item.name}`} className={cell} maxLength={max} value={edit.value(item.id, key, item[key])} onChange={(e) => edit.set(item.id, key, e.target.value, item[key])} />
-                ) : item[key];
+              {!loading && dataSupplier.map((item) => {
                 return (
-                  <tr key={item.id} className={`${inlineEdit ? (edit.isDirty(item.id) ? "bg-amber-50" : i % 2 ? "bg-gray-50" : "bg-white") : ""} hover:bg-[#FF8A00]/5 transition-colors group`}>
-                    {filterAndNumber && <td className="px-6 py-4 text-gray-500 text-center">{(page - 1) * 20 + i + 1}</td>}
-                    <td className="px-6 py-4 text-gray-500 text-center font-medium">{text('code', 20)}</td>
-                    <td className="px-6 py-4 font-bold text-gray-900">
-                      {text('name', 191)}
-                      {edit.errors[item.id] && <p className="text-xs font-normal text-red-600">{edit.errors[item.id]}</p>}
-                    </td>
-                    <td className="px-6 py-4 text-center">{text('bank', 100)}</td>
-                    <td className="px-6 py-4 text-center font-mono text-xs">{text('npwp', 50)}</td>
-                    <td className="px-6 py-4 text-center text-xs">
-                      {edit.editing ? (
-                        <select aria-label={`pajak ${item.name}`} className={cell} value={edit.value(item.id, 'pajak', item.pajak)} onChange={(e) => edit.set(item.id, 'pajak', e.target.value, item.pajak)}>
-                          <option value="PKP">PKP</option>
-                          <option value="NON_PKP">Non PKP</option>
-                        </select>
-                      ) : item.pajak === 'PKP' ? 'PKP' : 'Non PKP'}
-                    </td>
-                    <td className="px-6 py-4 text-center text-xs">{text('phone', 30)}</td>
-                    <td className="px-6 py-4 max-w-xs truncate" title={item.address}>{text('address', 255)}</td>
+                  <tr key={item.id} className="hover:bg-[#FF8A00]/5 transition-colors group">
+                    <td className="px-6 py-4 text-gray-500 text-center font-medium">{item.code}</td>
+                    <td className="px-6 py-4 font-bold text-gray-900">{item.name}</td>
+                    <td className="px-6 py-4 text-center">{item.bank}</td>
+                    <td className="px-6 py-4 text-center font-mono text-xs">{item.npwp}</td>
+                    <td className="px-6 py-4 text-center text-xs">{item.pajak === 'PKP' ? 'PKP' : 'Non PKP'}</td>
+                    <td className="px-6 py-4 text-center text-xs">{item.phone}</td>
+                    <td className="px-6 py-4 max-w-xs truncate" title={item.address}>{item.address}</td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex items-center justify-center gap-2">
                         <Link href={detailHref(item.id)} className="px-3 py-1 bg-green-50 text-green-600 font-bold rounded-lg text-xs hover:bg-green-100 transition-all border border-green-100">
                           Detail Barang
                         </Link>
-                        {!inlineEdit && canUpdate && <button onClick={() => handleEdit(item)} className="px-3 py-1 bg-amber-50 text-amber-600 font-bold rounded-lg text-xs hover:bg-amber-100 transition-all border border-amber-100">
+                        {canUpdate && <button onClick={() => handleEdit(item)} className="px-3 py-1 bg-amber-50 text-amber-600 font-bold rounded-lg text-xs hover:bg-amber-100 transition-all border border-amber-100">
                           Edit
                         </button>}
                         {canDelete && <button onClick={() => handleHapus(item.id)} className="px-3 py-1 bg-red-50 text-red-600 font-bold rounded-lg text-xs hover:bg-red-100 transition-all border border-red-100">
