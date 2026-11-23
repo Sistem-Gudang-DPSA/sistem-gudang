@@ -4,38 +4,25 @@ import StockNotificationDetail from '@/domains/inventory/components/data-barang/
 
 import StokMinimumCell from '@/domains/inventory/components/data-barang/StokMinimumCell';
 import { useState } from 'react';
-import { Plus } from 'lucide-react';
-import { updateItem } from '@/domains/inventory/api';
-import type { ItemListRow } from '@/domains/inventory/types';
 import { downloadCsv } from '@/shared/lib/csv';
-import { ApiError } from '@/shared/lib/api-client';
-import { digitsOnly, INTEGER_INPUT } from '@/shared/lib/input';
 import { useCan } from '@/domains/auth/user-context';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import TableFooter from '@/shared/components/TableFooter';
 import SelectionBanner from '@/shared/components/SelectionBanner';
 import BarangFilterPanel, { countActiveFilters } from '@/domains/inventory/components/BarangFilterPanel';
 import { useDataBarang } from '@/domains/inventory/components/data-barang/useDataBarang';
-import DataBarangTable, { type BarangColumn, KategoriBadge, StokCell, SupplierCell } from '@/domains/inventory/components/data-barang/DataBarangTable';
+import DataBarangTable, { type BarangColumn, HargaCell, KategoriBadge, StokCell, SupplierCell } from '@/domains/inventory/components/data-barang/DataBarangTable';
 import DataBarangToolbar, { FilterToggle } from '@/domains/inventory/components/data-barang/DataBarangToolbar';
 import BulkSupplierAction, { type SupplierMappingResult } from '@/domains/inventory/components/data-barang/BulkSupplierAction';
 
 export default function DataBarangPurchasing() {
-  // PUT /items/:id needs item.update, and changing the price also needs item.set-price.
+  // PUT /items/:id menolak perubahan supplierId tanpa item.update + item.set-supplier.
   const canUpdateItem = useCan('item.update');
-  const canSetPrice = useCan('item.set-price');
-  const canEditPrice = canUpdateItem && canSetPrice;
   const canSetSupplier = useCan('item.set-supplier');
-  // PUT /items/:id menolak perubahan supplierId tanpa item.set-supplier.
   const canAssignSupplier = canUpdateItem && canSetSupplier;
   const d = useDataBarang();
   const { dataBarang, total, supplierName, locationCode, reload, selected, setSelected, clearSelection, toggleRow, toggleAll, allSelected } = d;
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [formData, setFormData] = useState({ supplierId: '', price: '' });
-  const [saving, setSaving] = useState(false);
-  const [modalError, setModalError] = useState("");
   const [exportError, setExportError] = useState('');
   const [supplierNotice, setSupplierNotice] = useState<{ text: string; failed: boolean } | null>(null);
   const error = d.error || exportError;
@@ -50,35 +37,6 @@ export default function DataBarangPurchasing() {
       failed: result.failed.length > 0,
     });
     reload();
-  };
-
-  const handleEdit = (item: ItemListRow) => {
-    setEditingId(item.id);
-    setFormData({ supplierId: item.supplierId === null ? '' : String(item.supplierId), price: String(item.price) });
-    setModalError("");
-    setIsModalOpen(true);
-  };
-
-  const handleSimpan = async () => {
-    if (!editingId || !formData.supplierId || !formData.price) {
-      setModalError('Mohon lengkapi semua data!');
-      return;
-    }
-    setSaving(true);
-    setModalError("");
-    try {
-      await updateItem(editingId, {
-        price: Number(formData.price),
-        supplierId: Number(formData.supplierId),
-      });
-      reload();
-      setIsModalOpen(false);
-      setEditingId(null);
-    } catch (err) {
-      setModalError(err instanceof ApiError ? err.message : "Gagal menyimpan data.");
-    } finally {
-      setSaving(false);
-    }
   };
 
   // Semua barang sesuai pencarian/filter aktif sudah dimuat, jadi export mencakup seluruhnya.
@@ -103,7 +61,7 @@ export default function DataBarangPurchasing() {
     { label: 'Stok Minimum', cell: (item) => <StokMinimumCell item={item} onSaved={reload} readOnly /> },
     { label: 'Satuan', tdClassName: 'px-6 py-4 text-gray-600', cell: (item) => item.unit },
     { label: 'Kategori', sortKey: 'category', cell: (item) => <KategoriBadge category={item.category} /> },
-    { label: 'Harga Terbaru', sortKey: 'price', tdClassName: 'px-6 py-4 text-gray-700', cell: (item) => item.price.toLocaleString('id-ID') },
+    { label: 'Harga Terbaru', sortKey: 'price', tdClassName: 'px-6 py-4 text-gray-700', cell: (item) => <HargaCell price={item.price} updatedAt={item.priceUpdatedAt} /> },
     { label: 'Lokasi', sortKey: 'locationCode', cell: (item) => (
       <span className="inline-flex items-center gap-1 text-gray-600 font-medium">
         <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
@@ -112,16 +70,6 @@ export default function DataBarangPurchasing() {
     ) },
     { label: 'Keterangan', sortKey: 'detail', tdClassName: 'px-6 py-4 text-gray-600', cell: (item) => item.detail || '-' },
   ];
-
-  const renderRowActions = (item: ItemListRow) => canEditPrice && (
-    <button
-      onClick={() => handleEdit(item)}
-      className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-[#FF8A00] hover:bg-orange-600 rounded-lg transition-all shadow-sm w-full max-w-27.5 mx-auto"
-    >
-      <Plus className="w-3.5 h-3.5" />
-      Lengkapi
-    </button>
-  );
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -179,7 +127,7 @@ export default function DataBarangPurchasing() {
         <DataBarangTable
           rows={dataBarang}
           loading={d.loading}
-          colSpan={canAssignSupplier ? 15 : 14}
+          colSpan={canAssignSupplier ? 14 : 13}
           columns={columns}
           sort={d.sort}
           onSort={d.toggle}
@@ -191,69 +139,12 @@ export default function DataBarangPurchasing() {
             onToggleAll: toggleAll,
             disableAllWhenEmpty: true,
           } : undefined}
-          rowActions={renderRowActions}
           rowClassName={() => 'hover:bg-purple-50/30 transition-colors group'}
           tbodyClassName="divide-y divide-gray-50"
         />
         <TableFooter total={total} unit="barang" />
       </div>
 
-      {/* Modal Lengkapi Data */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl w-full max-w-lg p-6 sm:p-8 shadow-2xl animate-in zoom-in-95 duration-200">
-            <h2 className="text-xl font-bold text-gray-900 mb-6 uppercase tracking-wide">DATA BARANG</h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-              <div>
-                <label className="block text-[15px] font-medium text-gray-800 mb-2 font-sans">Suplier</label>
-                <select
-                  value={formData.supplierId}
-                  onChange={(e) => setFormData({...formData, supplierId: e.target.value})}
-                  className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors font-sans"
-                >
-                  <option value="" disabled>Pilih supplier</option>
-                  {d.suppliers.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[15px] font-medium text-gray-800 mb-2 font-sans">Harga</label>
-                <input
-                  {...INTEGER_INPUT}
-                  value={formData.price}
-                  onChange={(e) => setFormData({...formData, price: digitsOnly(e.target.value)})}
-                  maxLength={9}
-                  placeholder="Masukan Jumlah"
-                  className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors font-sans"
-                />
-              </div>
-            </div>
-
-            {modalError && (
-              <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{modalError}</div>
-            )}
-
-            <div className="flex justify-end gap-4 mt-2">
-              <button
-                onClick={() => { setIsModalOpen(false); setEditingId(null); }}
-                className="px-8 py-2.5 border-2 border-[#FF8A00] text-[#FF8A00] font-semibold rounded-lg hover:bg-orange-50 transition-colors font-sans"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleSimpan}
-                disabled={saving}
-                className="px-8 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-lg hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-colors font-sans disabled:opacity-60"
-              >
-                {saving ? "Menyimpan..." : "Simpan"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -49,6 +49,19 @@ it('menampilkan kolom Harga Terbaru dengan format ribuan seperti Superadmin', as
   const row = (await screen.findByText('Barang 1')).closest('tr');
   expect(screen.getByRole('columnheader', { name: 'Harga Terbaru' })).toBeTruthy();
   expect(within(row!).getByText('1.000')).toBeTruthy();
+  expect(within(row!).queryByText(/^per /)).toBeNull();
+});
+
+it('menampilkan tanggal harga dan tidak lagi punya tombol Lengkapi', async () => {
+  installFakeApi({
+    'GET /api/v1/items': paged([{ ...item, priceUpdatedAt: '2026-11-23' }]),
+    'GET /api/v1/locations': paged([]),
+    'GET /api/v1/suppliers': paged([]),
+  });
+  render(<DataBarang />);
+  const row = (await screen.findByText('Barang 1')).closest('tr');
+  expect(within(row!).getByText('per 23-11-2026')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Lengkapi' })).toBeNull();
 });
 
 it('Export CSV mengambil semua halaman barang, bukan hanya halaman yang tampil', async () => {
