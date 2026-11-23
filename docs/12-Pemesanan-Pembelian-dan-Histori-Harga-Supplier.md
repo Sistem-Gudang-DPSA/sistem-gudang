@@ -61,8 +61,9 @@ contoh dan tombol simpannya hanya menampilkan alert.
   Pembelian tetap memakai URL lama dan kembali ke Rekap Pembelian.
 - Cetak massal: centang PO (per baris atau semua di halaman), tombol **Print**
   mengambil detail tiap PO lewat `GET /purchase-orders/{id}` lalu membuka satu
-  dialog cetak. Pilihan bertahan lintas halaman dan direset saat pencarian
-  atau filter tanggal berubah. Jika satu detail gagal dimuat, seluruh cetak
+  dialog cetak. Pilihan bertahan lintas halaman, pencarian, filter tanggal,
+  dan urutan; hilang saat layar ditutup. Banner hijau di atas tabel
+  menampilkan jumlah PO terpilih dan tombol **Reset pilihan PO**. Jika satu detail gagal dimuat, seluruh cetak
   dibatalkan dan pesan menampilkan PO yang berhasil dan gagal.
 - **Rekap Permintaan Pembelian** di Purchasing dan PPIC membaca
   `GET /approvals?type=purchase-request` sehingga memuat permintaan yang

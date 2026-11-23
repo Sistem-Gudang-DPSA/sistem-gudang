@@ -107,14 +107,15 @@ Permintaan Pembelian tidak lagi ada di Gudang. Halamannya pindah ke PPIC, lihat 
 
 ## Export di Stock Opname dan Data Barang
 
-- Export Stock Opname memuat satu sheet per periode yang dicentang di halaman
-  tersebut (satu periode memakai nama file `Stok_Opname_Bulan_<bulan>_<tahun>.xlsx`,
-  lebih dari satu `Stok_Opname.xlsx`). Kegagalan export dan cetak tampil di
-  atas tabel.
-- Export CSV Data Barang (Gudang dan Keuangan) mengambil semua barang sesuai
-  pencarian dan filter aktif lewat `fetchAllPages`, bukan hanya halaman yang
-  tampil. Nama file mengikuti divisi (`Data_Barang_Gudang.csv`,
-  `Data_Barang_Keuangan.csv`).
+- Export Stock Opname memuat satu sheet per periode. Periode yang dicentang
+  dipakai bila ada; bila tidak ada yang dicentang, seluruh data terfilter
+  ikut diekspor. Satu periode memakai nama file
+  `Stok_Opname_Bulan_<bulan>_<tahun>.xlsx`, lebih dari satu
+  `Stok_Opname.xlsx`. Kegagalan export dan cetak tampil di atas tabel.
+- Export CSV Data Barang (Gudang, PPIC, Purchasing, Keuangan) memakai seluruh
+  barang terfilter yang sudah dimuat, bukan hanya baris yang tampak. Nama
+  file mengikuti divisi (`Data_Barang_Gudang.csv`, `Data_Barang_PPIC.csv`,
+  dan seterusnya).
 - `toCsv` (`src/shared/lib/csv.ts`) mengutip semua kolom dan menambah `'` di
   depan teks berawalan `=`, `+`, `-`, `@` agar tidak dibaca Excel sebagai rumus.
 
@@ -138,6 +139,11 @@ Permintaan Pembelian tidak lagi ada di Gudang. Halamannya pindah ke PPIC, lihat 
 - Tabel laporan diberi lebar `calc(100% - 2mm)`. Tanpa jarak itu, border
   kanan kolom terakhir menempel tepat di tepi area cetak dan terpotong di
   PDF.
+- Cetak Rekap Barang Masuk dan Barang Keluar memuat seluruh baris terfilter
+  (semua hasil pencarian, filter, dan periode), bukan hanya baris yang
+  tampak di area scroll. Judul tidak lagi memakai keterangan "(halaman ini)".
+  Cetak Barang Keluar memakai transaksi yang dicentang; bila tidak ada yang
+  dicentang, seluruh transaksi terfilter ikut dicetak.
 
 
 ## Draft dan submit Stok Opname
@@ -148,7 +154,7 @@ Form sebelum submit menampilkan Nama Barang, Satuan, Kategori, dan Jumlah Fisik.
 
 **Submit** memvalidasi jumlah fisik, lalu menampilkan dialog konfirmasi. Tombol **Ya, Submit** mengirim baris yang diisi ke `POST /api/v1/stock-opname`; baris kosong tidak mengubah stok barang tersebut. Draft dihapus setelah submit berhasil. Jika penyimpanan draft atau submit gagal, pesan kesalahan ditampilkan dan isian tetap tersedia.
 
-Detail hasil final diakses melalui halaman `[id]` di bawah rute daftar transaksi maupun laporan, dengan link kembali ke divisi dan daftar asal. Halaman ini memakai izin yang sama dengan daftar asalnya: `stock-opname.view` untuk transaksi Gudang dan Gudang Barang Jadi, `report.view` untuk laporan Gudang, Gudang Barang Jadi, dan Keuangan, serta `item.set-price`, `supplier.create`, atau `supplier.update` untuk Purchasing. Identitas dan hasil audit diambil dari `GET /api/v1/stock-opname/{id}`. Tombol **Download** per baris disembunyikan. Ekspor Excel pilihan periode tetap tersedia. Checkbox pilihan periode berada di kolom paling depan, sebelum No, tanpa tulisan Check; checkbox pada header memilih seluruh baris di halaman aktif. Tidak ada endpoint draft baru; penyimpanan draft sepenuhnya di frontend.
+Detail hasil final diakses melalui halaman `[id]` di bawah rute daftar transaksi maupun laporan, dengan link kembali ke divisi dan daftar asal. Halaman ini memakai izin yang sama dengan daftar asalnya: `stock-opname.view` untuk transaksi Gudang dan Gudang Barang Jadi, `report.view` untuk laporan Gudang, Gudang Barang Jadi, dan Keuangan, serta `item.set-price`, `supplier.create`, atau `supplier.update` untuk Purchasing. Identitas dan hasil audit diambil dari `GET /api/v1/stock-opname/{id}`. Tombol **Download** per baris disembunyikan. Ekspor Excel pilihan periode tetap tersedia. Checkbox pilihan periode berada di kolom paling depan, sebelum No, tanpa tulisan Check; checkbox pada header memilih seluruh data terfilter, bukan hanya baris yang tampak, dan pilihan bertahan saat pencarian/filter/urutan berubah serta hilang saat layar ditutup. Banner hijau di atas tabel menampilkan jumlah periode terpilih dan tombol **Bersihkan pilihan**. Tidak ada endpoint draft baru; penyimpanan draft sepenuhnya di frontend.
 
 
 ## Filter sumber Rekap Barang Masuk
