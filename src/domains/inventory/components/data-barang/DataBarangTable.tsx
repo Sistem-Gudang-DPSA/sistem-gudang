@@ -3,6 +3,7 @@ import SortableTh, { type Sort } from '@/shared/components/SortableTh';
 import ScrollableTable, { STICKY_HEAD_CLASS } from '@/shared/components/ScrollableTable';
 import SelectAllCheckbox from '@/shared/components/SelectAllCheckbox';
 import ItemPhoto from '@/domains/inventory/components/ItemPhoto';
+import { displayDate } from '@/domains/inventory/date';
 import type { ItemListRow } from '@/domains/inventory/types';
 
 export type BarangColumn = {
@@ -131,6 +132,16 @@ export function SupplierCell({ name }: { name: string }) {
         {name.charAt(0)}
       </div>
       <span>{name}</span>
+    </div>
+  );
+}
+
+// Harga terbaru, dengan tanggal harga menempel di baris kedua bila backend mengirimnya.
+export function HargaCell({ price, updatedAt }: { price: number; updatedAt?: string | null }) {
+  return (
+    <div className="flex flex-col">
+      <span>{price.toLocaleString('id-ID')}</span>
+      {updatedAt && <span className="text-xs text-gray-400">per {displayDate(updatedAt)}</span>}
     </div>
   );
 }
