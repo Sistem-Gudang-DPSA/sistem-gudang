@@ -37,6 +37,15 @@ async function ubahKategori(kategori: string) {
   fireEvent.click(screen.getByText('Simpan (1)'));
 }
 
+describe('DataBarang superadmin: kolom harga', () => {
+  it('memakai label Harga Terbaru dan format ribuan', async () => {
+    setup({});
+    const row = (await screen.findByText('Barang 1')).closest('tr');
+    expect(screen.getByRole('columnheader', { name: 'Harga Terbaru' })).toBeTruthy();
+    expect(within(row!).getByText('1.000')).toBeTruthy();
+  });
+});
+
 describe('DataBarang superadmin: notifikasi kode saat kategori berubah', () => {
   it('menampilkan kode baru bila BE memberi kode baru', async () => {
     const api = setup({ ...item, category: 'Permesinan', code: 'PER201' });

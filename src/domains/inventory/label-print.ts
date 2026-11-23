@@ -9,8 +9,10 @@ const LABEL_H = 40;
 const QR_SIZE = 26;
 
 // The QR holds exactly items.code, which is what the USB scanner types into Barang Masuk. Kode bawaan and location are text only.
-export async function buildLabelsHtml(items: LabelItem[]): Promise<string> {
+// `copies` repeats every label, so 5 identical cans get 5 labels.
+export async function buildLabelsHtml(items: LabelItem[], copies = 1): Promise<string> {
   const { default: QRCode } = await import('qrcode');
+  const perItem = Math.min(999, Math.max(1, Math.floor(copies)));
   const labels = await Promise.all(
     items
       .filter((it): it is LabelItem & { code: string } => !!it.code)
@@ -20,6 +22,7 @@ export async function buildLabelsHtml(items: LabelItem[]): Promise<string> {
         return `<div class="label"><div class="qr">${svg}</div><div class="txt"><span class="code"> ${escapeHtml(it.code)}</span><b>${escapeHtml(it.name)}</b>${bawaan}<span>${escapeHtml(it.locationCode ?? '-')}</span></div></div>`;
       }),
   );
+  const repeated = labels.flatMap((label) => Array.from({ length: perItem }, () => label));
   return `<!doctype html>
 <html lang="id"><head><meta charset="utf-8"><title>Label QR Barang</title>
 <style>
@@ -31,15 +34,15 @@ export async function buildLabelsHtml(items: LabelItem[]): Promise<string> {
   .txt { display: flex; flex-direction: column; gap: 1mm; font-size: 9pt; overflow: hidden; }
   .txt .code { font-family: monospace; font-size: 10pt; }
 </style></head>
-<body>${labels.join('')}</body></html>`;
+<body>${repeated.join('')}</body></html>`;
 }
 
 // Returns an error message, or null when the print dialog opened.
-export async function printItemLabels(items: LabelItem[]): Promise<string | null> {
+export async function printItemLabels(items: LabelItem[], copies = 1): Promise<string | null> {
   if (!items.some((it) => it.code)) return 'Tidak ada barang berkode untuk dicetak.';
   let html: string;
   try {
-    html = await buildLabelsHtml(items);
+    html = await buildLabelsHtml(items, copies);
   } catch {
     return 'Gagal membuat label QR.';
   }
