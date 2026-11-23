@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
@@ -73,11 +73,26 @@ export default function PemesananPembelianPurchasing() {
   }
 
   // Formnya baru dibuat setelah permintaan siap, supaya baris harga awal sesuai jumlah barang.
-  return <FormPemesanan permintaan={permintaan} />;
+  return <KelompokPemesanan permintaan={permintaan} />;
 }
 
-function FormPemesanan({ permintaan }: { permintaan: PermintaanPembelian }) {
+function KelompokPemesanan({ permintaan }: { permintaan: PermintaanPembelian }) {
+  const poState = usePoPermintaan(permintaan.id);
+  const proyek = Array.from(new Set(permintaan.barang.map((b) => b.proyek.trim())));
+  return (
+    <>
+      <p className="mb-4 text-sm text-gray-600">Barang dikelompokkan otomatis per proyek. Lengkapi dan simpan setiap PO secara terpisah. Untuk supplier berbeda, pilih sebagian barang lalu buat PO berikutnya pada proyek yang sama.</p>
+      {(proyek.length ? proyek : ['']).map((nama, index) => (
+        <FormPemesanan key={nama} permintaan={permintaan} proyek={nama} showHeader={index === 0} poState={poState} />
+      ))}
+    </>
+  );
+}
 
+function FormPemesanan({ permintaan, proyek, showHeader, poState }: { permintaan: PermintaanPembelian; proyek: string; showHeader: boolean; poState: ReturnType<typeof usePoPermintaan> }) {
+
+  const idPrefix = useId();
+  const [pesanan, setPesanan] = useState<{ po: PurchaseOrder; indices: number[] }[]>([]);
   const [saving, setSaving] = useState(false);
   const [dibuat, setDibuat] = useState<PurchaseOrder | null>(null);
   const [printing, setPrinting] = useState(false);
@@ -95,10 +110,11 @@ function FormPemesanan({ permintaan }: { permintaan: PermintaanPembelian }) {
   const [formError, setFormError] = useState('');
 
   // Baris permintaan yang sudah masuk PO aktif tidak boleh dipesan lagi.
-  const { pos, loading: poLoading, error: poError } = usePoPermintaan(permintaan.id);
+  const { pos, loading: poLoading, error: poError, reload } = poState;
   const sudahDipesan = lineSudahDipesan(pos);
+  pesanan.forEach(({ indices }) => indices.forEach((index) => sudahDipesan.add(index)));
   const [dipilih, setDipilih] = useState<Record<number, boolean>>({});
-  const terpilih = (index: number) => dipilih[index] ?? !sudahDipesan.has(index);
+  const terpilih = (index: number) => !sudahDipesan.has(index) && (dipilih[index] ?? true);
 
   // Asal halaman menentukan tujuan kembali: daftar PO Barang, detail permintaan versi PO Barang, atau detail Rekap.
   const from = useSearchParams().get('from');
@@ -117,14 +133,15 @@ function FormPemesanan({ permintaan }: { permintaan: PermintaanPembelian }) {
     </div>
   );
 
-  const kebutuhanProyek = Array.from(new Set(permintaan.barang.map((b) => b.proyek))).join(', ');
+  const kebutuhanProyek = proyek;
 
   const barisSemua = permintaan.barang.map((b, index) => {
     const baris = barisHarga[index];
     const hargaSatuan = toNumber(baris.harga);
     const diskon = toNumber(baris.diskon);
     return { ...b, index, kodeBarang: baris.kodeBarang, hargaSatuan, diskon, total: b.qty * hargaSatuan - diskon, dipilih: terpilih(index) };
-  });
+  }).filter((b) => b.proyek.trim() === proyek);
+  const sisaBarang = barisSemua.filter((b) => !sudahDipesan.has(b.index));
   // Hanya baris yang dicentang yang masuk PO ini; sisanya untuk PO supplier lain.
   const barang = barisSemua.filter((b) => b.dipilih);
 
@@ -142,6 +159,15 @@ function FormPemesanan({ permintaan }: { permintaan: PermintaanPembelian }) {
 
   const handleBuat = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (saving) return;
+    if (poLoading || poError) {
+      setFormError('Daftar PO sebelumnya harus berhasil dimuat sebelum membuat PO.');
+      return;
+    }
+    if (!proyek) {
+      setFormError('Proyek barang belum diisi. Perbaiki permintaan pembelian terlebih dahulu.');
+      return;
+    }
     if (barang.length === 0) {
       setFormError('Pilih minimal satu barang untuk PO ini.');
       return;
@@ -178,12 +204,12 @@ function FormPemesanan({ permintaan }: { permintaan: PermintaanPembelian }) {
     setFormError('');
     try {
       // Totals shown on screen are a preview; the backend computes and stores the real ones.
-      setDibuat(
-        await createPurchaseOrder({
+      const po = await createPurchaseOrder({
           approvalRequestId: permintaan.id,
           tanggalPo,
           supplierId: supplier.id,
           picSupplier: picSupplier.trim(),
+          kebutuhanProyek,
           barang: barang.map((b) => ({
             lineIndex: b.index,
             kodeBarang: b.kodeBarang.trim(),
@@ -195,8 +221,9 @@ function FormPemesanan({ permintaan }: { permintaan: PermintaanPembelian }) {
           })),
           persenPpn: ppn,
           jasa: toNumber(jasa),
-        }),
-      );
+        });
+      setPesanan((prev) => [...prev, { po, indices: barang.map((b) => b.index) }]);
+      setDibuat(po);
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : 'Gagal membuat PO.');
     } finally {
@@ -219,10 +246,14 @@ function FormPemesanan({ permintaan }: { permintaan: PermintaanPembelian }) {
   if (dibuat) {
     return (
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
-        {header}
+        {showHeader && header}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-6 py-10 text-center">
+          <p className="mb-2 text-sm font-semibold text-gray-900">Proyek: {proyek || 'Belum diisi'}</p>
           <p className="text-base font-bold text-gray-900">PO {dibuat.nomorPo} berhasil dibuat</p>
           <p className="mt-2 text-sm text-gray-600">Supplier {dibuat.supplierName}, grand total Rp. {formatAngka(dibuat.grandTotal)}</p>
+          {sisaBarang.length > 0 && (
+            <button type="button" onClick={() => { setDibuat(null); setDipilih({}); setSupplier(null); setPicSupplier(''); setJasa(''); }} className={`${orangeButtonClass} inline-block mt-6`}>Buat PO berikutnya untuk proyek ini ({sisaBarang.length} barang tersisa)</button>
+          )}
           {printError && <p role="alert" className="mt-4 text-sm text-red-600">{printError}</p>}
           <button type="button" onClick={() => void handlePrint(dibuat)} disabled={printing} className={`${orangeButtonClass} inline-block mt-6 disabled:opacity-50`}>{printing ? 'Menyiapkan cetak...' : 'Cetak PO'}</button>
           <Link href={backPath} className={`${orangeButtonClass} inline-block mt-6 ml-3`}>Kembali ke {from === 'po-barang' ? 'PO Barang' : 'Detail Permintaan'}</Link>
@@ -233,17 +264,20 @@ function FormPemesanan({ permintaan }: { permintaan: PermintaanPembelian }) {
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
-      {header}
+      {showHeader && header}
 
-      <form onSubmit={handleBuat} noValidate className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <form aria-label={`PO ${proyek || 'Belum diisi'}`} onSubmit={handleBuat} noValidate className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <h2 className="text-base font-bold text-gray-900 text-center mb-6">Pemesanan Pembelian</h2>
 
+        <h3 className="mb-4 text-sm font-bold text-gray-900">Proyek: {proyek || 'Belum diisi'}</h3>
+        {pesanan.map(({ po }) => <p key={po.id} role="status" className="mb-3 text-sm text-green-700">PO {po.nomorPo} berhasil dibuat untuk proyek {proyek}.</p>)}
+        <fieldset disabled={saving}>
         {/* Nomor & tanggal PO */}
         <div className="flex flex-col gap-2 max-w-sm">
           <div className="flex items-center gap-2">
-            <label htmlFor="po-tanggal" className="w-24 shrink-0 text-sm font-medium text-gray-800">Tanggal PO</label>
+            <label htmlFor={`${idPrefix}-po-tanggal`} className="w-24 shrink-0 text-sm font-medium text-gray-800">Tanggal PO</label>
             <span className="text-gray-800">:</span>
-            <input id="po-tanggal" type="date" value={tanggalPo} onChange={(e) => setTanggalPo(e.target.value)} className={fieldClass} />
+            <input id={`${idPrefix}-po-tanggal`} type="date" value={tanggalPo} onChange={(e) => setTanggalPo(e.target.value)} className={fieldClass} />
           </div>
         </div>
 
@@ -298,11 +332,11 @@ function FormPemesanan({ permintaan }: { permintaan: PermintaanPembelian }) {
                   </tr>
                   <tr>
                     <td className={infoLabelClass}>
-                      <label htmlFor="po-pic-supplier">PIC / Telp</label>
+                      <label htmlFor={`${idPrefix}-po-pic-supplier`}>PIC / Telp</label>
                     </td>
                     <td className={infoValueClass}>
                       <input
-                        id="po-pic-supplier"
+                        id={`${idPrefix}-po-pic-supplier`}
                         type="text"
                         value={picSupplier}
                         onChange={(e) => setPicSupplier(e.target.value)}
@@ -352,7 +386,8 @@ function FormPemesanan({ permintaan }: { permintaan: PermintaanPembelian }) {
 
         {/* Daftar barang */}
         <h3 className="text-xs font-bold text-gray-900 mb-3">Daftar / Spesifikasi Barang Yang Dipesan :</h3>
-        {poError && <p role="alert" className="mb-3 text-sm text-red-600">{poError}</p>}
+        {poError && <p role="alert" className="mb-3 text-sm text-red-600">{poError} <button type="button" onClick={reload} className="underline">Coba lagi</button></p>}
+        {!proyek && <p role="alert" className="mb-3 text-sm text-red-600">Proyek barang belum diisi. Perbaiki permintaan pembelian terlebih dahulu.</p>}
         {poLoading && <p className="mb-3 text-sm text-gray-500">Memuat PO sebelumnya...</p>}
         <div className="overflow-x-auto border-t border-l border-gray-300 rounded-sm">
           <table className="w-full text-left text-sm whitespace-nowrap border-collapse">
@@ -433,7 +468,7 @@ function FormPemesanan({ permintaan }: { permintaan: PermintaanPembelian }) {
           </table>
         </div>
         {permintaan.barang.length > 0 && barang.length === 0 && (
-          <p className="mt-3 text-sm text-gray-500">Semua barang pada permintaan ini sudah masuk PO.</p>
+          <p className="mt-3 text-sm text-gray-500">{sisaBarang.length === 0 ? 'Semua barang pada proyek ini sudah masuk PO.' : 'Belum ada barang yang dipilih untuk PO ini.'}</p>
         )}
 
         {/* Perhitungan total */}
@@ -446,16 +481,16 @@ function FormPemesanan({ permintaan }: { permintaan: PermintaanPembelian }) {
 
         <div className="flex items-center justify-between gap-4 border-t border-gray-400 mt-4 py-4">
           <div className="flex items-center gap-4 min-w-0">
-            <label htmlFor="po-dpp" className={`${totalLabelClass} whitespace-nowrap`}>DPP Lain :</label>
+            <label htmlFor={`${idPrefix}-po-dpp`} className={`${totalLabelClass} whitespace-nowrap`}>DPP Lain :</label>
             <div className="w-64 min-w-0">
-              <input id="po-dpp" type="text" readOnly value={formatAngka(dppLain)} className={readOnlyFieldClass} />
+              <input id={`${idPrefix}-po-dpp`} type="text" readOnly value={formatAngka(dppLain)} className={readOnlyFieldClass} />
             </div>
           </div>
           <div className="flex items-center gap-4 min-w-0">
-            <label htmlFor="po-ppn" className={`${totalLabelClass} whitespace-nowrap`}>PPN :</label>
+            <label htmlFor={`${idPrefix}-po-ppn`} className={`${totalLabelClass} whitespace-nowrap`}>PPN :</label>
             <div className="w-28 min-w-0">
               <input
-                id="po-ppn"
+                id={`${idPrefix}-po-ppn`}
                 type="text"
                 inputMode="decimal"
                 maxLength={6}
@@ -480,10 +515,10 @@ function FormPemesanan({ permintaan }: { permintaan: PermintaanPembelian }) {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <label htmlFor="po-jasa" className={`${totalLabelClass} flex-1`}>Jasa</label>
+            <label htmlFor={`${idPrefix}-po-jasa`} className={`${totalLabelClass} flex-1`}>Jasa</label>
             <div className={kotakTotalClass}>
               <input
-                id="po-jasa"
+                id={`${idPrefix}-po-jasa`}
                 {...INTEGER_INPUT}
                 maxLength={9}
                 value={jasa}
@@ -503,12 +538,13 @@ function FormPemesanan({ permintaan }: { permintaan: PermintaanPembelian }) {
         <div className="border-t-4 border-double border-gray-400 mt-6" />
 
         {formError && (
-          <p className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{formError}</p>
+          <p role="alert" className="mt-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{formError}</p>
         )}
 
         <div className="flex justify-end mt-8">
-          <button type="submit" disabled={saving} className={`${orangeButtonClass} disabled:opacity-60`}>{saving ? 'Menyimpan...' : 'Buat'}</button>
+          <button type="submit" disabled={saving || poLoading || !!poError || sisaBarang.length === 0 || !proyek} className={`${orangeButtonClass} disabled:opacity-60`}>{saving ? 'Menyimpan...' : 'Buat'}</button>
         </div>
+        </fieldset>
       </form>
     </div>
   );

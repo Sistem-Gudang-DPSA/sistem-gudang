@@ -142,11 +142,15 @@ Permintaan Pembelian tidak lagi ada di Gudang. Halamannya pindah ke PPIC, lihat 
 
 ## Draft dan submit Stok Opname
 
-Di Gudang dan Gudang Barang Jadi, **Simpan Draft** menyimpan periode dan seluruh jumlah fisik yang telah diisi ke penyimpanan browser, termasuk nilai nol dan barang dari halaman lain atau hasil scan. Satu draft aktif tersedia per akun dan divisi. Draft dapat dilanjutkan setelah meninggalkan halaman atau membuka ulang browser lewat **Lanjutkan Draft** di daftar Stok Opname. Menyimpan draft tidak memanggil endpoint transaksi dan tidak mengubah stok. Draft hanya tersedia pada akun dan browser yang sama; membersihkan data browser menghapus draft. Bila draft tersimpan rusak atau tidak dapat dibaca, form tetap terbuka dengan draft kosong dan peringatan; menyimpan draft baru menggantikan draft lama.
+Di Gudang dan Gudang Barang Jadi, **Simpan Draft** menyimpan periode dan seluruh jumlah fisik yang telah diisi ke penyimpanan browser, termasuk nilai nol dan barang dari halaman lain atau hasil scan. Setiap draft memiliki identitas dan penyimpanan sendiri per akun dan divisi; beberapa draft pada periode yang sama dapat disimpan tanpa saling menimpa. **Tambah Data** selalu membuka form kosong untuk hitungan baru. Menyimpan kembali draft yang dilanjutkan hanya memperbarui draft tersebut.
+
+Daftar **Draft Stok Opname** berada di bawah tabel data final, terurut dari waktu terakhir disimpan yang terbaru. Setiap baris menampilkan periode, identitas draft, jumlah dan cuplikan nama barang, waktu terakhir disimpan dalam WIB, serta **Lanjutkan Draft**. Tautan ini membuka form dengan `?draft=<id>` agar hanya draft yang dipilih yang dimuat. Draft format lama tetap muncul sebagai **Draft lama** dan dapat dilanjutkan. Daftar dan aksi draft hanya tersedia bagi pengguna dengan `stock-opname.create`.
+
+Menyimpan draft tidak memanggil endpoint transaksi dan tidak mengubah stok. Draft hanya tersedia pada akun dan browser yang sama; membersihkan data browser menghapus draft. Bila satu draft rusak, daftar menampilkan peringatan dan tetap menampilkan draft lain yang valid. Membuka draft rusak atau yang sudah tidak ditemukan menampilkan form kosong dengan peringatan; menyimpan isian baru membuat draft terpisah dan tidak menimpa data sebelumnya.
 
 Form sebelum submit menampilkan Nama Barang, Satuan, Kategori, dan Jumlah Fisik. Jumlah Administrasi, Jumlah Selisih, dan Keterangan tampil pada halaman detail setelah submit. Kartu scan juga menyembunyikan stok sistem, selisih, dan keterangan selama penghitungan.
 
-**Submit** memvalidasi jumlah fisik, lalu menampilkan dialog konfirmasi. Tombol **Ya, Submit** mengirim baris yang diisi ke `POST /api/v1/stock-opname`; baris kosong tidak mengubah stok barang tersebut. Draft dihapus setelah submit berhasil. Jika penyimpanan draft atau submit gagal, pesan kesalahan ditampilkan dan isian tetap tersedia.
+**Submit** memvalidasi jumlah fisik, lalu menampilkan dialog konfirmasi. Tombol **Ya, Submit** mengirim baris yang diisi ke `POST /api/v1/stock-opname`; baris kosong tidak mengubah stok barang tersebut. Hanya draft yang sedang dikerjakan yang dihapus setelah submit berhasil; draft lain tetap tersedia. Jika penyimpanan draft atau submit gagal, pesan kesalahan ditampilkan dan isian tetap tersedia.
 
 Detail hasil final diakses melalui halaman `[id]` di bawah rute daftar transaksi maupun laporan, dengan link kembali ke divisi dan daftar asal. Halaman ini memakai izin yang sama dengan daftar asalnya: `stock-opname.view` untuk transaksi Gudang dan Gudang Barang Jadi, `report.view` untuk laporan Gudang, Gudang Barang Jadi, dan Keuangan, serta `item.set-price`, `supplier.create`, atau `supplier.update` untuk Purchasing. Identitas dan hasil audit diambil dari `GET /api/v1/stock-opname/{id}`. Tombol **Download** per baris disembunyikan. Ekspor Excel pilihan periode tetap tersedia. Checkbox pilihan periode berada di kolom paling depan, sebelum No, tanpa tulisan Check; checkbox pada header memilih seluruh baris di halaman aktif. Tidak ada endpoint draft baru; penyimpanan draft sepenuhnya di frontend.
 
@@ -165,3 +169,22 @@ Pilihan **Sumber Inbound** hanya disembunyikan pada Rekap Barang Masuk Gudang. D
 - Kolom **Hapus** pada tabel barang hanya tampil setelah ada baris. Saat
   tabel kosong, hanya kolom No, Nama Material, Satuan/Vol, Kode, dan
   Pengambilan yang tampil, sehingga tidak ada kolom kosong berlebih.
+
+## Informasi barang pada Data Lokasi
+
+Data Lokasi di Gudang, Gudang Barang Jadi, dan Superadmin memakai komponen
+bersama. Kolom **Informasi Barang** menampilkan jumlah jenis barang yang
+ditempatkan pada tiap lokasi, cuplikan maksimal tiga nama barang, serta jumlah
+barang lainnya. Ringkasan membaca `GET /api/v1/items?locationId=<id>&page=1&pageSize=3`
+untuk lokasi yang tampil pada halaman; data barang tidak diambil tanpa filter lokasi.
+
+Tombol **Lihat Barang** membuka dialog daftar barang pada lokasi terpilih.
+Dialog menampilkan kode, nama dan detail barang, kategori, stok, serta satuan.
+Daftar tetap mencakup barang dengan stok nol karena barang tersebut masih
+memiliki penempatan lokasi. Pencarian dan paginasi dilakukan melalui
+`GET /api/v1/items` dengan `locationId`, `search`, `page`, `pageSize=20`,
+`sortBy=name`, dan `sortDir=asc`. Pencarian baru mengembalikan halaman ke 1.
+Lokasi kosong ditampilkan secara eksplisit; kegagalan memuat data menampilkan
+pesan dan tombol **Coba lagi**. Akses ringkasan dan tombol mengikuti permission
+`item.view`; pengguna tanpa izin ini tetap dapat melihat data lokasi sesuai
+izin lokasinya tanpa memanggil endpoint barang.

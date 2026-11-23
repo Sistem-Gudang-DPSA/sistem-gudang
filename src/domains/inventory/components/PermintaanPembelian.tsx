@@ -1,6 +1,6 @@
 "use client";
 
-import DaftarPermintaanPembelianPPIC from '@/domains/ppic/components/DaftarPermintaanPembelian';
+import { DaftarPermintaanPembelian as DaftarPermintaanPembelianPPIC } from '@/domains/ppic/components/DaftarPermintaanPembelian';
 import { gudang_permintaan_pembelian_path } from '@/domains/inventory/permintaan-pembelian';
 
 // Same list as PPIC, kept under the Gudang routes.

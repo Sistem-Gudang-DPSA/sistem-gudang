@@ -14,7 +14,7 @@ const user = (isSuperadmin: boolean): AuthUser => ({
 });
 
 async function renderAs(isSuperadmin: boolean) {
-  installFakeApi({ 'GET /api/v1/locations': paged([location]) });
+  installFakeApi({ 'GET /api/v1/locations': paged([location]), 'GET /api/v1/items': paged([]) });
   render(<AuthUserProvider user={user(isSuperadmin)}><DataLokasi /></AuthUserProvider>);
   await screen.findByText('A.1.1');
 }
