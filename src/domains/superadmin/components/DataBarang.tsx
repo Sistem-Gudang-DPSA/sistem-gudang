@@ -343,7 +343,7 @@ export default function DataBarangGudang() {
         <KategoriBadge category={item.category} />
       )
     ) },
-    { label: 'Harga', sortKey: 'price', tdClassName: 'px-6 py-4 text-gray-700', cell: (item) => (
+    { label: 'Harga Terbaru', sortKey: 'price', tdClassName: 'px-6 py-4 text-gray-700', cell: (item) => (
       edit.editing && canSetPrice ? (
         <input aria-label={`Harga ${item.name}`} inputMode="numeric" className={`${cellInput} min-w-24`} maxLength={9} value={edit.value(item.id, 'price', String(item.price))} onChange={(e) => edit.set(item.id, 'price', e.target.value.replace(/\D/g, ''), String(item.price))} />
       ) : item.price.toLocaleString('id-ID')

@@ -1,13 +1,13 @@
 "use client";
 
-import { useCan } from '@/domains/auth/user-context';
+import { useAuthUser, useCan } from '@/domains/auth/user-context';
 import React, { useState } from 'react';
 import { Search, Plus } from 'lucide-react';
 import { createLocation, deleteLocation, importLocationData, listLocations, updateLocation } from '../api';
 import { useClampPage } from '@/shared/lib/use-page';
 import Pagination from '@/shared/components/Pagination';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
-import EditModeBar, { useBatchEdit } from '@/shared/components/EditModeBar';
+import { useBatchEdit } from '@/shared/components/EditModeBar';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { ImportExcelButton } from '@/shared/components/ImportExcelButton';
@@ -66,6 +66,8 @@ export default function DataLokasiGudang({
   const canDelete = useCan('location.delete');
   const canCreate = useCan('location.create');
   const canUpdate = useCan('location.update');
+  // Import Excel dan hapus lokasi hanya untuk role Superadmin, bukan sekadar pemegang permission.
+  const isSuperadmin = useAuthUser()?.isSuperadmin === true;
   const { sort, toggle, params: sortParams } = useSort();
   const edit = useBatchEdit();
   const [searchQuery, setSearchQuery] = useState("");
@@ -188,7 +190,7 @@ export default function DataLokasiGudang({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {canCreate && (
+            {isSuperadmin && canCreate && (
               <ImportExcelButton
                 templateHeaders={LocationTemplateHeaders}
                 templateExample={LocationTemplateExample}
@@ -206,16 +208,6 @@ export default function DataLokasiGudang({
                   setNotice(`${res.created} lokasi ditambahkan${dilewati}`);
                 }}
                 onSuccess={() => reload()}
-              />
-            )}
-            {canUpdate && (
-              <EditModeBar
-                editing={edit.editing}
-                dirty={edit.dirty}
-                saving={edit.saving}
-                onToggle={edit.toggle}
-                onSave={simpanSemua}
-                onCancel={edit.cancel}
               />
             )}
             {canCreate && (
@@ -304,11 +296,46 @@ export default function DataLokasiGudang({
                         )}
                       </td>
                       <td className="px-6 py-4 text-gray-600 text-center whitespace-nowrap">
-                        {canDelete && (
-                          <button onClick={() => handleHapus(item.id)} className="px-3 py-1 bg-red-50 text-red-600 font-bold rounded-lg text-xs hover:bg-red-100 transition-all border border-red-100">
-                            Hapus
-                          </button>
-                        )}
+                        <div className="flex flex-wrap items-center justify-center gap-2">
+                          {canUpdate && !edit.editing && (
+                            <button
+                              type="button"
+                              aria-label={`Edit lokasi ${item.code}`}
+                              onClick={edit.toggle}
+                              className="px-3 py-1 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs hover:bg-blue-100 border border-blue-100"
+                            >
+                              Edit
+                            </button>
+                          )}
+                          {canUpdate && edit.editing && (
+                            <>
+                              <button
+                                type="button"
+                                disabled={edit.saving}
+                                onClick={() => void simpanSemua()}
+                                className="px-3 py-1 bg-green-50 text-green-700 font-bold rounded-lg text-xs hover:bg-green-100 border border-green-100 disabled:opacity-50"
+                              >
+                                Simpan
+                              </button>
+                              <button
+                                type="button"
+                                disabled={edit.saving}
+                                onClick={edit.cancel}
+                                className="px-3 py-1 bg-gray-50 text-gray-600 font-bold rounded-lg text-xs hover:bg-gray-100 border border-gray-200 disabled:opacity-50"
+                              >
+                                Batal
+                              </button>
+                            </>
+                          )}
+                          {isSuperadmin && canDelete && (
+                            <button
+                              onClick={() => handleHapus(item.id)}
+                              className="px-3 py-1 bg-red-50 text-red-600 font-bold rounded-lg text-xs hover:bg-red-100 transition-all border border-red-100"
+                            >
+                              Hapus
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -318,7 +345,6 @@ export default function DataLokasiGudang({
           </div>
         </div>
         <Pagination page={page} pageSize={pageSize} total={loaded?.total ?? 0} onPageChange={(p) => leaveRows(() => setPage(p))} activeClass={paginationActiveClass} />
-
       </div>
 
       {isBatchOpen && (
@@ -328,80 +354,79 @@ export default function DataLokasiGudang({
         />
       )}
 
-      {/* Modal Tambah Data Lokasi */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md transition-opacity duration-300 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-137.5 p-8 border border-white/20 relative animate-in zoom-in-95 duration-200">
-            <button
-              type="button"
-              onClick={closeModal}
-              aria-label="Tutup"
-              className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-137.5 p-8 border border-white/20 relative animate-in zoom-in-95 duration-200">
+          <button
+            type="button"
+            onClick={closeModal}
+            aria-label="Tutup"
+            className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
 
-            <h2 className="text-[20px] font-extrabold text-gray-900 mb-8 tracking-wide">
-              TAMBAH DATA LOKASI
-            </h2>
+          <h2 className="text-[20px] font-extrabold text-gray-900 mb-8 tracking-wide">
+            TAMBAH DATA LOKASI
+          </h2>
 
-            <div className="mb-6">
-              <label htmlFor="lokasi-kode" className="block text-sm font-semibold text-gray-700 mb-2">Kode Lokasi</label>
-              <input
-                id="lokasi-kode"
-                type="text"
-                autoFocus
-                autoComplete="off"
-                maxLength={20}
-                placeholder="Contoh: A.2 atau A.1.2"
-                value={modalData.kode}
-                onChange={(e) => setModalData({ ...modalData, kode: e.target.value.toUpperCase().replace(/[^A-Z0-9.]/g, '') })}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void handleSimpan(); } }}
-                className="w-full border border-gray-200 bg-gray-50/50 rounded-lg py-3 px-4 font-mono text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-sm transition-all duration-200"
-              />
-              {modalData.kode && (
-                kodePreview ? (
-                  <p className="mt-2 text-xs text-gray-500">
-                    Rak <b className="text-gray-800">{kodePreview.rackName}</b> · Kolom{' '}
-                    <b className="text-gray-800">{kodePreview.kolom}</b>
-                    {kodePreview.kolomOtomatis && ' (otomatis)'} · Baris <b className="text-gray-800">{kodePreview.baris}</b>
-                    {' '}→ disimpan sebagai <b className="font-mono text-gray-800">{kodePreview.code}</b>
-                  </p>
-                ) : (
-                  <p className="mt-2 text-xs text-red-600">Format belum sesuai. {CONTOH_KODE}</p>
-                )
-              )}
-            </div>
-
-            <div className="mb-6">
-              <label htmlFor="lokasi-keterangan" className="block text-sm font-semibold text-gray-700 mb-2">Keterangan <span className="font-normal text-gray-400">(opsional)</span></label>
-              <input
-                id="lokasi-keterangan"
-                type="text"
-                maxLength={255}
-                placeholder="Contoh: Rak A baris 1, bahan lembaran"
-                className="w-full border border-gray-200 bg-gray-50/50 rounded-lg py-3 px-4 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-sm transition-all duration-200"
-                value={modalData.keterangan}
-                onChange={(e) => setModalData({ ...modalData, keterangan: e.target.value })}
-              />
-            </div>
-
-            {formError && (
-              <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{formError}</div>
+          <div className="mb-6">
+            <label htmlFor="lokasi-kode" className="block text-sm font-semibold text-gray-700 mb-2">Kode Lokasi</label>
+            <input
+              id="lokasi-kode"
+              type="text"
+              autoFocus
+              autoComplete="off"
+              maxLength={20}
+              placeholder="Contoh: A.2 atau A.1.2"
+              value={modalData.kode}
+              onChange={(e) => setModalData({ ...modalData, kode: e.target.value.toUpperCase().replace(/[^A-Z0-9.]/g, '') })}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void handleSimpan(); } }}
+              className="w-full border border-gray-200 bg-gray-50/50 rounded-lg py-3 px-4 font-mono text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-sm transition-all duration-200"
+            />
+            {modalData.kode && (
+              kodePreview ? (
+                <p className="mt-2 text-xs text-gray-500">
+                  Rak <b className="text-gray-800">{kodePreview.rackName}</b> · Kolom{' '}
+                  <b className="text-gray-800">{kodePreview.kolom}</b>
+                  {kodePreview.kolomOtomatis && ' (otomatis)'} · Baris <b className="text-gray-800">{kodePreview.baris}</b>
+                  {' '}→ disimpan sebagai <b className="font-mono text-gray-800">{kodePreview.code}</b>
+                </p>
+              ) : (
+                <p className="mt-2 text-xs text-red-600">Format belum sesuai. {CONTOH_KODE}</p>
+              )
             )}
-
-            <div className="flex justify-end pt-2 border-t border-gray-50 mt-4">
-              <button
-                onClick={handleSimpan}
-                disabled={saving}
-                className="px-8 py-2.5 bg-[#ff8a00] text-white rounded-lg shadow-sm hover:shadow-md hover:bg-[#f08000] hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm disabled:opacity-60"
-              >
-                {saving ? "Menyimpan..." : "Simpan"}
-              </button>
-            </div>
           </div>
+
+          <div className="mb-6">
+            <label htmlFor="lokasi-keterangan" className="block text-sm font-semibold text-gray-700 mb-2">Keterangan <span className="font-normal text-gray-400">(opsional)</span></label>
+            <input
+              id="lokasi-keterangan"
+              type="text"
+              maxLength={255}
+              placeholder="Contoh: Rak A baris 1, bahan lembaran"
+              className="w-full border border-gray-200 bg-gray-50/50 rounded-lg py-3 px-4 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-sm transition-all duration-200"
+              value={modalData.keterangan}
+              onChange={(e) => setModalData({ ...modalData, keterangan: e.target.value })}
+            />
+          </div>
+
+          {formError && (
+            <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{formError}</div>
+          )}
+
+          <div className="flex justify-end pt-2 border-t border-gray-50 mt-4">
+            <button
+              onClick={handleSimpan}
+              disabled={saving}
+              className="px-8 py-2.5 bg-[#ff8a00] text-white rounded-lg shadow-sm hover:shadow-md hover:bg-[#f08000] hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm disabled:opacity-60"
+            >
+              {saving ? "Menyimpan..." : "Simpan"}
+            </button>
+          </div>
+        </div>
         </div>
       )}
     </div>

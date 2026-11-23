@@ -154,3 +154,14 @@ Detail hasil final diakses melalui halaman `[id]` di bawah rute daftar transaksi
 ## Filter sumber Rekap Barang Masuk
 
 Pilihan **Sumber Inbound** hanya disembunyikan pada Rekap Barang Masuk Gudang. Daftar, ekspor, dan cetak mencakup semua sumber penerimaan sesuai pencarian dan periode tanggal yang aktif. Rekap Barang Masuk Gudang Barang Jadi dan Purchasing tetap menyediakan filter sumber.
+
+## Tampilan Barang Keluar
+
+- Kolom **Check** di daftar transaksi berada di kolom pertama, dan baris
+  rincian per barang ikut rata dengan kolom header yang sama.
+- Warna pembatas baris memakai `gray-200` agar lebih jelas.
+- Kolom **Dokubah** di form pengisian barang disembunyikan sementara. Nilai
+  Dokubah tetap ada di tipe baris dan tetap ikut tercetak bila ada.
+- Kolom **Hapus** pada tabel barang hanya tampil setelah ada baris. Saat
+  tabel kosong, hanya kolom No, Nama Material, Satuan/Vol, Kode, dan
+  Pengambilan yang tampil, sehingga tidak ada kolom kosong berlebih.

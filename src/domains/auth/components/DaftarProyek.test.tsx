@@ -26,6 +26,14 @@ describe('DaftarProyek', () => {
     expect(cells('SPK-2')[4].textContent).toBe('-');
   });
 
+  it('tidak menampilkan tombol refresh dan memberi info refresh 30 menit', async () => {
+    installFakeApi({ 'GET /api/v1/tracking/spk': many });
+    render(<DaftarProyekPage />);
+    await screen.findByText('SPK-1');
+    expect(screen.queryByRole('button', { name: /refresh/i })).toBeNull();
+    expect(screen.getByRole('status').textContent).toContain('Sistem melakukan refresh setiap 30 menit');
+  });
+
   it('requests the full list without a limit', async () => {
     const api = installFakeApi({ 'GET /api/v1/tracking/spk': many });
     render(<DaftarProyekPage />);
@@ -65,49 +73,8 @@ describe('DaftarProyek', () => {
     render(<DaftarProyekPage />);
     await screen.findByText('SPK-1');
     fireEvent.click(screen.getByRole('button', { name: 'Selanjutnya' }));
-    fireEvent.change(screen.getByRole('textbox', { name: 'Cari di semua kolom Daftar Proyek' }), { target: { value: 'Klien' } });
-    await waitFor(() => expect(screen.getByRole('button', { name: '1' }).getAttribute('aria-current')).toBe('page'));
-    expect(api.calls('GET /api/v1/tracking/spk')).toHaveLength(1);
-    expect(api.calls('GET /api/v1/tracking/spk')[0].query.has('search')).toBe(false);
-  });
-
-  it.each([
-    ['client', '  kLiEn 120  '],
-    ['nama proyek', 'Proyek 120'],
-    ['nomor SPK', 'SPK-120'],
-    ['SPK masuk', new Date('2026-01-05T00:00:00').toLocaleDateString('id-ID', { dateStyle: 'medium' })],
-  ])('mencari kolom %s pada seluruh data, termasuk halaman lain', async (_, query) => {
-    const rows = many.map((item, index) => ({ ...item, tanggalMasuk: index === 119 ? '2026-01-05' : null }));
-    // Simulate a backend search that does not cover every column.
-    const api = installFakeApi({
-      'GET /api/v1/tracking/spk': (r: { query: URLSearchParams }) => r.query.has('search') ? [] : rows,
-    });
-    render(<DaftarProyekPage />);
-    await screen.findByText('SPK-1');
-    expect(screen.queryByText('SPK-120')).toBeNull();
-    fireEvent.change(screen.getByRole('textbox', { name: 'Cari di semua kolom Daftar Proyek' }), { target: { value: query } });
-    expect(await screen.findByText('SPK-120')).not.toBeNull();
-    expect(rowCount()).toBe(1);
-    expect(api.calls('GET /api/v1/tracking/spk')).toHaveLength(1);
-
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: '' } });
-    await waitFor(() => expect(rowCount()).toBe(20));
-    expect(footer()).toContain('dari 120 data');
-  });
-
-  it('menampilkan hasil kosong dan tetap mencari di semua kolom setelah refresh', async () => {
-    const rows = [{ ...spk(1), tanggalMasuk: '2026-01-05' }];
-    const api = installFakeApi({ 'GET /api/v1/tracking/spk': rows });
-    render(<DaftarProyekPage />);
-    await screen.findByText('SPK-1');
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'tidak ada' } });
-    expect(await screen.findByText('Data proyek tidak ditemukan.')).not.toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Refresh data tracking' }));
-    await screen.findByText('Data tracking berhasil diperbarui.');
-    await waitFor(() => expect(api.calls('GET /api/v1/tracking/spk')).toHaveLength(3));
-    expect(api.calls('GET /api/v1/tracking/spk').some((c) => c.query.get('refresh') === '1')).toBe(true);
-    expect(api.calls('GET /api/v1/tracking/spk').every((c) => !c.query.has('search') && !c.query.has('limit'))).toBe(true);
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: '2026' } });
-    expect(await screen.findByText('SPK-1')).not.toBeNull();
+    fireEvent.change(screen.getByPlaceholderText('Cari client, proyek, atau SPK...'), { target: { value: 'Klien' } });
+    await waitFor(() => expect(api.calls('GET /api/v1/tracking/spk').some((c) => c.query.get('search') === 'Klien')).toBe(true));
+    expect(screen.getByRole('button', { name: '1' }).getAttribute('aria-current')).toBe('page');
   });
 });

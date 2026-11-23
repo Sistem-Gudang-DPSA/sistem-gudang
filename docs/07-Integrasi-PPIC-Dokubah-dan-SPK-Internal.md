@@ -145,3 +145,11 @@ Dokubah, SPK Internal, dan rekap PPIC tersambung. Yang belum dikerjakan:
 
 Lanjutan di sisi Gudang ada di `08-Tampilan-Gudang-dan-Detail-Rekap-Permintaan.md`.
 Daftar pekerjaan sisanya ada di `04-Rencana-Selanjutnya.md`.
+
+## Daftar Proyek dan refresh tracking
+
+Halaman **Daftar Proyek** membaca seluruh daftar `GET /tracking/spk` tanpa
+`limit` dan memaginasi di sisi klien. Tombol refresh manual sudah dihapus;
+di bawah daftar ada keterangan **"Sistem melakukan refresh setiap 30 menit."**
+Angka 30 menit mengikuti cache backend (`TRACKING_CACHE_TTL_MINUTES`, default
+30) yang memuat ulang data tracking di latar belakang.
