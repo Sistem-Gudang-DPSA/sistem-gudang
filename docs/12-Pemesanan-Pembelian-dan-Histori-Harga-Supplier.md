@@ -21,21 +21,42 @@ contoh dan tombol simpannya hanya menampilkan alert.
 - Total di layar hanya pratinjau. Nilai yang tersimpan dan dikembalikan
   adalah hasil hitung backend. `dppLain` bukan lagi input, dan backend
   menolak body yang memuatnya.
-- PO hanya bisa dibuat untuk permintaan pembelian berstatus Disetujui.
-  Satu permintaan boleh punya beberapa PO. PIC supplier dan kode barang
+- PO hanya bisa dibuat setelah Gudang mengajukan permintaan, PPIC menyetujui
+  tahap awal, dan Purchasing memberi persetujuan akhir. Persetujuan PPIC
+  saja masih berstatus pending dan belum mengizinkan PO. Satu permintaan
+  boleh punya beberapa PO. PIC supplier dan kode barang
   setiap baris sekarang wajib diisi karena backend mewajibkannya.
 - PO tidak dibuat mandiri: tombol **Buat Pesanan Baru** dan route form PO
   tanpa permintaan sudah dihapus. PO selalu dimulai dari permintaan
-  pembelian PPIC.
+  pembelian Gudang maupun PPIC.
 - Role Purchasing membutuhkan permission `purchase-order.create`.
 
 ## Membagi permintaan menjadi beberapa PO
 
-- Form Buat PO memuat semua baris permintaan. Purchasing memilih satu
-  supplier untuk PO itu, lalu mencentang baris yang dibeli dari supplier
-  tersebut; baris lain dibuat PO terpisah. Hanya baris yang dicentang yang
-  dihitung pada total dan dikirim ke backend, masing-masing dengan
-  `lineIndex` baris permintaannya.
+- Form Buat PO otomatis mengelompokkan baris permintaan Gudang maupun PPIC
+  berdasarkan `items[].proyek`. Spasi di awal/akhir nama proyek diabaikan.
+  Setiap proyek memiliki form tersendiri dengan tanggal, supplier, PIC,
+  harga barang, diskon, PPN, dan jasa yang diisi terpisah. Satu PO hanya
+  memuat satu proyek dan satu supplier; permintaan asal tetap satu dokumen.
+- Purchasing menyimpan setiap form proyek dengan tombol **Buat**.
+  `POST /api/v1/purchase-orders` menerima `approvalRequestId` permintaan asal,
+  `kebutuhanProyek` nama satu proyek, dan `barang[].lineIndex` indeks asli
+  baris permintaan sebelum pengelompokan. Hanya baris yang dicentang yang
+  dihitung dan dikirim; barang dari proyek lain tidak masuk PO tersebut.
+- Untuk beberapa supplier pada proyek yang sama, centang barang untuk
+  supplier pertama. Setelah berhasil, tombol **Buat PO berikutnya untuk
+  proyek ini** membuka kembali form untuk sisa barang. Supplier, PIC, dan
+  jasa dikosongkan agar diisi untuk pesanan berikutnya. Baris yang berhasil
+  disimpan langsung ditandai sudah dipesan dan tidak dikirim ulang.
+- Hasil penyimpanan ditampilkan pada setiap proyek. Jika satu proyek gagal,
+  pesan kegagalannya tampil dan isiannya tetap tersedia untuk dicoba lagi;
+  PO proyek lain yang berhasil tetap tersimpan dan ditampilkan. Barang yang
+  belum dipilih tetap menjadi sisa pesanan, bukan dihapus.
+- Tombol **Buat** dinonaktifkan selama daftar PO sebelumnya dimuat, jika
+  pemuatan gagal, jika proyek kosong, atau jika semua barang proyek sudah
+  dipesan. Kegagalan memuat daftar PO menyediakan tombol **Coba lagi**.
+  Barang tanpa proyek tetap ditampilkan dengan pesan agar permintaan asal
+  diperbaiki sebelum PO dapat dibuat.
 - Baris yang sudah masuk PO aktif (bukan batal) ditandai **Sudah dipesan**
   dan tidak bisa dicentang lagi. Daftar PO aktif dibaca lewat
   `GET /purchase-orders?approvalRequestId=` lalu `GET /purchase-orders/{id}`
@@ -84,7 +105,9 @@ contoh dan tombol simpannya hanya menampilkan alert.
   buat PO).
 - Baris tombol aksi memakai `flex-wrap`, jadi tetap tersusun tanpa meluber
   di layar sempit.
-- Setelah PO tersimpan, layar kembali ke detail permintaan.
+- Setelah PO tersimpan, hasil tetap tampil pada kelompok proyeknya agar
+  Purchasing dapat melanjutkan proyek lain. Tombol kembali membuka halaman
+  asal sesuai jalur navigasi.
 
 ## Detail PO dan cetak PO
 

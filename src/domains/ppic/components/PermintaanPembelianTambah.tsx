@@ -17,7 +17,8 @@ import { useApiData } from '@/shared/lib/use-api-data';
 import SearchableSelect from '@/shared/components/SearchableSelect';
 import type { ItemListRow } from '@/domains/inventory/types';
 import RekomendasiStokMinimum, { qtySaranRestock } from './RekomendasiStokMinimum';
-import { cetakFormPermintaanPembelian } from '@/domains/ppic/print-permintaan-pembelian';
+import { gudang_permintaan_pembelian_path } from '@/domains/inventory/permintaan-pembelian';
+import { cetakFormPermintaanPembelian, penyetujuPermintaanPembelian } from '@/domains/ppic/print-permintaan-pembelian';
 
 const emptyRow = { itemId: undefined as number | undefined, tanggal: "", supplier: "", keterangan: "", dikirimTanggal: "", namaBarang: "", qty: "", satuan: "", proyek: "", client: "", noSpk: "" };
 type Row = typeof emptyRow;
@@ -62,7 +63,7 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
     `permintaan-daftar-proyek|${canCreate}`,
     'Gagal memuat daftar proyek.',
   );
-  const pilihanProyek = [...new Set((daftarProyek ?? []).map((spk) => spk.projectName?.trim()).filter((name): name is string => !!name && name !== '-'))]
+  const pilihanProyek = [...new Set((daftarProyek ?? []).map((spk) => spk.client?.trim()).filter((name): name is string => !!name && name !== '-'))]
     .sort((a, b) => a.localeCompare(b))
     .map((name) => ({ value: name, label: name }));
 
@@ -412,7 +413,7 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
         <button type="button" onClick={() => setTableData((rows) => [...rows, { ...emptyRow }])} className="mb-6 text-sm font-semibold text-orange-600">+ Tambah Baris</button>
         <div className="grid grid-cols-2 gap-8 mb-8 text-center text-sm text-gray-600">
           <div>Dibuat<p className="mt-12 font-semibold">Kepala Gudang</p></div>
-          <div>Disetujui Oleh<p className="mt-12 font-semibold">Bag. Purchasing</p></div>
+          <div>Disetujui Oleh<p className="mt-12 font-semibold">{basePath === gudang_permintaan_pembelian_path ? 'PPIC' : penyetujuPermintaanPembelian(header.bagian)}</p></div>
         </div>
         {/* Submit Action */}
         {proyekError && <p role="alert" className="text-sm text-red-500 text-right mb-3">{proyekError}</p>}

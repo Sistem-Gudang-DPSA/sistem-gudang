@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { listApprovals } from '@/domains/ppic/api';
 import { displayDate, toDateRange } from '@/domains/inventory/date';
 import type { ApprovalRequest, ApprovalStatus } from '@/domains/ppic/types';
-import { permintaan_pembelian_path } from '@/domains/ppic/data/pembelian';
+import { permintaan_pembelian_path, statusPersetujuanPermintaan } from '@/domains/ppic/data/pembelian';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
 import BatalkanPermintaan from './BatalkanPermintaan';
@@ -23,20 +23,18 @@ const STATUS_LABEL: Record<ApprovalStatus, { label: string; cls: string }> = {
 
 const purchaseLabel = (request: ApprovalRequest) => request.purchaseStatus === 'PURCHASED' ? 'Sudah dibeli' : request.purchaseStatus === 'PARTIALLY_PURCHASED' ? 'Sebagian dibeli' : request.purchaseStatus === 'NOT_PURCHASED' ? 'Belum dibeli' : 'Status belum tersedia';
 
-const summarize = (req: ApprovalRequest) => {
-  const p = req.payload;
-  if (!p) return '-';
-  // Some requests come back from the API with a payload but no items list.
-  const items = p.items ?? [];
-  const names = items.map((it) => it.namaBarang).join(', ');
-  return `${p.bagian ?? '-'} - ${items.length} barang${names ? ` (${names})` : ''}`;
-};
+const projectNames = (req: ApprovalRequest) => [...new Set((req.payload?.items ?? []).map((item) => item.proyek?.trim()).filter((name): name is string => !!name && name !== '-'))];
 
 // `basePath` keeps the Tambah link inside the division that shows this list (Gudang reuses it).
-export default function DaftarPermintaanPembelianPPIC({ basePath = permintaan_pembelian_path }: { basePath?: string }) {
+export default function DaftarPermintaanPembelianPPIC() {
+  return <DaftarPermintaanPembelian reviewMode />;
+}
+
+export function DaftarPermintaanPembelian({ basePath = permintaan_pembelian_path, reviewMode = false }: { basePath?: string; reviewMode?: boolean }) {
   const user = useAuthUser();
   const canCreate = useCan('purchase-request.create');
   const canView = useCan('approval.view');
+  const canApprove = useCan('purchase-request.approve');
   const [printingId, setPrintingId] = useState<number | null>(null);
   const [printError, setPrintError] = useState('');
   const [searchQuery, setSearchQuery] = useState("");
@@ -86,7 +84,7 @@ export default function DaftarPermintaanPembelianPPIC({ basePath = permintaan_pe
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       <div className="flex flex-col justify-start mb-8 gap-2">
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1 uppercase">DAFTAR PERMINTAAN PEMBELIAN</h1>
-        <p className="text-gray-500 text-sm">Kelola pengajuan permintaan pembelian barang.</p>
+        <p className="text-gray-500 text-sm">{reviewMode ? 'Tinjau permintaan dari Gudang sebelum diteruskan ke Purchasing.' : 'Kelola pengajuan permintaan pembelian barang.'}</p>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
@@ -172,7 +170,7 @@ export default function DaftarPermintaanPembelianPPIC({ basePath = permintaan_pe
             </div>
           </div>
 
-          {canCreate && (
+          {!reviewMode && canCreate && (
             <Link href={`${basePath}/tambah`} className="w-full lg:w-auto">
               <button className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0 w-full">
                 <Plus className="w-4 h-4" />
@@ -191,23 +189,44 @@ export default function DaftarPermintaanPembelianPPIC({ basePath = permintaan_pe
               <tr>
                 <th scope="col" className="px-6 py-4 w-16 text-center">No</th>
                 <th scope="col" className="px-6 py-4">Tanggal</th>
+                <th scope="col" className="px-6 py-4">Bagian / Sub Bagian</th>
+                <th scope="col" className="px-6 py-4">Nama Pengaju</th>
+                <th scope="col" className="px-6 py-4">Proyek / Client</th>
                 <th scope="col" className="px-6 py-4 text-center">Rincian Permintaan</th>
+                <th scope="col" className="px-6 py-4 text-center">Status Persetujuan</th>
                 <th scope="col" className="px-6 py-4 text-center">Status Pembelian</th>
                 <th scope="col" className="px-6 py-4 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading && (
-                <tr><td colSpan={5} className="px-6 py-10 text-center text-gray-400">Memuat data...</td></tr>
+                <tr><td colSpan={9} className="px-6 py-10 text-center text-gray-400">Memuat data...</td></tr>
               )}
               {!loading && error && (
-                <tr><td colSpan={5} className="px-6 py-10 text-center text-red-500">{error}</td></tr>
+                <tr><td colSpan={9} className="px-6 py-10 text-center text-red-500">{error}</td></tr>
               )}
               {!loading && !error && filteredData.map((item, index) => (
                 <tr key={item.id} className="hover:bg-[#FF8A00]/5 transition-colors group">
                   <td className="px-6 py-4 text-gray-500 text-center font-medium">{(page - 1) * 20 + index + 1}.</td>
                   <td className="px-6 py-4 text-gray-500 font-bold">{displayDate(item.payload?.tanggalPengajuan ?? item.createdAt)}</td>
-                  <td className="px-6 py-4 text-gray-700 italic max-w-md truncate">{summarize(item)}</td>
+                  <td className="px-6 py-4 text-gray-700 whitespace-normal min-w-40">{item.payload?.bagian?.trim() || '-'}</td>
+                  <td className="px-6 py-4 text-gray-700 whitespace-normal min-w-36">{item.payload?.namaPemohon?.trim() || '-'}</td>
+                  <td className="px-6 py-4 text-gray-700 whitespace-normal min-w-44">
+                    {projectNames(item).length ? <ul className="space-y-1">{projectNames(item).map((name) => <li key={name}>{name}</li>)}</ul> : '-'}
+                  </td>
+                  <td className="px-6 py-4 text-gray-700 whitespace-normal min-w-64 max-w-md break-words">
+                    <p className="mb-2 text-xs text-gray-500">{item.payload?.items?.length ?? 0} barang</p>
+                    <ul className="space-y-2">
+                      {(item.payload?.items ?? []).map((barang, i) => (
+                        <li key={i}>
+                          {`${barang.namaBarang || '-'} — ${barang.qty ?? '-'} ${barang.satuan || '-'}`}
+                          {projectNames(item).length > 1 && <p className="text-xs text-gray-500">Proyek / Client: {barang.proyek?.trim() || '-'}</p>}
+                          {barang.keterangan && <p className="text-xs text-gray-500">{barang.keterangan}</p>}
+                        </li>
+                      ))}
+                    </ul>
+                  </td>
+                  <td className="px-6 py-4 text-center"><span className={`rounded-full border px-3 py-1 text-xs font-semibold ${STATUS_LABEL[item.status].cls}`}>{statusPersetujuanPermintaan(item)}</span></td>
                   <td className="px-6 py-4 text-center">
                     {item.status === 'cancelled' ? (
                       <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${STATUS_LABEL.cancelled.cls}`}>{STATUS_LABEL.cancelled.label}</span>
@@ -219,20 +238,20 @@ export default function DaftarPermintaanPembelianPPIC({ basePath = permintaan_pe
                   </td>
                   <td className="px-6 py-4 text-center">
                     <div className={`inline-grid ${basePath === permintaan_pembelian_path ? 'grid-cols-[3.5rem_5.75rem_auto_auto]' : 'grid-cols-[3.5rem_5.75rem_auto]'} items-center gap-2`}>
-                      {canCreate && ['pending', 'revision_requested'].includes(item.status) && (!user || user.isSuperadmin || user.id === item.requestedBy) && (
+                      {!reviewMode && canCreate && ['pending', 'revision_requested'].includes(item.status) && (!user || user.isSuperadmin || user.id === item.requestedBy) && (
                         <>
                           <Link href={`${basePath}/${item.id}/edit`} className="px-4 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] font-bold rounded-lg text-xs hover:bg-[#FF8A00]/20 transition-all">Edit</Link>
                           <BatalkanPermintaan id={item.id} onDone={reload} />
                         </>
                       )}
-                      <button
+                      {reviewMode ? <Link href={`${permintaan_pembelian_path}/${item.id}`} className="col-start-3 inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs hover:bg-blue-100">Tinjau Permintaan</Link> : <button
                         onClick={() => setDetail(item)}
                         className="col-start-3 inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs hover:bg-blue-100 transition-all"
                       >
                         <Eye className="h-3.5 w-3.5" />
                         Detail
-                      </button>
-                      {basePath === permintaan_pembelian_path && (canCreate || canView) && <button
+                      </button>}
+                      {basePath === permintaan_pembelian_path && (canCreate || canView || canApprove) && <button
                         type="button"
                         onClick={() => void handleCetak(item)}
                         disabled={!item.payload || printingId !== null}
@@ -247,7 +266,7 @@ export default function DaftarPermintaanPembelianPPIC({ basePath = permintaan_pe
               ))}
               {!loading && !error && filteredData.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-gray-400 italic">
+                  <td colSpan={9} className="px-6 py-10 text-center text-gray-400 italic">
                     Data tidak ditemukan untuk filter tersebut.
                   </td>
                 </tr>

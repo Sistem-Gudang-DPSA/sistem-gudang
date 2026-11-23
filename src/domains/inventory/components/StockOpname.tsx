@@ -12,7 +12,7 @@ import { useApiData } from '@/shared/lib/use-api-data';
 import { fetchAllPagesResult } from '@/shared/lib/fetch-all';
 import { mapConcurrent } from '@/shared/lib/map-concurrent';
 import { useSelection } from '@/shared/lib/use-selection';
-import { opnameDraftKey, readOpnameDraft } from '../stock-opname-draft';
+import { opnameDraftKey, listOpnameDrafts } from '../stock-opname-draft';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import DateFilter from '@/shared/components/DateFilter';
 import ScrollableTable, { STICKY_HEAD_CLASS } from '@/shared/components/ScrollableTable';
@@ -28,7 +28,7 @@ export default function StockOpnameMasterGudang() {
   const canCreate = useCan('stock-opname.create');
   const base = gudangBasePath(usePathname());
   const draftKey = opnameDraftKey(base, useAuthUser()?.id);
-  const { data: draft, error: draftError } = useApiData(() => Promise.resolve().then(() => canCreate ? readOpnameDraft(draftKey) : null), draftKey, 'Gagal memuat draft dari browser.');
+  const { data: draftList, error: draftError } = useApiData(() => Promise.resolve().then(() => canCreate ? listOpnameDrafts(draftKey) : null), `${draftKey}|${canCreate}`, 'Gagal memuat draft dari browser.');
   const { sort, toggle, params: sortParams } = useSort();
   const [showFilter, setShowFilter] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -132,13 +132,6 @@ export default function StockOpnameMasterGudang() {
         <p className="text-gray-500 text-sm">Kelola riwayat pemeriksaan berkala stok inventaris gudang.</p>
       </div>
 
-      {draftError && <p role="alert" className="mb-4 text-sm text-red-600">{draftError}</p>}
-      {canCreate && draft && (
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
-          <div><p className="font-semibold text-amber-900">Draft: {periodeLabel(Number(draft.month), Number(draft.year))}</p><p className="mt-1 text-sm text-amber-800">{draft.rows.length} barang diisi. Tersimpan di browser ini, belum mengubah stok.</p></div>
-          <Link href={`${base}/transaksi/stock-opname/tambah`} className="rounded-lg bg-amber-100 px-4 py-2 text-sm font-bold text-amber-900 hover:bg-amber-200">Lanjutkan Draft</Link>
-        </div>
-      )}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
         {/* Table Toolbar */}
         <div className="p-5 border-b border-gray-100 bg-gray-50/50 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -263,6 +256,38 @@ export default function StockOpnameMasterGudang() {
 
         <TableFooter total={total} unit="stok opname" />
       </div>
+
+      {canCreate && (
+        <section aria-labelledby="opname-drafts-title" className="mt-6 rounded-2xl border border-amber-200 bg-white shadow-sm overflow-hidden">
+          <div className="p-5 border-b border-amber-100 bg-amber-50">
+            <h2 id="opname-drafts-title" className="font-bold text-gray-900">Draft Stok Opname ({draftList?.drafts.length ?? 0})</h2>
+            <p className="mt-1 text-sm text-gray-600">Draft terbaru ditampilkan lebih dulu. Tersimpan di browser dan akun ini, belum mengubah stok. Gunakan Tambah Data untuk membuat draft baru.</p>
+          </div>
+          {draftError && <p role="alert" className="p-4 text-sm text-red-600">{draftError}</p>}
+          {draftList?.errors.map((message) => <p key={message} role="alert" className="p-4 text-sm text-red-600">{message}</p>)}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-gray-50 text-gray-600"><tr>
+                <th scope="col" className="px-5 py-3">Draft / Periode</th>
+                <th scope="col" className="px-5 py-3">Barang Diisi</th>
+                <th scope="col" className="px-5 py-3">Terakhir Disimpan</th>
+                <th scope="col" className="px-5 py-3">Aksi</th>
+              </tr></thead>
+              <tbody className="divide-y divide-gray-100">
+                {draftList?.drafts.map((draft) => (
+                  <tr key={draft.id}>
+                    <td className="px-5 py-4"><p className="font-semibold text-gray-900">{periodeLabel(Number(draft.month), Number(draft.year))}</p><p className="mt-1 text-xs text-gray-500">Draft {draft.id === 'legacy' ? 'lama' : `#${draft.id.slice(0, 8)}`}</p></td>
+                    <td className="px-5 py-4"><p>{draft.rows.length} barang</p><p className="mt-1 text-xs text-gray-500">{draft.rows.slice(0, 3).map((row) => row.itemName).join(', ')}{draft.rows.length > 3 ? ', …' : ''}</p></td>
+                    <td className="px-5 py-4 whitespace-nowrap"><time dateTime={draft.savedAt}>{new Date(draft.savedAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'medium', timeZone: 'Asia/Jakarta' })} WIB</time></td>
+                    <td className="px-5 py-4"><Link href={`${base}/transaksi/stock-opname/tambah?draft=${encodeURIComponent(draft.id)}`} className="inline-block whitespace-nowrap rounded-lg bg-amber-100 px-4 py-2 text-sm font-bold text-amber-900 hover:bg-amber-200">Lanjutkan Draft</Link></td>
+                  </tr>
+                ))}
+                {draftList && draftList.drafts.length === 0 && draftList.errors.length === 0 && <tr><td colSpan={4} className="px-5 py-6 text-center text-gray-500">Belum ada draft tersimpan.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
     </div>
 
