@@ -47,7 +47,7 @@ function Lampiran({ label, file }: { label: string; file?: string }) {
 }
 
 // `actions` mengganti tampilan status dengan tombol aksi dan `sections` menambah bagian
-// (mis. daftar PO) di detail; keduanya dipakai halaman Purchasing.
+// (mis. daftar PO) di detail; dipakai halaman peninjauan PPIC dan Purchasing.
 export default function PermintaanPembelianPPIC({ backPath = rekap_pembelian_path, title = 'Permintaan Pembelian', actions, sections }: { backPath?: string; title?: string; actions?: (permintaan: PermintaanPembelian, reload: () => void) => React.ReactNode; sections?: (permintaan: PermintaanPembelian) => React.ReactNode }) {
   const { id } = useParams<{ id: string }>();
   const canResubmit = useCan('purchase-request.create');
@@ -170,7 +170,7 @@ export default function PermintaanPembelianPPIC({ backPath = rekap_pembelian_pat
         )}
       </div>
 
-      {/* PPIC hanya melihat status. Approve, tolak, dan revisi dilakukan Purchasing lewat `actions`. */}
+      {/* Halaman peninjauan menyediakan tombol keputusan sesuai tahap melalui `actions`. */}
       <div className="flex flex-wrap items-center justify-end gap-4 mt-8">
         {actions?.(permintaan, reload) ?? (
           <>

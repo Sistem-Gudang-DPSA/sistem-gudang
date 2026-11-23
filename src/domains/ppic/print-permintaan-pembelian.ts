@@ -11,6 +11,8 @@ const tanggalTerbit = (iso: string) => {
 type PrintHeader = { bagian: string; namaPemohon: string; jabatan: string; tanggalPengajuan: string; periode: string };
 type PrintRow = { tanggal?: string; supplier?: string; namaBarang: string; qty: string; satuan: string; proyek: string; keterangan?: string; dikirimTanggal?: string };
 
+export const penyetujuPermintaanPembelian = (bagian: string) => /^gudang(?:\s|$)/i.test(bagian.trim()) ? 'PPIC' : 'Bag. Purchasing';
+
 export function cetakFormPermintaanPembelian(header: PrintHeader, rows: PrintRow[]) {
 
     const isiBaris = rows.map((row, i) => `<tr>
@@ -34,7 +36,7 @@ export function cetakFormPermintaanPembelian(header: PrintHeader, rows: PrintRow
       <table style="border:0; margin-top:14mm; font-size:12px;">
         <tbody><tr>
           <td style="border:0; text-align:center; width:50%;">Dibuat<div style="height:16mm"></div>Kepala Gudang</td>
-          <td style="border:0; text-align:center; width:50%;">Disetujui Oleh<div style="height:16mm"></div>Bag. Purchasing</td>
+          <td style="border:0; text-align:center; width:50%;">Disetujui Oleh<div style="height:16mm"></div>${penyetujuPermintaanPembelian(header.bagian)}</td>
         </tr></tbody>
       </table>`;
     return cetakLaporan('Form Permintaan Pembelian Bahan Baku', isi, {

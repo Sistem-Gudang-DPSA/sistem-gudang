@@ -14,7 +14,7 @@ vi.mock('next/navigation', () => ({
 
 const item = { id: 1, code: 'LEM013', externalCode: null, name: 'Barang 1', detail: null, supplierId: 7, supplierName: 'PT Kayu', stock: 30, unit: 'pcs', category: 'Lembaran', locationId: 1, locationCode: 'A01', price: 1000, photo: null };
 
-function setup(updated: Record<string, unknown>, extra: Record<string, unknown> = {}, { rows = [item], user }: { rows?: typeof item[]; user?: AuthUser } = {}) {
+function setup(updated: Record<string, unknown>, extra: Record<string, unknown> = {}, { rows = [item], user }: { rows?: (typeof item & { priceUpdatedAt?: string | null })[]; user?: AuthUser } = {}) {
   const api = installFakeApi({
     'GET /api/v1/items': paged(rows),
     'GET /api/v1/locations': paged([{ id: 1, code: 'A01', rackName: 'A', rackNumber: '01' }]),
@@ -43,6 +43,16 @@ describe('DataBarang superadmin: kolom harga', () => {
     const row = (await screen.findByText('Barang 1')).closest('tr');
     expect(screen.getByRole('columnheader', { name: 'Harga Terbaru' })).toBeTruthy();
     expect(within(row!).getByText('1.000')).toBeTruthy();
+    expect(within(row!).queryByText(/^per /)).toBeNull();
+  });
+
+  it('menampilkan tanggal harga dan menyembunyikannya saat mode edit', async () => {
+    setup({}, {}, { rows: [{ ...item, priceUpdatedAt: '2026-11-23' }] });
+    const row = (await screen.findByText('Barang 1')).closest('tr');
+    expect(within(row!).getByText('per 23-11-2026')).toBeTruthy();
+    fireEvent.click(screen.getByText('Mode Edit'));
+    await waitFor(() => expect(screen.getByLabelText('Harga Barang 1')).toBeTruthy());
+    expect(screen.queryByText('per 23-11-2026')).toBeNull();
   });
 });
 

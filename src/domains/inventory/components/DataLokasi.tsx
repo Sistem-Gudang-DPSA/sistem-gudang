@@ -12,6 +12,7 @@ import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { ImportExcelButton } from '@/shared/components/ImportExcelButton';
 import BatchLokasiModal from './BatchLokasiModal';
+import BarangLokasi from './BarangLokasi';
 
 // ---------- Import Excel ----------
 export type LocationDataImportRow = {
@@ -58,7 +59,11 @@ function parseKodeLokasi(raw: string) {
 
 const emptyModal = { kode: "", keterangan: "" };
 
-export default function DataLokasiGudang({
+export default function DataLokasiGudang() {
+  return <DataLokasi />;
+}
+
+export function DataLokasi({
   paginationActiveClass = 'bg-orange-500 text-white border-orange-500',
 }: {
   paginationActiveClass?: string;
@@ -173,7 +178,7 @@ export default function DataLokasiGudang({
         <p className="text-gray-500 text-sm">Kelola kode lokasi rak penyimpanan beserta keterangannya.</p>
       </div>
 
-      <div className="bg-white w-5xl rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+      <div className="bg-white w-full rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
         {/* Toolbar */}
         <div className="p-5 border-b border-gray-100 bg-gray-50/50 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="relative w-64 lg:w-72">
@@ -245,7 +250,7 @@ export default function DataLokasiGudang({
         {/* Table */}
         <div className="overflow-hidden w-full">
           <div className="overflow-x-auto">
-            <table className="w-4xl m-auto text-left text-sm table-fixed md:table-auto">
+            <table className="w-full min-w-5xl text-left text-sm">
               <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
                 <tr>
                   <th scope="col" className="px-6 py-4 w-16 text-center">No</th>
@@ -253,6 +258,7 @@ export default function DataLokasiGudang({
                   <SortableTh label="Nama Rak" sortKey="rackName" sort={sort} onSort={sortBy} className="px-6 py-4 w-40 whitespace-nowrap" />
                   <SortableTh label="Nomer Rak" sortKey="rackNumber" sort={sort} onSort={sortBy} className="px-6 py-4 w-40 whitespace-nowrap" />
                   <SortableTh label="Keterangan" sortKey="description" sort={sort} onSort={sortBy} className="px-3 py-4 text-left min-w-30" />
+                  <th scope="col" className="px-6 py-4 text-left whitespace-nowrap">Informasi Barang</th>
                   {dataLokasi.length !== 0 && (
                     <th className="px-6 py-4 w-28 text-center whitespace-nowrap">Aksi</th>
                   )}
@@ -260,10 +266,10 @@ export default function DataLokasiGudang({
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {loading && (
-                  <tr><td colSpan={6} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
+                  <tr><td colSpan={7} className="px-6 py-6 text-center text-gray-400">Memuat data...</td></tr>
                 )}
                 {!loading && dataLokasi.length === 0 && (
-                  <tr><td colSpan={6} className="px-6 py-6 text-center text-gray-400">Belum ada data lokasi.</td></tr>
+                  <tr><td colSpan={7} className="px-6 py-6 text-center text-gray-400">Belum ada data lokasi.</td></tr>
                 )}
                 {!loading && dataLokasi.map((item, i) => {
                   const nama = edit.value(item.id, "rackName", item.rackName);
@@ -295,6 +301,7 @@ export default function DataLokasiGudang({
                           </span>
                         )}
                       </td>
+                      <td className="px-6 py-4 text-gray-600"><BarangLokasi location={item} /></td>
                       <td className="px-6 py-4 text-gray-600 text-center whitespace-nowrap">
                         <div className="flex flex-wrap items-center justify-center gap-2">
                           {canUpdate && !edit.editing && (
