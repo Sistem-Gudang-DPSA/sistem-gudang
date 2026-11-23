@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from 'react';
-import { importLocationData } from '../api';
+import { useEffect, useState } from 'react';
+import { importLocationData, listLocations } from '../api';
+import { fetchAllPages } from '@/shared/lib/fetch-all';
 import type { LocationDataImportRow } from './DataLokasi';
 
 export const MAX_LOKASI = 2000;
@@ -47,19 +48,38 @@ export default function BatchLokasiModal({ onClose, onSaved }: { onClose: () => 
   const [keterangan, setKeterangan] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  // Existing codes are loaded once so duplicates are flagged while the user is still typing.
+  const [existing, setExisting] = useState<Set<string> | null>(null);
+  const [checkError, setCheckError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchAllPages((page, pageSize) => listLocations({ page, pageSize }), 100)
+      .then((locations) => { if (!cancelled) setExisting(new Set(locations.map((location) => location.code))); })
+      .catch(() => {
+        if (!cancelled) {
+          setExisting(new Set());
+          setCheckError("Kode lokasi yang sudah ada belum bisa diperiksa. Kode duplikat tetap dilewati saat menyimpan.");
+        }
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   const valid = kolom[0] >= 1 && kolom[0] <= kolom[1] && baris[0] >= 1 && baris[0] <= baris[1];
   const { raks: rakList, ignored } = parseRaks(raks);
   const total = valid ? rakList.length * (kolom[1] - kolom[0] + 1) * (baris[1] - baris[0] + 1) : 0;
   const tooMany = total > MAX_LOKASI;
   const rows = valid && !tooMany ? generateLocations(rakList, kolom, baris, keterangan.trim() || undefined) : [];
+  const checking = existing === null;
+  const duplicates = existing ? rows.filter((row) => existing.has(row.code!)) : [];
+  const newRows = existing ? rows.filter((row) => !existing.has(row.code!)) : rows;
 
   const simpan = async () => {
-    if (rows.length === 0) return setError("Isi rak, kolom, dan baris dengan benar.");
+    if (newRows.length === 0) return setError("Isi rak, kolom, dan baris dengan benar atau pilih rentang yang belum ada.");
     setSaving(true);
     setError("");
     try {
-      const res = await importLocationData(rows);
+      const res = await importLocationData(newRows);
       const dilewati = res.skipped.length > 0 ? `, ${res.skipped.length} dilewati karena kodenya sudah ada: ${res.skipped.map((s) => s.code).join(", ")}` : "";
       onSaved(`${res.created} lokasi ditambahkan${dilewati}`);
     } catch (err) {
@@ -101,16 +121,27 @@ export default function BatchLokasiModal({ onClose, onSaved }: { onClose: () => 
 
         {ignored.length > 0 && <p role="status" className="mb-2 text-sm text-amber-700">{ignored.join(", ")} diabaikan (bukan huruf atau rentang huruf).</p>}
         {tooMany && <p role="alert" className="mb-2 text-sm text-red-600">Terlalu banyak lokasi ({total.toLocaleString("id-ID")}). Maksimal {MAX_LOKASI.toLocaleString("id-ID")} sekali buat.</p>}
-        <p className="text-sm font-semibold text-gray-700 mb-2">Preview ({rows.length} lokasi)</p>
+        {checking && <p className="mb-2 text-sm text-gray-500">Memeriksa kode lokasi yang sudah ada...</p>}
+        {checkError && <p className="mb-2 text-sm text-amber-700">{checkError}</p>}
+        {duplicates.length > 0 && (
+          <p role="alert" className="mb-2 text-sm text-red-600">
+            {duplicates.length} kode sudah ada dan tidak akan ditambahkan: {duplicates.slice(0, 10).map((row) => row.code).join(", ")}
+            {duplicates.length > 10 && `, +${duplicates.length - 10} lainnya`}.
+          </p>
+        )}
+        <p className="text-sm font-semibold text-gray-700 mb-2">Preview ({rows.length} lokasi{duplicates.length > 0 && `, ${newRows.length} baru`})</p>
         <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto mb-4 p-2 border border-gray-100 rounded-lg min-h-10">
-          {rows.map((r) => <span key={r.code} className="px-2 py-0.5 bg-orange-50 text-orange-700 rounded text-xs font-medium">{r.code}</span>)}
+          {rows.map((r) => {
+            const dup = existing?.has(r.code!) ?? false;
+            return <span key={r.code} title={dup ? "Sudah ada" : undefined} className={`px-2 py-0.5 rounded text-xs font-medium ${dup ? "bg-red-50 text-red-600 line-through" : "bg-orange-50 text-orange-700"}`}>{r.code}</span>;
+          })}
         </div>
 
         {error && <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>}
 
         <div className="flex justify-end pt-2 border-t border-gray-50">
-          <button onClick={simpan} disabled={saving || rows.length === 0} className="px-8 py-2.5 bg-[#ff8a00] text-white rounded-lg shadow-sm hover:bg-[#f08000] font-semibold text-sm disabled:opacity-60">
-            {saving ? "Menyimpan..." : `Simpan ${rows.length} lokasi`}
+          <button onClick={simpan} disabled={saving || checking || newRows.length === 0} className="px-8 py-2.5 bg-[#ff8a00] text-white rounded-lg shadow-sm hover:bg-[#f08000] font-semibold text-sm disabled:opacity-60">
+            {saving ? "Menyimpan..." : `Simpan ${newRows.length} lokasi`}
           </button>
         </div>
       </div>

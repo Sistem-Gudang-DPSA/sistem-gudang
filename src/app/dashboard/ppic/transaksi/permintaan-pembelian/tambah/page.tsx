@@ -1,1 +1,1 @@
-export { default } from "@/domains/ppic/components/PermintaanPembelianTambah";
+export { default } from "@/domains/ppic/components/PermintaanPembelianPengajuanPpic";

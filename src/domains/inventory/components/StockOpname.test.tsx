@@ -2,6 +2,12 @@ import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { installFakeApi, paged, fail } from '@/test/fake-api';
 import StockOpname from './StockOpname';
+import { opnameDraftKey, writeOpnameDraft, type OpnameDraft } from '../stock-opname-draft';
+import { AuthUserProvider } from '@/domains/auth/user-context';
+
+const nav = vi.hoisted(() => ({ pathname: '/dashboard/gudang/transaksi/stock-opname' }));
+vi.mock('next/navigation', () => ({ usePathname: () => nav.pathname }));
+beforeEach(() => { localStorage.clear(); nav.pathname = '/dashboard/gudang/transaksi/stock-opname'; });
 
 const xlsx = vi.hoisted(() => ({
   utils: { aoa_to_sheet: vi.fn(() => ({})), book_new: vi.fn(() => ({})), book_append_sheet: vi.fn() },
@@ -118,5 +124,42 @@ describe('StockOpname list', () => {
     fireEvent.click(screen.getAllByRole('checkbox')[1]);
     fireEvent.click(screen.getByTitle('Export Excel'));
     expect(await screen.findByText('Server error')).toBeTruthy();
+  });
+});
+
+
+describe.each(['/dashboard/gudang', '/dashboard/gudang-barang-jadi'])('daftar draft %s', (base) => {
+  const draft: OpnameDraft = { version: 1, month: '3', year: '2026', savedAt: '2026-03-01T00:00:00Z', rows: [{ itemId: '1', itemName: 'Triplex', code: 'B-1', unit: 'lbr', category: 'Bahan', price: 1000, stock: 10, jumlah: '8', keterangan: '' }] };
+
+  it('menampilkan draft di bawah data final, terbaru dahulu, dengan tautan khusus tiap draft', async () => {
+    nav.pathname = `${base}/transaksi/stock-opname`;
+    const key = opnameDraftKey(base, undefined);
+    localStorage.setItem(key, JSON.stringify(draft));
+    writeOpnameDraft(key, 'newest', { ...draft, savedAt: '2026-03-02T00:00:00Z' });
+    installFakeApi({ 'GET /api/v1/stock-opname': paged([row(1)]) });
+    render(<StockOpname />);
+    const section = await screen.findByRole('region', { name: 'Draft Stok Opname (2)' });
+    const drafts = within(section);
+    const links = drafts.getAllByRole('link', { name: 'Lanjutkan Draft' });
+    expect(links.map((link) => link.getAttribute('href'))).toEqual([
+      `${base}/transaksi/stock-opname/tambah?draft=newest`,
+      `${base}/transaksi/stock-opname/tambah?draft=legacy`,
+    ]);
+    expect(drafts.getAllByText('Triplex')).toHaveLength(2);
+    expect(drafts.getByText('Draft lama')).not.toBeNull();
+    expect(section.querySelector('time')?.getAttribute('datetime')).toBe('2026-03-02T00:00:00Z');
+    expect(screen.getByRole('link', { name: 'Tambah Data' }).getAttribute('href')).toBe(`${base}/transaksi/stock-opname/tambah`);
+    expect(screen.getByRole('link', { name: 'Detail' }).compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('menyembunyikan daftar draft dan tombol tambah tanpa izin create', async () => {
+    nav.pathname = `${base}/transaksi/stock-opname`;
+    writeOpnameDraft(opnameDraftKey(base, 1), 'hidden', draft);
+    installFakeApi({ 'GET /api/v1/stock-opname': paged([]) });
+    render(<AuthUserProvider user={{ id: 1, username: 'viewer', email: 'viewer@example.com', roleId: 1, roleName: 'Viewer', isSuperadmin: false, permissions: ['stock-opname.view'] }}><StockOpname /></AuthUserProvider>);
+    await screen.findByText('Data tidak ditemukan untuk filter tersebut.');
+    expect(screen.queryByRole('region', { name: /Draft Stok Opname/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Lanjutkan Draft' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Tambah Data' })).toBeNull();
   });
 });

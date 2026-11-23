@@ -1,7 +1,7 @@
 import { getApprovalDetail, listApprovals } from '@/domains/ppic/api';
 import type { ApprovalAction, ApprovalRequest, ApprovalStatus, PurchaseRequestItem } from '@/domains/ppic/types';
 
-export type StatusPermintaan = 'Belum Disetujui' | 'Disetujui' | 'Perlu Revisi' | 'Ditolak' | 'Dibatalkan';
+export type StatusPermintaan = 'Belum Disetujui' | 'Disetujui' | 'Perlu Revisi' | 'Ditolak' | 'Dibatalkan' | 'Menunggu PPIC' | 'Menunggu Purchasing';
 
 export type BarangPermintaan = PurchaseRequestItem;
 
@@ -11,6 +11,7 @@ export interface PermintaanPembelian {
   permintaan: string;
   status: StatusPermintaan;
   statusApi: ApprovalStatus;
+  currentStepOrder?: number;
   bagian: string;
   nama: string;
   jabatan: string;
@@ -37,6 +38,11 @@ export const STATUS_LABEL: Record<ApprovalStatus, StatusPermintaan> = {
   cancelled: 'Dibatalkan',
 };
 
+export const statusPersetujuanPermintaan = (request: Pick<ApprovalRequest, 'status' | 'currentStepOrder'>): StatusPermintaan =>
+  request.status === 'pending' && request.currentStepOrder === 2 ? 'Menunggu PPIC'
+    : request.status === 'pending' && request.currentStepOrder === 3 ? 'Menunggu Purchasing'
+      : STATUS_LABEL[request.status];
+
 const toPermintaan = (req: ApprovalRequest): PermintaanPembelian => {
   const p = req.payload;
   const barang = p?.items ?? [];
@@ -44,7 +50,8 @@ const toPermintaan = (req: ApprovalRequest): PermintaanPembelian => {
     id: req.id,
     tanggal: (p?.tanggalPengajuan ?? req.createdAt).slice(0, 10),
     permintaan: p?.notes || `${p?.bagian ?? '-'} - ${barang.length} barang`,
-    status: STATUS_LABEL[req.status],
+    status: statusPersetujuanPermintaan(req),
+    currentStepOrder: req.currentStepOrder,
     statusApi: req.status,
     bagian: p?.bagian ?? '-',
     nama: p?.namaPemohon ?? '-',

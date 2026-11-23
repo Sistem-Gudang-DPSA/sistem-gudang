@@ -4,15 +4,16 @@ import { cleanup, render, screen, waitFor, fireEvent, within } from "@testing-li
 import { installFakeApi, paged, fail } from "@/test/fake-api";
 import StockOpnameTambah from "./StockOpnameTambah";
 import StockOpname from "./StockOpname";
-import { opnameDraftKey, readOpnameDraft } from '../stock-opname-draft';
+import { opnameDraftKey, readOpnameDraft, listOpnameDrafts } from '../stock-opname-draft';
 
-const nav = vi.hoisted(() => ({ pathname: '/dashboard/gudang/transaksi/stock-opname/tambah' }));
+const nav = vi.hoisted(() => ({ pathname: '/dashboard/gudang/transaksi/stock-opname/tambah', search: '' }));
 const push = vi.fn();
 const back = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push, replace: vi.fn(), back }),
   useParams: () => ({}),
   usePathname: () => nav.pathname,
+  useSearchParams: () => new URLSearchParams(nav.search),
 }));
 
 const qr = vi.hoisted(() => ({
@@ -61,6 +62,7 @@ const setSecure = (value: boolean) =>
 
 beforeEach(() => {
   localStorage.clear();
+  nav.search = '';
   nav.pathname = "/dashboard/gudang/transaksi/stock-opname/tambah";
   push.mockClear();
   back.mockClear();
@@ -386,9 +388,10 @@ describe("scan mode", () => {
     expect(push).not.toHaveBeenCalled();
     fireEvent.click(screen.getByText("Masukkan ke opname"));
     fireEvent.click(screen.getByRole('button', { name: 'Simpan Draft' }));
-    expect(readOpnameDraft(opnameDraftKey('/dashboard/gudang', undefined))?.rows).toEqual([expect.objectContaining({ itemId: '9', jumlah: '3,5', itemName: 'Lem Kayu' })]);
+    expect(listOpnameDrafts(opnameDraftKey('/dashboard/gudang', undefined)).drafts[0]?.rows).toEqual([expect.objectContaining({ itemId: '9', jumlah: '3,5', itemName: 'Lem Kayu' })]);
     expect(api.calls('POST /api/v1/stock-opname')).toHaveLength(0);
     cleanup();
+    nav.search = `draft=${listOpnameDrafts(opnameDraftKey('/dashboard/gudang', undefined)).drafts[0].id}`;
     render(<StockOpnameTambah />);
     await screen.findByText('Triplex');
     expect(screen.getByText('Lem Kayu', { selector: 'span' })).not.toBeNull();
@@ -431,6 +434,42 @@ describe("scan mode", () => {
 });
 
 describe.each(['/dashboard/gudang', '/dashboard/gudang-barang-jadi'])('draft lokal %s', (base) => {
+  it('draft baru tidak menimpa draft lama dan submit hanya menghapus draft yang dipilih', async () => {
+    nav.pathname = `${base}/transaksi/stock-opname/tambah`;
+    const api = installFakeApi({ 'GET /api/v1/items': items, 'POST /api/v1/stock-opname': { id: 1 } });
+    const key = opnameDraftKey(base, undefined);
+    render(<StockOpnameTambah />);
+    await screen.findByText('Triplex');
+    fireEvent.change(qtys()[0], { target: { value: '8' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan Draft' }));
+    const first = listOpnameDrafts(key).drafts[0];
+    cleanup();
+
+    render(<StockOpnameTambah />);
+    await screen.findByText('Triplex');
+    expect(qtys().map((input) => input.value)).toEqual(['', '']);
+    fireEvent.change(qtys()[1], { target: { value: '4' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan Draft' }));
+    const second = listOpnameDrafts(key).drafts.find((draft) => draft.id !== first.id)!;
+    expect(listOpnameDrafts(key).drafts).toHaveLength(2);
+    expect(readOpnameDraft(key, first.id)?.rows[0].jumlah).toBe('8');
+    cleanup();
+
+    nav.search = `draft=${first.id}`;
+    render(<StockOpnameTambah />);
+    await screen.findByText('Triplex');
+    await waitFor(() => expect(qtys().map((input) => input.value)).toEqual(['8', '']));
+    fireEvent.change(qtys()[0], { target: { value: '7' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan Draft' }));
+    expect(listOpnameDrafts(key).drafts).toHaveLength(2);
+    expect(readOpnameDraft(key, second.id)?.rows[0].jumlah).toBe('4');
+    expect(readOpnameDraft(key, first.id)?.rows[0].jumlah).toBe('7');
+    submit();
+    await waitFor(() => expect(readOpnameDraft(key, first.id)).toBeNull());
+    expect(readOpnameDraft(key, second.id)?.rows[0].jumlah).toBe('4');
+    expect(api.calls('POST /api/v1/stock-opname')).toHaveLength(1);
+  });
+
   it('menyimpan seluruh hitungan termasuk nol, memulihkan periode, melanjutkan dari daftar, dan menghapus draft setelah submit', async () => {
     nav.pathname = `${base}/transaksi/stock-opname/tambah`;
     const api = installFakeApi({ 'GET /api/v1/items': items, 'GET /api/v1/stock-opname': paged([]), 'POST /api/v1/stock-opname': { id: 1 } });
@@ -442,17 +481,19 @@ describe.each(['/dashboard/gudang', '/dashboard/gudang-barang-jadi'])('draft lok
     fireEvent.click(screen.getByRole('button', { name: 'Simpan Draft' }));
     expect(api.calls('POST /api/v1/stock-opname')).toHaveLength(0);
     const key = opnameDraftKey(base, undefined);
-    expect(readOpnameDraft(key)?.rows.map((row) => row.jumlah)).toEqual(['8,5', '0']);
+    const draftId = listOpnameDrafts(key).drafts[0].id;
+    expect(readOpnameDraft(key, draftId)?.rows.map((row) => row.jumlah)).toEqual(['8,5', '0']);
     expect(push).toHaveBeenCalledWith(`${base}/transaksi/stock-opname`);
     first.unmount();
 
     nav.pathname = `${base}/transaksi/stock-opname`;
     const list = render(<StockOpname />);
-    expect((await screen.findByRole('link', { name: 'Lanjutkan Draft' })).getAttribute('href')).toBe(`${base}/transaksi/stock-opname/tambah`);
+    expect((await screen.findByRole('link', { name: 'Lanjutkan Draft' })).getAttribute('href')).toBe(`${base}/transaksi/stock-opname/tambah?draft=${draftId}`);
     expect(screen.queryByRole('button', { name: 'Download' })).toBeNull();
     list.unmount();
 
     nav.pathname = `${base}/transaksi/stock-opname/tambah`;
+    nav.search = `draft=${draftId}`;
     render(<StockOpnameTambah />);
     await screen.findByText('Triplex');
     expect((document.querySelectorAll('select')[0] as HTMLSelectElement).value).toBe('2');
@@ -460,11 +501,29 @@ describe.each(['/dashboard/gudang', '/dashboard/gudang-barang-jadi'])('draft lok
     submit();
     await waitFor(() => expect(api.calls('POST /api/v1/stock-opname')).toHaveLength(1));
     expect(api.calls('POST /api/v1/stock-opname')[0].body).toMatchObject({ month: 2, lines: [{ itemId: 1, physicalQty: 8.5 }, { itemId: 2, physicalQty: 0 }] });
-    await waitFor(() => expect(readOpnameDraft(key)).toBeNull());
+    await waitFor(() => expect(readOpnameDraft(key, draftId)).toBeNull());
   });
 });
 
 describe('draft lokal: kegagalan', () => {
+  it('draft yang tidak ditemukan tidak mengubah draft lain ketika isian baru disimpan', async () => {
+    await setup();
+    fireEvent.change(qtys()[0], { target: { value: '8' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan Draft' }));
+    const key = opnameDraftKey('/dashboard/gudang', undefined);
+    const first = listOpnameDrafts(key).drafts[0];
+    cleanup();
+    nav.search = 'draft=not-found';
+    render(<StockOpnameTambah />);
+    await screen.findByText('Triplex');
+    expect(screen.getByRole('alert').textContent).toContain('Draft stok opname tidak ditemukan.');
+    fireEvent.change(qtys()[0], { target: { value: '3' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan Draft' }));
+    expect(listOpnameDrafts(key).drafts).toHaveLength(2);
+    expect(readOpnameDraft(key, first.id)?.rows[0].jumlah).toBe('8');
+    expect(readOpnameDraft(key, 'not-found')).toBeNull();
+  });
+
   it('gagal menyimpan ke browser tidak menghapus isian atau mengirim transaksi', async () => {
     const { api } = await setup();
     fireEvent.change(qtys()[0], { target: { value: '8' } });
@@ -478,12 +537,17 @@ describe('draft lokal: kegagalan', () => {
 
   it('draft rusak tidak mengunci form: form terbuka kosong dengan peringatan', async () => {
     localStorage.setItem(opnameDraftKey('/dashboard/gudang', undefined), '{not-json');
+    nav.search = 'draft=legacy';
     installFakeApi({ "GET /api/v1/items": items });
     render(<StockOpnameTambah />);
     expect(await screen.findByText('Triplex')).not.toBeNull();
     expect(screen.getByRole('alert').textContent).toContain('Draft stok opname tidak dapat dibaca');
     expect(screen.getByRole('button', { name: 'Simpan Draft' })).not.toBeNull();
     expect(qtys().map((input) => input.value)).toEqual(['', '']);
+    fireEvent.change(qtys()[0], { target: { value: '3' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan Draft' }));
+    expect(localStorage.getItem(opnameDraftKey('/dashboard/gudang', undefined))).toBe('{not-json');
+    expect(listOpnameDrafts(opnameDraftKey('/dashboard/gudang', undefined)).drafts).toHaveLength(1);
   });
 
   it('submit gagal mempertahankan draft agar bisa dilanjutkan', async () => {
@@ -493,7 +557,7 @@ describe('draft lokal: kegagalan', () => {
     const key = opnameDraftKey('/dashboard/gudang', undefined);
     submit();
     await screen.findAllByText('Gagal submit');
-    expect(readOpnameDraft(key)?.rows[0].jumlah).toBe('9');
+    expect(listOpnameDrafts(key).drafts[0]?.rows[0].jumlah).toBe('9');
     expect(qtys()[0].value).toBe('9');
   });
 });

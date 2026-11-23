@@ -1,4 +1,4 @@
-import DataLokasi from '@/domains/inventory/components/DataLokasi';
+import { DataLokasi } from '@/domains/inventory/components/DataLokasi';
 
 // Super Admin uses the Gudang Data Lokasi screen with its own indigo pagination.
 export default function DataLokasiSuperadmin() {
