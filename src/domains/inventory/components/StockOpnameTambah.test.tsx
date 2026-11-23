@@ -476,6 +476,16 @@ describe('draft lokal: kegagalan', () => {
     expect(api.calls('POST /api/v1/stock-opname')).toHaveLength(0);
   });
 
+  it('draft rusak tidak mengunci form: form terbuka kosong dengan peringatan', async () => {
+    localStorage.setItem(opnameDraftKey('/dashboard/gudang', undefined), '{not-json');
+    installFakeApi({ "GET /api/v1/items": items });
+    render(<StockOpnameTambah />);
+    expect(await screen.findByText('Triplex')).not.toBeNull();
+    expect(screen.getByRole('alert').textContent).toContain('Draft stok opname tidak dapat dibaca');
+    expect(screen.getByRole('button', { name: 'Simpan Draft' })).not.toBeNull();
+    expect(qtys().map((input) => input.value)).toEqual(['', '']);
+  });
+
   it('submit gagal mempertahankan draft agar bisa dilanjutkan', async () => {
     await setup({ 'POST /api/v1/stock-opname': fail(500, 'Gagal submit') });
     fireEvent.change(qtys()[0], { target: { value: '9' } });

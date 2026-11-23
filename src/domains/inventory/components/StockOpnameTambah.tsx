@@ -38,7 +38,7 @@ type Row = OpnameDraftRow;
 const rowInfo = (item: Item | ItemListRow) => ({ itemName: item.name, code: item.code, unit: item.unit, category: item.category, price: item.price, stock: item.stock });
 const toNum = (v: string) => Number(v.replace(",", "."));
 
-function StockOpnameForm({ draft, draftKey }: { draft: OpnameDraft | null; draftKey: string }) {
+function StockOpnameForm({ draft, draftKey, warning }: { draft: OpnameDraft | null; draftKey: string; warning?: string }) {
   const router = useRouter();
   const base = gudangBasePath(usePathname());
   const canCreate = useCan('stock-opname.create');
@@ -269,6 +269,7 @@ function StockOpnameForm({ draft, draftKey }: { draft: OpnameDraft | null; draft
         </h1>
       </div>
 
+      {warning && <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{warning} Draft lama tidak dimuat. Isi hitungan baru di bawah ini; menyimpan draft baru akan menggantikannya.</p>}
       <p className="mb-6 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">{draft ? 'Draft dimuat. ' : ''}Simpan Draft untuk melanjutkan penghitungan di browser dan akun yang sama. Draft belum mengubah stok. Submit setelah seluruh penghitungan selesai.</p>
       <div className="max-w-5xl">
         <div className="flex gap-3 mb-6">
@@ -422,14 +423,23 @@ function StockOpnameForm({ draft, draftKey }: { draft: OpnameDraft | null; draft
   );
 }
 
+type DraftLoad = { draft: OpnameDraft | null; warning: string };
+
 export default function TambahStockOpnameGudang() {
   const base = gudangBasePath(usePathname());
   const userId = useAuthUser()?.id;
   const canCreate = useCan('stock-opname.create');
   const key = opnameDraftKey(base, userId);
-  const { data: draft, loading, error } = useApiData(() => Promise.resolve().then(() => canCreate ? readOpnameDraft(key) : null), key, 'Gagal memuat draft stok opname. Penyimpanan browser harus dapat diakses.');
+  // A damaged or unreadable draft must not lock the form: open it empty with a warning instead.
+  const { data, loading } = useApiData<DraftLoad>(() => Promise.resolve().then((): DraftLoad => {
+    if (!canCreate) return { draft: null, warning: '' };
+    try {
+      return { draft: readOpnameDraft(key), warning: '' };
+    } catch {
+      return { draft: null, warning: 'Draft stok opname tidak dapat dibaca.' };
+    }
+  }), key);
   if (!canCreate) return <div className="p-6 text-sm text-gray-600">Anda tidak punya izin untuk membuat stock opname.</div>;
   if (loading) return <p role="status">Memuat draft stok opname...</p>;
-  if (error) return <p role="alert" className="text-red-600">{error}</p>;
-  return <StockOpnameForm key={key} draft={draft ?? null} draftKey={key} />;
+  return <StockOpnameForm key={key} draft={data?.draft ?? null} warning={data?.warning} draftKey={key} />;
 }

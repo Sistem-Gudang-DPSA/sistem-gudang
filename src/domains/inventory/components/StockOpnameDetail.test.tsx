@@ -62,12 +62,26 @@ describe('Stok opname detail: validasi dan permission', () => {
     expect(screen.getByRole('alert').textContent).toContain('tidak valid');
   });
 
-  it('tidak meminta data tanpa stock-opname.view', () => {
+  it('tidak meminta data tanpa izin yang membuka daftar Rekap', () => {
     nav.id = '7';
     const api = installFakeApi({ 'GET /api/v1/stock-opname/7': detail });
     const user = { id: 1, username: 'u', email: 'u@x.id', roleId: 2, roleName: 'Staff', isSuperadmin: false, permissions: [] };
     render(<AuthUserProvider user={user}><StockOpnameDetail /></AuthUserProvider>);
     expect(screen.getByRole('alert').textContent).toContain('tidak punya izin');
     expect(api.calls('GET /api/v1/stock-opname/7')).toHaveLength(0);
+  });
+
+  it.each([
+    ['Purchasing (supplier.create)', 'supplier.create'],
+    ['Purchasing (item.set-price)', 'item.set-price'],
+    ['Keuangan (report.view)', 'report.view'],
+  ])('membuka detail untuk user %s tanpa stock-opname.view', async (_, permission) => {
+    nav.id = '7';
+    const api = installFakeApi({ 'GET /api/v1/stock-opname/7': detail });
+    const user = { id: 1, username: 'u', email: 'u@x.id', roleId: 2, roleName: 'Staff', isSuperadmin: false, permissions: [permission] };
+    const { unmount } = render(<AuthUserProvider user={user}><StockOpnameDetail /></AuthUserProvider>);
+    expect(await screen.findByText('Triplex')).not.toBeNull();
+    expect(api.calls('GET /api/v1/stock-opname/7')).toHaveLength(1);
+    unmount();
   });
 });
