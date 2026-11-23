@@ -213,3 +213,13 @@ describe("superadmin outbound edit history access", () => {
     expect(visibleNav(user(["outbound.view", "outbound.update", "report.view"])).flatMap((division) => division.groups.flatMap((group) => group.items)).some((item) => item.href === path)).toBe(false);
   });
 });
+
+
+it('PPIC approvers can review Gudang requests without acquiring creation access in other divisions', () => {
+  const path = '/dashboard/ppic/transaksi/permintaan-pembelian';
+  const approver = withDomain(user(['purchase-request.approve']), 'ppic');
+  expect(canAccess(approver, path)).toBe(true);
+  expect(itemsOf(approver, 'ppic')).toContain('Permintaan Pembelian');
+  expect(canAccess(withDomain(approver, 'purchasing'), path)).toBe(false);
+  expect(labels(user(['purchase-request.approve', 'item.set-price']))).not.toContain('ppic');
+});

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.setConfig({ testTimeout: 30000 });
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { fail, installFakeApi, paged, type FakeRequest } from '@/test/fake-api';
-import DaftarPermintaanPembelianPPIC from './DaftarPermintaanPembelian';
+import { DaftarPermintaanPembelian as DaftarPermintaanPembelianPPIC } from './DaftarPermintaanPembelian';
 import { withUser } from '@/test/as-user';
 import PermintaanPembelianGudang from '@/domains/inventory/components/PermintaanPembelian';
 
@@ -66,7 +66,7 @@ describe.each([
   it('menyembunyikan cetak tanpa izin membaca permintaan', async () => {
     installFakeApi({ 'GET /api/v1/approvals': paged([row(1, 'pending')]) });
     render(withUser(<Component />, []));
-    await screen.findByText('Produksi - 1 barang (Triplex)');
+    await screen.findByText('Triplex — 5 Lbr');
     expect(screen.queryByRole('button', { name: 'Cetak' })).toBeNull();
   });
 });
@@ -88,7 +88,7 @@ describe('DaftarPermintaanPembelian', () => {
   it('loads purchase-request approvals and renders rows', async () => {
     const api = installFakeApi({ 'GET /api/v1/approvals': paged([row(1, 'pending')]) });
     render(<DaftarPermintaanPembelianPPIC />);
-    expect(await screen.findByText('Produksi - 1 barang (Triplex)')).toBeTruthy();
+    expect(await screen.findByText('Triplex — 5 Lbr')).toBeTruthy();
     expect(screen.getByText('05-03-2026')).toBeTruthy();
     const q = api.calls('GET /api/v1/approvals')[0].query;
     expect(q.get('type')).toBe('purchase-request');
@@ -103,7 +103,7 @@ describe('DaftarPermintaanPembelian', () => {
   ])('detail modal shows status label for %s', async (status, label) => {
     installFakeApi({ 'GET /api/v1/approvals': paged([row(1, status)]) });
     render(<DaftarPermintaanPembelianPPIC />);
-    await screen.findByText('Produksi - 1 barang (Triplex)');
+    await screen.findByText('Triplex — 5 Lbr');
     fireEvent.click(screen.getByText('Detail'));
     const dialogStatus = screen.getByText('Status').parentElement as HTMLElement;
     expect(dialogStatus.textContent).toContain(label);
@@ -117,7 +117,7 @@ describe('DaftarPermintaanPembelian', () => {
     const partial = row(2, 'pending', { payload: { bagian: 'Gudang' } });
     installFakeApi({ 'GET /api/v1/approvals': paged([partial]) });
     render(<DaftarPermintaanPembelianPPIC />);
-    expect(await screen.findByText('Gudang - 0 barang')).toBeTruthy();
+    expect(await screen.findByText('0 barang')).toBeTruthy();
     fireEvent.click(screen.getByText('Detail'));
     // Without tanggalPengajuan the date falls back to createdAt, like the list row
     expect(screen.getByText('Tanggal Pengajuan').parentElement!.textContent).toContain('01-03-2026');
@@ -139,7 +139,7 @@ describe('DaftarPermintaanPembelian', () => {
   it('requests page=2 from the pagination', async () => {
     const api = installFakeApi({ 'GET /api/v1/approvals': (req: FakeRequest) => paged([row(1, 'pending')], { total: 45, page: Number(req.query.get('page')) }) });
     render(<DaftarPermintaanPembelianPPIC />);
-    await screen.findByText('Produksi - 1 barang (Triplex)');
+    await screen.findByText('Triplex — 5 Lbr');
     fireEvent.click(screen.getByRole('button', { name: 'Selanjutnya' }));
     await waitFor(() => expect(api.calls('GET /api/v1/approvals').some((c) => c.query.get('page') === '2')).toBe(true));
   });
@@ -152,7 +152,7 @@ describe('DaftarPermintaanPembelian', () => {
       ]),
     });
     render(<DaftarPermintaanPembelianPPIC />);
-    await screen.findByText('Gudang - 1 barang (Paku)');
+    await screen.findByText('Paku — 1 Kg');
     fireEvent.change(screen.getByPlaceholderText('Cari rincian permintaan...'), { target: { value: 'paku' } });
     await waitFor(() => expect(api.calls('GET /api/v1/approvals').at(-1)!.query.get('search')).toBe('paku'));
     fireEvent.change(screen.getByDisplayValue('Bulan'), { target: { value: '03' } });
@@ -261,8 +261,57 @@ describe('Batalkan', () => {
   it('shows Dibatalkan without actions', async () => {
     installFakeApi({ 'GET /api/v1/approvals': paged([row(1, 'cancelled')]) });
     render(withUser(<DaftarPermintaanPembelianPPIC />, perms));
-    expect(await screen.findByText('Dibatalkan')).toBeTruthy();
+    expect(await screen.findAllByText('Dibatalkan')).toHaveLength(2);
     expect(screen.queryByRole('button', { name: 'Batalkan' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull();
+  });
+});
+
+
+describe.each([
+  ['PPIC', DaftarPermintaanPembelianPPIC, '/dashboard/ppic/transaksi/permintaan-pembelian'],
+  ['Gudang', PermintaanPembelianGudang, '/dashboard/gudang/transaksi/permintaan-pembelian'],
+] as const)('kolom rincian permintaan %s', (_division, Component, basePath) => {
+  it('menampilkan bagian, pengaju, seluruh client unik dan rincian setiap barang tanpa memotong isinya', async () => {
+    const request = row(1, 'pending', { payload: {
+      bagian: 'Gudang Bahan Baku', namaPemohon: 'imel', jabatan: 'Koordinator', tanggalPengajuan: '2026-11-23',
+      items: [
+        { namaBarang: 'Triplex 2mm', qty: 10, satuan: 'Lbr', proyek: 'PT MAJU JAYA', keterangan: 'Untuk lemari ruang rapat' },
+        { namaBarang: 'Paku', qty: 2, satuan: 'Kg', proyek: ' CV SINAR ABADI ' },
+        { namaBarang: 'Lem', qty: 3, satuan: 'Kaleng', proyek: 'PT MAJU JAYA' },
+      ],
+    } });
+    const api = installFakeApi({ 'GET /api/v1/approvals': paged([request]) });
+    render(withUser(<Component />, ['purchase-request.create']));
+    await screen.findByText('Triplex 2mm — 10 Lbr');
+    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual([
+      'No', 'Tanggal', 'Bagian / Sub Bagian', 'Nama Pengaju', 'Proyek / Client', 'Rincian Permintaan', 'Status Persetujuan', 'Status Pembelian', 'Aksi',
+    ]);
+    const cells = within(screen.getAllByRole('row')[1]).getAllByRole('cell');
+    expect(cells[2].textContent).toBe('Gudang Bahan Baku');
+    expect(cells[3].textContent).toBe('imel');
+    expect(within(cells[4]).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['PT MAJU JAYA', 'CV SINAR ABADI']);
+    expect(within(cells[5]).getByText('3 barang')).not.toBeNull();
+    expect(within(cells[5]).getByText('Paku — 2 Kg')).not.toBeNull();
+    expect(within(cells[5]).getByText('Lem — 3 Kaleng')).not.toBeNull();
+    expect(within(cells[5]).getByText('Untuk lemari ruang rapat')).not.toBeNull();
+    expect(within(cells[5]).getByText('Proyek / Client: CV SINAR ABADI')).not.toBeNull();
+    expect(cells[5].className).not.toContain('truncate');
+    expect(screen.getByRole('link', { name: 'Edit' }).getAttribute('href')).toBe(`${basePath}/1/edit`);
+    expect(screen.getByRole('link', { name: 'Ajukan Permintaan Pembelian' }).getAttribute('href')).toBe(`${basePath}/tambah`);
+    expect(api.calls('GET /api/v1/approvals')).toHaveLength(1);
+  });
+
+  it.each([null, {}, { items: [{ namaBarang: 'Paku', qty: 0, satuan: 'Kg', proyek: ' ' }] }])('menampilkan nilai pengganti saat identitas atau proyek tidak tersedia: %j', async (payload) => {
+    installFakeApi({ 'GET /api/v1/approvals': paged([row(1, 'approved', { payload })]) });
+    render(withUser(<Component />, ['approval.view']));
+    await screen.findByRole('button', { name: 'Detail' });
+    const cells = within(screen.getAllByRole('row')[1]).getAllByRole('cell');
+    expect(cells[2].textContent).toBe('-');
+    expect(cells[3].textContent).toBe('-');
+    expect(cells[4].textContent).toBe('-');
+    if (payload && 'items' in payload) expect(cells[5].textContent).toContain('Paku — 0 Kg');
+    expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Ajukan Permintaan Pembelian' })).toBeNull();
   });
 });

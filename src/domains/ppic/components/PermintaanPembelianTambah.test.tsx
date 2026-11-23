@@ -41,7 +41,7 @@ describe('default pemohon Gudang dari akun login', () => {
     change('Nama Barang baris 1', 'Paku');
     change('QTY baris 1', '5');
     change('Satuan baris 1', 'Kg');
-    await chooseProject(1, 'Hotel');
+    await chooseProject(1, 'Client');
     fireEvent.click(screen.getByRole('button', { name: 'Ajukan Permintaan Pembelian' }));
     await waitFor(() => expect(api.calls('POST /api/v1/approvals')).toHaveLength(1));
     expect(api.calls('POST /api/v1/approvals')[0].body).toMatchObject({ payload: { bagian: 'Gudang', namaPemohon: 'imel', jabatan: 'Koordinator Inventory' } });
@@ -99,7 +99,7 @@ describe('purchase request form', () => {
     change('QTY baris 1', '5');
     change('Satuan baris 1', 'Kg');
     change('Tanggal baris 1', '2026-11-09');
-    await chooseProject(1, 'Hotel');
+    await chooseProject(1, 'Client');
     change('Keterangan baris 1', 'Segera');
     change('Dikirim Tanggal baris 1', '2026-11-20');
     expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['No', 'Tanggal', 'Supplier', 'Nama Barang', 'QTY', 'SAT', 'Proyek', 'Keterangan', 'Dikirim Tanggal']);
@@ -109,27 +109,29 @@ describe('purchase request form', () => {
     await waitFor(() => expect(api.calls('POST /api/v1/approvals')).toHaveLength(1));
     expect(api.calls('POST /api/v1/approvals')[0].body).toEqual({ type: 'purchase-request', payload: {
       bagian: 'Gudang', namaPemohon: 'Fauzi', jabatan: 'Staff', tanggalPengajuan: '2026-11-09',
-      items: [{ namaBarang: 'Paku', qty: 5, satuan: 'Kg', proyek: 'Hotel', noSpk: undefined, supplier: undefined, tanggal: '2026-11-09', keterangan: 'Segera', deadlineTanggal: '2026-11-20' }],
+      items: [{ namaBarang: 'Paku', qty: 5, satuan: 'Kg', proyek: 'Client', noSpk: undefined, supplier: undefined, tanggal: '2026-11-09', keterangan: 'Segera', deadlineTanggal: '2026-11-20' }],
     } });
     await waitFor(() => expect(push).toHaveBeenCalledWith(basePath));
   });
 
-  it('loads unique project names from Daftar Proyek and supports searching', async () => {
+  it.each([['PPIC', Form], ['Gudang', GudangForm]] as const)('loads unique client names from Daftar Proyek and supports searching in %s', async (_division, Component) => {
     const api = installFakeApi({ ...routes, 'GET /api/v1/tracking/spk': [
-      { noSpk: 'SPK-1', client: 'Client', projectName: 'Hotel' },
-      { noSpk: 'SPK-2', client: 'Client', projectName: 'Hotel' },
-      { noSpk: 'SPK-3', client: 'Client', projectName: 'Kantor' },
-      { noSpk: 'SPK-4', client: 'Client', projectName: null },
+      { noSpk: 'SPK-1', client: 'PT MAJU JAYA', projectName: 'Hotel' },
+      { noSpk: 'SPK-2', client: ' PT MAJU JAYA ', projectName: 'Hotel Lain' },
+      { noSpk: 'SPK-3', client: 'CV SINAR ABADI', projectName: 'Kantor' },
+      { noSpk: 'SPK-4', client: '', projectName: 'Proyek Tanpa Client' },
+      { noSpk: 'SPK-5', client: ' - ', projectName: 'Proyek Lain' },
     ] });
-    render(<Form basePath={basePath} />);
+    render(<Component />);
     fireEvent.click(screen.getByRole('button', { name: 'Proyek baris 1' }));
-    await screen.findByRole('option', { name: 'Hotel' });
-    expect(screen.getAllByRole('option', { name: 'Hotel' })).toHaveLength(1);
-    expect(screen.getByRole('option', { name: 'Kantor' })).toBeTruthy();
-    fireEvent.change(screen.getByRole('textbox', { name: 'Cari Proyek baris 1' }), { target: { value: 'Kantor' } });
+    await screen.findByRole('option', { name: 'PT MAJU JAYA' });
+    expect(screen.getAllByRole('option', { name: 'PT MAJU JAYA' })).toHaveLength(1);
+    expect(within(screen.getByRole('listbox')).getAllByRole('option').map((option) => option.textContent)).toEqual(['CV SINAR ABADI', 'PT MAJU JAYA']);
     expect(screen.queryByRole('option', { name: 'Hotel' })).toBeNull();
-    fireEvent.click(screen.getByRole('option', { name: 'Kantor' }));
-    expect(screen.getByRole('button', { name: 'Proyek baris 1' }).textContent).toBe('Kantor');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Cari Proyek baris 1' }), { target: { value: 'SINAR' } });
+    expect(screen.queryByRole('option', { name: 'PT MAJU JAYA' })).toBeNull();
+    fireEvent.click(screen.getByRole('option', { name: 'CV SINAR ABADI' }));
+    expect(screen.getByRole('button', { name: 'Proyek baris 1' }).textContent).toBe('CV SINAR ABADI');
     expect(api.calls('GET /api/v1/tracking/spk')).toHaveLength(1);
     expect(api.calls('GET /api/v1/tracking/spk')[0].query.has('limit')).toBe(false);
   });
@@ -145,22 +147,22 @@ describe('purchase request form', () => {
 
   it('changes only the selected row project and clears its previous SPK', async () => {
     const api = installFakeApi({ ...routes,
-      'GET /api/v1/tracking/spk': [{ noSpk: 'SPK-2', client: 'Client', projectName: 'Kantor' }],
+      'GET /api/v1/tracking/spk': [{ noSpk: 'SPK-2', client: 'CV SINAR ABADI', projectName: 'Kantor' }],
       'PUT /api/v1/approvals/7': null,
     });
     render(<Form permintaan={{ ...existing, barang: [existing.barang[0], { ...existing.barang[0], namaBarang: 'Lem' }] }} basePath={basePath} editing />);
-    await chooseProject(1, 'Kantor');
+    await chooseProject(1, 'CV SINAR ABADI');
     expect(screen.getByRole('button', { name: 'Proyek baris 2' }).textContent).toBe('Hotel');
     fireEvent.click(screen.getByRole('button', { name: 'Simpan Perubahan' }));
     await waitFor(() => expect(api.calls('PUT /api/v1/approvals/7')).toHaveLength(1));
     const body = api.calls('PUT /api/v1/approvals/7')[0].body as { payload: { items: Record<string, unknown>[] } };
-    expect(body.payload.items[0].proyek).toBe('Kantor');
+    expect(body.payload.items[0].proyek).toBe('CV SINAR ABADI');
     expect(body.payload.items[0]).not.toHaveProperty('noSpk');
     expect(body.payload.items[1]).toMatchObject({ proyek: 'Hotel', noSpk: 'SPK-1' });
   });
 
   it('shows an empty state when Daftar Proyek has no usable names', async () => {
-    installFakeApi({ ...routes, 'GET /api/v1/tracking/spk': [{ noSpk: 'SPK-1', client: 'Client', projectName: '' }] });
+    installFakeApi({ ...routes, 'GET /api/v1/tracking/spk': [{ noSpk: 'SPK-1', client: '', projectName: 'Hotel' }] });
     render(<Form basePath={basePath} />);
     fireEvent.click(screen.getByRole('button', { name: 'Proyek baris 1' }));
     await screen.findByText('Belum ada proyek tersedia.');
@@ -239,7 +241,7 @@ describe('purchase request form', () => {
     change('Nama Barang baris 1', 'Paku');
     change('QTY baris 1', '5');
     change('Satuan baris 1', 'Kg');
-    await chooseProject(1, 'Hotel');
+    await chooseProject(1, 'Client');
   };
 
   it('sends only the filled row, without noSpk or empty optional fields', async () => {
@@ -251,7 +253,7 @@ describe('purchase request form', () => {
     await waitFor(() => expect(api.calls('POST /api/v1/approvals')).toHaveLength(1));
     const payload = (api.calls('POST /api/v1/approvals')[0].body as { payload: Record<string, unknown> }).payload;
     expect(payload).not.toHaveProperty('periode');
-    expect(payload.items).toEqual([{ namaBarang: 'Paku', qty: 5, satuan: 'Kg', proyek: 'Hotel' }]);
+    expect(payload.items).toEqual([{ namaBarang: 'Paku', qty: 5, satuan: 'Kg', proyek: 'Client' }]);
     expect(Object.keys((payload.items as object[])[0])).toEqual(['namaBarang', 'satuan', 'proyek', 'qty']);
   });
 
@@ -274,7 +276,7 @@ describe('purchase request form', () => {
     const [judul, html, opsi] = cetak.cetakLaporan.mock.calls[0] as unknown as [string, string, { label: string; identitas: unknown }];
     expect(judul).toBe('Form Permintaan Pembelian Bahan Baku');
     expect(html).toContain('Paku');
-    expect(html).toContain('Hotel');
+    expect(html).toContain('Client');
     expect(html).toContain('&lt;b&gt;Segera&lt;/b&gt;');
     expect(html).not.toContain('<b>Segera</b>');
     expect(opsi.label).toBe('permintaan pembelian');
@@ -333,11 +335,11 @@ describe('purchase request form', () => {
     expect(screen.getByRole('button', { name: 'Tambah Triplex 2 mm ke permintaan' })).toHaveProperty('disabled', true);
 
     fillHeader();
-    await chooseProject(1, 'Hotel');
+    await chooseProject(1, 'Client');
     fireEvent.click(screen.getByRole('button', { name: 'Ajukan Permintaan Pembelian' }));
     await waitFor(() => expect(api.calls('POST /api/v1/approvals')).toHaveLength(1));
     expect((api.calls('POST /api/v1/approvals')[0].body as { payload: { items: unknown[] } }).payload.items).toEqual([{
-      itemId: 31, namaBarang: 'Triplex 2 mm', satuan: 'lembar', proyek: 'Hotel', supplier: 'PT Kayu', qty: 8, noSpk: undefined, keterangan: undefined, tanggal: undefined, deadlineTanggal: undefined,
+      itemId: 31, namaBarang: 'Triplex 2 mm', satuan: 'lembar', proyek: 'Client', supplier: 'PT Kayu', qty: 8, noSpk: undefined, keterangan: undefined, tanggal: undefined, deadlineTanggal: undefined,
     }]);
   });
 
@@ -358,8 +360,27 @@ describe('purchase request form', () => {
     change('Nama Barang baris 3', 'Paku');
     change('QTY baris 3', '5');
     change('Satuan baris 3', 'Kg');
-    await chooseProject(3, 'Hotel');
+    await chooseProject(3, 'Client');
     fireEvent.click(screen.getByRole('button', { name: 'Ajukan Permintaan Pembelian' }));
     expect(await screen.findByText('Baris 3: Nama barang tidak valid')).toBeTruthy();
+  });
+});
+
+
+describe('tanda tangan permintaan Gudang', () => {
+  it.each(['baru', 'edit', 'revisi'])('menampilkan Kepala Gudang dan PPIC pada form %s', async (mode) => {
+    installFakeApi(routes);
+    render(mode === 'baru' ? <GudangForm /> : <Form permintaan={existing} basePath={basePath} editing={mode === 'edit'} />);
+    await screen.findByRole('button', { name: 'Proyek baris 1' });
+    expect(screen.getByText('Dibuat').textContent).toContain('Kepala Gudang');
+    expect(screen.getByText('Disetujui Oleh').textContent).toContain('PPIC');
+    expect(screen.queryByText('Bag. Purchasing', { selector: 'p' })).toBeNull();
+  });
+
+  it('tetap menampilkan Purchasing untuk form permintaan bagian Produksi', async () => {
+    installFakeApi(routes);
+    render(<Form permintaan={{ ...existing, bagian: 'Produksi' }} editing />);
+    await screen.findByRole('button', { name: 'Proyek baris 1' });
+    expect(screen.getByText('Disetujui Oleh').textContent).toContain('Bag. Purchasing');
   });
 });
