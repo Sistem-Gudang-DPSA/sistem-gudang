@@ -8,19 +8,20 @@ import type { CreateInboundBatchInput, InboundRow } from '@/domains/inventory/ty
 import { displayDate, toDateRange } from '@/domains/inventory/date';
 import { downloadCsv } from '@/shared/lib/csv';
 import { useApiData } from '@/shared/lib/use-api-data';
-import Pagination from '@/shared/components/Pagination';
+import { fetchAllPagesResult } from '@/shared/lib/fetch-all';
+import ScrollableTable, { STICKY_HEAD_CLASS } from '@/shared/components/ScrollableTable';
+import TableFooter from '@/shared/components/TableFooter';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import { useDebouncedValue } from '@/shared/lib/use-debounced-value';
 import { useSelection } from '@/shared/lib/use-selection';
-import { usePage } from '@/shared/lib/use-page';
 import DateFilter from '@/shared/components/DateFilter';
+import SelectionBanner from '@/shared/components/SelectionBanner';
+import SelectAllCheckbox from '@/shared/components/SelectAllCheckbox';
 import { BadgeDibatalkan } from './BatalkanTransaksi';
 import FormBarangMasukModal from './barang-masuk/FormBarangMasukModal';
 import { cetakFormulir, dokumenFormulir, lembarFormulir, lembarPerHalaman, tabelMaterial, type KopFormulir } from '@/domains/inventory/print-formulir';
 import { escapeHtml } from '@/shared/lib/escape-html';
-
-const PAGE_SIZE = 20;
 
 // Nama supplier, atau nama klien bila barang masuk dari klien.
 const namaSupplier = (r: InboundRow, kosong = '-') => r.supplierName ?? r.clientName ?? kosong;
@@ -108,11 +109,11 @@ export default function BarangMasukGudang() {
   const dateRange = toDateRange(filterDay, filterMonth, filterYear);
 
   const filterKey = JSON.stringify([debouncedSearch, filterDay, filterMonth, filterYear, sortParams]);
-  const [page, setPage] = usePage(filterKey);
-  const selection = useSelection<InboundRow>(filterKey);
+  // Pilihan bertahan lintas pencarian/filter/urutan; hilang saat layar ditutup.
+  const selection = useSelection<InboundRow>();
   const { data: result, loading, error, reload } = useApiData(
-    () => listInbound({ page, pageSize: PAGE_SIZE, search: debouncedSearch || undefined, ...dateRange, ...sortParams }),
-    `${filterKey}|${page}`,
+    () => fetchAllPagesResult((page, pageSize) => listInbound({ page, pageSize, search: debouncedSearch || undefined, ...dateRange, ...sortParams })),
+    `${filterKey}|all`,
     'Gagal memuat data barang masuk.',
   );
   const rows = result?.rows ?? [];
@@ -120,15 +121,15 @@ export default function BarangMasukGudang() {
 
   const allChecked = selection.allSelected(rows);
 
-  // Ekspor CSV untuk baris yang tampil di halaman ini
+  // Ekspor CSV untuk semua baris terfilter.
   const handleExportCsv = () => {
-    downloadCsv(`Data_Barang_Masuk_halaman-${page}.csv`, [
+    downloadCsv('Data_Barang_Masuk.csv', [
       ['No', 'Tanggal', 'Kode Barang', 'Nama Barang', 'Supplier', 'Jumlah Kedatangan', 'Jumlah Rekap'],
       ...rows.map((r, i) => [i + 1, displayDate(r.date), r.itemCode ?? '', r.itemName, namaSupplier(r, ''), r.qtyArrived, r.qtyPurchased ?? '']),
     ]);
   };
 
-  // Cetak: baris yang dicentang, atau semua baris yang tampil bila tidak ada yang dicentang.
+  // Cetak: baris yang dicentang, atau semua baris terfilter bila tidak ada yang dicentang.
   // Satu formulir per baris; satuan diambil dari data barang.
   const printSelected = async () => {
     if (printing) return;
@@ -230,20 +231,31 @@ export default function BarangMasukGudang() {
           />
         )}
 
+        <SelectionBanner count={selection.size} onClear={selection.clear} />
+
         {/* Tabel */}
-        <div className="overflow-x-auto">
+        <ScrollableTable ariaLabel="Tabel barang masuk">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
+            <thead className={`${STICKY_HEAD_CLASS} bg-gray-50 text-gray-600 font-semibold border-b border-gray-100`}>
               <tr>
-                <th scope="col" className="px-4 py-4">
-                  <input type="checkbox" aria-label="Centang semua baris" checked={allChecked} onChange={() => selection.toggleMany(rows)} disabled={loading || !!error || rows.length === 0} className="w-4 h-4 accent-[#FF8A00]" />
+                <th scope="col" className="px-4 py-3 text-center">
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <SelectAllCheckbox
+                      ariaLabel="Centang semua baris"
+                      checked={allChecked}
+                      indeterminate={rows.some((row) => selection.isSelected(row.id))}
+                      onChange={() => selection.toggleMany(rows)}
+                      disabled={loading || !!error || rows.length === 0}
+                      className="w-4 h-4 accent-[#FF8A00]"
+                    />
+                  </label>
                 </th>
-                <th scope="col" className="px-6 py-4">No</th>
+                <th scope="col" className="px-6 py-3">No</th>
                 <SortableTh label="Tanggal" sortKey="date" sort={sort} onSort={toggle} />
                 <SortableTh label="Informasi Barang" sortKey="itemName" sort={sort} onSort={toggle} />
-                <th scope="col" className="px-6 py-4">Supplier</th>
-                <th scope="col" className="px-6 py-4 text-center">Jml Kedatangan</th>
-                <th scope="col" className="px-6 py-4 text-center">Jml Rekap</th>
+                <th scope="col" className="px-6 py-3">Supplier</th>
+                <th scope="col" className="px-6 py-3 text-center">Jml Kedatangan</th>
+                <th scope="col" className="px-6 py-3 text-center">Jml Rekap</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -255,13 +267,13 @@ export default function BarangMasukGudang() {
               )}
               {!loading && !error && rows.map((item, index) => (
                 <tr key={item.id} className="hover:bg-[#FF8A00]/5 transition-colors group">
-                  <td className="px-4 py-4">
+                  <td className="px-4 py-3">
                     <input type="checkbox" aria-label={`Centang ${item.itemName}`} checked={selection.isSelected(item.id)} onChange={() => selection.toggle(item)} className="w-4 h-4 accent-[#FF8A00]" />
                   </td>
-                  <td className="px-6 py-4 text-gray-500 text-center">{(page - 1) * PAGE_SIZE + index + 1}.</td>
-                  <td className="px-6 py-4 text-gray-500">{displayDate(item.date)}</td>
+                  <td className="px-6 py-3 text-gray-500 text-center">{index + 1}.</td>
+                  <td className="px-6 py-3 text-gray-500">{displayDate(item.date)}</td>
 
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-3">
                     <div className="flex flex-col">
                       <span className="font-bold text-gray-900">{item.itemName}</span>
                       <span className="text-xs font-mono text-gray-500 mt-0.5">{item.itemCode ?? '-'}</span>
@@ -269,9 +281,9 @@ export default function BarangMasukGudang() {
                     </div>
                   </td>
 
-                  <td className="px-6 py-4 text-gray-600">{item.supplierName ?? '-'}</td>
-                  <td className="px-6 py-4 text-center font-bold text-gray-800">{item.qtyArrived}</td>
-                  <td className="px-6 py-4 text-center font-bold text-[#FF8A00]">{item.qtyPurchased ?? '-'}</td>
+                  <td className="px-6 py-3 text-gray-600">{item.supplierName ?? '-'}</td>
+                  <td className="px-6 py-3 text-center font-bold text-gray-800">{item.qtyArrived}</td>
+                  <td className="px-6 py-3 text-center font-bold text-[#FF8A00]">{item.qtyPurchased ?? '-'}</td>
                 </tr>
               ))}
               {!loading && !error && rows.length === 0 && (
@@ -283,9 +295,9 @@ export default function BarangMasukGudang() {
               )}
             </tbody>
           </table>
-        </div>
+        </ScrollableTable>
 
-        <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
+        <TableFooter total={total} unit="transaksi" />
       </div>
 
       {/* Export */}
