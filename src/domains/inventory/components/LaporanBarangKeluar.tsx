@@ -9,12 +9,12 @@ import BatalkanTransaksi, { BadgeDibatalkan, InfoPembatalan } from './BatalkanTr
 import type { OutboundRow, RecipientType } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
-import Pagination from '@/shared/components/Pagination';
+import { fetchAllPagesResult } from '@/shared/lib/fetch-all';
+import ScrollableTable, { STICKY_HEAD_CLASS } from '@/shared/components/ScrollableTable';
+import TableFooter from '@/shared/components/TableFooter';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';
 import { cetakHtml } from '@/shared/lib/print-html';
-
-const PAGE_SIZE = 20;
 
 const RECIPIENT_LABEL: Record<RecipientType, string> = {
     PRODUKSI: 'Tukang / Produksi',
@@ -42,15 +42,12 @@ export default function LaporanBarangKeluar() {
     };
 
     const { sort, toggle, params: sortParams } = useSort();
-    // a filter or sort change starts again from page 1
     const filterKey = JSON.stringify({ ...filters, ...sortParams });
-    const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
-    const page = pageState.key === filterKey ? pageState.page : 1;
-    const setPage = (next: number) => setPageState({ key: filterKey, page: next });
+    const [visibleRows, setVisibleRows] = useState(20);
 
     const { data: report, loading, error, reload } = useApiData(
-        () => getOutboundReport({ ...filters, ...sortParams, page, pageSize: PAGE_SIZE }),
-        `${filterKey}|${page}`,
+        () => fetchAllPagesResult((page, pageSize) => getOutboundReport({ ...filters, ...sortParams, page, pageSize })),
+        `${filterKey}|all`,
         'Gagal memuat laporan barang keluar.',
     );
 
@@ -116,7 +113,7 @@ export default function LaporanBarangKeluar() {
                 </style>
             </head>
             <body>
-                <h1>Rekap Barang Keluar (halaman ini)</h1>
+                <h1>Rekap Barang Keluar</h1>
                 <p class="meta">Periode: ${escapeHtml(periodeText)} &nbsp;|&nbsp; Penerima: ${escapeHtml(penerimaText)}${searchQuery ? ` &nbsp;|&nbsp; Pencarian: ${escapeHtml(searchQuery)}` : ''
             }</p>
                 <p class="summary">
@@ -153,7 +150,7 @@ export default function LaporanBarangKeluar() {
         trx.lines.map((line, lineIndex) => ({
             trx,
             line,
-            no: (page - 1) * PAGE_SIZE + trxIndex + 1,
+            no: trxIndex + 1,
             firstLine: lineIndex === 0,
         })),
     );
@@ -235,8 +232,9 @@ export default function LaporanBarangKeluar() {
                     </div>
                 </div>
                 {actionError && <p className="px-4 pb-2 text-sm text-red-500">{actionError}</p>}
+                <ScrollableTable visibleRows={visibleRows} rowHeightPx={56} className="border-t border-gray-100" ariaLabel="Tabel rekap barang keluar">
                 <table className="min-w-full divide-y divide-gray-200 text-sm">
-                    <thead className="bg-gray-100 font-semibold text-gray-700">
+                    <thead className={`${STICKY_HEAD_CLASS} bg-gray-100 font-semibold text-gray-700`}>
                         <tr>
                             <th className="px-4 py-3 text-center w-12">No</th>
                             <th className="px-4 py-3 text-left">Informasi Barang</th>
@@ -305,8 +303,11 @@ export default function LaporanBarangKeluar() {
                         )}
                     </tbody>
                 </table>
+                </ScrollableTable>
 
-                <Pagination page={page} pageSize={PAGE_SIZE} total={report?.total ?? 0} onPageChange={setPage} />
+                <div className="px-4 pb-4">
+                    <TableFooter total={report?.total ?? rows.length} visibleRows={visibleRows} onVisibleRowsChange={setVisibleRows} unit="transaksi" />
+                </div>
             </div>
 
             {selectedDetail && (

@@ -162,6 +162,26 @@ describe('BarangKeluar list', () => {
     }
   });
 
+  it('prints every filtered transaction when nothing is checked', async () => {
+    setup({
+      'GET /api/v1/items/1': item(1, 'BRG-1', 'Triplex', 'lembar', 25),
+      'GET /api/v1/items/2': item(2, 'BRG-2', 'Paku', 'kg', 140),
+    }, paged([trx(1), trx(2), trx(3)]));
+    await screen.findByText('Klien 3');
+    fireEvent.click(screen.getByText('Print'));
+    await waitFor(() => expect(document.querySelector('iframe[title="Cetak barang keluar"]')).not.toBeNull());
+    const frame = document.querySelector<HTMLIFrameElement>('iframe[title="Cetak barang keluar"]')!;
+    try {
+      const printed = new DOMParser().parseFromString(frame.srcdoc, 'text/html');
+      expect(printed.querySelectorAll('.kertas > .lembar')).toHaveLength(3);
+      expect(printed.body.textContent).toContain('SPK-1');
+      expect(printed.body.textContent).toContain('SPK-2');
+      expect(printed.body.textContent).toContain('SPK-3');
+    } finally {
+      frame.remove();
+    }
+  });
+
   it('checks and unchecks every transaction on the page', async () => {
     setup({}, paged([trx(1), trx(2)]));
     await screen.findByText('Klien 2');
@@ -173,7 +193,7 @@ describe('BarangKeluar list', () => {
     expect(label('Centang transaksi 2').checked).toBe(false);
   });
 
-  it('shows one collapsed row per transaction and sends page 1 / pageSize 20', async () => {
+  it('shows one collapsed row per transaction and loads all pages with pageSize 100', async () => {
     const api = setup();
     expect(await screen.findByText('Triplex')).not.toBeNull();
     // The second line stays behind the chevron until the transaction is expanded
@@ -183,7 +203,8 @@ describe('BarangKeluar list', () => {
     expect(screen.getAllByText('Klien 1').length).toBe(1);
     expect(screen.getAllByText('05-03-2026').length).toBe(1);
     expect(lastQ(api).get('page')).toBe('1');
-    expect(lastQ(api).get('pageSize')).toBe('20');
+    expect(lastQ(api).get('pageSize')).toBe('100');
+    expect(screen.queryByText('Selanjutnya')).toBeNull();
   });
 
   it('shows the Pengambil once per transaction, right after Nama Item/Projek', async () => {
@@ -293,11 +314,9 @@ describe('BarangKeluar list', () => {
     expect(await screen.findByText(/Boom|Gagal memuat/)).not.toBeNull();
   });
 
-  it('search/date filters go to query, search resets page, next requests page 2', async () => {
+  it('search/date filters go to query and search refetches from page 1', async () => {
     const api = setup({}, paged([trx(1)], { total: 41 }));
     await screen.findAllByText('Klien 1');
-    fireEvent.click(screen.getByText('Selanjutnya'));
-    await waitFor(() => expect(lastQ(api).get('page')).toBe('2'));
     fireEvent.change(label('Cari barang keluar'), { target: { value: 'maju' } });
     // The search is debounced: typing alone sends nothing, the request follows once typing pauses.
     expect(api.calls('GET /api/v1/outbound').some((c) => c.query.get('search') === 'maju')).toBe(false);

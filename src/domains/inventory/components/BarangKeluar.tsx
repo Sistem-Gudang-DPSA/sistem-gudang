@@ -5,7 +5,7 @@ import { X } from "lucide-react";
 import { useAuthUser, useCan } from "@/domains/auth/user-context";
 import type { OutboundRow } from "@/domains/inventory/types";
 import { useItemSearch } from "@/domains/inventory/use-item-search";
-import Pagination from "@/shared/components/Pagination";
+import TableFooter from "@/shared/components/TableFooter";
 import RiwayatEditBarangKeluar from "./RiwayatEditBarangKeluar";
 import BarangKeluarTable from "./barang-keluar/BarangKeluarTable";
 import BarangKeluarToolbar from "./barang-keluar/BarangKeluarToolbar";
@@ -15,7 +15,7 @@ import PeringatanEditModal from "./barang-keluar/modals/PeringatanEditModal";
 import PreviewBarangKeluarModal from "./barang-keluar/modals/PreviewBarangKeluarModal";
 import RincianTrxModal from "./barang-keluar/modals/RincianTrxModal";
 import { useAjukanEdit } from "./barang-keluar/useAjukanEdit";
-import { PAGE_SIZE, useBarangKeluarList } from "./barang-keluar/useBarangKeluarList";
+import { useBarangKeluarList } from "./barang-keluar/useBarangKeluarList";
 import { useEditBarangKeluar } from "./barang-keluar/useEditBarangKeluar";
 import { useFormBarangKeluar } from "./barang-keluar/useFormBarangKeluar";
 
@@ -102,8 +102,7 @@ export default function BarangKeluarGudang() {
 
         <BarangKeluarTable
           rows={list.rows}
-          page={list.page}
-          pageSize={PAGE_SIZE}
+          visibleRows={list.visibleRows}
           loading={list.loading}
           error={list.error}
           sort={list.sort}
@@ -134,7 +133,9 @@ export default function BarangKeluarGudang() {
           />
         )}
 
-        <Pagination page={list.page} pageSize={PAGE_SIZE} total={list.total} onPageChange={list.setPage} />
+        <div className="px-5 pb-4">
+          <TableFooter total={list.total} visibleRows={list.visibleRows} onVisibleRowsChange={list.setVisibleRows} unit="transaksi" />
+        </div>
       </div>
 
       {form.isOpen && <FormBarangKeluarModal f={form} itemSearch={itemSearch} onBack={() => { if (form.saving) return; form.close(); setPilihJenis(true); }} />}

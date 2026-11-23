@@ -11,7 +11,7 @@ import { createItem, deleteItem, updateItem } from '@/domains/inventory/api';
 import type { ItemListRow } from '@/domains/inventory/types';
 import { downloadCsv } from '@/shared/lib/csv';
 import { ApiError } from '@/shared/lib/api-client';
-import Pagination from '@/shared/components/Pagination';
+import TableFooter from '@/shared/components/TableFooter';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import { kodeKategoriNotice } from '@/domains/inventory/item-code-notice';
 import { useDataBarang } from '@/domains/inventory/components/data-barang/useDataBarang';
@@ -29,7 +29,7 @@ export default function DataBarangPPIC() {
   const canDelete = useCan("item.delete");
   const canUploadPhoto = useCan("item.upload-photo");
   const d = useDataBarang({ cacheReferenceLists: true });
-  const { dataBarang, total, page, setPage, selected, setSelected, reload, supplierName, locationCode } = d;
+  const { dataBarang, total, visibleRows, setVisibleRows, selected, setSelected, reload, supplierName, locationCode } = d;
 
   const [actionError, setActionError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -121,7 +121,7 @@ export default function DataBarangPPIC() {
   const handleExportCSV = () => {
     const rows: unknown[][] = [['No', 'Kode Barang', 'Kode Bawaan', 'Nama Barang', 'Supplier', 'Jumlah Stok', 'Satuan', 'Kategori', 'Harga', 'Lokasi']];
     dataBarang.forEach((item, index) => rows.push([index + 1, item.code ?? '-', item.externalCode ?? '-', item.name, supplierName(item.supplierId), item.stock, item.unit, item.category, item.price, locationCode(item.locationId)]));
-    downloadCsv(`Data_Barang_PPIC_halaman-${page}.csv`, rows);
+    downloadCsv('Data_Barang_PPIC.csv', rows);
   };
 
   const columns: BarangColumn[] = [
@@ -235,18 +235,19 @@ export default function DataBarangPPIC() {
           sort={d.sort}
           onSort={d.toggle}
           photo={{ canUpload: canUploadPhoto, onUploaded: reload }}
+          visibleRows={visibleRows}
           selection={showSelection ? {
             selected,
-            allOnPage: d.pageAllSelected,
+            allSelected: d.allSelected,
             onToggleRow: d.toggleRow,
-            onToggleAll: d.togglePage,
+            onToggleAll: d.toggleAll,
             checkboxClassName: 'w-4 h-4 rounded border-gray-300 text-[#FF8A00] focus:ring-[#FF8A00]',
           } : undefined}
           rowActions={renderRowActions}
           rowClassName={() => 'hover:bg-purple-50/30 transition-colors group'}
           tbodyClassName="divide-y divide-gray-50"
         />
-        <Pagination page={page} pageSize={d.pageSize} total={total} onPageChange={setPage} activeClass="bg-purple-500 text-white border-purple-500" />
+        <TableFooter total={total} visibleRows={visibleRows} onVisibleRowsChange={setVisibleRows} unit="barang" />
       </div>
 
       {bulkStokOpen && (

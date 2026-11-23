@@ -24,13 +24,29 @@ hanya halaman default backend.
   menyimpan filter bersama nomor halaman, bukan dengan `useEffect`.
 - Seluruh endpoint tersebut sudah dicek menerima `page` dan `pageSize`.
 
+## Tabel semua baris dengan scroll
+
+Data Barang (semua divisi), Stock Opname, Barang Keluar, Laporan Barang
+Masuk, dan Laporan Barang Keluar tidak lagi memakai nomor halaman. Seluruh
+baris yang cocok dengan pencarian, filter, dan urutan diambil lewat
+`fetchAllPagesResult` (`src/shared/lib/fetch-all.ts`), lalu dirender dalam
+satu tabel dengan header sticky (`ScrollableTable`,
+`src/shared/components/ScrollableTable.tsx`). Footer `TableFooter` berisi
+total terfilter dan pilihan **Baris terlihat** (20/50/100) yang hanya
+mengatur tinggi area scroll; scroll tetap mencapai baris terakhir.
+
+Karena semua baris ada di halaman, checkbox header memilih seluruh data
+terfilter, dan cetak/export memakai seluruh data terfilter — bukan hanya
+yang tampak. Pilihan baris di-reset saat pencarian atau filter berubah,
+tidak saat urutan berubah. Nomor baris selalu mulai dari 1 mengikuti urutan
+data, bukan nomor halaman. Layar lain tetap memakai `Pagination` server.
+
 ## Yang Belum Dipaginasi
 
 - Daftar yang menghitung ringkasan atau mengekspor dari baris yang dimuat
   tetap memuat 100 baris pertama: SPK Internal, Dokubah, Rekap Dokubah,
-  Rekap Mutasi Barang, Rekap Stok Opname, dan laporan barang masuk dan
-  keluar. Paginasi di sana mengubah angka ringkasan, jadi perlu ringkasan
-  dari backend lebih dulu.
+  Rekap Mutasi Barang, dan Rekap Stok Opname. Paginasi di sana mengubah
+  angka ringkasan, jadi perlu ringkasan dari backend lebih dulu.
 - Pencarian teks di Permintaan Pembelian PPIC dan Rekap Pembelian masih
   disaring di klien terhadap halaman yang sedang tampil, karena endpoint
   approvals belum punya pencarian.

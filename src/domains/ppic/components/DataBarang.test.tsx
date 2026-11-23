@@ -73,7 +73,7 @@ describe('DataBarang PPIC: plotting stok minimum massal', () => {
     setupDuaBarang();
     await screen.findByText('Barang 1');
     const firstHeader = screen.getAllByRole('columnheader')[0];
-    expect(within(firstHeader).getByRole('checkbox', { name: 'Pilih semua barang di halaman ini' })).toBeTruthy();
+    expect(within(firstHeader).getByRole('checkbox', { name: 'Pilih semua barang' })).toBeTruthy();
     expect(screen.getByRole('checkbox', { name: 'Pilih Barang 1' })).toBeTruthy();
   });
 
@@ -95,7 +95,7 @@ describe('DataBarang PPIC: plotting stok minimum massal', () => {
   it('menampilkan semua hasil bila ada barang yang gagal disimpan', async () => {
     setupDuaBarang({ 'PUT /api/v1/items/2': fail(500, 'Gagal menyimpan batas') });
     await screen.findByText('Barang 1');
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Pilih semua barang di halaman ini' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Pilih semua barang' }));
     fireEvent.click(screen.getByRole('button', { name: 'Atur Stok Minimum (2)' }));
     fireEvent.change(screen.getByLabelText('Batas stok minimum'), { target: { value: '' } });
     fireEvent.click(screen.getByRole('button', { name: 'Simpan ke 2 barang' }));

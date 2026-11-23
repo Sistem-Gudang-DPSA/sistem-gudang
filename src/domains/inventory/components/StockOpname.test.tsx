@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { installFakeApi, paged, fail } from '@/test/fake-api';
 import StockOpname from './StockOpname';
@@ -15,12 +15,14 @@ const row = (id: number) => ({ id, month: 3, year: 2026, createdAt: '2026-03-31T
 const lastQ = (api: ReturnType<typeof installFakeApi>) => api.calls('GET /api/v1/stock-opname').at(-1)!.query;
 
 describe('StockOpname list', () => {
+  beforeEach(() => vi.clearAllMocks());
+
   it('menempatkan checkbox sebelum No tanpa tulisan Check dan tetap dapat memilih baris', async () => {
     installFakeApi({ 'GET /api/v1/stock-opname': paged([row(1), row(2)]) });
     render(<StockOpname />);
     await screen.findAllByText('Stok Opname Maret 2026');
     const rows = screen.getAllByRole('row');
-    const selectAll = within(rows[0].children[0] as HTMLElement).getByRole('checkbox', { name: 'Pilih semua stok opname di halaman ini' }) as HTMLInputElement;
+    const selectAll = within(rows[0].children[0] as HTMLElement).getByRole('checkbox', { name: 'Pilih semua stok opname' }) as HTMLInputElement;
     expect(rows[0].children[1].textContent).toBe('No');
     expect(screen.queryByText('Check')).toBeNull();
     const first = within(rows[1].children[0] as HTMLElement).getByRole('checkbox', { name: 'Pilih Stok Opname Maret 2026 #1' }) as HTMLInputElement;
@@ -51,6 +53,35 @@ describe('StockOpname list', () => {
     await waitFor(() => expect(lastQ(api).get('sortBy')).toBe('period'));
   });
 
+  it('loads every page without pagination', async () => {
+    const api = installFakeApi({
+      'GET /api/v1/stock-opname': (req: { query: URLSearchParams }) => ({
+        rows: req.query.get('page') === '2' ? [row(3)] : [row(1), row(2)],
+        total: 150,
+        page: Number(req.query.get('page')),
+        pageSize: 100,
+      }),
+    });
+    render(<StockOpname />);
+    await screen.findAllByText('Stok Opname Maret 2026');
+    expect(api.calls('GET /api/v1/stock-opname').map((c) => c.query.get('page'))).toEqual(['1', '2']);
+    expect(screen.queryByText('Selanjutnya')).toBeNull();
+  });
+
+  it('exports every filtered period without a selection', async () => {
+    installFakeApi({
+      'GET /api/v1/stock-opname': paged([row(1), row(2)]),
+      'GET /api/v1/stock-opname/1': detail(1, 3),
+      'GET /api/v1/stock-opname/2': detail(2, 4),
+    });
+    render(<StockOpname />);
+    await screen.findAllByText(/Stok Opname Maret 2026/);
+    fireEvent.click(screen.getByTitle('Export Excel'));
+    await waitFor(() => expect(xlsx.writeFile).toHaveBeenCalled());
+    expect(xlsx.utils.book_append_sheet).toHaveBeenCalledTimes(2);
+    expect(xlsx.writeFile.mock.calls[0][1]).toBe('Stok_Opname.xlsx');
+  });
+
   it('exports one sheet per selected period', async () => {
     installFakeApi({
       'GET /api/v1/stock-opname': paged([row(1), row(2)]),
@@ -59,11 +90,10 @@ describe('StockOpname list', () => {
     });
     render(<StockOpname />);
     await screen.findAllByText(/Stok Opname Maret 2026/);
-    fireEvent.click(screen.getAllByRole('checkbox')[0]);
+    fireEvent.click(screen.getAllByRole('checkbox')[1]);
     fireEvent.click(screen.getByTitle('Export Excel'));
     await waitFor(() => expect(xlsx.writeFile).toHaveBeenCalled());
-    expect(xlsx.utils.book_append_sheet).toHaveBeenCalledTimes(2);
-    expect(xlsx.writeFile.mock.calls[0][1]).toBe('Stok_Opname.xlsx');
+    expect(xlsx.utils.book_append_sheet).toHaveBeenCalledTimes(1);
   });
 
   it('shows the export error instead of swallowing it', async () => {

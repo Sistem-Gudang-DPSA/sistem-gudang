@@ -115,6 +115,13 @@ di-resolve ke kode lokasi yang bisa dibaca (misal "A04") lewat
 yang sempat hilang di halaman Gudang saat migrasi ke API asli juga
 dikembalikan.
 
+Data Barang di semua divisi memuat seluruh baris yang cocok dengan
+pencarian/filter (semua halaman `GET /items`), lalu menampilkannya dalam
+tabel scroll dengan header sticky. Pilihan **Baris terlihat** (20/50/100)
+mengatur tinggi area scroll, bukan jumlah data. Centang header memilih semua
+baris terfilter; export memakai data yang sudah dimuat. Pilihan reset saat
+pencarian atau filter berubah.
+
 Kolom harga pada Data Barang PPIC, Purchasing, dan Superadmin memakai label
 **Harga Terbaru** dan format ribuan `id-ID` yang sama (contoh `1.000`).
 Nilainya tetap `item.price` dari `GET /items`; Superadmin masih dapat

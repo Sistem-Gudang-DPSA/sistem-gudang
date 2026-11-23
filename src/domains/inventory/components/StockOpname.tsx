@@ -9,10 +9,15 @@ import { gudangBasePath } from '../base-path';
 import { getStockOpname, listStockOpname } from '@/domains/inventory/api';
 import { ApiError } from '@/shared/lib/api-client';
 import { useApiData } from '@/shared/lib/use-api-data';
+import { fetchAllPagesResult } from '@/shared/lib/fetch-all';
+import { mapConcurrent } from '@/shared/lib/map-concurrent';
+import { useSelection } from '@/shared/lib/use-selection';
 import { opnameDraftKey, readOpnameDraft } from '../stock-opname-draft';
-import Pagination from '@/shared/components/Pagination';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import DateFilter from '@/shared/components/DateFilter';
+import ScrollableTable, { STICKY_HEAD_CLASS } from '@/shared/components/ScrollableTable';
+import SelectAllCheckbox from '@/shared/components/SelectAllCheckbox';
+import TableFooter from '@/shared/components/TableFooter';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 
 const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -34,41 +39,27 @@ export default function StockOpnameMasterGudang() {
   const [actionError, setActionError] = useState('');
 
   const filterKey = JSON.stringify([searchQuery, filterMonth, filterYear, sortParams]);
-  const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
-  const page = pageState.key === filterKey ? pageState.page : 1;
-  const viewKey = `${filterKey}|${page}`;
-  const [selState, setSelState] = useState<{ key: string; ids: Set<number> }>({ key: viewKey, ids: new Set() });
-  const selected = selState.key === viewKey ? selState.ids : new Set<number>();
-  const setPage = (next: number) => setPageState({ key: filterKey, page: next });
-  const setSelected = (ids: Set<number>) => setSelState({ key: viewKey, ids });
+  const [visibleRows, setVisibleRows] = useState(20);
+  // Pilihan di-reset saat filter berubah, bukan saat urutan berubah.
+  const selection = useSelection<{ id: number }>(JSON.stringify([searchQuery, filterMonth, filterYear]));
   const { data: result, loading, error } = useApiData(
-    () => listStockOpname({ page, pageSize: 20, search: searchQuery || undefined, month: filterMonth ? Number(filterMonth) : undefined, year: filterYear ? Number(filterYear) : undefined, ...sortParams }),
-    `${filterKey}|${page}`,
+    () => fetchAllPagesResult((page, pageSize) => listStockOpname({ page, pageSize, search: searchQuery || undefined, month: filterMonth ? Number(filterMonth) : undefined, year: filterYear ? Number(filterYear) : undefined, ...sortParams })),
+    `${filterKey}|all`,
     'Gagal memuat data stok opname.',
   );
   const rows = result?.rows ?? [];
   const total = result?.total ?? 0;
-  const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
-
-  const toggleRow = (id: number) =>
-    setSelected((() => {
-      const next = new Set(selected);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    })());
-
-  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.id)));
+  const allSelected = selection.allSelected(rows);
 
   const handleExportExcel = async () => {
-    if (selected.size === 0) {
-      setActionError("Pilih data stok opname yang ingin diekspor.");
-      return;
-    }
+    if (loading || rows.length === 0) return;
     setActionError("");
 
     try {
       const XLSX = await import("xlsx");
-      const details = await Promise.all([...selected].map((id) => getStockOpname(id)));
+      // Tanpa pilihan: export seluruh data terfilter.
+      const ids = selection.size > 0 ? [...selection.map.keys()] : rows.map((row) => row.id);
+      const details = await mapConcurrent(ids, 4, (id) => getStockOpname(id));
       const headers = [
         "No",
         "Kode Barang",
@@ -168,7 +159,7 @@ export default function StockOpnameMasterGudang() {
           </div>
 
           <div className="flex gap-2 w-full lg:w-auto">
-            <ExportExcellButton onClick={handleExportExcel} disabled={rows.length===0}/>
+            <ExportExcellButton onClick={handleExportExcel} disabled={loading || rows.length === 0}/>
             {canCreate && <Link href={`${base}/transaksi/stock-opname/tambah`} className="w-full lg:w-auto">
               <button className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0 w-full">
                 <Plus className="w-4 h-4" />
@@ -204,12 +195,18 @@ export default function StockOpnameMasterGudang() {
         {actionError && <p className="px-6 pt-3 text-sm text-red-500">{actionError}</p>}
 
         {/* Table Container */}
-        <div className="overflow-x-auto">
+        <ScrollableTable visibleRows={visibleRows} rowHeightPx={56} ariaLabel="Tabel stok opname">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
+            <thead className={`${STICKY_HEAD_CLASS} bg-gray-50 text-gray-600 font-semibold border-b border-gray-100`}>
               <tr>
                 <th scope="col" className="px-4 py-4 print:hidden w-12">
-                  <input type="checkbox" aria-label="Pilih semua stok opname di halaman ini" checked={allSelected} onChange={toggleAll} className="w-4 h-4 accent-blue-600 cursor-pointer" />
+                  <SelectAllCheckbox
+                    ariaLabel="Pilih semua stok opname"
+                    checked={allSelected}
+                    indeterminate={rows.some((row) => selection.isSelected(row.id))}
+                    onChange={() => selection.toggleMany(rows)}
+                    className="w-4 h-4 accent-blue-600 cursor-pointer"
+                  />
                 </th>
                 <th scope="col" className="px-6 py-4 w-16 text-center">No</th>
                 <SortableTh label='Periode Stock Opname' sortKey='period' sort={sort} onSort={toggle} />
@@ -229,8 +226,8 @@ export default function StockOpnameMasterGudang() {
                     <input
                       type="checkbox"
                       aria-label={`Pilih ${periodeLabel(item.month, item.year)} #${item.id}`}
-                      checked={selected.has(item.id)}
-                      onChange={() => toggleRow(item.id)}
+                      checked={selection.isSelected(item.id)}
+                      onChange={() => selection.toggle(item)}
                       className="w-4 h-4 accent-blue-600 cursor-pointer"
                     />
                   </td>
@@ -260,9 +257,9 @@ export default function StockOpnameMasterGudang() {
               )}
             </tbody>
           </table>
-        </div>
+        </ScrollableTable>
 
-        <Pagination page={page} pageSize={20} total={total} onPageChange={setPage} />
+        <TableFooter total={total} visibleRows={visibleRows} onVisibleRowsChange={setVisibleRows} unit="stok opname" />
       </div>
 
     </div>
