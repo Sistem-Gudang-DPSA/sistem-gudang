@@ -27,10 +27,12 @@ domain PPIC dan Gudang untuk dropdown supplier di form barang, lihat
 ### `src/domains/purchasing/components/DataSupplierScreen.tsx`
 
 Layar bersama Data Supplier. `DataSupplier.tsx` (Purchasing) dan
-`superadmin/components/DataSupplier.tsx` hanya membungkusnya dengan props:
-`detailHref`, `paginationActiveClass`, `inlineEdit` (edit massal di tabel,
-tanpa modal edit) dan `filterAndNumber` (filter pajak, Reset, kolom No).
-Superadmin memakai keduanya, Purchasing tidak.
+`superadmin/components/DataSupplier.tsx` hanya membungkusnya dengan props
+`detailHref` dan `paginationActiveClass`. Tabel kedua divisi sama persis:
+tanpa kolom No, tanpa filter Pajak/tombol Reset, dan tanpa edit massal di
+tabel. Perubahan data lewat modal Tambah/Edit yang sama. Yang berbeda hanya
+tautan detail (`?from=purchasing` atau `?from=superadmin`) dan warna halaman
+aktif pada paginasi.
 
 List dari `listSuppliers()`. `editingId` menentukan apakah tombol Simpan
 memanggil `createSupplier()` atau `updateSupplier()`. Tombol Hapus
