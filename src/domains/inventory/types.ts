@@ -9,6 +9,9 @@ export interface Item {
   category: string;
   unit: string;
   price: number;
+  // Tanggal harga terakhir menempel. Belum ada di response GET /items; opsional
+  // agar UI tetap aman sebelum backend mengirimkannya.
+  priceUpdatedAt?: string | null;
   stock: number;
   minimumStock?: number | null;
   locationId: number | null;

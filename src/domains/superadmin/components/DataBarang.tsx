@@ -22,7 +22,7 @@ import EditModeBar, { useBatchEdit } from '@/shared/components/EditModeBar';
 import { kodeKategoriNotice, type CodeChange } from '@/domains/inventory/item-code-notice';
 import { printItemLabels } from '@/domains/inventory/label-print';
 import { useDataBarang } from '@/domains/inventory/components/data-barang/useDataBarang';
-import DataBarangTable, { type BarangColumn, KategoriBadge, StokCell, SupplierCell } from '@/domains/inventory/components/data-barang/DataBarangTable';
+import DataBarangTable, { type BarangColumn, HargaCell, KategoriBadge, StokCell, SupplierCell } from '@/domains/inventory/components/data-barang/DataBarangTable';
 import DataBarangToolbar, { FilterToggle } from '@/domains/inventory/components/data-barang/DataBarangToolbar';
 import { useBulkSupplierAction, type SupplierMappingResult } from '@/domains/inventory/components/data-barang/useBulkSupplierAction';
 import ActionMenu from '@/shared/components/ActionMenu';
@@ -328,7 +328,7 @@ export default function DataBarangGudang() {
     { label: 'Harga Terbaru', sortKey: 'price', tdClassName: 'px-6 py-4 text-gray-700', cell: (item) => (
       edit.editing && canSetPrice ? (
         <input aria-label={`Harga ${item.name}`} inputMode="numeric" className={`${cellInput} min-w-24`} maxLength={9} value={edit.value(item.id, 'price', String(item.price))} onChange={(e) => edit.set(item.id, 'price', e.target.value.replace(/\D/g, ''), String(item.price))} />
-      ) : item.price.toLocaleString('id-ID')
+      ) : <HargaCell price={item.price} updatedAt={item.priceUpdatedAt} />
     ) },
     // Lokasi: dipilih langsung di barisnya
     { label: 'Lokasi', sortKey: 'locationCode', cell: (item) => (

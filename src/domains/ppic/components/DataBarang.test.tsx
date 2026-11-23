@@ -48,6 +48,20 @@ describe('DataBarang PPIC: header dan sel tabel', () => {
     const row = (await screen.findByText('Barang 1')).closest('tr');
     expect(screen.getByRole('columnheader', { name: 'Harga Terbaru' })).toBeTruthy();
     expect(within(row!).getByText('1.000')).toBeTruthy();
+    expect(within(row!).queryByText(/^per /)).toBeNull();
+  });
+
+  it('menampilkan tanggal harga di bawah harga terbaru bila API mengirim priceUpdatedAt', async () => {
+    installFakeApi({
+      'GET /api/v1/items': paged([{ ...item, priceUpdatedAt: '2026-11-23' }]),
+      'GET /api/v1/locations': paged([{ id: 1, code: 'A01', rackName: 'A', rackNumber: '01' }]),
+      'GET /api/v1/suppliers': paged([{ id: 7, name: 'PT Kayu' }]),
+      'GET /api/v1/items/categories': [{ id: 1, name: 'Lembaran' }],
+      'GET /api/v1/items/units': [{ id: 1, name: 'pcs' }],
+    });
+    render(<DataBarangPPIC />);
+    const row = (await screen.findByText('Barang 1')).closest('tr');
+    expect(within(row!).getByText('per 23-11-2026')).toBeTruthy();
   });
 });
 
