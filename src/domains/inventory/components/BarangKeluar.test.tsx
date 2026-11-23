@@ -189,10 +189,10 @@ describe('BarangKeluar list', () => {
   it('shows the Pengambil once per transaction, right after Nama Item/Projek', async () => {
     setup({}, paged([{ ...trx(1), lines: [{ itemId: 1, itemCode: 'BRG-1', itemName: 'Triplex', qty: 4, pic: 'Andi' }, { itemId: 2, itemCode: 'BRG-2', itemName: 'Paku', qty: 9, pic: 'Budi' }] }]));
     await screen.findByText('Triplex');
-    expect(screen.getAllByRole('columnheader').slice(0, 8).map((th) => th.textContent))
-      .toEqual(['No', 'Transaksi', 'Client / SPK', 'Nama Item/Projek', 'Pengambil', 'Barang', 'Jumlah', 'Action']);
-    // Pengambil (5th td) is the first line's pic on the collapsed row; the sub-row of Paku leaves it empty
-    const pengambilOf = (name: string) => screen.getByText(name).closest('tr')!.querySelectorAll('td')[4].textContent;
+    expect(screen.getAllByRole('columnheader').slice(0, 9).map((th) => th.textContent))
+      .toEqual(['', 'No', 'Transaksi', 'Client / SPK', 'Nama Item/Projek', 'Pengambil', 'Barang', 'Jumlah', 'Action']);
+    // Pengambil (6th td) is the first line's pic on the collapsed row; the sub-row of Paku leaves it empty
+    const pengambilOf = (name: string) => screen.getByText(name).closest('tr')!.querySelectorAll('td')[5].textContent;
     expect(pengambilOf('Triplex')).toBe('Andi');
     fireEvent.click(screen.getByRole('button', { name: 'Buka rincian barang 1' }));
     expect(pengambilOf('Paku')).toBe('');
@@ -221,7 +221,7 @@ describe('BarangKeluar list', () => {
     expect(screen.getAllByRole('row')).toHaveLength(4); // header, transaksi, 2 barang
     expect(screen.getByLabelText('Edit barang keluar 1 Triplex')).toBeTruthy();
     expect(screen.getByLabelText('Edit barang keluar 1 Paku')).toBeTruthy();
-    expect(screen.getByText('Paku').closest('tr')!.querySelectorAll('td')[6].textContent).toBe('9');
+    expect(screen.getByText('Paku').closest('tr')!.querySelectorAll('td')[7].textContent).toBe('9');
     fireEvent.click(screen.getByRole('button', { name: 'Tutup rincian barang 1' }));
     expect(screen.getAllByRole('row')).toHaveLength(2);
   });
@@ -230,7 +230,7 @@ describe('BarangKeluar list', () => {
     setup({}, paged([disetujui()]));
     await screen.findByText('Triplex');
     const row = screen.getByText('+1 barang lainnya').closest('tr')!;
-    expect(row.querySelectorAll('td')[6].textContent).toBe('13');
+    expect(row.querySelectorAll('td')[7].textContent).toBe('13');
     expect(row.querySelector('button[aria-label^="Edit"]')).not.toBeNull();
   });
 
@@ -240,7 +240,7 @@ describe('BarangKeluar list', () => {
     expect(screen.queryByRole('button', { name: /rincian barang/ })).toBeNull();
     expect(screen.queryByText(/barang lainnya/)).toBeNull();
     const row = screen.getByLabelText('Edit barang keluar 1 Triplex').closest('tr')!;
-    expect(row.querySelectorAll('td')[6].textContent).toBe('4');
+    expect(row.querySelectorAll('td')[7].textContent).toBe('4');
     expect(screen.getAllByRole('row')).toHaveLength(2);
   });
 
@@ -401,8 +401,8 @@ describe('BarangKeluar create', () => {
     expect(screen.queryByLabelText('Hasil scan')).toBeNull();
     fireEvent.click(screen.getByText('Scan Barang'));
     expect(document.activeElement).toBe(label('Hasil scan'));
-    expect(screen.getAllByRole('columnheader').map((th) => th.textContent).slice(-7))
-      .toEqual(['No', 'Nama Material', 'Satuan/Vol', 'Kode', 'Dokubah', 'Pengambilan', 'Hapus']);
+    expect(screen.getAllByRole('columnheader').map((th) => th.textContent).slice(-5))
+      .toEqual(['No', 'Nama Material', 'Satuan/Vol', 'Kode', 'Pengambilan']);
   });
 
   it('fills a row per scanned item, adds 1 on a repeat scan and reports unknown codes', async () => {
@@ -420,44 +420,6 @@ describe('BarangKeluar create', () => {
     expect(await screen.findByText('Kode "NOPE" tidak dikenal.')).not.toBeNull();
     fireEvent.click(screen.getByLabelText('Hapus Triplex'));
     expect(screen.queryByText('Triplex', { selector: 'td' })).toBeNull();
-  });
-
-  it('accepts Dokubah decimals and rejects invalid characters and excess precision', async () => {
-    const api = setup();
-    await openForm(api);
-    typePengambil();
-    scan('BRG-1');
-    await screen.findByText('Triplex', { selector: 'td' });
-    expect(label('Dokubah Triplex').value).toBe('');
-    const input = label('Dokubah Triplex');
-    expect(input.inputMode).toBe('decimal');
-    fireEvent.change(input, { target: { value: '1,125' } });
-    expect(input.value).toBe('1,125');
-    for (const value of ['DKB-12', '1.25', '1,2,3', '1,1234']) {
-      fireEvent.change(input, { target: { value } });
-      expect(input.value).toBe('1,125');
-      expect(input.getAttribute('aria-invalid')).toBe('true');
-    }
-    fireEvent.change(input, { target: { value: '0,75' } });
-    expect(input.getAttribute('aria-invalid')).toBe('false');
-  });
-
-  it.each(['0', '1,', '1000000000'])('blocks preview for invalid Dokubah %s until corrected', async (value) => {
-    const api = setup();
-    await openForm(api);
-    await fillHeader();
-    scan('BRG-1');
-    await screen.findByText('Triplex', { selector: 'td' });
-    fireEvent.change(label('Dokubah Triplex'), { target: { value } });
-    expect(label('Dokubah Triplex').getAttribute('aria-invalid')).toBe('true');
-    fireEvent.click(screen.getByText('Simpan'));
-    expect(screen.queryByText('Konfirmasi Simpan')).toBeNull();
-    expect(screen.getByText('Periksa jumlah Dokubah yang ditandai.')).not.toBeNull();
-    fireEvent.change(label('Dokubah Triplex'), { target: { value: '1,25' } });
-    fireEvent.click(screen.getByText('Simpan'));
-    expect(await screen.findByText('Konfirmasi Simpan')).not.toBeNull();
-    expect(screen.getByText('1,25', { selector: 'td' })).not.toBeNull();
-    expect(api.calls('POST /api/v1/outbound')).toHaveLength(0);
   });
 
   it('enforces input limits', async () => {

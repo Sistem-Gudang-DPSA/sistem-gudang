@@ -138,3 +138,14 @@ Permintaan Pembelian tidak lagi ada di Gudang. Halamannya pindah ke PPIC, lihat 
 - Tabel laporan diberi lebar `calc(100% - 2mm)`. Tanpa jarak itu, border
   kanan kolom terakhir menempel tepat di tepi area cetak dan terpotong di
   PDF.
+
+## Tampilan Barang Keluar
+
+- Kolom **Check** di daftar transaksi berada di kolom pertama, dan baris
+  rincian per barang ikut rata dengan kolom header yang sama.
+- Warna pembatas baris memakai `gray-200` agar lebih jelas.
+- Kolom **Dokubah** di form pengisian barang disembunyikan sementara. Nilai
+  Dokubah tetap ada di tipe baris dan tetap ikut tercetak bila ada.
+- Kolom **Hapus** pada tabel barang hanya tampil setelah ada baris. Saat
+  tabel kosong, hanya kolom No, Nama Material, Satuan/Vol, Kode, dan
+  Pengambilan yang tampil, sehingga tidak ada kolom kosong berlebih.

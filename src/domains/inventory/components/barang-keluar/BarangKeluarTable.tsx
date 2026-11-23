@@ -48,8 +48,13 @@ export default function BarangKeluarTable({
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left text-sm whitespace-nowrap">
-        <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
+        <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-200">
           <tr>
+            <th scope="col" className="px-6 py-4 text-center">
+              <label className="inline-flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" aria-label="Centang semua transaksi" checked={allChecked} onChange={onToggleAll} disabled={loading || !!error || rows.length === 0} className="w-4 h-4 accent-[#FF8A00]" />
+              </label>
+            </th>
             <th scope="col" className="px-6 py-4">
               No
             </th>
@@ -83,15 +88,9 @@ export default function BarangKeluarTable({
             <th scope="col" className="px-6 py-4 text-center">
               Action
             </th>
-            <th scope="col" className="px-6 py-4 text-center">
-              <label className="inline-flex items-center gap-2 cursor-pointer">
-                Check
-                <input type="checkbox" aria-label="Centang semua transaksi" checked={allChecked} onChange={onToggleAll} disabled={loading || !!error || rows.length === 0} className="w-4 h-4 accent-[#FF8A00]" />
-              </label>
-            </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-50">
+        <tbody className="divide-y divide-gray-200">
           {loading && (
             <tr>
               <td
@@ -115,7 +114,7 @@ export default function BarangKeluarTable({
           {!loading &&
             !error &&
             rows.map((trx, trxIndex) => {
-        const trxNo = (page - 1) * pageSize + trxIndex + 1;
+              const trxNo = (page - 1) * pageSize + trxIndex + 1;
               // Satu transaksi punya satu warna zebra, satu sorotan hover, dan satu garis aksen di semua barisnya, termasuk baris rincian
               const aktif = hoverTrx === trx.id;
               const zebra = trxNo % 2 === 0 ? "bg-gray-50/60" : "bg-white";
@@ -148,8 +147,11 @@ export default function BarangKeluarTable({
                 <React.Fragment key={trx.id}>
                   <tr
                     {...hoverProps}
-                    className={`${barisClass} border-t border-gray-100`}
+                    className={`${barisClass} border-t border-gray-200`}
                   >
+                    <td className="px-6 py-4 text-center">
+                      <input type="checkbox" aria-label={`Centang transaksi ${trx.noTransaksi ?? trx.id}`} checked={isSelected(trx.id)} onChange={() => onToggle(trx)} className="w-4 h-4 accent-[#FF8A00] cursor-pointer" />
+                    </td>
                     <td className={`px-6 py-4 text-gray-500 ${garisKiri}`}>
                       <div className="flex items-center gap-2">
                         {banyak ? (
@@ -230,9 +232,6 @@ export default function BarangKeluarTable({
                         <AksiPengajuan trx={trx} canUpdate={canUpdate} userId={userId} requesting={requesting} onAjukan={onAjukan} onRiwayat={onRiwayat} />
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-center">
-                      <input type="checkbox" aria-label={`Centang transaksi ${trx.noTransaksi ?? trx.id}`} checked={isSelected(trx.id)} onChange={() => onToggle(trx)} className="w-4 h-4 accent-[#FF8A00] cursor-pointer" />
-                    </td>
                   </tr>
 
                   {terbuka &&
@@ -243,6 +242,7 @@ export default function BarangKeluarTable({
                         {...hoverProps}
                         className={barisClass}
                       >
+                        <td className="px-6 py-3" />
                         <td className={`px-6 py-3 ${garisKiri}`} />
                         <td className="px-6 py-3" />
                         <td className="px-6 py-3" />
@@ -266,7 +266,6 @@ export default function BarangKeluarTable({
                             <TombolEdit trx={trx} lineIndex={lineIndex} {...editProps} />
                           </div>
                         </td>
-                        <td />
                       </tr>
                     ))}
                 </React.Fragment>

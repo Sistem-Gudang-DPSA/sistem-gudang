@@ -39,6 +39,18 @@ it('DataBarang memuat semua halaman lokasi dan supplier', async () => {
   expect(await screen.findByText('Supplier Terakhir')).not.toBeNull();
 });
 
+it('menampilkan kolom Harga Terbaru dengan format ribuan seperti Superadmin', async () => {
+  installFakeApi({
+    'GET /api/v1/items': paged([item]),
+    'GET /api/v1/locations': paged([]),
+    'GET /api/v1/suppliers': paged([]),
+  });
+  render(<DataBarang />);
+  const row = (await screen.findByText('Barang 1')).closest('tr');
+  expect(screen.getByRole('columnheader', { name: 'Harga Terbaru' })).toBeTruthy();
+  expect(within(row!).getByText('1.000')).toBeTruthy();
+});
+
 it('Export CSV mengambil semua halaman barang, bukan hanya halaman yang tampil', async () => {
   const api = installFakeApi({
     'GET /api/v1/items': twoPages((id) => ({ ...item, id, name: `Barang ${id}` })),

@@ -13,7 +13,7 @@ import { downloadCsv } from '@/shared/lib/csv';
 import { fetchAllPages } from '@/shared/lib/fetch-all';
 import Pagination from '@/shared/components/Pagination';
 import { ExportExcellButton } from '@/shared/components/Tombol';
-import { printItemLabels } from '@/domains/inventory/label-print';
+import PrintQrModal from './data-barang/PrintQrModal';
 import BarangFilterPanel, { countActiveFilters, toItemFilterParams } from './BarangFilterPanel';
 import { useDataBarang } from './data-barang/useDataBarang';
 import DataBarangTable, { type BarangColumn, KategoriBadge, StokCell, SupplierCell } from './data-barang/DataBarangTable';
@@ -35,6 +35,7 @@ export default function DataBarangGudang({
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState("");
   const [printError, setPrintError] = useState("");
+  const [qrItems, setQrItems] = useState<ItemListRow[] | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkLocationId, setBulkLocationId] = useState("");
   const [notice, setNotice] = useState("");
@@ -68,8 +69,6 @@ export default function DataBarangGudang({
   const selectedItems = [...selected.values()];
   const selectedPrintable = selectedItems.filter((it) => it.code);
   const selectedWithLocation = selectedItems.filter((it) => it.locationId !== null).length;
-  const printLabels = async (items: ItemListRow[]) => setPrintError(await printItemLabels(items) ?? "");
-  const printSelected = () => printLabels(selectedPrintable);
 
   const handleBulkAssign = async () => {
     if (!bulkLocationId) {
@@ -144,7 +143,7 @@ export default function DataBarangGudang({
         </button>
       )}
       {item.code && <button
-        onClick={() => printLabels([item])}
+        onClick={() => setQrItems([item])}
         className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gray-50 text-gray-600 text-xs font-bold rounded-lg hover:bg-gray-100 transition-all duration-200 opacity-90 group-hover:opacity-100"
         title="Cetak label QR"
       >
@@ -171,7 +170,7 @@ export default function DataBarangGudang({
           bulkActions={<>
             <button
               type="button"
-              onClick={printSelected}
+              onClick={() => setQrItems(selectedPrintable)}
               disabled={selectedPrintable.length === 0}
               className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-600 hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -264,6 +263,9 @@ export default function DataBarangGudang({
           saving={saving}
           error={modalError}
         />
+      )}
+      {qrItems && qrItems.length > 0 && (
+        <PrintQrModal items={qrItems} onClose={() => setQrItems(null)} />
       )}
     </div>
   );
