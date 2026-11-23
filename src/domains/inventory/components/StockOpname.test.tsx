@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { installFakeApi, paged, fail } from '@/test/fake-api';
 import StockOpname from './StockOpname';
 
@@ -15,6 +15,25 @@ const row = (id: number) => ({ id, month: 3, year: 2026, createdAt: '2026-03-31T
 const lastQ = (api: ReturnType<typeof installFakeApi>) => api.calls('GET /api/v1/stock-opname').at(-1)!.query;
 
 describe('StockOpname list', () => {
+  it('menempatkan checkbox sebelum No tanpa tulisan Check dan tetap dapat memilih baris', async () => {
+    installFakeApi({ 'GET /api/v1/stock-opname': paged([row(1), row(2)]) });
+    render(<StockOpname />);
+    await screen.findAllByText('Stok Opname Maret 2026');
+    const rows = screen.getAllByRole('row');
+    const selectAll = within(rows[0].children[0] as HTMLElement).getByRole('checkbox', { name: 'Pilih semua stok opname di halaman ini' }) as HTMLInputElement;
+    expect(rows[0].children[1].textContent).toBe('No');
+    expect(screen.queryByText('Check')).toBeNull();
+    const first = within(rows[1].children[0] as HTMLElement).getByRole('checkbox', { name: 'Pilih Stok Opname Maret 2026 #1' }) as HTMLInputElement;
+    const second = within(rows[2].children[0] as HTMLElement).getByRole('checkbox') as HTMLInputElement;
+    fireEvent.click(selectAll);
+    expect(first.checked).toBe(true);
+    expect(second.checked).toBe(true);
+    fireEvent.click(first);
+    expect(selectAll.checked).toBe(false);
+    expect(first.checked).toBe(false);
+    expect(second.checked).toBe(true);
+  });
+
   it('filters by month and year, without a day select, and sorts by period', async () => {
     const api = installFakeApi({ 'GET /api/v1/stock-opname': paged([row(1)]) });
     render(<StockOpname />);

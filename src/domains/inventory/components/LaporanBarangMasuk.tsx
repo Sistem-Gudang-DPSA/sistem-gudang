@@ -2,6 +2,7 @@
 
 import { escapeHtml } from '@/shared/lib/escape-html';
 import React, { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { Search, Eye, Loader2, AlertCircle } from 'lucide-react';
 import { displayDate, displayDateTime, monthStart, todayIso } from '@/domains/inventory/date';
 import { cetakHtml } from '@/shared/lib/print-html';
@@ -48,6 +49,7 @@ const emptySummary = {
 };
 
 export default function LaporanBarangMasuk() {
+  const showSourceFilter = !usePathname()?.startsWith('/dashboard/gudang/');
   const [filterSumber, setFilterSumber] = useState<'ALL' | InboundSource>('ALL');
   const [startDate, setStartDate] = useState<string>(monthStart());
   const [endDate, setEndDate] = useState<string>(todayIso());
@@ -63,7 +65,7 @@ export default function LaporanBarangMasuk() {
     q: searchQuery || undefined,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
-    source: filterSumber === 'ALL' ? undefined : filterSumber,
+    source: !showSourceFilter || filterSumber === 'ALL' ? undefined : filterSumber,
   };
 
   const filterKey = JSON.stringify([filters, sortParams]);
@@ -95,7 +97,7 @@ export default function LaporanBarangMasuk() {
   const handlePrintPdf = async () => {
     setActionError('');
 
-    const sumberText = filterSumber === 'ALL' ? 'Semua Sumber' : SUMBER_LABEL[filterSumber];
+    const sumberText = !showSourceFilter || filterSumber === 'ALL' ? 'Semua Sumber' : SUMBER_LABEL[filterSumber];
     const periodeText = `${startDate ? displayDate(startDate) : '-'} s/d ${endDate ? displayDate(endDate) : '-'}`;
 
     const pageQty = rows.reduce((sum, r) => sum + r.qtyArrived, 0);
@@ -222,7 +224,7 @@ export default function LaporanBarangMasuk() {
 
       <div className="flex flex-wrap justify-between items-center bg-white p-4 border border-gray-200 rounded-lg shadow-sm gap-4 mt-5">
         <div className="flex flex-wrap gap-3 items-center print:hidden">
-          <div>
+          {showSourceFilter && <div>
             <label className="block text-xs text-black mb-1">Sumber Inbound</label>
             <select
               value={filterSumber}
@@ -242,7 +244,7 @@ export default function LaporanBarangMasuk() {
                 Barang Kembali
               </option>
             </select>
-          </div>
+          </div>}
 
           <div>
             <label className="block text-xs text-black mb-1">Periode Tanggal</label>

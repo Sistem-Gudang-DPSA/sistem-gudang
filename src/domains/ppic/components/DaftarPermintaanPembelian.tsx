@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useCan, useAuthUser } from '@/domains/auth/user-context';
-import { Search, Plus, Calendar, Eye } from 'lucide-react';
+import { Search, Plus, Calendar, Eye, Printer } from 'lucide-react';
 import Link from 'next/link';
 import { listApprovals } from '@/domains/ppic/api';
 import { displayDate, toDateRange } from '@/domains/inventory/date';
@@ -11,6 +11,7 @@ import { permintaan_pembelian_path } from '@/domains/ppic/data/pembelian';
 import { useApiData } from '@/shared/lib/use-api-data';
 import Pagination from '@/shared/components/Pagination';
 import BatalkanPermintaan from './BatalkanPermintaan';
+import { cetakFormPermintaanPembelian } from '@/domains/ppic/print-permintaan-pembelian';
 
 const STATUS_LABEL: Record<ApprovalStatus, { label: string; cls: string }> = {
   pending: { label: 'Menunggu', cls: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
@@ -35,6 +36,9 @@ const summarize = (req: ApprovalRequest) => {
 export default function DaftarPermintaanPembelianPPIC({ basePath = permintaan_pembelian_path }: { basePath?: string }) {
   const user = useAuthUser();
   const canCreate = useCan('purchase-request.create');
+  const canView = useCan('approval.view');
+  const [printingId, setPrintingId] = useState<number | null>(null);
+  const [printError, setPrintError] = useState('');
   const [searchQuery, setSearchQuery] = useState("");
   const [filterDay, setFilterDay] = useState("");
   const [filterMonth, setFilterMonth] = useState("");
@@ -57,6 +61,26 @@ export default function DaftarPermintaanPembelianPPIC({ basePath = permintaan_pe
   const total = result?.total ?? 0;
 
   const filteredData = rows;
+
+  const handleCetak = async (request: ApprovalRequest) => {
+    if (!request.payload || printingId !== null) return;
+    setPrintingId(request.id);
+    setPrintError('');
+    const payload = request.payload;
+    try {
+      await cetakFormPermintaanPembelian({
+        bagian: payload.bagian ?? '',
+        namaPemohon: payload.namaPemohon ?? '',
+        jabatan: payload.jabatan ?? '',
+        tanggalPengajuan: payload.tanggalPengajuan ?? request.createdAt.slice(0, 10),
+        periode: payload.periode ?? '',
+      }, (payload.items ?? []).map((item) => ({ ...item, qty: String(item.qty), dikirimTanggal: item.deadlineTanggal })));
+    } catch (err) {
+      setPrintError(err instanceof Error ? err.message : 'Gagal mencetak permintaan pembelian.');
+    } finally {
+      setPrintingId(null);
+    }
+  };
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
@@ -158,6 +182,8 @@ export default function DaftarPermintaanPembelianPPIC({ basePath = permintaan_pe
           )}
         </div>
 
+        {printError && <p role="alert" className="px-6 pt-4 text-sm text-red-600">{printError}</p>}
+
         {/* Table Container */}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
@@ -192,7 +218,7 @@ export default function DaftarPermintaanPembelianPPIC({ basePath = permintaan_pe
                     )}
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <div className="inline-grid grid-cols-[3.5rem_5.75rem_auto] items-center gap-2">
+                    <div className={`inline-grid ${basePath === permintaan_pembelian_path ? 'grid-cols-[3.5rem_5.75rem_auto_auto]' : 'grid-cols-[3.5rem_5.75rem_auto]'} items-center gap-2`}>
                       {canCreate && ['pending', 'revision_requested'].includes(item.status) && (!user || user.isSuperadmin || user.id === item.requestedBy) && (
                         <>
                           <Link href={`${basePath}/${item.id}/edit`} className="px-4 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] font-bold rounded-lg text-xs hover:bg-[#FF8A00]/20 transition-all">Edit</Link>
@@ -206,6 +232,15 @@ export default function DaftarPermintaanPembelianPPIC({ basePath = permintaan_pe
                         <Eye className="h-3.5 w-3.5" />
                         Detail
                       </button>
+                      {basePath === permintaan_pembelian_path && (canCreate || canView) && <button
+                        type="button"
+                        onClick={() => void handleCetak(item)}
+                        disabled={!item.payload || printingId !== null}
+                        className="col-start-4 inline-flex items-center gap-1.5 px-4 py-1.5 bg-orange-50 text-orange-700 font-bold rounded-lg text-xs hover:bg-orange-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Printer className="h-3.5 w-3.5" />
+                        {printingId === item.id ? 'Mencetak...' : 'Cetak'}
+                      </button>}
                     </div>
                   </td>
                 </tr>

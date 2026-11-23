@@ -3,6 +3,9 @@ import { fireEvent, render, screen, within, waitFor } from '@testing-library/rea
 import { fail, installFakeApi, paged } from '@/test/fake-api';
 import Form from './PermintaanPembelianTambah';
 import type { PermintaanPembelian } from '../data/pembelian';
+import GudangForm from '@/domains/inventory/components/PermintaanPembelianTambah';
+import { AuthUserProvider } from '@/domains/auth/user-context';
+import type { AuthUser } from '@/domains/auth/types';
 
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
 const cetak = vi.hoisted(() => ({ cetakLaporan: vi.fn(async () => {}) }));
@@ -25,6 +28,63 @@ const chooseProject = async (row: number, name: string) => {
   fireEvent.click(await screen.findByRole('option', { name }));
 };
 beforeEach(() => { push.mockReset(); cetak.cetakLaporan.mockClear(); });
+
+describe('default pemohon Gudang dari akun login', () => {
+  const user: AuthUser = { id: 9, username: 'imel', email: 'imel@x.id', roleId: 2, roleName: 'Koordinator Inventory', isSuperadmin: false, domainCode: 'inventory', permissions: ['purchase-request.create'] };
+
+  it('langsung mengisi bagian, username, dan role, lalu mengirimkannya tanpa memilih ulang', async () => {
+    const api = installFakeApi({ ...routes, 'POST /api/v1/approvals': { id: 8 } });
+    render(<AuthUserProvider user={user}><GudangForm /></AuthUserProvider>);
+    expect((screen.getByLabelText('Bagian / Sub Bagian') as HTMLSelectElement).value).toBe('Gudang');
+    expect((screen.getByLabelText('Nama pemohon') as HTMLSelectElement).value).toBe('imel');
+    expect((screen.getByLabelText('Jabatan') as HTMLSelectElement).value).toBe('Koordinator Inventory');
+    change('Nama Barang baris 1', 'Paku');
+    change('QTY baris 1', '5');
+    change('Satuan baris 1', 'Kg');
+    await chooseProject(1, 'Hotel');
+    fireEvent.click(screen.getByRole('button', { name: 'Ajukan Permintaan Pembelian' }));
+    await waitFor(() => expect(api.calls('POST /api/v1/approvals')).toHaveLength(1));
+    expect(api.calls('POST /api/v1/approvals')[0].body).toMatchObject({ payload: { bagian: 'Gudang', namaPemohon: 'imel', jabatan: 'Koordinator Inventory' } });
+    await waitFor(() => expect(push).toHaveBeenCalledWith(basePath));
+  });
+
+  it('mengambil bagian dari divisi akun, dengan Gudang sebagai default jika divisi kosong', () => {
+    installFakeApi(routes);
+    const view = render(<AuthUserProvider user={{ ...user, domainCode: 'gudang-barang-jadi' }}><GudangForm /></AuthUserProvider>);
+    expect((screen.getByLabelText('Bagian / Sub Bagian') as HTMLSelectElement).value).toBe('Gudang Barang Jadi');
+    view.unmount();
+    render(<AuthUserProvider user={{ ...user, domainCode: null }}><GudangForm /></AuthUserProvider>);
+    expect((screen.getByLabelText('Bagian / Sub Bagian') as HTMLSelectElement).value).toBe('Gudang');
+  });
+
+  it('identitas akun tampil tetap tanpa dropdown dan tidak dapat diubah', () => {
+    installFakeApi(routes);
+    render(<AuthUserProvider user={user}><GudangForm /></AuthUserProvider>);
+    for (const [label, value] of [['Bagian / Sub Bagian', 'Gudang'], ['Nama pemohon', 'imel'], ['Jabatan', 'Koordinator Inventory']]) {
+      const input = screen.getByRole('textbox', { name: label }) as HTMLInputElement;
+      expect(input.readOnly).toBe(true);
+      expect(input.value).toBe(value);
+      expect(screen.queryByRole('combobox', { name: label })).toBeNull();
+    }
+  });
+
+  it('mempertahankan identitas permintaan lama ketika diedit meskipun ada default akun', () => {
+    installFakeApi(routes);
+    render(<AuthUserProvider user={user}><Form permintaan={existing} basePath={basePath} editing readOnlyPemohon initialPemohon={{ bagian: 'Produksi', namaPemohon: user.username, jabatan: user.roleName }} /></AuthUserProvider>);
+    expect((screen.getByLabelText('Bagian / Sub Bagian') as HTMLSelectElement).value).toBe('Gudang');
+    expect((screen.getByRole('textbox', { name: 'Nama pemohon' }) as HTMLInputElement).readOnly).toBe(true);
+    expect((screen.getByLabelText('Nama pemohon') as HTMLInputElement).value).toBe('Fauzi');
+    expect((screen.getByLabelText('Jabatan') as HTMLSelectElement).value).toBe('Staff');
+  });
+
+  it('form PPIC tetap memakai pilihan awal tanpa default Gudang', () => {
+    installFakeApi(routes);
+    render(<AuthUserProvider user={user}><Form /></AuthUserProvider>);
+    for (const field of ['Bagian / Sub Bagian', 'Nama pemohon', 'Jabatan']) {
+      expect((screen.getByLabelText(field) as HTMLSelectElement).value).toBe('');
+    }
+  });
+});
 
 describe('purchase request form', () => {
   it('submits the photo fields in a new request, omitting blank rows', async () => {
@@ -195,9 +255,17 @@ describe('purchase request form', () => {
     expect(Object.keys((payload.items as object[])[0])).toEqual(['namaBarang', 'satuan', 'proyek', 'qty']);
   });
 
-  it('mencetak form yang sedang diisi tanpa menyimpan permintaan', async () => {
+  it.each([false, true])('form Gudang tidak menampilkan tombol Cetak (editing: %s)', async (editing) => {
+    installFakeApi(routes);
+    render(<Form basePath={basePath} editing={editing} permintaan={editing ? existing : undefined} />);
+    expect(screen.queryByRole('button', { name: 'Cetak' })).toBeNull();
+    expect(screen.getByRole('button', { name: editing ? 'Simpan Perubahan' : 'Ajukan Permintaan Pembelian' })).not.toBeNull();
+    await screen.findByRole('button', { name: 'Proyek baris 1' });
+  });
+
+  it('mencetak form PPIC yang sedang diisi tanpa menyimpan permintaan', async () => {
     const api = installFakeApi(routes);
-    render(<Form basePath={basePath} />);
+    render(<Form />);
     fillHeader();
     await fillRow();
     change('Keterangan baris 1', '<b>Segera</b>');

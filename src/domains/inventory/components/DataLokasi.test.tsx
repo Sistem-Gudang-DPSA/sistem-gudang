@@ -43,6 +43,6 @@ describe('DataLokasi: import dan hapus hanya Superadmin', () => {
     expect(screen.queryByRole('button', { name: /Import Excel/ })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Hapus' })).toBeNull();
     // Aksi lain yang memang untuk Gudang tetap ada.
-    expect(screen.getByRole('button', { name: /Tambah Batch/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Batch' })).toBeTruthy();
   });
 });
