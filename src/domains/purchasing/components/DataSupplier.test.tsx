@@ -26,6 +26,17 @@ describe('purchasing DataSupplier', () => {
     expect(lastQ(api).get('page')).toBe('1');
   });
 
+  it('has the same columns as superadmin: no No column, Pajak filter, or inline edit', async () => {
+    installFakeApi({ 'GET /api/v1/suppliers': paged([supplier(1)]) });
+    render(<DataSupplier />);
+    await screen.findByText('Supplier 1');
+    expect([...screen.getAllByRole('columnheader')].map((h) => h.textContent)).toEqual(
+      ['Kode', 'Nama Supplier', 'Bank', 'NPWP', 'Pajak', 'Kontak', 'Alamat', 'Aksi'],
+    );
+    expect(screen.queryByLabelText('Filter pajak')).toBeNull();
+    expect(screen.queryByText('Mode Edit')).toBeNull();
+  });
+
   it('steps back a page when the last row of the last page is deleted', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     let total = 21;

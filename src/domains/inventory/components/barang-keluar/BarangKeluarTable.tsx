@@ -4,13 +4,13 @@ import type { OutboundRow } from "@/domains/inventory/types";
 import { displayDate } from "@/domains/inventory/date";
 import { roundQty } from "@/shared/lib/input";
 import SortableTh, { type Sort } from "@/shared/components/SortableTh";
+import ScrollableTable, { STICKY_HEAD_CLASS } from "@/shared/components/ScrollableTable";
+import SelectAllCheckbox from "@/shared/components/SelectAllCheckbox";
 import { BadgeDibatalkan } from "../BatalkanTransaksi";
 import { AksiPengajuan, TombolEdit } from "./AksiEdit";
 
 type Props = {
   rows: OutboundRow[];
-  page: number;
-  pageSize: number;
   loading: boolean;
   error: string;
   sort: Sort;
@@ -29,7 +29,7 @@ type Props = {
 };
 
 export default function BarangKeluarTable({
-  rows, page, pageSize, loading, error, sort, onSort, isSelected, allChecked, onToggle, onToggleAll,
+  rows, loading, error, sort, onSort, isSelected, allChecked, onToggle, onToggleAll,
   canUpdate, userId, requesting, onRincian, onEdit, onAjukan, onRiwayat,
 }: Props) {
   // Transaksi yang sedang disorot kursor; semua barisnya ikut disorot
@@ -46,16 +46,23 @@ export default function BarangKeluarTable({
   const editProps = { canUpdate, userId, onEdit };
 
   return (
-    <div className="overflow-x-auto">
+    <ScrollableTable ariaLabel="Tabel barang keluar">
       <table className="w-full text-left text-sm whitespace-nowrap">
-        <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-200">
+        <thead className={`${STICKY_HEAD_CLASS} bg-gray-50 text-gray-600 font-semibold border-b border-gray-200`}>
           <tr>
-            <th scope="col" className="px-6 py-4 text-center">
+            <th scope="col" className="px-6 py-3 text-center">
               <label className="inline-flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" aria-label="Centang semua transaksi" checked={allChecked} onChange={onToggleAll} disabled={loading || !!error || rows.length === 0} className="w-4 h-4 accent-[#FF8A00]" />
+                <SelectAllCheckbox
+                  ariaLabel="Centang semua transaksi"
+                  checked={allChecked}
+                  indeterminate={rows.some((trx) => isSelected(trx.id))}
+                  onChange={onToggleAll}
+                  disabled={loading || !!error || rows.length === 0}
+                  className="w-4 h-4 accent-[#FF8A00]"
+                />
               </label>
             </th>
-            <th scope="col" className="px-6 py-4">
+            <th scope="col" className="px-6 py-3">
               No
             </th>
             <SortableTh
@@ -76,16 +83,16 @@ export default function BarangKeluarTable({
               sort={sort}
               onSort={onSort}
             />
-            <th scope="col" className="px-6 py-4">
+            <th scope="col" className="px-6 py-3">
               Pengambil
             </th>
-            <th scope="col" className="px-6 py-4">
+            <th scope="col" className="px-6 py-3">
               Barang
             </th>
-            <th scope="col" className="px-6 py-4 text-right">
+            <th scope="col" className="px-6 py-3 text-right">
               Jumlah
             </th>
-            <th scope="col" className="px-6 py-4 text-center">
+            <th scope="col" className="px-6 py-3 text-center">
               Action
             </th>
           </tr>
@@ -114,7 +121,7 @@ export default function BarangKeluarTable({
           {!loading &&
             !error &&
             rows.map((trx, trxIndex) => {
-              const trxNo = (page - 1) * pageSize + trxIndex + 1;
+              const trxNo = trxIndex + 1;
               // Satu transaksi punya satu warna zebra, satu sorotan hover, dan satu garis aksen di semua barisnya, termasuk baris rincian
               const aktif = hoverTrx === trx.id;
               const zebra = trxNo % 2 === 0 ? "bg-gray-50/60" : "bg-white";
@@ -149,10 +156,10 @@ export default function BarangKeluarTable({
                     {...hoverProps}
                     className={`${barisClass} border-t border-gray-200`}
                   >
-                    <td className="px-6 py-4 text-center">
+                    <td className="px-6 py-3 text-center">
                       <input type="checkbox" aria-label={`Centang transaksi ${trx.noTransaksi ?? trx.id}`} checked={isSelected(trx.id)} onChange={() => onToggle(trx)} className="w-4 h-4 accent-[#FF8A00] cursor-pointer" />
                     </td>
-                    <td className={`px-6 py-4 text-gray-500 ${garisKiri}`}>
+                    <td className={`px-6 py-3 text-gray-500 ${garisKiri}`}>
                       <div className="flex items-center gap-2">
                         {banyak ? (
                           <button
@@ -173,7 +180,7 @@ export default function BarangKeluarTable({
                       </div>
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-3">
                       <div className="flex flex-col items-start">
                         {tombolRincian(
                           trx.noTransaksi ?? trx.id,
@@ -186,7 +193,7 @@ export default function BarangKeluarTable({
                       </div>
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-3">
                       <div className="flex flex-col">
                         <span className="font-medium text-gray-900">
                           {trx.clientName}
@@ -197,15 +204,15 @@ export default function BarangKeluarTable({
                       </div>
                     </td>
 
-                    <td className="px-6 py-4 text-gray-600">
+                    <td className="px-6 py-3 text-gray-600">
                       {tombolRincian(trx.itemName, "text-gray-600")}
                     </td>
 
-                    <td className="px-6 py-4 text-gray-700">
+                    <td className="px-6 py-3 text-gray-700">
                       {pertama?.pic ?? "-"}
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-3">
                       <div className="flex flex-col items-start">
                         {tombolRincian(
                           pertama?.itemName ?? "-",
@@ -220,11 +227,11 @@ export default function BarangKeluarTable({
                       </div>
                     </td>
 
-                    <td className="px-6 py-4 text-right font-bold text-gray-800">
+                    <td className="px-6 py-3 text-right font-bold text-gray-800">
                       {jumlah}
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-3">
                       {/* Menggunakan kontainer flex agar tombol berjejer rapi ke samping */}
                       <div className="flex items-center justify-center gap-2">
                         {/* Aksi pengajuan selalu terlihat pada baris transaksi. */}
@@ -283,6 +290,6 @@ export default function BarangKeluarTable({
           )}
         </tbody>
       </table>
-    </div>
+    </ScrollableTable>
   );
 }

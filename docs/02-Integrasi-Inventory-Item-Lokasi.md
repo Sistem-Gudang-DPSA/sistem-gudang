@@ -23,7 +23,7 @@ barang yang sama, hanya dengan aksi berbeda sesuai peran divisi.
 |---|---|
 | Satu domain `src/domains/inventory/` dipakai bersama oleh gudang, ppic, dan purchasing | Mengikuti batas modul backend. Ketiga halaman memanggil barang dan lokasi yang sama, jadi duplikasi fungsi fetch di tiga domain hanya menambah tempat yang harus disinkronkan kalau field API berubah. |
 | Form "Tambah Barang" penuh (nama, satuan, kategori, harga, supplier) ditaruh di halaman PPIC | Ini satu-satunya halaman yang sebelumnya sudah punya form create barang (nama, satuan, kategori). Field harga dan supplier ditambahkan supaya lengkap sesuai skema wajib `POST /items`, tapi lokasi form itu sendiri tidak dipindah supaya perubahan tetap kecil. |
-| Halaman Purchasing tetap dibatasi ke "Lengkapi" (update harga dan supplier saja) | Sebelumnya modal di halaman ini memang hanya punya field supplier dan harga, tidak ada nama/satuan/kategori. Dipertahankan sebagai partial update lewat `PUT /items/{id}` dengan payload sebagian. |
+| Halaman Purchasing menampilkan harga read-only, tanpa aksi isi harga | Harga akan menempel otomatis dari barang masuk, bukan diisi manual. Modal "Lengkapi" (supplier + harga) dihapus; pemetaan supplier massal tetap lewat `BulkSupplierAction`, dan pengubahan harga manual hanya ada di Superadmin (mode edit). |
 | Modal "Tambah Lokasi" di halaman Gudang memakai alur `suggest-code` lalu `assign-location` | Ini urutan yang diminta skema API: kode disarankan server berdasarkan lokasi yang dipilih, lalu bisa diedit manual sebelum dikirim lewat `PUT /items/{id}/assign-location`. Field "Stok" yang ada di modal versi dummy dihapus karena `assign-location` tidak menerima stok, dan tidak ada endpoint lain untuk mengubah stok. |
 | Kode lokasi baru dihasilkan dari gabungan `namaRak + nomerRak` (misal "A" + "04" jadi "A04") | Form Data Lokasi versi dummy memang punya pola ini di data contohnya, dan API `POST /locations` mensyaratkan field `code` terpisah dari `rackName`/`rackNumber`, jadi frontend perlu menyusunnya sendiri. |
 | Import Excel/CSV massal di halaman PPIC dinonaktifkan (tombolnya disembunyikan) | Fitur ini hanya menambah baris ke state lokal, tidak pernah memanggil API. Kalau tetap aktif berdampingan dengan data asli dari server, hasil import akan hilang begitu halaman dimuat ulang tanpa penjelasan ke user. Dimatikan sampai backend punya endpoint bulk-create. |
@@ -61,10 +61,10 @@ atau `updateItem()` dengan field lengkap. Tombol hapus memanggil
 
 ### `src/domains/purchasing/components/DataBarang.tsx`
 
-List dari `listItems()`. Tombol "Lengkapi" memanggil `updateItem()`
-dengan payload `{ price, supplierId }` saja. Field supplier di form
-diganti dari input teks bebas jadi dropdown supplier asli, karena API
-butuh `supplierId` bukan nama supplier.
+List dari `listItems()`. Harga hanya ditampilkan, tidak diisi dari layar ini
+(harga menempel dari barang masuk). Pemetaan supplier massal memakai
+`BulkSupplierAction` dengan `PUT /items/{id}` untuk supplier saja, karena
+API butuh `supplierId` bukan nama supplier.
 
 Panel Filter (kategori, satuan, supplier, lokasi, stok kosong) dikirim ke
 `listItems()` lewat `toItemFilterParams`, sama seperti Data Barang Gudang.
@@ -115,10 +115,24 @@ di-resolve ke kode lokasi yang bisa dibaca (misal "A04") lewat
 yang sempat hilang di halaman Gudang saat migrasi ke API asli juga
 dikembalikan.
 
+Data Barang di semua divisi memuat seluruh baris yang cocok dengan
+pencarian/filter (semua halaman `GET /items`), lalu menampilkannya dalam
+tabel scroll dengan header sticky. Tinggi area scroll mengikuti sisa tinggi
+layar, jadi baris yang muat sebanyak mungkin tanpa mendorong footer terlalu
+jauh; semua baris tetap bisa dicapai lewat scroll. Centang header memilih
+semua baris terfilter; export memakai data yang sudah dimuat. Pilihan
+bertahan saat pencarian, filter, atau urutan berubah, dan hilang saat layar
+ditutup. Banner hijau di atas tabel menampilkan jumlah baris terpilih beserta
+tombol **Bersihkan pilihan**.
+
 Kolom harga pada Data Barang PPIC, Purchasing, dan Superadmin memakai label
 **Harga Terbaru** dan format ribuan `id-ID` yang sama (contoh `1.000`).
-Nilainya tetap `item.price` dari `GET /items`; Superadmin masih dapat
-mengeditnya di mode edit bila punya `item.set-price`.
+Bila respons `GET /items` menyertakan tanggal harga terakhir, sel yang sama
+menampilkan baris kecil **per DD-MM-YYYY** di bawah harga. Field itu belum
+ada di kontrak backend (usul nama `priceUpdatedAt`, diisi saat harga menempel
+dari barang masuk); selama kosong, baris tanggal disembunyikan. Nilai harga
+tetap `item.price`; Superadmin masih dapat mengeditnya di mode edit bila
+punya `item.set-price`.
 
 ## Status dan Langkah Berikutnya
 
@@ -135,6 +149,12 @@ endpoint backend-nya:
   `DELETE /locations/{id}` dan hanya ditampilkan untuk role **Superadmin**.
   Import Excel Data Lokasi juga hanya untuk Superadmin; Gudang tetap punya
   Tambah Batch dan Tambah Data selama punya `location.create`.
+- Tambah Batch mendeteksi kode yang sudah ada sejak input masih diketik.
+  Daftar kode dibaca sekali lewat `GET /locations` saat modal dibuka, kode
+  duplikat ditandai pada preview dan dihitung di peringatan, lalu hanya kode
+  baru yang dikirim ke `POST /locations/bulk`. Bila daftar gagal dimuat,
+  modal memberi tahu dan penyimpanan tetap bisa dilakukan karena backend
+  tetap melewati kode duplikat dan melaporkannya di `skipped`.
 
 ## Detail Penerimaan Barang Superadmin
 
