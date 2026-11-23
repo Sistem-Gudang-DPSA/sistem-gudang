@@ -58,29 +58,48 @@ describe('DataBarang list', () => {
     await waitFor(() => expect(lastQ(api).get('search')).toBe('tri'));
   });
 
-  it('list request carries page=1&pageSize=20 and exposes pagination', async () => {
-    const api = setup({}, paged([item(1)], { total: 45 }));
-    await screen.findByText('Barang 1');
-    expect(lastQ(api).get('page')).toBe('1');
-    expect(lastQ(api).get('pageSize')).toBe('20');
-    expect(screen.getByText('Selanjutnya')).not.toBeNull();
+  it('keeps checked items when the search changes and clears them on demand', async () => {
+    const api = setup();
+    await ready(api);
+    fireEvent.click(screen.getByLabelText('Pilih Barang 1'));
+    expect(screen.getByRole('status').textContent).toContain('1 baris dipilih');
+    fireEvent.change(screen.getByPlaceholderText('Cari kode atau nama barang...'), { target: { value: 'Barang 2' } });
+    await waitFor(() => expect(lastQ(api).get('search')).toBe('Barang 2'));
+    expect((screen.getByLabelText('Pilih Barang 1') as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(screen.getByLabelText('Pilih Barang 2'));
+    expect(screen.getByRole('status').textContent).toContain('2 baris dipilih');
+    fireEvent.click(screen.getByRole('button', { name: 'Bersihkan pilihan' }));
+    expect((screen.getByLabelText('Pilih Barang 1') as HTMLInputElement).checked).toBe(false);
+    expect(screen.queryByRole('status')).toBeNull();
   });
 
-  it('requests page=2 on Selanjutnya', async () => {
-    const api = setup({}, paged([item(1)], { total: 45 }));
+  it('loads every page with pageSize=100 and shows no pagination', async () => {
+    const api = setup({}, (req: { query: URLSearchParams }) => ({
+      rows: req.query.get('page') === '2' ? [item(2)] : [item(1)],
+      total: 150,
+      page: Number(req.query.get('page')),
+      pageSize: 100,
+    }));
     await screen.findByText('Barang 1');
-    fireEvent.click(screen.getByText('Selanjutnya'));
-    await waitFor(() => expect(lastQ(api).get('page')).toBe('2'));
+    expect(await screen.findByText('Barang 2')).not.toBeNull();
+    expect(api.calls('GET /api/v1/items').map((c) => c.query.get('page'))).toEqual(['1', '2']);
+    expect(api.calls('GET /api/v1/items').every((c) => c.query.get('pageSize') === '100')).toBe(true);
+    expect(screen.queryByText('Selanjutnya')).toBeNull();
   });
 
-  it('resets to page 1 when search changes', async () => {
+  it('refetches from page 1 when search changes', async () => {
     const api = setup({}, paged([item(1)], { total: 45 }));
     await screen.findByText('Barang 1');
-    fireEvent.click(screen.getByText('Selanjutnya'));
-    await waitFor(() => expect(lastQ(api).get('page')).toBe('2'));
     fireEvent.change(screen.getByPlaceholderText('Cari kode atau nama barang...'), { target: { value: 'x' } });
     await waitFor(() => expect(lastQ(api).get('search')).toBe('x'));
     expect(lastQ(api).get('page')).toBe('1');
+  });
+
+  it('limits the scroll area to the viewport height', async () => {
+    setup();
+    await screen.findByText('Barang 1');
+    const region = screen.getByRole('region', { name: 'Tabel Data Barang' });
+    expect(region.style.getPropertyValue('--table-max-h')).toMatch(/^\d+px$/);
   });
 });
 

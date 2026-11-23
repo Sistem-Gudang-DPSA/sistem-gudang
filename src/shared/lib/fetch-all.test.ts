@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fetchAllPages } from './fetch-all';
+import { fetchAllPages, fetchAllPagesResult } from './fetch-all';
 
 // 10 rows, page size 2: five pages answered out of order with a small delay.
 const pager = (total: number) => {
@@ -43,5 +43,26 @@ describe('fetchAllPages', () => {
       return { rows: [page], total: 5 };
     };
     await expect(fetchAllPages(load, 1)).rejects.toThrow('boom');
+  });
+});
+
+describe('fetchAllPagesResult', () => {
+  it('returns every row plus the first page envelope', async () => {
+    const load = async (page: number, size: number) => ({
+      rows: Array.from({ length: Math.max(0, Math.min(size, 3 - (page - 1) * size)) }, (_, i) => (page - 1) * size + i),
+      total: 3,
+      summary: { totalQty: 12 },
+    });
+    const result = await fetchAllPagesResult(load, 1);
+    expect(result.rows).toEqual([0, 1, 2]);
+    expect(result.total).toBe(3);
+    expect(result.first).toMatchObject({ total: 3, summary: { totalQty: 12 } });
+  });
+
+  it('returns an empty list and the first envelope when there is no data', async () => {
+    const result = await fetchAllPagesResult(async () => ({ rows: [], total: 0, filteredSummary: { totalQty: 0 } }), 1);
+    expect(result.rows).toEqual([]);
+    expect(result.total).toBe(0);
+    expect(result.first).toMatchObject({ filteredSummary: { totalQty: 0 } });
   });
 });

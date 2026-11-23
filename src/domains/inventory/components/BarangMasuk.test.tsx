@@ -85,15 +85,26 @@ const scan = (code: string) => {
 const confirm = () => fireEvent.click(screen.getByRole('button', { name: 'Konfirmasi Simpan' }));
 
 describe('BarangMasuk list', () => {
-  it('shows rows incl. return rows and requests page 1 / pageSize 20', async () => {
+  it('shows rows incl. return rows and loads every page with pageSize 100', async () => {
     const { api } = setup();
     expect(screen.getByText('Memuat data...').closest('td')?.colSpan).toBe(7);
     expect(await screen.findByText('Triplex 1')).not.toBeNull();
     expect(screen.getAllByText('05-03-2026').length).toBe(2);
     const q = lastList(api);
     expect(q.get('page')).toBe('1');
-    expect(q.get('pageSize')).toBe('20');
+    expect(q.get('pageSize')).toBe('100');
     expect(q.get('search')).toBeNull();
+    expect(screen.queryByText('Selanjutnya')).toBeNull();
+  });
+
+  it('loads every page of inbound rows', async () => {
+    const { api } = setup({}, (req: { query: URLSearchParams }) => ({
+      rows: req.query.get('page') === '2' ? [inbound(101)] : [inbound(1)],
+      total: 150,
+    }));
+    await screen.findByText('Triplex 1');
+    await screen.findByText('Triplex 101');
+    expect(api.calls('GET /api/v1/inbound').some((call) => call.query.get('page') === '2')).toBe(true);
   });
 
   it('shows the supplier after item information and a dash for rows without a supplier', async () => {
@@ -119,14 +130,11 @@ describe('BarangMasuk list', () => {
     expect(message.closest('td')?.colSpan).toBe(7);
   });
 
-  it('sends search + date filters and resets to page 1 on search change', async () => {
+  it('sends search + date filters', async () => {
     const { api } = setup({}, paged([inbound(1)], { total: 45 }));
     await screen.findByText('Triplex 1');
-    fireEvent.click(screen.getByText('Selanjutnya'));
-    await waitFor(() => expect(lastList(api).get('page')).toBe('2'));
     fireEvent.change(screen.getByPlaceholderText(/Cari kode/), { target: { value: 'kayu' } });
     await waitFor(() => expect(lastList(api).get('search')).toBe('kayu'));
-    expect(lastList(api).get('page')).toBe('1');
 
     fireEvent.click(screen.getByRole('button', { name: /^Filter/ }));
     fireEvent.change(dateSelect('Tahun'), { target: { value: '2026' } });
@@ -134,7 +142,6 @@ describe('BarangMasuk list', () => {
     fireEvent.change(dateSelect('Tanggal'), { target: { value: '05' } });
     await waitFor(() => expect(lastList(api).get('startDate')).toBe('2026-03-05'));
     expect(lastList(api).get('endDate')).toBe('2026-03-05');
-    expect(lastList(api).get('page')).toBe('1');
   });
 
   it('counts active date filters on the Filter button', async () => {
@@ -745,13 +752,20 @@ describe('BarangMasuk search', () => {
 });
 
 describe('BarangMasuk selection', () => {
-  it('clears the checked rows when the filter changes', async () => {
+  it('keeps the checked rows when the filter changes and clears them on demand', async () => {
     setup();
     await screen.findByText('Triplex 1');
     const box = () => screen.getByLabelText('Centang Triplex 1') as HTMLInputElement;
+    const header = () => screen.getByLabelText('Centang semua baris') as HTMLInputElement;
     fireEvent.click(box());
     expect(box().checked).toBe(true);
+    expect(header().indeterminate).toBe(true);
     fireEvent.change(screen.getByPlaceholderText(/Cari kode/), { target: { value: 'Triplex' } });
-    await waitFor(() => expect(box().checked).toBe(false));
+    await waitFor(() => expect(screen.getByRole('status').textContent).toContain('1 baris dipilih'));
+    expect(box().checked).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Bersihkan pilihan' }));
+    expect(box().checked).toBe(false);
+    expect(header().indeterminate).toBe(false);
+    expect(screen.queryByRole('status')).toBeNull();
   });
 });

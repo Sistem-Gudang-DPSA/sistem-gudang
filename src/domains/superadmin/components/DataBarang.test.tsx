@@ -180,21 +180,17 @@ describe('DataBarang superadmin: Hapus', () => {
 });
 
 describe('DataBarang superadmin: pilih semua barang', () => {
-  it('memilih semua barang dari semua halaman lalu aksi massal memakai semuanya', async () => {
+  it('checkbox header memilih semua barang terfilter lalu aksi massal memakai semuanya', async () => {
     const item2 = { ...item, id: 2, code: 'LEM014', name: 'Barang 2' };
-    // halaman tabel (pageSize 20) hanya berisi Barang 1; total 2
-    setup({}, {
-      'GET /api/v1/items': (r: { query: URLSearchParams }) =>
-        r.query.get('pageSize') === '100' ? paged([item, item2]) : paged([item], { total: 2 }),
-    });
+    setup({}, { 'GET /api/v1/items': paged([item, item2], { total: 2 }) });
     await screen.findByText('Barang 1');
-    fireEvent.click(screen.getByLabelText('Pilih semua barang di halaman ini'));
-    fireEvent.click(screen.getByRole('button', { name: 'Pilih semua 2 barang' }));
+    fireEvent.click(screen.getByLabelText('Pilih semua barang'));
     expect(await screen.findByRole('button', { name: 'Aksi Massal (2)' })).not.toBeNull();
     openBulkMenu();
     expect((screen.getByRole('menuitem', { name: 'Ganti Kode Massal' }) as HTMLButtonElement).disabled).toBe(false);
     closeBulkMenu();
-    fireEvent.click(screen.getByRole('button', { name: 'Batalkan pilihan' }));
+    // klik kedua pada checkbox header mengosongkan pilihan
+    fireEvent.click(screen.getByLabelText('Pilih semua barang'));
     openBulkMenu();
     expect((screen.getByRole('menuitem', { name: 'Ganti Kode Massal' }) as HTMLButtonElement).disabled).toBe(true);
   });

@@ -14,6 +14,7 @@ import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';
 import { cetakHtml } from '@/shared/lib/print-html';
 import { useSelection } from '@/shared/lib/use-selection';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
+import SelectionBanner from '@/shared/components/SelectionBanner';
 
 const cellClass = 'px-4 py-3 border-b border-r border-gray-300';
 const cardClass = 'bg-white rounded-sm border border-gray-100 shadow-md p-6 min-h-32';
@@ -25,7 +26,7 @@ type Props = {
   detailPath: (id: number) => string;
   // PPIC shows Anggaran / Realisasi / Sisa Anggaran; Gudang shows only SPK, client and status.
   showAnggaran?: boolean;
-  // Gudang: sortable headers, and a selection that only holds for the filter and sort it was made under.
+  // Gudang: header kolom bisa diurutkan.
   sortable?: boolean;
 };
 
@@ -71,8 +72,10 @@ export default function RekapDokubahView({ detailPath, showAnggaran = false, sor
   const nilaiRealisasi = summary?.nilaiRealisasi ?? 0;
   const persenMaterial = nilaiKuota === 0 ? 0 : Math.round((nilaiRealisasi / nilaiKuota) * 100);
 
-  const selection = useSelection<(typeof filteredData)[number]>(sortable ? filterKey : '');
-  const checkedRows = sortable ? selection.rows : filteredData.filter((item) => selection.isSelected(item.id));
+  // Pilihan bertahan lintas pencarian/filter/urutan; hilang saat layar ditutup.
+  const selection = useSelection<(typeof filteredData)[number]>();
+  // Export/cetak memakai seluruh baris terpilih, termasuk yang sedang tidak tampak.
+  const checkedRows = selection.rows;
   const allChecked = selection.allSelected(filteredData);
 
   // Export & cetak pakai baris yang dicentang; kalau tidak ada yang dicentang, semua baris di halaman ini
@@ -212,6 +215,8 @@ export default function RekapDokubahView({ detailPath, showAnggaran = false, sor
             </div>
           </div>
         </div>
+
+        <SelectionBanner count={selection.size} onClear={selection.clear} className="mx-0 mt-0 mb-4" />
 
         {/* Tabel rekapitulasi */}
         <div className="flex flex-wrap items-center justify-between gap-4 mb-4">

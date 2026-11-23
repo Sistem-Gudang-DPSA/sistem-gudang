@@ -13,4 +13,23 @@ describe('useSelection', () => {
     act(() => result.current.toggle({ id: 4 }));
     expect(result.current.rows).toEqual([{ id: 4 }]);
   });
+
+  it('keeps the selection across rerenders when no resetKey is given', () => {
+    const { result, rerender } = renderHook(() => useSelection<{ id: number }>());
+    act(() => result.current.toggle({ id: 1 }));
+    rerender();
+    expect(result.current.size).toBe(1);
+    expect(result.current.isSelected(1)).toBe(true);
+  });
+
+  it('exposes the Map and accepts a whole new Map', () => {
+    const { result, rerender } = renderHook(({ key }) => useSelection<{ id: number }>(key), { initialProps: { key: 'a' } });
+    act(() => result.current.setMap(new Map([[1, { id: 1 }], [2, { id: 2 }]])));
+    expect([...result.current.map.keys()]).toEqual([1, 2]);
+    expect(result.current.size).toBe(2);
+    rerender({ key: 'b' });
+    expect(result.current.size).toBe(0);
+    act(() => result.current.setMap((prev) => new Map(prev).set(3, { id: 3 })));
+    expect(result.current.rows).toEqual([{ id: 3 }]);
+  });
 });
