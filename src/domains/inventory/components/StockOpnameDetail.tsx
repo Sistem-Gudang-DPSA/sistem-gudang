@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useParams, usePathname } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { getStockOpname } from '@/domains/inventory/api';
-import { useCan } from '@/domains/auth/user-context';
+import { useCanAny } from '@/domains/auth/user-context';
 import { useApiData } from '@/shared/lib/use-api-data';
 
 const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -53,7 +53,9 @@ export default function StockOpnameDetailPage() {
   const { id } = useParams<{ id: string }>();
   const pathname = usePathname();
   const backPath = pathname?.replace(/\/[^/]+$/, '') ?? '/dashboard/gudang/transaksi/stock-opname';
-  const canView = useCan('stock-opname.view');
+  // Same access as the Rekap lists that link here: Gudang transaksi, Gudang/GBJ laporan,
+  // Purchasing, and Keuangan each open the page with a different permission.
+  const canView = useCanAny('stock-opname.view', 'report.view', 'item.set-price', 'supplier.create', 'supplier.update');
   const opnameId = Number(id);
   const valid = /^\d+$/.test(id) && Number.isSafeInteger(opnameId) && opnameId > 0;
 
