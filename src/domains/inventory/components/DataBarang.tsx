@@ -6,28 +6,24 @@ import StokMinimumCell from '@/domains/inventory/components/data-barang/StokMini
 import { useState } from 'react';
 import { useCan } from '@/domains/auth/user-context';
 import { Plus, Edit2, QrCode } from 'lucide-react';
-import { assignItemLocation, bulkAssignItemLocation, listItems } from '@/domains/inventory/api';
+import { assignItemLocation, bulkAssignItemLocation } from '@/domains/inventory/api';
 import type { ItemListRow } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { downloadCsv } from '@/shared/lib/csv';
-import { fetchAllPages } from '@/shared/lib/fetch-all';
-import Pagination from '@/shared/components/Pagination';
 import { ExportExcellButton } from '@/shared/components/Tombol';
+import TableFooter from '@/shared/components/TableFooter';
+import SelectionBanner from '@/shared/components/SelectionBanner';
 import PrintQrModal from './data-barang/PrintQrModal';
-import BarangFilterPanel, { countActiveFilters, toItemFilterParams } from './BarangFilterPanel';
+import BarangFilterPanel, { countActiveFilters } from './BarangFilterPanel';
 import { useDataBarang } from './data-barang/useDataBarang';
 import DataBarangTable, { type BarangColumn, KategoriBadge, StokCell, SupplierCell } from './data-barang/DataBarangTable';
 import DataBarangToolbar, { FilterToggle } from './data-barang/DataBarangToolbar';
 import { LokasiBulkModal, LokasiModal } from './data-barang/modals/LokasiModal';
 
-export default function DataBarangGudang({
-  paginationActiveClass,
-}: {
-  paginationActiveClass?: string;
-}) {
+export default function DataBarangGudang() {
   const canAssign = useCan('item.assign-location');
   const d = useDataBarang();
-  const { dataBarang, total, page, pageSize, setPage, selected, setSelected, supplierName, locationCode, reload } = d;
+  const { dataBarang, total, selected, setSelected, clearSelection, supplierName, locationCode, reload } = d;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeItem, setActiveItem] = useState<ItemListRow | null>(null);
@@ -91,13 +87,12 @@ export default function DataBarangGudang({
     }
   };
 
-  // Semua barang sesuai pencarian/filter aktif, bukan hanya halaman yang tampil
-  const handleExportExcel = async () => {
+  // Semua barang sesuai pencarian/filter aktif sudah dimuat, jadi export mencakup seluruhnya.
+  const handleExportExcel = () => {
     setPrintError("");
     try {
-      const all = await fetchAllPages((p) => listItems({ page: p, pageSize: 100, search: d.debouncedSearch || undefined, ...toItemFilterParams(d.filters), ...d.sortParams }));
       const rows: unknown[][] = [['No', 'Kode Barang', 'Kode Bawaan', 'Nama Barang', 'Supplier', 'Jumlah Stok', 'Satuan', 'Kategori', 'Lokasi']];
-      all.forEach((item, index) => rows.push([index + 1, item.code ?? '-', item.externalCode ?? '-', item.name, supplierName(item.supplierId), item.stock, item.unit, item.category, locationCode(item.locationId)]));
+      dataBarang.forEach((item, index) => rows.push([index + 1, item.code ?? '-', item.externalCode ?? '-', item.name, supplierName(item.supplierId), item.stock, item.unit, item.category, locationCode(item.locationId)]));
       downloadCsv('Data_Barang_Gudang.csv', rows);
     } catch (err) {
       setPrintError(err instanceof Error ? err.message : "Gagal export data barang.");
@@ -188,7 +183,7 @@ export default function DataBarangGudang({
                 <span>Atur Lokasi{selected.size > 0 ? ` (${selected.size})` : ''}</span>
               </button>
             )}
-            <ExportExcellButton onClick={handleExportExcel} />
+            <ExportExcellButton onClick={handleExportExcel} disabled={d.loading || dataBarang.length === 0} />
           </>}
           filter={<FilterToggle open={d.showFilter} count={countActiveFilters(d.filters)} onToggle={() => d.setShowFilter((v) => !v)} />}
         />
@@ -203,6 +198,8 @@ export default function DataBarangGudang({
             locations={d.locations}
           />
         )}
+
+        <SelectionBanner count={selected.size} onClear={clearSelection} />
 
         {notice && (
           <div className="mx-5 mt-5 p-3 bg-green-50 text-green-700 text-sm rounded-lg flex items-start justify-between gap-3">
@@ -225,9 +222,9 @@ export default function DataBarangGudang({
           photo={{ canUpload: false }}
           selection={{
             selected,
-            allOnPage: d.pageAllSelected,
+            allSelected: d.allSelected,
             onToggleRow: d.toggleRow,
-            onToggleAll: d.togglePage,
+            onToggleAll: d.toggleAll,
             disableAllWhenEmpty: true,
           }}
           rowActions={renderRowActions}
@@ -235,7 +232,7 @@ export default function DataBarangGudang({
           tbodyClassName="divide-y divide-gray-50"
         />
 
-        <Pagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} activeClass={paginationActiveClass} />
+        <TableFooter total={total} unit="barang" />
       </div>
 
       {bulkOpen && (

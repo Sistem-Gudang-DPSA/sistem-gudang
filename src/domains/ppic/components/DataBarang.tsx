@@ -11,7 +11,7 @@ import { createItem, deleteItem, updateItem } from '@/domains/inventory/api';
 import type { ItemListRow } from '@/domains/inventory/types';
 import { downloadCsv } from '@/shared/lib/csv';
 import { ApiError } from '@/shared/lib/api-client';
-import Pagination from '@/shared/components/Pagination';
+import TableFooter from '@/shared/components/TableFooter';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import { kodeKategoriNotice } from '@/domains/inventory/item-code-notice';
 import { useDataBarang } from '@/domains/inventory/components/data-barang/useDataBarang';
@@ -19,6 +19,7 @@ import DataBarangTable, { type BarangColumn, KategoriBadge, StokCell, SupplierCe
 import DataBarangToolbar from '@/domains/inventory/components/data-barang/DataBarangToolbar';
 import ItemFormModal, { type ItemForm } from '@/domains/inventory/components/data-barang/modals/ItemFormModal';
 import BulkStokMinimumModal from '@/domains/inventory/components/data-barang/BulkStokMinimumModal';
+import SelectionBanner from '@/shared/components/SelectionBanner';
 const BulkPhotoModal = dynamic(() => import('@/domains/inventory/components/BulkPhotoModal'), { ssr: false });
 
 const emptyForm: ItemForm = { name: '', unit: '', category: '', price: '', supplierId: '' };
@@ -29,7 +30,7 @@ export default function DataBarangPPIC() {
   const canDelete = useCan("item.delete");
   const canUploadPhoto = useCan("item.upload-photo");
   const d = useDataBarang({ cacheReferenceLists: true });
-  const { dataBarang, total, page, setPage, selected, setSelected, reload, supplierName, locationCode } = d;
+  const { dataBarang, total, selected, setSelected, clearSelection, reload, supplierName, locationCode } = d;
 
   const [actionError, setActionError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -121,7 +122,7 @@ export default function DataBarangPPIC() {
   const handleExportCSV = () => {
     const rows: unknown[][] = [['No', 'Kode Barang', 'Kode Bawaan', 'Nama Barang', 'Supplier', 'Jumlah Stok', 'Satuan', 'Kategori', 'Harga', 'Lokasi']];
     dataBarang.forEach((item, index) => rows.push([index + 1, item.code ?? '-', item.externalCode ?? '-', item.name, supplierName(item.supplierId), item.stock, item.unit, item.category, item.price, locationCode(item.locationId)]));
-    downloadCsv(`Data_Barang_PPIC_halaman-${page}.csv`, rows);
+    downloadCsv('Data_Barang_PPIC.csv', rows);
   };
 
   const columns: BarangColumn[] = [
@@ -221,6 +222,8 @@ export default function DataBarangPPIC() {
           )}
         />
 
+        <SelectionBanner count={selected.size} onClear={clearSelection} />
+
         {notice && <div className="mx-5 mt-5 p-3 bg-green-50 text-green-700 text-sm rounded-lg">{notice}</div>}
 
         {error && (
@@ -237,16 +240,16 @@ export default function DataBarangPPIC() {
           photo={{ canUpload: canUploadPhoto, onUploaded: reload }}
           selection={showSelection ? {
             selected,
-            allOnPage: d.pageAllSelected,
+            allSelected: d.allSelected,
             onToggleRow: d.toggleRow,
-            onToggleAll: d.togglePage,
+            onToggleAll: d.toggleAll,
             checkboxClassName: 'w-4 h-4 rounded border-gray-300 text-[#FF8A00] focus:ring-[#FF8A00]',
           } : undefined}
           rowActions={renderRowActions}
           rowClassName={() => 'hover:bg-purple-50/30 transition-colors group'}
           tbodyClassName="divide-y divide-gray-50"
         />
-        <Pagination page={page} pageSize={d.pageSize} total={total} onPageChange={setPage} activeClass="bg-purple-500 text-white border-purple-500" />
+        <TableFooter total={total} unit="barang" />
       </div>
 
       {bulkStokOpen && (

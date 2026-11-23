@@ -1,6 +1,6 @@
 import DataBarang from './DataBarang';
 
-// Gudang Barang Jadi uses the Gudang Data Barang screen with its own rose pagination.
+// Gudang Barang Jadi memakai layar Data Barang Gudang yang sama.
 export default function DataBarangBarangJadi() {
-  return <DataBarang paginationActiveClass="bg-rose-500 text-white border-rose-500" />;
+  return <DataBarang />;
 }

@@ -6,13 +6,12 @@ import { useSort } from "@/shared/components/SortableTh";
 import { ApiError } from "@/shared/lib/api-client";
 import { useApiData } from "@/shared/lib/use-api-data";
 import { useDebouncedValue } from "@/shared/lib/use-debounced-value";
-import { useClampPage, usePage } from "@/shared/lib/use-page";
+import { fetchAllPagesResult } from "@/shared/lib/fetch-all";
 import { useSelection } from "@/shared/lib/use-selection";
 import { cetakTransaksi } from "./cetak";
 
-export const PAGE_SIZE = 20;
-
-// Daftar transaksi: cari, filter tanggal, urut, halaman, pilihan baris, cetak, dan ekspor.
+// Daftar transaksi: cari, filter tanggal, urut, pilihan baris, cetak, dan ekspor.
+// Semua baris terfilter dimuat dan dirender dalam satu tabel scroll.
 export function useBarangKeluarList({ setActionError }: { setActionError: (message: string) => void }) {
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebouncedValue(searchQuery);
@@ -24,22 +23,22 @@ export function useBarangKeluarList({ setActionError }: { setActionError: (messa
   const dateRange = toDateRange(filterDay, filterMonth, filterYear);
 
   const filterKey = JSON.stringify([debouncedSearch, filterDay, filterMonth, filterYear, sortParams]);
-  const [page, setPage] = usePage(filterKey);
   const { data: result, loading, error, reload } = useApiData(
     () =>
-      listOutbound({
-        page,
-        pageSize: PAGE_SIZE,
-        search: debouncedSearch || undefined,
-        ...dateRange,
-        ...sortParams,
-      }),
-    `${filterKey}|${page}`,
+      fetchAllPagesResult((page, pageSize) =>
+        listOutbound({
+          page,
+          pageSize,
+          search: debouncedSearch || undefined,
+          ...dateRange,
+          ...sortParams,
+        }),
+      ),
+    `${filterKey}|all`,
     "Gagal memuat data barang keluar.",
   );
   const rows = result?.rows ?? [];
   const total = result?.total ?? 0;
-  useClampPage(page, total, PAGE_SIZE, setPage);
 
   // Persetujuan superadmin masuk saat tab kembali aktif, atau lewat polling selama ada pengajuan menunggu.
   const hasPendingEdit = rows.some((row) => row.editRequest?.status === "PENDING");
@@ -53,7 +52,8 @@ export function useBarangKeluarList({ setActionError }: { setActionError: (messa
     };
   }, [hasPendingEdit, reload]);
 
-  const selection = useSelection<OutboundRow>(filterKey);
+  // Pilihan bertahan lintas pencarian/filter/urutan; hilang saat layar ditutup.
+  const selection = useSelection<OutboundRow>();
   const allChecked = selection.allSelected(rows);
   const toggleSelected = selection.toggle;
   const toggleAllSelected = () => selection.toggleMany(rows);
@@ -61,10 +61,8 @@ export function useBarangKeluarList({ setActionError }: { setActionError: (messa
   const [printing, setPrinting] = useState(false);
   const printSelected = async () => {
     if (printing) return;
-    const transactions =
-      selection.size > 0
-        ? selection.rows.map((trx) => rows.find((row) => row.id === trx.id) ?? trx)
-        : rows;
+    // Tanpa pilihan: cetak seluruh transaksi terfilter, bukan hanya yang tampak.
+    const transactions = selection.size > 0 ? selection.rows : rows;
     if (transactions.length === 0) return;
     setPrinting(true);
     setActionError("");
@@ -101,9 +99,9 @@ export function useBarangKeluarList({ setActionError }: { setActionError: (messa
     searchQuery, setSearchQuery,
     sort, toggle,
     showFilter, setShowFilter,
+    rows, total, loading, error, reload,
     filterDay, setFilterDay, filterMonth, setFilterMonth, filterYear, setFilterYear, resetDateFilter,
-    page, setPage, rows, total, loading, error, reload,
-    selectedCount: selection.size, isSelected: selection.isSelected, allChecked, toggleSelected, toggleAllSelected,
+    selectedCount: selection.size, isSelected: selection.isSelected, allChecked, toggleSelected, toggleAllSelected, clearSelection: selection.clear,
     printing, printSelected,
     downloading, downloadError, handleDownload,
   };
