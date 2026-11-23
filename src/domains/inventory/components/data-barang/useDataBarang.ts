@@ -9,18 +9,16 @@ import { fetchAllPages, fetchAllPagesResult } from '@/shared/lib/fetch-all';
 import { useDebouncedValue } from '@/shared/lib/use-debounced-value';
 import { useSelection } from '@/shared/lib/use-selection';
 
-const DEFAULT_VISIBLE_ROWS = 20;
 const REFERENCE_CACHE_MS = 60_000;
 
 // Bagian yang sama di layar Data Barang Gudang, PPIC dan Superadmin: data, cari, filter, dan pilihan baris.
-// Semua baris terfilter dimuat sekaligus; visibleRows hanya mengatur tinggi area scroll.
+// Semua baris terfilter dimuat sekaligus dan dirender dalam satu tabel scroll.
 export function useDataBarang({ cacheReferenceLists = false }: { cacheReferenceLists?: boolean } = {}) {
   const { sort, toggle, params: sortParams } = useSort();
   const [filters, setFilters] = useState(emptyBarangFilters);
   const [showFilter, setShowFilter] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebouncedValue(searchQuery);
-  const [visibleRows, setVisibleRows] = useState(DEFAULT_VISIBLE_ROWS);
 
   const filterKey = JSON.stringify([debouncedSearch, filters, sortParams]);
   const { data: loaded, loading, error, reload } = useApiData(
@@ -31,9 +29,8 @@ export function useDataBarang({ cacheReferenceLists = false }: { cacheReferenceL
   const dataBarang = loaded?.rows ?? [];
   const total = loaded?.total ?? 0;
 
-  // Pilihan di-reset saat pencarian/filter berubah agar aksi massal tidak mengenai baris yang tersembunyi.
-  const selectionKey = JSON.stringify([debouncedSearch, filters]);
-  const selection = useSelection<ItemListRow>(selectionKey);
+  // Pilihan bertahan lintas pencarian/filter; hilang saat layar ditutup.
+  const selection = useSelection<ItemListRow>();
   const selected = selection.map;
 
   // Urutan pemanggilan sama seperti sebelumnya (lokasi, supplier, kategori, satuan). Hanya kategori dan satuan yang boleh di-cache.
@@ -55,10 +52,10 @@ export function useDataBarang({ cacheReferenceLists = false }: { cacheReferenceL
     sort, toggle, sortParams,
     filters, setFilters, showFilter, setShowFilter,
     searchQuery, setSearchQuery, debouncedSearch,
-    visibleRows, setVisibleRows,
     dataBarang, total, loaded, loading, error: error || locationError || supplierError, reload,
     locations, suppliers, categories, units, supplierName, locationCode,
     selected, setSelected: selection.setMap, toggleRow: selection.toggle, toggleAll: () => selection.toggleMany(dataBarang),
+    clearSelection: selection.clear,
     allSelected: selection.allSelected(dataBarang), someSelected: dataBarang.some((item) => selected.has(item.id)),
   };
 }

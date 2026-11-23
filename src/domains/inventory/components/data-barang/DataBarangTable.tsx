@@ -30,8 +30,6 @@ type Props = {
   columns: BarangColumn[];
   sort: Sort;
   onSort: (by: string) => void;
-  // Baris yang terlihat sekaligus di area scroll; semua baris tetap dirender.
-  visibleRows: number;
   photo: { canUpload: boolean; onUploaded?: () => void };
   selection?: BarangSelection;
   rowActions?: (item: ItemListRow) => ReactNode;
@@ -40,14 +38,14 @@ type Props = {
 };
 
 // Tabel Data Barang: kolom No, Foto, kolom per peran, dan Aksi. Kolom centang hanya bila `selection` diisi.
-export default function DataBarangTable({ rows, loading, colSpan, columns, sort, onSort, visibleRows, photo, selection, rowActions, rowClassName, tbodyClassName }: Props) {
+export default function DataBarangTable({ rows, loading, colSpan, columns, sort, onSort, photo, selection, rowActions, rowClassName, tbodyClassName }: Props) {
   return (
-    <ScrollableTable visibleRows={visibleRows} rowHeightPx={72} ariaLabel="Tabel Data Barang">
+    <ScrollableTable ariaLabel="Tabel Data Barang">
       <table className="w-full text-left text-sm whitespace-nowrap">
         <thead className={`${STICKY_HEAD_CLASS} bg-gray-50 text-gray-600 font-semibold border-b border-gray-100`}>
           <tr>
             {selection && (
-              <th scope="col" className="px-4 py-4">
+              <th scope="col" className="px-4 py-3">
                 <SelectAllCheckbox
                   ariaLabel="Pilih semua barang"
                   checked={selection.allSelected}
@@ -58,14 +56,14 @@ export default function DataBarangTable({ rows, loading, colSpan, columns, sort,
                 />
               </th>
             )}
-            <th scope="col" className="px-6 py-4">No</th>
-            <th scope="col" className="px-6 py-4">Foto</th>
+            <th scope="col" className="px-6 py-3">No</th>
+            <th scope="col" className="px-6 py-3">Foto</th>
             {columns.map((col) => col.sortKey ? (
               <SortableTh key={col.label} label={col.label} sortKey={col.sortKey} sort={sort} onSort={onSort} align={col.align} />
             ) : (
-              <th key={col.label} scope="col" className="px-6 py-4">{col.label}</th>
+              <th key={col.label} scope="col" className="px-6 py-3">{col.label}</th>
             ))}
-            {rowActions && <th scope="col" className="px-6 py-4 text-center">Aksi</th>}
+            {rowActions && <th scope="col" className="px-6 py-3 text-center">Aksi</th>}
           </tr>
         </thead>
         <tbody className={tbodyClassName}>
@@ -78,18 +76,18 @@ export default function DataBarangTable({ rows, loading, colSpan, columns, sort,
           {!loading && rows.map((item, index) => (
             <tr key={item.id} className={rowClassName(item, index)}>
               {selection && (
-                <td className="px-4 py-4">
+                <td className="px-4 py-3">
                   <input type="checkbox" aria-label={`Pilih ${item.name}`} checked={selection.selected.has(item.id)} onChange={() => selection.onToggleRow(item)} className={selection.checkboxClassName} />
                 </td>
               )}
-              <td className="px-6 py-4 text-gray-500">{index + 1}</td>
-              <td className="px-6 py-4">
+              <td className="px-6 py-3 text-gray-500">{index + 1}</td>
+              <td className="px-6 py-3">
                 <ItemPhoto item={item} canUpload={photo.canUpload} onUploaded={photo.onUploaded} />
               </td>
               {columns.map((col) => col.cell && (
-                <td key={col.label} className={col.tdClassName ?? 'px-6 py-4'}>{col.cell(item, index)}</td>
+                <td key={col.label} className={col.tdClassName ?? 'px-6 py-3'}>{col.cell(item, index)}</td>
               ))}
-              {rowActions && <td className="px-6 py-4 text-center">{rowActions(item)}</td>}
+              {rowActions && <td className="px-6 py-3 text-center">{rowActions(item)}</td>}
             </tr>
           ))}
         </tbody>

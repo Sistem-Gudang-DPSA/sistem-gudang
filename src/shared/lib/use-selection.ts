@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
-// resetKey: a selection only holds for the filter it was made under, so a new key starts empty.
+// Pilihan hidup selama layar ter-mount. resetKey opsional untuk konteks yang
+// memang harus mulai kosong (mis. izin lihat berubah); layar tabel memakai key stabil.
 export function useSelection<T extends { id: number }>(resetKey = '') {
   const [state, setState] = useState(() => ({ key: resetKey, map: new Map<number, T>() }));
   const selected = useMemo(() => (state.key === resetKey ? state.map : new Map<number, T>()), [state, resetKey]);

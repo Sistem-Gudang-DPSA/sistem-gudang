@@ -11,7 +11,7 @@ import { useSelection } from "@/shared/lib/use-selection";
 import { cetakTransaksi } from "./cetak";
 
 // Daftar transaksi: cari, filter tanggal, urut, pilihan baris, cetak, dan ekspor.
-// Semua baris terfilter dimuat; visibleRows hanya mengatur tinggi area scroll.
+// Semua baris terfilter dimuat dan dirender dalam satu tabel scroll.
 export function useBarangKeluarList({ setActionError }: { setActionError: (message: string) => void }) {
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebouncedValue(searchQuery);
@@ -22,7 +22,6 @@ export function useBarangKeluarList({ setActionError }: { setActionError: (messa
   const [filterYear, setFilterYear] = useState("");
   const dateRange = toDateRange(filterDay, filterMonth, filterYear);
 
-  const [visibleRows, setVisibleRows] = useState(20);
   const filterKey = JSON.stringify([debouncedSearch, filterDay, filterMonth, filterYear, sortParams]);
   const { data: result, loading, error, reload } = useApiData(
     () =>
@@ -53,7 +52,8 @@ export function useBarangKeluarList({ setActionError }: { setActionError: (messa
     };
   }, [hasPendingEdit, reload]);
 
-  const selection = useSelection<OutboundRow>(filterKey);
+  // Pilihan bertahan lintas pencarian/filter/urutan; hilang saat layar ditutup.
+  const selection = useSelection<OutboundRow>();
   const allChecked = selection.allSelected(rows);
   const toggleSelected = selection.toggle;
   const toggleAllSelected = () => selection.toggleMany(rows);
@@ -99,9 +99,9 @@ export function useBarangKeluarList({ setActionError }: { setActionError: (messa
     searchQuery, setSearchQuery,
     sort, toggle,
     showFilter, setShowFilter,
+    rows, total, loading, error, reload,
     filterDay, setFilterDay, filterMonth, setFilterMonth, filterYear, setFilterYear, resetDateFilter,
-    visibleRows, setVisibleRows, rows, total, loading, error, reload,
-    selectedCount: selection.size, isSelected: selection.isSelected, allChecked, toggleSelected, toggleAllSelected,
+    selectedCount: selection.size, isSelected: selection.isSelected, allChecked, toggleSelected, toggleAllSelected, clearSelection: selection.clear,
     printing, printSelected,
     downloading, downloadError, handleDownload,
   };

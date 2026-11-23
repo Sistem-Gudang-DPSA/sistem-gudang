@@ -18,27 +18,31 @@ hanya halaman default backend.
   yaitu `setState` langsung di dalam `useEffect`, menjadi sumber empat error
   lint.
 - Daftar yang dipaginasi dengan 20 baris per halaman: Data Barang PPIC dan
-  Purchasing, Data Supplier, Users, Barang Masuk, Barang Keluar, Stock
-  Opname, Rekap Permintaan Gudang, dan Permintaan Pembelian PPIC.
+  Purchasing, Data Supplier, Users, Stock Opname, Rekap Permintaan Gudang,
+  dan Permintaan Pembelian PPIC.
 - Halaman kembali ke 1 saat pencarian atau filter berubah. Caranya dengan
   menyimpan filter bersama nomor halaman, bukan dengan `useEffect`.
 - Seluruh endpoint tersebut sudah dicek menerima `page` dan `pageSize`.
 
 ## Tabel semua baris dengan scroll
 
-Data Barang (semua divisi), Stock Opname, Barang Keluar, Laporan Barang
-Masuk, dan Laporan Barang Keluar tidak lagi memakai nomor halaman. Seluruh
+Data Barang (semua divisi), Stock Opname, Barang Masuk, Barang Keluar,
+Laporan Barang Masuk, dan Laporan Barang Keluar tidak lagi memakai nomor
+halaman. Seluruh
 baris yang cocok dengan pencarian, filter, dan urutan diambil lewat
 `fetchAllPagesResult` (`src/shared/lib/fetch-all.ts`), lalu dirender dalam
 satu tabel dengan header sticky (`ScrollableTable`,
-`src/shared/components/ScrollableTable.tsx`). Footer `TableFooter` berisi
-total terfilter dan pilihan **Baris terlihat** (20/50/100) yang hanya
-mengatur tinggi area scroll; scroll tetap mencapai baris terakhir.
+`src/shared/components/ScrollableTable.tsx`). Tinggi area scroll diukur dari
+posisi tabel ke dasar layar user lalu dikurangi ruang footer, dan diukur ulang
+saat layar di-resize atau tata letak di atas tabel berubah (misal panel filter
+dibuka), sehingga baris yang tampak sebanyak mungkin; scroll tetap mencapai
+baris terakhir. Footer `TableFooter` menampilkan total data terfilter.
 
 Karena semua baris ada di halaman, checkbox header memilih seluruh data
 terfilter, dan cetak/export memakai seluruh data terfilter — bukan hanya
-yang tampak. Pilihan baris di-reset saat pencarian atau filter berubah,
-tidak saat urutan berubah. Nomor baris selalu mulai dari 1 mengikuti urutan
+yang tampak. Pilihan baris bertahan saat pencarian, filter, urutan, maupun
+pindah halaman tabel; pilihan hilang saat layar ditutup. Banner hijau di atas
+tabel menampilkan jumlah baris terpilih dan tombol **Bersihkan pilihan**. Nomor baris selalu mulai dari 1 mengikuti urutan
 data, bukan nomor halaman. Layar lain tetap memakai `Pagination` server.
 
 ## Yang Belum Dipaginasi

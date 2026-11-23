@@ -58,6 +58,21 @@ describe('DataBarang list', () => {
     await waitFor(() => expect(lastQ(api).get('search')).toBe('tri'));
   });
 
+  it('keeps checked items when the search changes and clears them on demand', async () => {
+    const api = setup();
+    await ready(api);
+    fireEvent.click(screen.getByLabelText('Pilih Barang 1'));
+    expect(screen.getByRole('status').textContent).toContain('1 baris dipilih');
+    fireEvent.change(screen.getByPlaceholderText('Cari kode atau nama barang...'), { target: { value: 'Barang 2' } });
+    await waitFor(() => expect(lastQ(api).get('search')).toBe('Barang 2'));
+    expect((screen.getByLabelText('Pilih Barang 1') as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(screen.getByLabelText('Pilih Barang 2'));
+    expect(screen.getByRole('status').textContent).toContain('2 baris dipilih');
+    fireEvent.click(screen.getByRole('button', { name: 'Bersihkan pilihan' }));
+    expect((screen.getByLabelText('Pilih Barang 1') as HTMLInputElement).checked).toBe(false);
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
   it('loads every page with pageSize=100 and shows no pagination', async () => {
     const api = setup({}, (req: { query: URLSearchParams }) => ({
       rows: req.query.get('page') === '2' ? [item(2)] : [item(1)],
@@ -80,13 +95,11 @@ describe('DataBarang list', () => {
     expect(lastQ(api).get('page')).toBe('1');
   });
 
-  it('changes the scroll area height from the visible-rows select', async () => {
+  it('limits the scroll area to the viewport height', async () => {
     setup();
     await screen.findByText('Barang 1');
     const region = screen.getByRole('region', { name: 'Tabel Data Barang' });
-    expect(region.style.getPropertyValue('--table-max-h')).toBe('1488px');
-    fireEvent.change(screen.getByLabelText('Baris terlihat'), { target: { value: '50' } });
-    expect(region.style.getPropertyValue('--table-max-h')).toBe('3648px');
+    expect(region.style.getPropertyValue('--table-max-h')).toMatch(/^\d+px$/);
   });
 });
 

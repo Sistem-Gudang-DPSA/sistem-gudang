@@ -193,6 +193,20 @@ describe('BarangKeluar list', () => {
     expect(label('Centang transaksi 2').checked).toBe(false);
   });
 
+  it('keeps checked transactions when the search changes', async () => {
+    const api = setup({}, paged([trx(1), trx(2)]));
+    await screen.findByText('Klien 2');
+    fireEvent.click(label('Centang transaksi 1'));
+    expect(screen.getByRole('status').textContent).toContain('1 baris dipilih');
+    fireEvent.change(screen.getByPlaceholderText('Silahkan cari data'), { target: { value: 'Klien 2' } });
+    await waitFor(() => expect(lastQ(api).get('search')).toBe('Klien 2'));
+    expect(label('Centang transaksi 1').checked).toBe(true);
+    fireEvent.click(label('Centang transaksi 2'));
+    expect(screen.getByRole('status').textContent).toContain('2 baris dipilih');
+    fireEvent.click(screen.getByRole('button', { name: 'Bersihkan pilihan' }));
+    expect(label('Centang transaksi 1').checked).toBe(false);
+  });
+
   it('shows one collapsed row per transaction and loads all pages with pageSize 100', async () => {
     const api = setup();
     expect(await screen.findByText('Triplex')).not.toBeNull();

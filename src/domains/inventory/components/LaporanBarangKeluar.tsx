@@ -43,7 +43,6 @@ export default function LaporanBarangKeluar() {
 
     const { sort, toggle, params: sortParams } = useSort();
     const filterKey = JSON.stringify({ ...filters, ...sortParams });
-    const [visibleRows, setVisibleRows] = useState(20);
 
     const { data: report, loading, error, reload } = useApiData(
         () => fetchAllPagesResult((page, pageSize) => getOutboundReport({ ...filters, ...sortParams, page, pageSize })),
@@ -232,17 +231,17 @@ export default function LaporanBarangKeluar() {
                     </div>
                 </div>
                 {actionError && <p className="px-4 pb-2 text-sm text-red-500">{actionError}</p>}
-                <ScrollableTable visibleRows={visibleRows} rowHeightPx={56} className="border-t border-gray-100" ariaLabel="Tabel rekap barang keluar">
+                <ScrollableTable className="border-t border-gray-100" ariaLabel="Tabel rekap barang keluar">
                 <table className="min-w-full divide-y divide-gray-200 text-sm">
                     <thead className={`${STICKY_HEAD_CLASS} bg-gray-100 font-semibold text-gray-700`}>
                         <tr>
-                            <th className="px-4 py-3 text-center w-12">No</th>
-                            <th className="px-4 py-3 text-left">Informasi Barang</th>
-                            <SortableTh label="Tujuan / Penerima" sortKey="clientName" sort={sort} onSort={toggle} className="px-4 py-3" align="left" />
-                            <SortableTh label="SPK" sortKey="spk" sort={sort} onSort={toggle} className="px-4 py-3" align="right" />
-                            <SortableTh label="Tanggal" sortKey="date" sort={sort} onSort={toggle} className="px-4 py-3" align="center" />
-                            <th className="px-4 py-3 text-center">Jumlah</th>
-                            <th className="px-4 py-3 text-center print:hidden">Aksi</th>
+                            <th className="px-4 py-2 text-center w-12">No</th>
+                            <th className="px-4 py-2 text-left">Informasi Barang</th>
+                            <SortableTh label="Tujuan / Penerima" sortKey="clientName" sort={sort} onSort={toggle} className="px-4 py-2" align="left" />
+                            <SortableTh label="SPK" sortKey="spk" sort={sort} onSort={toggle} className="px-4 py-2" align="right" />
+                            <SortableTh label="Tanggal" sortKey="date" sort={sort} onSort={toggle} className="px-4 py-2" align="center" />
+                            <th className="px-4 py-2 text-center">Jumlah</th>
+                            <th className="px-4 py-2 text-center print:hidden">Aksi</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
@@ -274,22 +273,22 @@ export default function LaporanBarangKeluar() {
                             tableRows.map(({ trx, line, no, firstLine }, index) => (
                                 <tr key={`${trx.id}-${index}`} className="hover:bg-gray-50 transition-colors">
                                     {firstLine && (
-                                        <td rowSpan={trx.lines.length} className="px-4 py-3 text-center text-gray-500 align-top">{no}</td>
+                                        <td rowSpan={trx.lines.length} className="px-4 py-2 text-center text-gray-500 align-top">{no}</td>
                                     )}
-                                    <td className="px-4 py-3">
+                                    <td className="px-4 py-2">
                                         <span className="font-medium text-gray-900">{line.itemName}</span>
                                         <span className="block text-xs font-mono text-gray-500">
                                             {line.itemCode ?? '-'}{line.locationCode ? ` (${line.locationCode})` : ''}
                                         </span>
                                     </td>
-                                    <td className="px-4 py-3">
+                                    <td className="px-4 py-2">
                                         <span className="font-medium text-gray-900">{RECIPIENT_LABEL[trx.recipientType]}</span>
                                         <span className="block text-xs text-gray-500">{trx.clientName}{line.pic ? ` - PIC ${line.pic}` : ''}</span>
                                     </td>
-                                    <td className="px-4 py-3 text-right font-mono font-semibold text-blue-600">{trx.spk}{firstLine && <span className="block"><BadgeDibatalkan row={trx} /></span>}</td>
-                                    <td className="px-4 py-3 text-center text-gray-700">{displayDate(trx.date)}</td>
-                                    <td className="px-4 py-3 text-center font-bold text-gray-800">{line.qty}</td>
-                                    <td className="px-4 py-3 text-center print:hidden">
+                                    <td className="px-4 py-2 text-right font-mono font-semibold text-blue-600">{trx.spk}{firstLine && <span className="block"><BadgeDibatalkan row={trx} /></span>}</td>
+                                    <td className="px-4 py-2 text-center text-gray-700">{displayDate(trx.date)}</td>
+                                    <td className="px-4 py-2 text-center font-bold text-gray-800">{line.qty}</td>
+                                    <td className="px-4 py-2 text-center print:hidden">
                                         <button
                                             onClick={() => setSelectedDetail(trx)}
                                             className="flex-1 lg:flex-none flex items-center justify-center gap-2 text-blue-600 hover:text-blue-800 font-medium text-xs bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded border border-blue-200 transition-colors"
@@ -306,7 +305,7 @@ export default function LaporanBarangKeluar() {
                 </ScrollableTable>
 
                 <div className="px-4 pb-4">
-                    <TableFooter total={report?.total ?? rows.length} visibleRows={visibleRows} onVisibleRowsChange={setVisibleRows} unit="transaksi" />
+                    <TableFooter total={report?.total ?? rows.length} unit="transaksi" />
                 </div>
             </div>
 

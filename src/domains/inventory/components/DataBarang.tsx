@@ -12,6 +12,7 @@ import { ApiError } from '@/shared/lib/api-client';
 import { downloadCsv } from '@/shared/lib/csv';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import TableFooter from '@/shared/components/TableFooter';
+import SelectionBanner from '@/shared/components/SelectionBanner';
 import PrintQrModal from './data-barang/PrintQrModal';
 import BarangFilterPanel, { countActiveFilters } from './BarangFilterPanel';
 import { useDataBarang } from './data-barang/useDataBarang';
@@ -22,7 +23,7 @@ import { LokasiBulkModal, LokasiModal } from './data-barang/modals/LokasiModal';
 export default function DataBarangGudang() {
   const canAssign = useCan('item.assign-location');
   const d = useDataBarang();
-  const { dataBarang, total, visibleRows, setVisibleRows, selected, setSelected, supplierName, locationCode, reload } = d;
+  const { dataBarang, total, selected, setSelected, clearSelection, supplierName, locationCode, reload } = d;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeItem, setActiveItem] = useState<ItemListRow | null>(null);
@@ -198,6 +199,8 @@ export default function DataBarangGudang() {
           />
         )}
 
+        <SelectionBanner count={selected.size} onClear={clearSelection} />
+
         {notice && (
           <div className="mx-5 mt-5 p-3 bg-green-50 text-green-700 text-sm rounded-lg flex items-start justify-between gap-3">
             <span>{notice}</span>
@@ -217,7 +220,6 @@ export default function DataBarangGudang() {
           sort={d.sort}
           onSort={d.toggle}
           photo={{ canUpload: false }}
-          visibleRows={visibleRows}
           selection={{
             selected,
             allSelected: d.allSelected,
@@ -230,7 +232,7 @@ export default function DataBarangGudang() {
           tbodyClassName="divide-y divide-gray-50"
         />
 
-        <TableFooter total={total} visibleRows={visibleRows} onVisibleRowsChange={setVisibleRows} unit="barang" />
+        <TableFooter total={total} unit="barang" />
       </div>
 
       {bulkOpen && (

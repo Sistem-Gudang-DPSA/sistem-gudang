@@ -6,6 +6,7 @@ import { useAuthUser, useCan } from "@/domains/auth/user-context";
 import type { OutboundRow } from "@/domains/inventory/types";
 import { useItemSearch } from "@/domains/inventory/use-item-search";
 import TableFooter from "@/shared/components/TableFooter";
+import SelectionBanner from "@/shared/components/SelectionBanner";
 import RiwayatEditBarangKeluar from "./RiwayatEditBarangKeluar";
 import BarangKeluarTable from "./barang-keluar/BarangKeluarTable";
 import BarangKeluarToolbar from "./barang-keluar/BarangKeluarToolbar";
@@ -100,9 +101,10 @@ export default function BarangKeluarGudang() {
           onResetFilter={list.resetDateFilter}
         />
 
+        <SelectionBanner count={list.selectedCount} onClear={list.clearSelection} />
+
         <BarangKeluarTable
           rows={list.rows}
-          visibleRows={list.visibleRows}
           loading={list.loading}
           error={list.error}
           sort={list.sort}
@@ -134,7 +136,7 @@ export default function BarangKeluarGudang() {
         )}
 
         <div className="px-5 pb-4">
-          <TableFooter total={list.total} visibleRows={list.visibleRows} onVisibleRowsChange={list.setVisibleRows} unit="transaksi" />
+          <TableFooter total={list.total} unit="transaksi" />
         </div>
       </div>
 
