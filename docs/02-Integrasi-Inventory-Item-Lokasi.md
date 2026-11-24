@@ -49,8 +49,17 @@ memilih lokasi, lalu `assignItemLocation()` saat disimpan.
 ### `src/domains/inventory/components/DataLokasi.tsx`
 
 List dari `listLocations()`, form tambah memanggil `createLocation()`.
-Tidak ada tombol edit atau hapus karena desain aslinya juga tidak punya
-tombol itu, jadi tidak ditambahkan sebagai fitur baru di luar permintaan.
+Gudang dan Superadmin memakai komponen Data Lokasi yang sama. Tombol **Edit**
+(`location.update`) membuka input hanya pada satu baris yang dipilih. **Simpan**
+mengirim `PUT /locations/{id}` untuk baris tersebut dan menutup edit jika berhasil;
+**Batal** membuang perubahan dan menutup edit. Baris lain tetap berupa teks,
+dan tombol edit serta hapus dikunci selama ada baris yang sedang diedit.
+Nama rak harus huruf A–Z; nomor rak berbentuk Kolom.Baris dengan angka mulai
+dari 1 tanpa nol di depan. Validasi atau penyimpanan yang gagal menampilkan
+pesan pada baris dan mempertahankan input untuk diperbaiki. Pencarian,
+pengurutan, atau pindah halaman meminta konfirmasi jika ada perubahan yang
+belum disimpan dan dikunci selama penyimpanan berlangsung. Hapus lokasi
+memerlukan role Superadmin serta permission `location.delete`.
 
 ### `src/domains/ppic/components/DataBarang.tsx`
 

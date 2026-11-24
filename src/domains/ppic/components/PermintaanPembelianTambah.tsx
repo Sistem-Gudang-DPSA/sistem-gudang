@@ -28,6 +28,7 @@ const barisTerisi = (r: Row) => [r.namaBarang, r.qty, r.satuan, r.proyek, r.tang
 
 export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = permintaan_pembelian_path, editing = false, initialPemohon, readOnlyPemohon = false }: { permintaan?: PermintaanPembelian; basePath?: string; editing?: boolean; initialPemohon?: { bagian: string; namaPemohon: string; jabatan: string }; readOnlyPemohon?: boolean }) {
   const router = useRouter();
+  const isGudang = basePath === gudang_permintaan_pembelian_path;
   const canCreate = useCan("purchase-request.create");
   const [barisAktif, setBarisAktif] = useState<number | null>(null);
 
@@ -48,7 +49,7 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
   });
 
   const [tableData, setTableData] = useState<Row[]>(() => {
-    const rows = (permintaan?.barang ?? []).map((b) => ({ ...emptyRow, ...b, noSpk: b.noSpk ?? "", supplier: b.supplier ?? "", keterangan: b.keterangan ?? "", tanggal: b.tanggal ?? "", dikirimTanggal: b.deadlineTanggal ?? "", qty: String(b.qty) }));
+    const rows = (permintaan?.barang ?? []).map((b) => ({ ...emptyRow, ...b, noSpk: b.noSpk ?? "", supplier: isGudang ? "" : b.supplier ?? "", keterangan: b.keterangan ?? "", tanggal: b.tanggal ?? "", dikirimTanggal: b.deadlineTanggal ?? "", qty: String(b.qty) }));
     return rows.length > 0 ? rows : [{ ...emptyRow }];
   });
   const submitting = useRef(false);
@@ -74,9 +75,9 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
   const patchRow = (index: number, patch: Partial<Row>) =>
     setTableData((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
 
-  // Supplier mengikuti master barang dan hanya Purchasing yang memutuskan supplier final di PO.
+  // Gudang tidak menetapkan supplier; pilihan supplier dilakukan Purchasing.
   const tambahDariRekomendasi = (item: ItemListRow) => {
-    const barisBaru = { ...emptyRow, itemId: item.id, namaBarang: item.name, satuan: item.unit, supplier: item.supplierName ?? '', qty: String(qtySaranRestock(item)) };
+    const barisBaru = { ...emptyRow, itemId: item.id, namaBarang: item.name, satuan: item.unit, supplier: isGudang ? '' : item.supplierName ?? '', qty: String(qtySaranRestock(item)) };
     setTableData((rows) => {
       const kosong = rows.findIndex((row) => !barisTerisi(row));
       return kosong >= 0 ? rows.map((row, i) => (i === kosong ? barisBaru : row)) : [...rows, barisBaru];
@@ -122,7 +123,7 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
           satuan: row.satuan.trim(),
           proyek: row.proyek.trim(),
           noSpk: row.noSpk.trim() || undefined,
-          supplier: row.supplier.trim() || undefined,
+          supplier: isGudang ? undefined : row.supplier.trim() || undefined,
           keterangan: row.keterangan.trim() || undefined,
           tanggal: row.tanggal || undefined,
           deadlineTanggal: row.dikirimTanggal || undefined,
@@ -282,7 +283,7 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
                       </td>
 
                       <td className="p-0 border border-gray-300"><input aria-label={`Tanggal baris ${i + 1}`} type="date" value={row.tanggal} onChange={(e) => handleChange(i, 'tanggal', e.target.value)} className="w-full min-w-0 bg-transparent px-1 py-2.5 text-xs focus:outline-orange-400" /></td>
-                      <td className="p-0 border border-gray-300"><input aria-label={`Supplier baris ${i + 1}`} value={row.supplier} readOnly tabIndex={-1} placeholder="Dari master barang" className="w-full min-w-0 cursor-default bg-gray-50/60 px-2 py-2.5 text-gray-600 focus:outline-none" /></td>
+                      <td className="p-0 border border-gray-300"><input aria-label={`Supplier baris ${i + 1}`} value={row.supplier} readOnly tabIndex={-1} placeholder={isGudang ? "Diisi Purchasing" : "Dari master barang"} className="w-full min-w-0 cursor-default bg-gray-50/60 px-2 py-2.5 text-gray-600 focus:outline-none" /></td>
                       <td className="p-0 border border-gray-300">
                         <div className="w-full">
                           <input
@@ -350,13 +351,13 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
                                       onMouseDown={(e) => {
                                         e.preventDefault();
 
-                                        patchRow(i, { itemId: item.id, namaBarang: item.name, satuan: item.unit ?? '', supplier: item.supplierName ?? '' });
+                                        patchRow(i, { itemId: item.id, namaBarang: item.name, satuan: item.unit ?? '', supplier: isGudang ? '' : item.supplierName ?? '' });
 
                                         setBarisAktif(null);
                                       }}
                                       onKeyDown={(e) => {
                                         if (e.key === 'Enter') {
-                                          patchRow(i, { itemId: item.id, namaBarang: item.name, satuan: item.unit ?? '', supplier: item.supplierName ?? '' });
+                                          patchRow(i, { itemId: item.id, namaBarang: item.name, satuan: item.unit ?? '', supplier: isGudang ? '' : item.supplierName ?? '' });
 
                                           setBarisAktif(null);
                                         }

@@ -10,7 +10,7 @@ import { usePage } from '@/shared/lib/use-page';
 import { formatTanggal } from '@/domains/ppic/data/dokubah';
 import { getPurchaseOrder, listPurchaseOrders } from '@/domains/purchasing/api';
 import { toDateRange } from '@/domains/inventory/date';
-import { detailPoPath, lihatPermintaanPoPath } from '@/domains/purchasing/data/pembelian';
+import { detailPoPath, editPoPath, lihatPermintaanPoPath } from '@/domains/purchasing/data/pembelian';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import { ExportExcellButton, PrintPdfButton } from '@/shared/components/Tombol';
 import DateFilter from '@/shared/components/DateFilter';
@@ -23,6 +23,7 @@ import type { PurchaseOrder } from '@/domains/purchasing/types';
 
 export default function POBarang() {
   const canView = useCan('purchase-order.view');
+  const canUpdate = useCan('purchase-order.update');
   const canReview = useCan('purchase-request.approve');
   const [searchQuery, setSearchQuery] = useState('');
   const filterKey = searchQuery.trim();
@@ -207,6 +208,13 @@ export default function POBarang() {
                           className="inline-block px-3 py-1 bg-[#FF8A00] text-white text-xs font-semibold rounded-md hover:bg-orange-600 transition-colors mr-2"
                         >
                           Lihat Detail PO
+                        </Link>}
+                        {canUpdate && item.status === 'ISSUED' && <Link
+                          href={editPoPath(item.id)}
+                          aria-label={`Edit ${item.nomorPo}`}
+                          className="inline-block px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-md hover:bg-blue-100 transition-colors mr-2"
+                        >
+                          Edit
                         </Link>}
                         {canReview && item.approvalRequestId !== null && <Link
                           href={lihatPermintaanPoPath(item.approvalRequestId)}

@@ -180,7 +180,7 @@ describe("sidebar per seeded role", () => {
     const p = withDomain(user(SEEDED.kPurchasing), "purchasing");
     expect(labels(p)).toEqual(["purchasing"]);
     expect(itemsOf(p, "purchasing")).toEqual([
-      "Data Barang", "Data Supplier", "PO Barang", "Penawaran Harga / SPH", "Retur ke Supplier",
+      "Data Supplier", "Data Barang", "PO Barang", "Penawaran Harga / SPH", "Retur ke Supplier",
       "Rekap Data Barang Masuk", "Rekap Data Barang Keluar", "Rekap Stock Opname", "Rekap Permintaan Pembelian", "Realisasi Dokubah",
     ]);
     expect(canAccess(p, "/dashboard/ppic/transaksi/permintaan-pembelian")).toBe(false);

@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { installFakeApi, paged } from '@/test/fake-api';
 import { AuthUserProvider } from '@/domains/auth/user-context';
 import type { AuthUser } from '@/domains/auth/types';
 import Page from '@/app/dashboard/purchasing/transaksi/buat-po-barang/permintaan-pembelian/[id]/page';
 
-vi.mock('next/navigation', () => ({ useParams: () => ({ id: '7' }), useRouter: () => ({ push: vi.fn() }) }));
+const nav = vi.hoisted(() => ({ push: vi.fn() }));
+vi.mock('next/navigation', () => ({ useParams: () => ({ id: '7' }), useRouter: () => ({ push: nav.push }) }));
 
 const request = (status: string) => ({
   request: {
@@ -35,11 +36,17 @@ describe('detail permintaan yang dibuka dari PO Barang', () => {
   });
 
   it('meneruskan asal PO Barang ke form Buat PO', async () => {
-    installFakeApi({ 'GET /api/v1/approvals/7': request('approved'), 'GET /api/v1/purchase-orders': paged([]) });
+    installFakeApi({ 'GET /api/v1/approvals/7': request('approved'), 'GET /api/v1/purchase-orders': paged([]), 'GET /api/v1/suppliers': paged([{ id: 3, code: 'S3', name: 'PT Kayu' }]) });
     render(<AuthUserProvider user={purchasing(['purchase-order.create'])}><Page /></AuthUserProvider>);
 
-    const link = await screen.findByText('Buat PO');
-    expect(link.getAttribute('href')).toBe('/dashboard/purchasing/transaksi/buat-po-barang/buat-po/7?from=permintaan-po-barang');
+    fireEvent.click(await screen.findByLabelText('Supplier baris 1'));
+    fireEvent.click(await screen.findByRole('option', { name: 'S3 - PT Kayu' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Buat PO' }));
+    await waitFor(() => expect(nav.push).toHaveBeenCalled());
+    const target = new URL(nav.push.mock.calls.at(-1)![0], 'http://localhost');
+    expect(target.pathname).toBe('/dashboard/purchasing/transaksi/buat-po-barang/buat-po/7');
+    expect(target.searchParams.get('from')).toBe('permintaan-po-barang');
+    expect(target.searchParams.get('draft')).toBeTruthy();
   });
 
   it('menampilkan status disetujui tanpa tombol Buat PO saat pengguna hanya punya purchase-order.view', async () => {
