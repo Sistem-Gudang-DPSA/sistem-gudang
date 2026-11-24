@@ -53,8 +53,8 @@ export interface PurchaseOrderLineInput {
   diskon: number;
 }
 
-// Editing replaces the lines wholesale; supplier, request and nomorPo cannot change (BE answers 400).
-export type UpdatePurchaseOrderInput = Omit<CreatePurchaseOrderInput, "approvalRequestId" | "supplierId">;
+// Editing replaces the PO fields and lines; the original request and generated number remain fixed.
+export type UpdatePurchaseOrderInput = Omit<CreatePurchaseOrderInput, "approvalRequestId">;
 
 // nomorPo and every total are computed by the backend, so they are not part of the input.
 export interface CreatePurchaseOrderInput {
@@ -98,3 +98,19 @@ export interface PurchaseOrder {
   barang: PurchaseOrderLineInput[];
 }
 
+export interface PurchaseRequestMapping {
+  approvalRequestId: number;
+  status: "NOT_STARTED" | "PARTIAL" | "COMPLETE";
+  lines: {
+    lineIndex: number;
+    namaBarang: string;
+    qty: number;
+    satuan: string;
+    proyek: string;
+    noSpk: string;
+    itemId?: number;
+    mappedQty: number;
+    remainingQty: number;
+    mappings: { supplierId: number; supplierName: string; qty: number; purchaseOrderId: number | null; nomorPo: string | null }[];
+  }[];
+}

@@ -8,7 +8,7 @@ import Purchasing from '@/domains/purchasing/components/PermintaanPembelian';
 import TambahPpic from '@/app/dashboard/ppic/transaksi/permintaan-pembelian/tambah/page';
 
 const nav = vi.hoisted(() => ({ redirect: vi.fn((path: string): never => { throw new Error(`Redirect:${path}`); }) }));
-vi.mock('next/navigation', () => ({ useParams: () => ({ id: '7' }), usePathname: () => '/dashboard/ppic/transaksi/permintaan-pembelian', redirect: nav.redirect }));
+vi.mock('next/navigation', () => ({ useParams: () => ({ id: '7' }), useRouter: () => ({ push: vi.fn() }), usePathname: () => '/dashboard/ppic/transaksi/permintaan-pembelian', redirect: nav.redirect }));
 const row = (step = 2, status = 'pending') => ({
   id: 7, type: 'purchase-request', requestedBy: 12, requestedByDomainId: 1, currentStepOrder: step, cycle: 1, status, createdAt: '2026-11-23T00:00:00Z',
   payload: { bagian: 'Gudang', namaPemohon: 'imel', jabatan: 'Staff', tanggalPengajuan: '2026-11-23', items: [{ namaBarang: 'Triplex', qty: 2, satuan: 'Lbr', proyek: 'PT MAJU JAYA' }] },
@@ -92,15 +92,15 @@ it('Purchasing waits for PPIC and does not expose its own decisions early', asyn
   expect(screen.queryByRole('link', { name: 'Buat PO' })).toBeNull();
 });
 
-it('Purchasing gives a separate final approval before PO creation becomes available', async () => {
-  let current = row(3);
+it('Purchasing langsung menyiapkan PO tanpa tombol persetujuan terpisah', async () => {
   const api = installFakeApi({
-    'GET /api/v1/approvals/7': () => ({ request: current, actions: [] }),
+    'GET /api/v1/approvals/7': { request: row(3), actions: [] },
     'GET /api/v1/purchase-orders': paged([]),
-    'POST /api/v1/approvals/7/approve': () => { current = row(3, 'approved'); return null; },
+    'GET /api/v1/suppliers': paged([]),
   });
   render(withUser(<Purchasing />, ['purchase-request.approve', 'purchase-order.create']));
-  fireEvent.click(await screen.findByRole('button', { name: 'Setuju' }));
-  expect((await screen.findByRole('link', { name: 'Buat PO' })).getAttribute('href')).toBe('/dashboard/purchasing/transaksi/buat-po-barang/buat-po/7');
-  expect(api.calls('POST /api/v1/approvals/7/approve')).toHaveLength(1);
+  expect(await screen.findByRole('button', { name: 'Buat PO' })).not.toBeNull();
+  expect(await screen.findByLabelText('Qty Beli baris 1')).toHaveProperty('value', '2');
+  for (const name of ['Setuju', 'Tolak', 'Revisi']) expect(screen.queryByRole('button', { name })).toBeNull();
+  expect(api.calls('POST /api/v1/approvals/7/approve')).toHaveLength(0);
 });

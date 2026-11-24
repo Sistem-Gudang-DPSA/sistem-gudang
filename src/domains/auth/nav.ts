@@ -193,8 +193,8 @@ export const NAV_DIVISIONS: NavDivision[] = [
       {
         title: "Master",
         items: [
-          { href: "/dashboard/purchasing/master/data-barang", label: "Data Barang", anyOf: ["item.view"] },
           { href: "/dashboard/purchasing/master/data-supplier", label: "Data Supplier", anyOf: ["supplier.view"] },
+          { href: "/dashboard/purchasing/master/data-barang", label: "Data Barang", anyOf: ["item.view"] },
         ],
       },
       {
@@ -225,7 +225,6 @@ export const NAV_DIVISIONS: NavDivision[] = [
     theme: "emerald",
     domains: ["keuangan"],
     anyOf: ["report.view"],
-    hidden: true,
     groups: [{
       title: "Laporan",
       items: [

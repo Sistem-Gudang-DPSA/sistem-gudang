@@ -217,3 +217,16 @@ describe('printing checked purchase orders', () => {
     expect(api.calls('POST /api/v1/purchase-orders')).toHaveLength(0);
   });
 });
+
+describe('tombol edit per baris PO', () => {
+  it.each([true, false])('mengikuti permission purchase-order.update=%s dan hanya membuka PO aktif', async (canUpdate) => {
+    installFakeApi({ 'GET /api/v1/purchase-orders': paged([order(1), { ...order(2), status: 'CANCELLED' }]) });
+    const user: AuthUser = { id: 1, username: 'p', email: 'p@example.test', roleId: 2, roleName: 'Purchasing', domainCode: 'purchasing', isSuperadmin: false, permissions: ['purchase-order.view', ...(canUpdate ? ['purchase-order.update'] : [])] };
+    render(<AuthUserProvider user={user}><POBarang /></AuthUserProvider>);
+    await screen.findByText('PO-1');
+    const edit = screen.queryByRole('link', { name: 'Edit PO-1' });
+    expect(!!edit).toBe(canUpdate);
+    if (edit) expect(edit.getAttribute('href')).toBe('/dashboard/purchasing/transaksi/buat-po-barang/edit-po/1');
+    expect(screen.queryByRole('link', { name: 'Edit PO-2' })).toBeNull();
+  });
+});

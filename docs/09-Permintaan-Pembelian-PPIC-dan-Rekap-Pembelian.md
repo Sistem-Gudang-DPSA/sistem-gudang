@@ -3,7 +3,7 @@
 ## Ringkasan
 
 Gudang membuat permintaan pembelian. PPIC meninjau dan memberi persetujuan
-awal, lalu Purchasing memberi persetujuan akhir sebelum membuat PO.
+permintaan, lalu Purchasing langsung menyiapkan PO tanpa tombol persetujuan terpisah.
 Menu **Permintaan Pembelian** di PPIC merupakan daftar untuk meninjau
 permintaan Gudang, tanpa tombol pengajuan baru, edit, atau pembatalan pemohon.
 Menu yang sama di Gudang tetap menyediakan pengajuan, edit, dan pembatalan
@@ -17,26 +17,38 @@ sesuai permission serta kepemilikan permintaan.
 2. PPIC dengan `purchase-request.approve` membuka **Tinjau Permintaan**
    melalui `/dashboard/ppic/transaksi/permintaan-pembelian/{id}`. PPIC dapat
    Setuju, Tolak, atau Revisi; penolakan dan revisi wajib memiliki catatan.
-3. Persetujuan PPIC memajukan permintaan ke langkah 3. Status tetap
-   `pending`, ditampilkan sebagai **Menunggu Purchasing**, bukan persetujuan
-   final. Purchasing belum dapat membaca daftar/detail permintaan yang
-   belum lolos PPIC, kecuali Superadmin yang memiliki akses lintas divisi.
-4. Purchasing memberi persetujuan akhir dengan endpoint persetujuan yang
-   sama. Hanya sesudah status menjadi `approved`, tombol **Buat PO** tersedia.
-   Backend tetap memeriksa status ini sebelum menerima pembuatan PO.
+3. Persetujuan PPIC memajukan permintaan ke langkah 3. Backend lama masih
+   memakai `pending`, `currentStepOrder=3` untuk tahap ini. Purchasing dapat
+   memilih supplier dan Qty Beli, lalu menekan **Buat PO** untuk membuka form
+   yang dikelompokkan per supplier dan proyek. Permintaan yang belum lolos
+   PPIC belum bisa dilanjutkan ke PO.
+4. Purchasing melengkapi form lalu menekan **Buat**. Tidak ada tombol
+   Setuju, Tolak, atau Revisi Purchasing. Karena backend masih mensyaratkan
+   `approved`, aplikasi membaca status terbaru dan menyelesaikan langkah
+   Purchasing melalui `POST /api/v1/approvals/{id}/approve` saat menyimpan
+   PO pertama, lalu memeriksa bahwa status benar-benar `approved` sebelum
+   mengirim pemetaan supplier dan PO. Beberapa form dalam satu halaman
+   berbagi proses penyelesaian ini agar endpoint tidak dipanggil berulang.
+   Membuka form atau melengkapi rincian tidak mengubah status backend.
 
-Keputusan memakai `POST /api/v1/approvals/{id}/approve`, `/reject`, atau
-`/request-revision`. Permission saja tidak cukup: backend memeriksa domain
-pemutus sesuai langkah aktif di dalam transaksi dengan penguncian baris.
-Frontend hanya menampilkan tombol keputusan pada tahap divisinya.
+Keputusan PPIC memakai `POST /api/v1/approvals/{id}/approve`, `/reject`, atau
+`/request-revision`. Backend memeriksa permission dan domain pemutus sesuai
+langkah aktif. Jika penyelesaian tahap backend gagal atau status berubah,
+PO tidak dikirim dan input form tetap dipertahankan.
 Status persetujuan dan status pembelian ditampilkan terpisah di daftar.
 Riwayat seluruh langkah dibaca dari `GET /api/v1/approvals/{id}`.
 
 ## Permission dan navigasi
 
-Gudang menggunakan `purchase-request.create`. PPIC dan Purchasing memakai
-`purchase-request.approve` pada tahap masing-masing; role Koor PPIC diberi
-permission tersebut oleh migrasi/seeder. Role PPIC lainnya dapat membaca
+Gudang menggunakan `purchase-request.create`. PPIC memakai
+`purchase-request.approve` untuk keputusan permintaan; role Koor PPIC diberi
+permission tersebut oleh migrasi/seeder. Purchasing memakai
+`purchase-order.create` untuk menyiapkan dan menyimpan PO. Selama backend
+masih memiliki langkah Purchasing, penyimpanan PO dari permintaan
+`pending` langkah 3 juga memerlukan `purchase-request.approve`; akun tanpa
+izin ini mendapat pesan bahwa proses tidak dapat dilanjutkan, tanpa
+mengirim pemetaan atau PO. Permintaan yang sudah `approved` tidak
+memerlukan panggilan persetujuan lagi. Role PPIC lainnya dapat membaca
 sesuai izin menu, tetapi tidak mendapat tombol keputusan tanpa izin approve.
 Role khusus dikelola melalui pengaturan permission Superadmin.
 PPIC tidak dapat membuat permintaan baru meskipun masih memiliki permission
@@ -49,7 +61,7 @@ Permintaan yang direvisi dikembalikan kepada pembuat aslinya. Gudang
 memperbaiki permintaan yang sama melalui Edit, lalu mengirim ulang.
 `PUT /api/v1/approvals/{id}` atau `POST /api/v1/approvals/{id}/resubmit`
 memulai putaran baru dan mengembalikan permintaan ke PPIC. Revisi dari
-Purchasing juga wajib melewati PPIC kembali; persetujuan putaran sebelumnya
+data lama juga wajib melewati PPIC kembali; persetujuan putaran sebelumnya
 tidak dapat dipakai untuk melewati tahap baru.
 
 Migrasi backend `0040_gudang_ppic_purchase_approval` menambahkan langkah
@@ -72,8 +84,8 @@ diatur dan stoknya sama dengan atau di bawah batas tersebut, diurutkan dari
 yang paling kritis. Setiap baris menampilkan nama, kode, stok, batas
 minimum, satuan, supplier terdaftar, dan **Saran QTY** sebesar
 `minimum − stok` (minimal 1, dibulatkan ke atas). Tombol **Tambah**
-mengisi satu baris form dengan barang tersebut, qty saran, satuan, dan
-supplier dari master barang; Gudang tetap dapat mengubah qty dan kolom lain.
+mengisi satu baris form dengan referensi barang, qty saran, dan satuan.
+Di Gudang, supplier tetap kosong; qty dan kolom lain masih dapat diubah.
 Barang yang sudah ada di form ditandai **Sudah ada** dan tidak dapat
 ditambahkan dua kali. Barang tanpa batas minimum tidak pernah muncul.
 Panel tertutup secara default dan hanya dimuat untuk pengguna dengan
@@ -84,8 +96,10 @@ atau SPK yang tidak terkait stok minimum.
 
 ## Supplier pada form permintaan
 
-Kolom **Supplier** bersifat hanya-baca. Nilainya terisi otomatis dari
-supplier terdaftar pada master barang saat barang dipilih dari pencarian,
+Kolom **Supplier** bersifat hanya-baca. Di Gudang kolom ini tetap kosong
+karena supplier pesanan dipilih Purchasing. Pada form historis PPIC,
+nilainya terisi otomatis dari supplier terdaftar pada master barang saat
+barang dipilih dari pencarian,
 dan dikosongkan lagi bila nama barang diubah. PPIC tidak memilih supplier;
 supplier final ditentukan Purchasing saat membuat PO, karena satu PO
 memakai satu supplier dan pemetaan supplier barang adalah kewenangan
@@ -168,5 +182,84 @@ menampilkan kolom tanda tangan **Dibuat — Kepala Gudang** di kiri dan
 Hasil cetak permintaan dengan bagian Gudang, Gudang Bahan Baku, atau Gudang
 Barang Jadi memakai penandatangan yang sama, termasuk saat dicetak dari
 daftar PPIC. Untuk permintaan bagian lain, penandatangan persetujuan tetap
-**Bag. Purchasing**. Penandatangan PPIC sesuai dengan persetujuan awal; Purchasing tetap memberi
-persetujuan akhir melalui alur approval backend.
+**Bag. Purchasing**. Penandatangan PPIC sesuai dengan persetujuan permintaan;
+tahap Purchasing yang masih diwajibkan backend diselesaikan saat PO disimpan.
+
+## Rincian permintaan dan persiapan PO Purchasing
+
+Detail permintaan pada **Rekap Permintaan Pembelian** Purchasing dan pada
+**PO Barang** memakai tabel rincian yang sama: No, Tanggal, Supplier, Nama
+Barang, Stok Saat Ini, QTY, Qty Beli, SAT, Proyek, Keterangan, dan Dikirim
+Tanggal. Tanggal, keterangan, serta tanggal kirim berasal dari payload
+permintaan. Riwayat Persetujuan tidak ditampilkan pada detail Purchasing;
+detail PPIC dan Gudang tetap memakai tampilan riwayatnya.
+
+QTY tetap menunjukkan kuantitas permintaan asli. Setelah PPIC menyetujui
+(`pending`, `currentStepOrder=3`) atau pada permintaan yang sudah final
+(`approved`), pengguna dengan `purchase-order.create` dapat memilih
+supplier per baris melalui dropdown pencarian `GET /api/v1/suppliers`
+dan mengubah **Qty Beli**, yang awalnya sama dengan QTY. Supplier wajib
+dipilih untuk setiap baris yang belum dipesan. Tombol **Buat PO** langsung
+tersedia setelah PPIC menyetujui, tanpa keputusan Purchasing terpisah.
+Menyiapkan rincian dan membuka form tidak menerbitkan PO.
+Qty Beli wajib berupa
+bilangan bulat positif, maksimal 1.000.000. Qty Beli boleh lebih kecil
+atau lebih besar dari QTY permintaan asli, misalnya permintaan 12 dibeli
+20. QTY asli tidak berubah. Pemetaan supplier, jumlah PO, dan perhitungan
+harga menggunakan Qty Beli. Baris yang sudah masuk PO aktif dikunci
+dan tidak dimasukkan kembali dalam persiapan PO. Jika daftar PO sebelumnya
+gagal dimuat, persiapan dikunci dan tersedia tombol Coba lagi.
+
+**Stok Saat Ini** dibaca melalui `GET /api/v1/items/{id}` untuk `itemId`
+yang tersimpan, dengan permission `item.view`. Permintaan lama tanpa
+`itemId` dicocokkan melalui pencarian `GET /api/v1/items` berdasarkan nama
+dan satuan yang sama persis tanpa membedakan huruf besar/kecil. Hanya
+kecocokan tunggal yang digunakan; barang ambigu, tidak ditemukan, atau
+gagal dimuat ditampilkan **Tidak tersedia**, bukan stok nol.
+
+Tombol **Buat PO** membuka form PO terisi, tanpa langsung menerbitkan PO.
+Barang dikelompokkan menurut pasangan supplier dan proyek; pasangan yang
+berbeda memiliki form terpisah. Nama barang, satuan, proyek, supplier, kode
+barang dari master bila tersedia, dan **Qty Beli** diteruskan ke form.
+Jumlah pesanan dan perhitungan total memakai Qty Beli. Indeks baris asli
+(`lineIndex`) dipertahankan walaupun barang terbagi ke beberapa form.
+Data persiapan disimpan di `sessionStorage` tab browser dengan token acak
+pada parameter `draft`; data yang hilang atau berbeda dari permintaan
+terbaru meminta pengguna menyiapkan ulang dari detail. Parameter `from`
+tetap menjaga tujuan kembali ke detail asal.
+
+Pengguna melengkapi tanggal PO, PIC supplier, kode barang bila belum ada,
+dan harga, lalu menekan **Buat** pada setiap form. Sebelum
+`POST /api/v1/purchase-orders`, form memanggil
+`PUT /api/v1/approvals/{id}/mapping` (`purchase-order.create`) dengan
+`{ lines: [{ lineIndex, suppliers: [{ supplierId, qty }] }] }`, hanya untuk
+barang yang dipilih dalam form itu. Pemetaan mengikat supplier dan Qty Beli
+yang harus sama dengan `barang[].jumlah` pada PO. Baris lain tidak diubah.
+Jika pemetaan atau penerbitan PO gagal, form menampilkan pesan dan tetap
+menyimpan input untuk diperbaiki atau dicoba lagi.
+
+## Perlu Tindakan pada dashboard Purchasing
+
+Bagian **Perlu Tindakan** menampilkan maksimal lima permintaan pembelian
+yang sudah disetujui PPIC dan siap diproses menjadi PO oleh Purchasing
+(`status=pending`, `currentStepOrder=3`). Permintaan yang masih menunggu
+PPIC atau sudah selesai diputuskan tidak masuk daftar ini. Data dibaca
+dari `GET /api/v1/approvals` dengan `type=purchase-request` dan
+`status=pending`; seluruh halaman dibaca sebelum penyaringan tahap dan
+pembatasan lima baris karena endpoint belum menyediakan filter tahap.
+Urutan mengikuti respons API. Tombol **Tinjau** membuka detail permintaan
+di Rekap Permintaan Pembelian Purchasing. Bagian ini hanya tampil untuk
+pengguna dengan `purchase-order.create`. Kartu **Siap Diproses** memakai
+daftar yang sama dan menghitung seluruh permintaan yang siap, sebelum
+pembatasan lima baris.
+
+## Supplier pada permintaan pembelian Gudang
+
+Form tambah, edit, dan revisi permintaan pembelian Gudang tidak menetapkan
+supplier. Kolom Supplier tetap kosong dengan petunjuk **Diisi Purchasing**;
+memilih barang dengan mouse atau keyboard maupun menambah rekomendasi
+restock tidak menyalin supplier master barang. Saat mengedit permintaan
+lama, supplier pada payload lama juga tidak diisi ulang atau dikirim oleh
+Gudang. Referensi `itemId`, satuan, dan kuantitas barang tetap digunakan.
+Penentuan supplier pesanan dilakukan per baris oleh Purchasing pada
+rincian permintaan, terpisah dari supplier katalog barang.

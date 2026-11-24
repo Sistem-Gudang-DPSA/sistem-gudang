@@ -144,3 +144,25 @@ Saat ini yang disembunyikan (#6):
   **Approval**.
 
 Untuk menampilkan kembali, hapus `hidden: true` pada entri terkait.
+
+## Laporan Masalah Superadmin
+
+Halaman `/dashboard/superadmin/laporan-masalah` membuka filter Status pada
+**Semua** setiap kali halaman dimasuki. Permintaan `GET /api/v1/bug-reports`
+tidak mengirim parameter `status` pada pilihan Semua. Pengguna dapat memilih
+**Baru**, **Diproses**, atau **Selesai** untuk memfilter daftar; mengganti filter
+mengembalikan paginasi ke halaman pertama.
+
+## Akses Daftar Proyek
+
+Menu dan halaman `/dashboard/daftar-proyek` tersedia untuk semua role yang
+sudah login, termasuk role kustom dan akun tanpa permission tambahan.
+Sumber datanya `GET /api/v1/tracking/spk`, yang dapat dibaca semua akun
+terautentikasi tanpa `dokubah.view`. Ini hanya akses daftar proyek;
+permission halaman Dokubah dan endpoint detail SPK tetap berlaku.
+
+## Urutan master Purchasing
+
+Sidebar Purchasing menampilkan **Data Supplier** sebelum **Data Barang**
+pada grup Master. Masing-masing menu mengikuti permission `supplier.view`
+dan `item.view`.

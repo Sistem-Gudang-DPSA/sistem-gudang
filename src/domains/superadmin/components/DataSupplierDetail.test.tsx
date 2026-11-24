@@ -37,6 +37,6 @@ describe('superadmin supplier detail route', () => {
     expect(screen.getByText(/untuk supplier Supplier 12/)).not.toBeNull();
     expect(screen.getByRole('link', { name: 'Kembali' }).getAttribute('href')).toBe('/dashboard/superadmin/master/data-supplier');
     expect(new Set(api.calls('GET /api/v1/suppliers/12/prices').map((call) => call.query.get('tahun'))))
-      .toEqual(new Set([String(year), String(year - 1)]));
+      .toEqual(new Set([String(year)]));
   });
 });
