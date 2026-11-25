@@ -26,3 +26,4 @@ Satu dokumen membahas satu pekerjaan atau satu keputusan besar. Lihat
 | [18-Pengajuan-Edit-Barang-Keluar.md](18-Pengajuan-Edit-Barang-Keluar.md) | Pengajuan edit 24 jam, persetujuan superadmin, satu kali edit dan riwayat sebelum/sesudah, beserta migrasi API. |
 | [20-Notifikasi-Stok-Minimum.md](20-Notifikasi-Stok-Minimum.md) | Batas stok minimum per barang, pengaturan di Data Barang, notifikasi bel, dan status dibaca per pengguna. |
 | [21-Pemetaan-Supplier-Barang.md](21-Pemetaan-Supplier-Barang.md) | Checklist barang di Data Barang untuk memetakan banyak barang ke satu supplier, dengan izin, hasil per barang, dan batasannya. |
+| [22-Rencana-Multi-Supplier-dan-Harga.md](22-Rencana-Multi-Supplier-dan-Harga.md) | Rencana multi supplier dan multi harga dari permintaan sampai realisasi: PPIC sebagai gerbang, harga beku saat submit PO, penerimaan per baris PO, FIFO dari layer biaya, dan SPK yang turun sampai inbound. |
