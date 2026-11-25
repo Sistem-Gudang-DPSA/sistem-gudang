@@ -64,7 +64,8 @@ atau `updateItem()` dengan field lengkap. Tombol hapus memanggil
 List dari `listItems()`. Tombol "Lengkapi" memanggil `updateItem()`
 dengan payload `{ price, supplierId }` saja. Field supplier di form
 diganti dari input teks bebas jadi dropdown supplier asli, karena API
-butuh `supplierId` bukan nama supplier.
+butuh `supplierId` bukan nama supplier. Dropdown itu memuat semua halaman
+`GET /suppliers` lewat `fetchAllPages`, bukan hanya halaman pertama.
 
 ## Bug atau Celah yang Ditemukan
 
