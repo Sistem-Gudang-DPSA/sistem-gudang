@@ -1,0 +1,2466 @@
+{
+  "paths": {
+    "/api/v1/inbound": {
+      "get": {
+        "tags": [
+          "Inbound"
+        ],
+        "summary": "List inbound transactions",
+        "description": "Newest first. startDate and endDate are inclusive and filter on the transaction date. search matches item code and name, supplier name, reference number, client name and SPK.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "maximum": 100,
+              "default": 10
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "required": false,
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false,
+            "name": "startDate",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false,
+            "name": "endDate",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SUPPLIER",
+                "PRODUKSI",
+                "KLIEN"
+              ]
+            },
+            "required": false,
+            "name": "source",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "date",
+                "itemName",
+                "referenceNo",
+                "supplierName"
+              ]
+            },
+            "required": false,
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            },
+            "required": false,
+            "name": "sortDir",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Inbound list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "rows": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "number"
+                              },
+                              "date": {
+                                "type": "string",
+                                "example": "2026-09-30"
+                              },
+                              "itemId": {
+                                "type": "number"
+                              },
+                              "itemCode": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "itemName": {
+                                "type": "string"
+                              },
+                              "locationCode": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Where the item is stored now"
+                              },
+                              "supplierId": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "supplierName": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "source": {
+                                "type": "string",
+                                "enum": [
+                                  "SUPPLIER",
+                                  "PRODUKSI",
+                                  "KLIEN"
+                                ]
+                              },
+                              "purchaseOrderId": {
+                                "type": "number",
+                                "nullable": true,
+                                "description": "PO this receipt was booked against"
+                              },
+                              "purchaseOrderLineId": {
+                                "type": "number",
+                                "nullable": true,
+                                "description": "PO line this receipt was booked against"
+                              },
+                              "qtyArrived": {
+                                "type": "number"
+                              },
+                              "qtyPurchased": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "statusQc": {
+                                "type": "string",
+                                "nullable": true,
+                                "enum": [
+                                  "PASS",
+                                  "PARTIAL_RETUR",
+                                  null
+                                ]
+                              },
+                              "referenceNo": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "supplierDeliveryNo": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "clientName": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "spk": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "notes": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "createdBy": {
+                                "type": "number"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              },
+                              "cancelledAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Set when a superadmin cancelled it"
+                              },
+                              "cancelledByName": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "cancelReason": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "date",
+                              "itemId",
+                              "itemCode",
+                              "itemName",
+                              "locationCode",
+                              "supplierId",
+                              "supplierName",
+                              "source",
+                              "purchaseOrderId",
+                              "purchaseOrderLineId",
+                              "qtyArrived",
+                              "qtyPurchased",
+                              "statusQc",
+                              "referenceNo",
+                              "supplierDeliveryNo",
+                              "clientName",
+                              "spk",
+                              "notes",
+                              "createdBy",
+                              "createdAt",
+                              "cancelledAt",
+                              "cancelledByName",
+                              "cancelReason"
+                            ]
+                          }
+                        },
+                        "total": {
+                          "type": "number"
+                        },
+                        "page": {
+                          "type": "number"
+                        },
+                        "pageSize": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "rows",
+                        "total",
+                        "page",
+                        "pageSize"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Inbound"
+        ],
+        "summary": "Record goods received from a supplier or production",
+        "description": "Raises the item's stock by qtyArrived in the same transaction and records audit logs. statusQc is the result of the manual QC check, not derived from the quantities. A receipt against a PO sends purchaseOrderId and purchaseOrderLineId together: supplierId and qtyPurchased are then taken from the PO and the client's values are ignored (a different supplierId is a 400), qtyArrived must be at most the line's sisa, and source must be SUPPLIER. The PO is locked for the check, so concurrent receipts cannot take the same remaining qty twice. 404 for an unknown PO, 409 for a cancelled one, 400 when the line does not belong to the PO or the item does not match the line. Without a PO, source SUPPLIER (the default) and no supplierId takes the item's mapped supplier; 400 when the item has none. qtyPurchased is optional. Optional Idempotency-Key header (8 to 100 characters): with it, the same key and payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true and does not repeat the write; the same key with a different payload is 409; a malformed key is 400. Without it the request behaves as before.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "6f1c2d3e-0b7a-4c55-9a3e-1d2f3a4b5c6d"
+            },
+            "required": false,
+            "name": "Idempotency-Key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "itemId": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true
+                  },
+                  "date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "source": {
+                    "type": "string",
+                    "enum": [
+                      "SUPPLIER",
+                      "PRODUKSI"
+                    ],
+                    "default": "SUPPLIER"
+                  },
+                  "purchaseOrderId": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true
+                  },
+                  "purchaseOrderLineId": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true
+                  },
+                  "supplierId": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true
+                  },
+                  "qtyArrived": {
+                    "type": "number",
+                    "minimum": 0,
+                    "exclusiveMinimum": true,
+                    "maximum": 100000
+                  },
+                  "qtyPurchased": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "statusQc": {
+                    "type": "string",
+                    "enum": [
+                      "PASS",
+                      "PARTIAL_RETUR"
+                    ]
+                  },
+                  "referenceNo": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "supplierDeliveryNo": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "notes": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "itemId",
+                  "date",
+                  "qtyArrived",
+                  "statusQc"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Inbound transaction created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "date": {
+                          "type": "string",
+                          "example": "2026-09-30"
+                        },
+                        "itemId": {
+                          "type": "number"
+                        },
+                        "itemCode": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "itemName": {
+                          "type": "string"
+                        },
+                        "locationCode": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "Where the item is stored now"
+                        },
+                        "supplierId": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "supplierName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "source": {
+                          "type": "string",
+                          "enum": [
+                            "SUPPLIER",
+                            "PRODUKSI",
+                            "KLIEN"
+                          ]
+                        },
+                        "purchaseOrderId": {
+                          "type": "number",
+                          "nullable": true,
+                          "description": "PO this receipt was booked against"
+                        },
+                        "purchaseOrderLineId": {
+                          "type": "number",
+                          "nullable": true,
+                          "description": "PO line this receipt was booked against"
+                        },
+                        "qtyArrived": {
+                          "type": "number"
+                        },
+                        "qtyPurchased": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "statusQc": {
+                          "type": "string",
+                          "nullable": true,
+                          "enum": [
+                            "PASS",
+                            "PARTIAL_RETUR",
+                            null
+                          ]
+                        },
+                        "referenceNo": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "supplierDeliveryNo": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "clientName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "spk": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "notes": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdBy": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "cancelledAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "Set when a superadmin cancelled it"
+                        },
+                        "cancelledByName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "cancelReason": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "date",
+                        "itemId",
+                        "itemCode",
+                        "itemName",
+                        "locationCode",
+                        "supplierId",
+                        "supplierName",
+                        "source",
+                        "purchaseOrderId",
+                        "purchaseOrderLineId",
+                        "qtyArrived",
+                        "qtyPurchased",
+                        "statusQc",
+                        "referenceNo",
+                        "supplierDeliveryNo",
+                        "clientName",
+                        "spk",
+                        "notes",
+                        "createdBy",
+                        "createdAt",
+                        "cancelledAt",
+                        "cancelledByName",
+                        "cancelReason"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inbound/{id}": {
+      "get": {
+        "tags": [
+          "Inbound"
+        ],
+        "summary": "Get one inbound transaction",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Inbound transaction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "date": {
+                          "type": "string",
+                          "example": "2026-09-30"
+                        },
+                        "itemId": {
+                          "type": "number"
+                        },
+                        "itemCode": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "itemName": {
+                          "type": "string"
+                        },
+                        "locationCode": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "Where the item is stored now"
+                        },
+                        "supplierId": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "supplierName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "source": {
+                          "type": "string",
+                          "enum": [
+                            "SUPPLIER",
+                            "PRODUKSI",
+                            "KLIEN"
+                          ]
+                        },
+                        "purchaseOrderId": {
+                          "type": "number",
+                          "nullable": true,
+                          "description": "PO this receipt was booked against"
+                        },
+                        "purchaseOrderLineId": {
+                          "type": "number",
+                          "nullable": true,
+                          "description": "PO line this receipt was booked against"
+                        },
+                        "qtyArrived": {
+                          "type": "number"
+                        },
+                        "qtyPurchased": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "statusQc": {
+                          "type": "string",
+                          "nullable": true,
+                          "enum": [
+                            "PASS",
+                            "PARTIAL_RETUR",
+                            null
+                          ]
+                        },
+                        "referenceNo": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "supplierDeliveryNo": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "clientName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "spk": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "notes": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdBy": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "cancelledAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "Set when a superadmin cancelled it"
+                        },
+                        "cancelledByName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "cancelReason": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "date",
+                        "itemId",
+                        "itemCode",
+                        "itemName",
+                        "locationCode",
+                        "supplierId",
+                        "supplierName",
+                        "source",
+                        "purchaseOrderId",
+                        "purchaseOrderLineId",
+                        "qtyArrived",
+                        "qtyPurchased",
+                        "statusQc",
+                        "referenceNo",
+                        "supplierDeliveryNo",
+                        "clientName",
+                        "spk",
+                        "notes",
+                        "createdBy",
+                        "createdAt",
+                        "cancelledAt",
+                        "cancelledByName",
+                        "cancelReason"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inbound/batch": {
+      "post": {
+        "tags": [
+          "Inbound"
+        ],
+        "summary": "Record several received items in one request",
+        "description": "Needs inbound.create and an Idempotency-Key header (8 to 100 characters, one per draft). All lines or none: one database transaction, stock raised under a row lock per item. lines holds 1 to 200 entries, qtyArrived is at most 100000 per line. purchaseOrderId and purchaseOrderLineId go per line, because one document may receive goods of several POs; supplierId and qtyPurchased are then taken from the PO, qtyArrived must be at most that line's sisa (several lines of the same PO in one request share the remaining qty), and a cancelled or unknown PO fails the whole request (409 or 404). Without a PO, supplierId comes from items.supplierId for source SUPPLIER; a line whose item has no supplier, or an unknown itemId, fails the whole request with 400 and errors keyed lines.<index>.itemId (index from 0), and nothing is written. Same key and same payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true, without adding stock again. Same key with a different payload is 409. A missing or malformed key is 400. A failed request stores no key, so it can be corrected and sent again with the same key.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "6f1c2d3e-0b7a-4c55-9a3e-1d2f3a4b5c6d"
+            },
+            "required": true,
+            "name": "Idempotency-Key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "source": {
+                    "type": "string",
+                    "enum": [
+                      "SUPPLIER",
+                      "PRODUKSI"
+                    ],
+                    "default": "SUPPLIER"
+                  },
+                  "notes": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "lines": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "itemId": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        },
+                        "qtyArrived": {
+                          "type": "number",
+                          "minimum": 0,
+                          "exclusiveMinimum": true,
+                          "maximum": 100000
+                        },
+                        "qtyPurchased": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "purchaseOrderId": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        },
+                        "purchaseOrderLineId": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        },
+                        "supplierId": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        },
+                        "statusQc": {
+                          "type": "string",
+                          "enum": [
+                            "PASS",
+                            "PARTIAL_RETUR"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "itemId",
+                        "qtyArrived",
+                        "statusQc"
+                      ]
+                    },
+                    "minItems": 1,
+                    "maxItems": 200
+                  }
+                },
+                "required": [
+                  "date",
+                  "lines"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Every line recorded, or the stored answer of an earlier identical request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "count": {
+                          "type": "number"
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "number"
+                              },
+                              "date": {
+                                "type": "string",
+                                "example": "2026-09-30"
+                              },
+                              "itemId": {
+                                "type": "number"
+                              },
+                              "itemCode": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "itemName": {
+                                "type": "string"
+                              },
+                              "locationCode": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Where the item is stored now"
+                              },
+                              "supplierId": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "supplierName": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "source": {
+                                "type": "string",
+                                "enum": [
+                                  "SUPPLIER",
+                                  "PRODUKSI",
+                                  "KLIEN"
+                                ]
+                              },
+                              "purchaseOrderId": {
+                                "type": "number",
+                                "nullable": true,
+                                "description": "PO this receipt was booked against"
+                              },
+                              "purchaseOrderLineId": {
+                                "type": "number",
+                                "nullable": true,
+                                "description": "PO line this receipt was booked against"
+                              },
+                              "qtyArrived": {
+                                "type": "number"
+                              },
+                              "qtyPurchased": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "statusQc": {
+                                "type": "string",
+                                "nullable": true,
+                                "enum": [
+                                  "PASS",
+                                  "PARTIAL_RETUR",
+                                  null
+                                ]
+                              },
+                              "referenceNo": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "supplierDeliveryNo": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "clientName": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "spk": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "notes": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "createdBy": {
+                                "type": "number"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              },
+                              "cancelledAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Set when a superadmin cancelled it"
+                              },
+                              "cancelledByName": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "cancelReason": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "date",
+                              "itemId",
+                              "itemCode",
+                              "itemName",
+                              "locationCode",
+                              "supplierId",
+                              "supplierName",
+                              "source",
+                              "purchaseOrderId",
+                              "purchaseOrderLineId",
+                              "qtyArrived",
+                              "qtyPurchased",
+                              "statusQc",
+                              "referenceNo",
+                              "supplierDeliveryNo",
+                              "clientName",
+                              "spk",
+                              "notes",
+                              "createdBy",
+                              "createdAt",
+                              "cancelledAt",
+                              "cancelledByName",
+                              "cancelReason"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "count",
+                        "items"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Idempotency-Key already used with a different payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inbound/scan-batch": {
+      "post": {
+        "tags": [
+          "Inbound"
+        ],
+        "summary": "Record a scanner session: goods that passed QC and goods returned to the supplier",
+        "description": "Needs inbound.create and an Idempotency-Key header (8 to 100 characters), with the same replay rules as POST /inbound/batch: same key and payload within 24 hours returns the stored answer with Idempotency-Replayed: true and adds nothing, same key with a different payload is 409. pass lines are SUPPLIER receipts with statusQc PASS and raise stock. retur lines are only recorded as a return to the item's supplier, one return request per supplier, and never change stock. Both take supplierId from items.supplierId. pass and retur each hold 0 to 200 lines, at least one line in total, qty at most 100000 per line, reason 1 to 255 characters. All or nothing: a bad line fails the whole request with 400 and errors keyed pass.<index>.<field> or retur.<index>.<field>, index from 0, for example retur.2.itemId for an unknown item or an item without a supplier.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "6f1c2d3e-0b7a-4c55-9a3e-1d2f3a4b5c6d"
+            },
+            "required": true,
+            "name": "Idempotency-Key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "pass": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "itemId": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        },
+                        "qtyArrived": {
+                          "type": "number",
+                          "minimum": 0,
+                          "exclusiveMinimum": true,
+                          "maximum": 100000
+                        },
+                        "purchaseOrderId": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        },
+                        "purchaseOrderLineId": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        }
+                      },
+                      "required": [
+                        "itemId",
+                        "qtyArrived",
+                        "purchaseOrderId",
+                        "purchaseOrderLineId"
+                      ]
+                    },
+                    "maxItems": 200,
+                    "default": []
+                  },
+                  "retur": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "itemId": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        },
+                        "qty": {
+                          "type": "number",
+                          "minimum": 0,
+                          "exclusiveMinimum": true,
+                          "maximum": 100000
+                        },
+                        "reason": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        }
+                      },
+                      "required": [
+                        "itemId",
+                        "qty",
+                        "reason"
+                      ]
+                    },
+                    "maxItems": 200,
+                    "default": []
+                  }
+                },
+                "required": [
+                  "date"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Recorded, or the stored answer of an earlier identical request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "passCount": {
+                          "type": "number"
+                        },
+                        "returCount": {
+                          "type": "number"
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "number"
+                              },
+                              "date": {
+                                "type": "string",
+                                "example": "2026-09-30"
+                              },
+                              "itemId": {
+                                "type": "number"
+                              },
+                              "itemCode": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "itemName": {
+                                "type": "string"
+                              },
+                              "locationCode": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Where the item is stored now"
+                              },
+                              "supplierId": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "supplierName": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "source": {
+                                "type": "string",
+                                "enum": [
+                                  "SUPPLIER",
+                                  "PRODUKSI",
+                                  "KLIEN"
+                                ]
+                              },
+                              "purchaseOrderId": {
+                                "type": "number",
+                                "nullable": true,
+                                "description": "PO this receipt was booked against"
+                              },
+                              "purchaseOrderLineId": {
+                                "type": "number",
+                                "nullable": true,
+                                "description": "PO line this receipt was booked against"
+                              },
+                              "qtyArrived": {
+                                "type": "number"
+                              },
+                              "qtyPurchased": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "statusQc": {
+                                "type": "string",
+                                "nullable": true,
+                                "enum": [
+                                  "PASS",
+                                  "PARTIAL_RETUR",
+                                  null
+                                ]
+                              },
+                              "referenceNo": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "supplierDeliveryNo": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "clientName": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "spk": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "notes": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "createdBy": {
+                                "type": "number"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              },
+                              "cancelledAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Set when a superadmin cancelled it"
+                              },
+                              "cancelledByName": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "cancelReason": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "date",
+                              "itemId",
+                              "itemCode",
+                              "itemName",
+                              "locationCode",
+                              "supplierId",
+                              "supplierName",
+                              "source",
+                              "purchaseOrderId",
+                              "purchaseOrderLineId",
+                              "qtyArrived",
+                              "qtyPurchased",
+                              "statusQc",
+                              "referenceNo",
+                              "supplierDeliveryNo",
+                              "clientName",
+                              "spk",
+                              "notes",
+                              "createdBy",
+                              "createdAt",
+                              "cancelledAt",
+                              "cancelledByName",
+                              "cancelReason"
+                            ]
+                          }
+                        },
+                        "returnRequests": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "number"
+                              },
+                              "supplierId": {
+                                "type": "number"
+                              },
+                              "lineCount": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "supplierId",
+                              "lineCount"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "passCount",
+                        "returCount",
+                        "items",
+                        "returnRequests"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Idempotency-Key already used with a different payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inbound/returns": {
+      "post": {
+        "tags": [
+          "Inbound"
+        ],
+        "summary": "Record goods returned by a client",
+        "description": "Stored with source KLIEN and statusQc null. Raises the item's stock by qty in the same transaction. spk is optional; when given it must be one of GET /api/v1/tracking/spk (400 otherwise) and clientName is taken from there. Without spk, clientName is null. A clientName in the body is ignored. Optional Idempotency-Key header (8 to 100 characters): with it, the same key and payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true and does not repeat the write; the same key with a different payload is 409; a malformed key is 400. Without it the request behaves as before.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "6f1c2d3e-0b7a-4c55-9a3e-1d2f3a4b5c6d"
+            },
+            "required": false,
+            "name": "Idempotency-Key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "itemId": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true
+                  },
+                  "date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "qty": {
+                    "type": "number",
+                    "minimum": 0,
+                    "exclusiveMinimum": true,
+                    "maximum": 100000
+                  },
+                  "spk": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "referenceNo": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "notes": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "itemId",
+                  "date",
+                  "qty"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Inbound return created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "date": {
+                          "type": "string",
+                          "example": "2026-09-30"
+                        },
+                        "itemId": {
+                          "type": "number"
+                        },
+                        "itemCode": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "itemName": {
+                          "type": "string"
+                        },
+                        "locationCode": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "Where the item is stored now"
+                        },
+                        "supplierId": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "supplierName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "source": {
+                          "type": "string",
+                          "enum": [
+                            "SUPPLIER",
+                            "PRODUKSI",
+                            "KLIEN"
+                          ]
+                        },
+                        "purchaseOrderId": {
+                          "type": "number",
+                          "nullable": true,
+                          "description": "PO this receipt was booked against"
+                        },
+                        "purchaseOrderLineId": {
+                          "type": "number",
+                          "nullable": true,
+                          "description": "PO line this receipt was booked against"
+                        },
+                        "qtyArrived": {
+                          "type": "number"
+                        },
+                        "qtyPurchased": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "statusQc": {
+                          "type": "string",
+                          "nullable": true,
+                          "enum": [
+                            "PASS",
+                            "PARTIAL_RETUR",
+                            null
+                          ]
+                        },
+                        "referenceNo": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "supplierDeliveryNo": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "clientName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "spk": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "notes": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdBy": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "cancelledAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "Set when a superadmin cancelled it"
+                        },
+                        "cancelledByName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "cancelReason": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "date",
+                        "itemId",
+                        "itemCode",
+                        "itemName",
+                        "locationCode",
+                        "supplierId",
+                        "supplierName",
+                        "source",
+                        "purchaseOrderId",
+                        "purchaseOrderLineId",
+                        "qtyArrived",
+                        "qtyPurchased",
+                        "statusQc",
+                        "referenceNo",
+                        "supplierDeliveryNo",
+                        "clientName",
+                        "spk",
+                        "notes",
+                        "createdBy",
+                        "createdAt",
+                        "cancelledAt",
+                        "cancelledByName",
+                        "cancelReason"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

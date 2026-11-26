@@ -36,10 +36,7 @@ it('DataBarang memuat semua halaman lokasi dan supplier', async () => {
   expect(api.calls('GET /api/v1/locations').map((c) => c.query.get('page')).sort()).toEqual(['1', '2']);
   expect(api.calls('GET /api/v1/locations')[0].query.get('pageSize')).toBe('100');
   // Id 150 hanya ada di halaman kedua.
-  expect(screen.queryByRole('columnheader', { name: 'Supplier' })).toBeNull();
-  expect(screen.queryByText('Supplier Terakhir')).toBeNull();
-  fireEvent.click(screen.getByRole('button', { name: /Filter/ }));
-  expect(await screen.findByRole('option', { name: 'Supplier Terakhir' })).not.toBeNull();
+  expect(await screen.findByText('Supplier Terakhir')).not.toBeNull();
 });
 
 it('menampilkan kolom Harga Terbaru dengan format ribuan seperti Superadmin', async () => {
@@ -90,33 +87,14 @@ const supplierRoutes = {
   'GET /api/v1/suppliers': paged([{ id: 7, name: 'PT Kayu' }, { id: 8, name: 'CV Baja' }]),
 };
 
-it('menautkan aksi detail ke halaman supplier material khusus Purchasing', async () => {
-  installFakeApi({ ...supplierRoutes, 'GET /api/v1/items': paged([item, { ...item, id: 2, name: 'Barang 2' }]) });
-  render(<AuthUserProvider user={userWith(['item.view'])}><DataBarang /></AuthUserProvider>);
-  await screen.findByText('Barang 1');
-  expect(screen.getByRole('columnheader', { name: 'Aksi' })).not.toBeNull();
-  expect(screen.queryByRole('columnheader', { name: 'Supplier' })).toBeNull();
-  expect(screen.getByRole('link', { name: 'Detail supplier Barang 1' }).getAttribute('href')).toBe('/dashboard/purchasing/master/data-barang/1');
-  expect(screen.getByRole('link', { name: 'Detail supplier Barang 2' }).getAttribute('href')).toBe('/dashboard/purchasing/master/data-barang/2');
-  expect(screen.queryByRole('dialog')).toBeNull();
-});
-
-it('menyembunyikan aksi detail tanpa permission item.view', async () => {
-  installFakeApi({ ...supplierRoutes, 'GET /api/v1/items': paged([item]) });
-  render(<AuthUserProvider user={userWith(['item.update', 'item.set-supplier'])}><DataBarang /></AuthUserProvider>);
-  await screen.findByText('Barang 1');
-  expect(screen.queryByRole('columnheader', { name: 'Aksi' })).toBeNull();
-  expect(screen.queryByRole('link', { name: /Detail supplier/ })).toBeNull();
-});
-
 it('memetakan supplier untuk barang yang dicentang', async () => {
   const first = { ...item, id: 1, name: 'Barang 1', supplierId: null, supplierName: null };
   const second = { ...item, id: 2, name: 'Barang 2', supplierId: 8, supplierName: 'CV Baja' };
   const api = installFakeApi({
     ...supplierRoutes,
     'GET /api/v1/items': paged([first, second]),
-    'PUT /api/v1/items/1/suppliers': { ...first, supplierId: 7, supplierName: 'PT Kayu' },
-    'PUT /api/v1/items/2/suppliers': { ...second, supplierId: 7, supplierName: 'PT Kayu' },
+    'PUT /api/v1/items/1': { ...first, supplierId: 7, supplierName: 'PT Kayu' },
+    'PUT /api/v1/items/2': { ...second, supplierId: 7, supplierName: 'PT Kayu' },
   });
   render(<DataBarang />);
   await screen.findByText('Barang 1');
@@ -124,22 +102,20 @@ it('memetakan supplier untuk barang yang dicentang', async () => {
   fireEvent.click(screen.getByRole('checkbox', { name: 'Pilih Barang 1' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Pilih Barang 2' }));
   fireEvent.click(screen.getByRole('button', { name: 'Edit Supplier (2)' }));
-  expect(screen.getByText('1 barang sudah punya supplier. Daftar suppliernya akan diganti sesuai pilihan.')).not.toBeNull();
+  expect(screen.getByText('1 barang sudah punya supplier dan akan diganti.')).not.toBeNull();
 
   const dialog = within(screen.getByRole('dialog'));
   fireEvent.click(dialog.getByRole('button', { name: 'Supplier' }));
   fireEvent.click(dialog.getByRole('option', { name: 'PT Kayu' }));
-  fireEvent.click(dialog.getByRole('button', { name: 'Supplier' }));
-  fireEvent.click(dialog.getByRole('option', { name: 'CV Baja' }));
   fireEvent.click(dialog.getByRole('button', { name: 'Tinjau 2 Barang' }));
   expect(dialog.getByText('Barang 1')).not.toBeNull();
   expect(dialog.getByText('CV Baja')).not.toBeNull();
   fireEvent.click(dialog.getByRole('button', { name: 'Simpan 2 Barang' }));
 
-  await waitFor(() => expect(api.calls('PUT /api/v1/items/2/suppliers')).toHaveLength(1));
-  expect(api.calls('PUT /api/v1/items/1/suppliers')[0].body).toEqual({ supplierIds: [7, 8] });
-  expect(api.calls('PUT /api/v1/items/2/suppliers')[0].body).toEqual({ supplierIds: [7, 8] });
-  expect(await screen.findByText('2 barang dipetakan ke PT Kayu, CV Baja.')).not.toBeNull();
+  await waitFor(() => expect(api.calls('PUT /api/v1/items/2')).toHaveLength(1));
+  expect(api.calls('PUT /api/v1/items/1')[0].body).toEqual({ supplierId: 7 });
+  expect(api.calls('PUT /api/v1/items/2')[0].body).toEqual({ supplierId: 7 });
+  expect(await screen.findByText('2 barang dipetakan ke PT Kayu.')).not.toBeNull();
 });
 
 it('menyembunyikan checklist tanpa item.set-supplier', async () => {

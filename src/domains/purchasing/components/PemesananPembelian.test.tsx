@@ -20,7 +20,7 @@ const request = (status: string) => ({
       bagian: 'Produksi', namaPemohon: 'Budi', jabatan: 'Staff', tanggalPengajuan: '2026-03-05',
       items: [
         { namaBarang: 'Triplex', qty: 10, satuan: 'lbr', proyek: 'Proyek A', noSpk: 'SPK-1' },
-        { namaBarang: 'Paku', qty: 2, satuan: 'kg', proyek: 'Proyek A', noSpk: 'SPK-2' },
+        { namaBarang: 'Paku', qty: 2, satuan: 'kg', proyek: 'Proyek A', noSpk: 'SPK-1' },
       ],
     },
   },
@@ -54,7 +54,12 @@ async function fillValid() {
   type('Diskon Triplex', '500');
   type('Harga satuan Paku', '2500');
 }
-const submit = () => fireEvent.click(screen.getByText('Buat'));
+async function submit() {
+  const button = screen.getByText('Simpan Draft') as HTMLButtonElement;
+  // The button stays disabled while existing POs load; clicking earlier silently does nothing.
+  await waitFor(() => expect(button.disabled).toBe(false));
+  fireEvent.click(button);
+}
 
 describe('PemesananPembelian guards', () => {
   it.each(['pending', 'rejected', 'revision_requested'])('is blocked while status is %s', async (st) => {
@@ -139,8 +144,8 @@ describe('PemesananPembelian submit', () => {
     await ready();
     await fillValid();
     type('Jasa', '300');
-    submit();
-    expect(await screen.findByText('PO PO/2026/0001 berhasil dibuat')).not.toBeNull();
+    await submit();
+    expect(await screen.findByText('PO PO/2026/0001 berhasil disimpan sebagai DRAFT')).not.toBeNull();
     expect(screen.getByText(/grand total Rp\. 16\.395/)).not.toBeNull();
     const body = api.calls('POST /api/v1/purchase-orders')[0].body as Record<string, unknown>;
     expect(body).toEqual({
@@ -148,7 +153,6 @@ describe('PemesananPembelian submit', () => {
       tanggalPo: '2026-03-10',
       supplierId: 3,
       picSupplier: 'Andi / 0811',
-      kebutuhanProyek: 'Proyek A',
       barang: [
         { lineIndex: 0, kodeBarang: 'TRP-1', namaBarang: 'Triplex', satuan: 'lbr', jumlah: 10, hargaSatuan: 1000, diskon: 500 },
         { lineIndex: 1, kodeBarang: 'PKU-1', namaBarang: 'Paku', satuan: 'kg', jumlah: 2, hargaSatuan: 2500, diskon: 0 },
@@ -158,7 +162,23 @@ describe('PemesananPembelian submit', () => {
     });
     expect(body).not.toHaveProperty('nomorPo');
     expect(body).not.toHaveProperty('dppLain');
+    expect(body).not.toHaveProperty('kebutuhanProyek');
     expect(screen.getByText('Kembali ke Detail Permintaan').getAttribute('href')).toBe('/dashboard/purchasing/laporan/rekap-pembelian/permintaan-pembelian/7');
+  });
+
+  it('mengirim submit untuk PO draft setelah dibuat', async () => {
+    const api = setup('approved', {
+      'POST /api/v1/purchase-orders': { id: 1, nomorPo: 'PO/1', supplierName: 'PT Kayu', grandTotal: 16395, status: 'DRAFT' },
+      'POST /api/v1/purchase-orders/1/submit': { id: 1, nomorPo: 'PO/1', supplierName: 'PT Kayu', grandTotal: 16395, status: 'ISSUED', submittedAt: '2026-03-10T00:00:00Z', submittedBy: 1 },
+    });
+    await ready();
+    await fillValid();
+    await submit();
+    await screen.findByText('PO PO/1 berhasil disimpan sebagai DRAFT');
+    fireEvent.click(screen.getByRole('button', { name: 'Submit PO' }));
+    await screen.findByText('PO PO/1 berhasil disimpan sebagai ISSUED');
+    expect(api.calls('POST /api/v1/purchase-orders/1/submit')).toHaveLength(1);
+    expect(api.calls('POST /api/v1/purchase-orders')).toHaveLength(1);
   });
 
   it('prints the saved PO without creating a new one', async () => {
@@ -168,8 +188,8 @@ describe('PemesananPembelian submit', () => {
     });
     await ready();
     await fillValid();
-    submit();
-    await screen.findByText('PO PO/2026/0001 berhasil dibuat');
+    await submit();
+    await screen.findByText('PO PO/2026/0001 berhasil disimpan sebagai DRAFT');
     fireEvent.click(screen.getByRole('button', { name: 'Cetak PO' }));
     await waitFor(() => expect(print.printPurchaseOrder).toHaveBeenCalledTimes(1));
     expect(print.printPurchaseOrder.mock.calls[0][0]).toMatchObject({ id: 1, nomorPo: 'PO/2026/0001' });
@@ -180,7 +200,7 @@ describe('PemesananPembelian submit', () => {
     setup('approved', { 'POST /api/v1/purchase-orders': fail(409, 'PO untuk permintaan ini sudah ada') });
     await ready();
     await fillValid();
-    submit();
+    await submit();
     expect(await screen.findByText('PO untuk permintaan ini sudah ada')).not.toBeNull();
     expect(screen.getByText('Pemesanan Pembelian')).not.toBeNull();
   });
@@ -192,7 +212,7 @@ describe('PemesananPembelian submit', () => {
     const api = setup();
     await ready();
     prep();
-    submit();
+    await submit();
     expect(await screen.findByText(msg)).not.toBeNull();
     expect(api.calls('POST /api/v1/purchase-orders')).toHaveLength(0);
   });
@@ -202,23 +222,23 @@ describe('PemesananPembelian submit', () => {
     await ready();
     fireEvent.change(screen.getByLabelText('Tanggal PO'), { target: { value: '2026-03-10' } });
     await pickSupplier();
-    submit();
+    await submit();
     expect(await screen.findByText('PIC supplier wajib diisi.')).not.toBeNull();
     type('PIC / Telp', 'Andi');
-    submit();
+    await submit();
     expect(await screen.findByText('Kode barang setiap baris wajib diisi.')).not.toBeNull();
     type('Kode barang Triplex', 'A');
     type('Kode barang Paku', 'B');
-    submit();
+    await submit();
     expect(await screen.findByText('Harga satuan setiap barang wajib diisi lebih dari 0.')).not.toBeNull();
     type('Harga satuan Triplex', '100');
     type('Harga satuan Paku', '100');
     type('Diskon Triplex', '5000'); // exceeds 10*100
-    submit();
+    await submit();
     expect(await screen.findByText(/diskon tidak boleh melebihi harga barang/)).not.toBeNull();
     type('Diskon Triplex', '0');
     type('PPN (persen)', '101');
-    submit();
+    await submit();
     expect(await screen.findByText(/PPN maksimal 100/)).not.toBeNull();
     expect(api.calls('POST /api/v1/purchase-orders')).toHaveLength(0);
   });
@@ -241,8 +261,8 @@ describe('pemilihan baris per PO', () => {
     await ready();
     await fillValid();
     fireEvent.click(screen.getByLabelText('Pilih Paku'));
-    submit();
-    await screen.findByText('PO PO/1 berhasil dibuat');
+    await submit();
+    await screen.findByText('PO PO/1 berhasil disimpan sebagai DRAFT');
     const body = api.calls('POST /api/v1/purchase-orders')[0].body as { barang: unknown[] };
     expect(body.barang).toEqual([{ lineIndex: 0, kodeBarang: 'TRP-1', namaBarang: 'Triplex', satuan: 'lbr', jumlah: 10, hargaSatuan: 1000, diskon: 500 }]);
   });
@@ -259,8 +279,8 @@ describe('pemilihan baris per PO', () => {
     expect(screen.queryByLabelText('Pilih Triplex')).toBeNull();
     expect(screen.getByLabelText('Pilih Paku')).not.toBeNull();
     await fillValid();
-    submit();
-    await screen.findByText('PO PO/2 berhasil dibuat');
+    await submit();
+    await screen.findByText('PO PO/2 berhasil disimpan sebagai DRAFT');
     const body = api.calls('POST /api/v1/purchase-orders')[0].body as { barang: { lineIndex: number }[] };
     expect(body.barang.map((b) => b.lineIndex)).toEqual([1]);
   });
@@ -273,8 +293,8 @@ describe('pemilihan baris per PO', () => {
     });
     await ready();
     expect(await screen.findByText('Semua barang pada proyek ini sudah masuk PO.')).not.toBeNull();
-    submit();
-    expect((screen.getByRole('button', { name: 'Buat' }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByText('Simpan Draft'));
+    expect((screen.getByRole('button', { name: 'Simpan Draft' }) as HTMLButtonElement).disabled).toBe(true);
     expect(api.calls('POST /api/v1/purchase-orders')).toHaveLength(0);
   });
 });
@@ -288,7 +308,7 @@ describe('permissions', () => {
   it('without purchase-order.create shows a message instead of the form', async () => {
     renderAs(user(['purchase-order.view']));
     await screen.findByText('Anda tidak memiliki izin untuk membuat PO.');
-    expect(screen.queryByText('Buat')).toBeNull();
+    expect(screen.queryByText('Simpan Draft')).toBeNull();
   });
   it('with permission or superadmin shows the form', async () => {
     renderAs(user(['purchase-order.create']));
@@ -317,8 +337,24 @@ describe('pemisahan otomatis per proyek', () => {
       fireEvent.change(form.getByLabelText(`Kode barang ${item}`), { target: { value: `K-${item}` } });
       fireEvent.change(form.getByLabelText(`Harga satuan ${item}`), { target: { value: '1000' } });
     }
+    const simpan = form.getByRole('button', { name: 'Simpan Draft' }) as HTMLButtonElement;
+    await waitFor(() => expect(simpan.disabled).toBe(false));
     return form;
   }
+
+  it('mengelompokkan form terpisah per SPK walau proyeknya sama', async () => {
+    const data = request('approved');
+    data.request.payload.items[1].noSpk = 'SPK-2';
+    setup('approved', { 'GET /api/v1/approvals/7': data });
+    const forms = await screen.findAllByRole('form', { name: 'PO Proyek A' });
+    expect(forms).toHaveLength(2);
+    expect(screen.getByText(/No SPK: SPK-1/)).toBeTruthy();
+    expect(screen.getByText(/No SPK: SPK-2/)).toBeTruthy();
+    expect(within(forms[0]).getByLabelText('Harga satuan Triplex')).toBeTruthy();
+    expect(within(forms[0]).queryByLabelText('Harga satuan Paku')).toBeNull();
+    expect(within(forms[1]).getByLabelText('Harga satuan Paku')).toBeTruthy();
+    expect(within(forms[1]).queryByLabelText('Harga satuan Triplex')).toBeNull();
+  });
 
   it('mengelompokkan barang, mempertahankan indeks asli, dan menyimpan supplier serta biaya per proyek', async () => {
     const api = setup('approved', {
@@ -337,14 +373,14 @@ describe('pemisahan otomatis per proyek', () => {
     expect((formA.getByLabelText('Total harga setelah diskon') as HTMLInputElement).value).toBe('13.000');
     const formB = await fillProject('Proyek B', ['Paku'], 'S4 - PT Cat');
     fireEvent.change(formB.getByLabelText('PPN (persen)'), { target: { value: '11' } });
-    fireEvent.click(formA.getByRole('button', { name: 'Buat' }));
-    await screen.findByText('PO PO-A berhasil dibuat');
-    fireEvent.click(formB.getByRole('button', { name: 'Buat' }));
+    fireEvent.click(formA.getByRole('button', { name: 'Simpan Draft' }));
+    await screen.findByText('PO PO-A berhasil disimpan sebagai DRAFT');
+    fireEvent.click(formB.getByRole('button', { name: 'Simpan Draft' }));
     await waitFor(() => expect(api.calls('POST /api/v1/purchase-orders')).toHaveLength(2));
     const bodies = api.calls('POST /api/v1/purchase-orders').map((call) => call.body as { barang: { lineIndex: number }[] });
-    expect(bodies[0]).toMatchObject({ approvalRequestId: 7, kebutuhanProyek: 'Proyek A', supplierId: 3, jasa: 300, persenPpn: 12 });
+    expect(bodies[0]).toMatchObject({ approvalRequestId: 7, supplierId: 3, jasa: 300, persenPpn: 12 });
     expect(bodies[0].barang.map((line) => line.lineIndex)).toEqual([0, 2]);
-    expect(bodies[1]).toMatchObject({ approvalRequestId: 7, kebutuhanProyek: 'Proyek B', supplierId: 4, jasa: 0, persenPpn: 11 });
+    expect(bodies[1]).toMatchObject({ approvalRequestId: 7, supplierId: 4, jasa: 0, persenPpn: 11 });
     expect(bodies[1].barang.map((line) => line.lineIndex)).toEqual([1]);
     const ids = [...document.querySelectorAll('[id]')].map((element) => element.id);
     expect(new Set(ids).size).toBe(ids.length);
@@ -355,25 +391,27 @@ describe('pemisahan otomatis per proyek', () => {
     const api = setup('approved', {
       'GET /api/v1/approvals/7': multiProject(),
       'POST /api/v1/purchase-orders': (req: FakeRequest) => {
-        const body = req.body as { kebutuhanProyek: string };
-        return body.kebutuhanProyek === 'Proyek B' && gagal
+        const body = req.body as { barang: { lineIndex: number }[] };
+        // Proyek B punya satu baris dengan lineIndex 1; proyek A memakai 0 dan 2.
+        const proyekB = body.barang[0]?.lineIndex === 1;
+        return proyekB && gagal
           ? fail(500, 'Gagal menyimpan Proyek B')
-          : { id: body.kebutuhanProyek === 'Proyek A' ? 1 : 2, nomorPo: body.kebutuhanProyek, supplierName: 'PT Kayu', grandTotal: 1000 };
+          : { id: proyekB ? 2 : 1, nomorPo: proyekB ? 'Proyek B' : 'Proyek A', supplierName: 'PT Kayu', grandTotal: 1000 };
       },
     });
     await screen.findByRole('form', { name: 'PO Proyek A' });
     const a = await fillProject('Proyek A', ['Triplex', 'Lem']);
     const b = await fillProject('Proyek B', ['Paku']);
-    fireEvent.click(a.getByRole('button', { name: 'Buat' }));
-    await screen.findByText('PO Proyek A berhasil dibuat');
-    fireEvent.click(b.getByRole('button', { name: 'Buat' }));
+    fireEvent.click(a.getByRole('button', { name: 'Simpan Draft' }));
+    await screen.findByText('PO Proyek A berhasil disimpan sebagai DRAFT');
+    fireEvent.click(b.getByRole('button', { name: 'Simpan Draft' }));
     await b.findByText('Gagal menyimpan Proyek B');
-    expect(screen.getByText('PO Proyek A berhasil dibuat')).not.toBeNull();
+    expect(screen.getByText('PO Proyek A berhasil disimpan sebagai DRAFT')).not.toBeNull();
     expect((b.getByLabelText('Harga satuan Paku') as HTMLInputElement).value).toBe('1000');
     gagal = false;
-    fireEvent.click(b.getByRole('button', { name: 'Buat' }));
-    await screen.findByText('PO Proyek B berhasil dibuat');
-    expect(api.calls('POST /api/v1/purchase-orders').map((call) => (call.body as { kebutuhanProyek: string }).kebutuhanProyek)).toEqual(['Proyek A', 'Proyek B', 'Proyek B']);
+    fireEvent.click(b.getByRole('button', { name: 'Simpan Draft' }));
+    await screen.findByText('PO Proyek B berhasil disimpan sebagai DRAFT');
+    expect(api.calls('POST /api/v1/purchase-orders').map((call) => (call.body as { barang: { lineIndex: number }[] }).barang[0]?.lineIndex)).toEqual([0, 1, 1]);
   });
 
   it('membuat PO berikutnya untuk sisa barang tanpa memesan ulang baris yang berhasil', async () => {
@@ -383,15 +421,15 @@ describe('pemisahan otomatis per proyek', () => {
     await ready();
     await fillValid();
     fireEvent.click(screen.getByLabelText('Pilih Paku'));
-    submit();
-    fireEvent.click(await screen.findByRole('button', { name: /Buat PO berikutnya/ }));
+    await submit();
+    fireEvent.click(await screen.findByRole('button', { name: /Simpan Draft PO berikutnya/ }));
     expect(screen.queryByLabelText('Pilih Triplex')).toBeNull();
     expect(screen.getByText('Sudah dipesan')).not.toBeNull();
     expect((screen.getByLabelText('Pilih Paku') as HTMLInputElement).checked).toBe(true);
     await pickSupplier();
     type('PIC / Telp', 'PIC kedua');
-    submit();
-    await screen.findByText('PO PO-1 berhasil dibuat');
+    await submit();
+    await screen.findByText('PO PO-1 berhasil disimpan sebagai DRAFT');
     expect((api.calls('POST /api/v1/purchase-orders')[1].body as { barang: { lineIndex: number }[] }).barang.map((line) => line.lineIndex)).toEqual([1]);
   });
 
@@ -399,10 +437,10 @@ describe('pemisahan otomatis per proyek', () => {
     let gagal = true;
     const api = setup('approved', { 'GET /api/v1/purchase-orders': () => gagal ? fail(500, 'Daftar PO gagal') : paged([]) });
     await screen.findByText('Daftar PO gagal');
-    expect((screen.getByRole('button', { name: 'Buat' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Simpan Draft' }) as HTMLButtonElement).disabled).toBe(true);
     gagal = false;
     fireEvent.click(screen.getByRole('button', { name: 'Coba lagi' }));
-    await waitFor(() => expect((screen.getByRole('button', { name: 'Buat' }) as HTMLButtonElement).disabled).toBe(false));
+    await waitFor(() => expect((screen.getByRole('button', { name: 'Simpan Draft' }) as HTMLButtonElement).disabled).toBe(false));
     expect(api.calls('POST /api/v1/purchase-orders')).toHaveLength(0);
   });
 
@@ -413,7 +451,7 @@ describe('pemisahan otomatis per proyek', () => {
     await screen.findByRole('form', { name: 'PO Belum diisi' });
     expect(screen.getByText('Proyek barang belum diisi. Perbaiki permintaan pembelian terlebih dahulu.')).not.toBeNull();
     expect(screen.getByLabelText('Harga satuan Triplex')).not.toBeNull();
-    expect((screen.getByRole('button', { name: 'Buat' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Simpan Draft' }) as HTMLButtonElement).disabled).toBe(true);
     expect(api.calls('POST /api/v1/purchase-orders')).toHaveLength(0);
   });
 });

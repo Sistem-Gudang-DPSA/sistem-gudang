@@ -15,6 +15,11 @@ export const lihatPermintaanPath = (id: number | string) => `${rekap_pembelian_p
 
 export const buatPoPath = (id: number | string) => `/dashboard/purchasing/transaksi/buat-po-barang/buat-po/${id}`;
 
+// SPK disalin backend dari baris permintaan yang sudah disetujui, bukan dikirim oleh form PO.
+export function purchaseOrderSpk(lines: { noSpk?: string | null }[]): string {
+  return [...new Set(lines.map((line) => line.noSpk).filter((value): value is string => Boolean(value)))].join(', ');
+}
+
 // Data perusahaan pemesan yang tercetak di PO
 export const PEMESAN = {
   nama: COMPANY_NAME,

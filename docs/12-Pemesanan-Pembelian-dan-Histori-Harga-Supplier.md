@@ -2,15 +2,22 @@
 
 ## Ringkasan
 
-Layar Buat PO di Purchasing menyimpan pesanan melalui backend. Detail
-Data Barang pada Data Supplier menampilkan daftar barang terkait supplier
+Layar Buat PO di Purchasing menyimpan pesanan sebagai `DRAFT` melalui
+backend, lalu men-submit PO agar harga dan barisnya beku. Detail Data
+Barang pada Data Supplier menampilkan daftar barang terkait supplier
 berupa kode, nama, pajak vendor, satuan, dan kategori.
 
 ## Pemesanan Pembelian
 
-- Buat PO memanggil `POST /purchase-orders`. Nomor PO dibuat backend dengan
-  format `PO-001`, jadi kolom Nomor PO dihapus dari form. Setelah berhasil,
-  layar menampilkan nomor PO dan grand total dari backend.
+- Tombol **Simpan Draft** memanggil `POST /purchase-orders`. Nomor PO dibuat
+  backend dengan format `PO-001`, jadi kolom Nomor PO dihapus dari form.
+  PO baru berstatus `DRAFT`. Layar menampilkan nomor PO, status, proyek,
+  nomor SPK, dan grand total dari backend. Harga pada draft masih bisa diedit.
+- Tombol **Submit PO** memanggil `POST /purchase-orders/{id}/submit` dan
+  tersedia untuk PO `DRAFT` dengan `purchase-order.update`. Submit mengubah
+  status menjadi `ISSUED`, mencatat `submittedAt`/`submittedBy`, dan membekukan
+  baris serta `hargaSatuan`. Setelah submit, `PUT /purchase-orders/{id}` ditolak
+  409 dan PO sudah boleh menerima barang.
 - Rumus pajak mengikuti rancangan Imel dan sudah dipakai backend. Subtotal
   adalah jumlah dikali harga satuan dikurangi diskon rupiah per baris. DPP
   nilai lain adalah 11/12 dari subtotal, PPN adalah DPP nilai lain dikali
@@ -20,6 +27,10 @@ berupa kode, nama, pajak vendor, satuan, dan kategori.
 - Total di layar hanya pratinjau. Nilai yang tersimpan dan dikembalikan
   adalah hasil hitung backend. `dppLain` bukan lagi input, dan backend
   menolak body yang memuatnya.
+- Harga transaksi adalah `barang[].hargaSatuan` pada PO. Harga Saat Ini di
+  tabel mapping hanya dijadikan nilai awal saat membuat PO dan tidak
+  menimpa `items.price`; backend menyimpan `itemId` dan `noSpk` dari baris
+  permintaan, bukan dari input klien.
 - PO hanya bisa dibuat setelah Gudang mengajukan permintaan, PPIC menyetujui
   tahap awal, dan Purchasing memberi persetujuan akhir. Persetujuan PPIC
   saja masih berstatus pending dan belum mengizinkan PO. Satu permintaan
@@ -33,25 +44,27 @@ berupa kode, nama, pajak vendor, satuan, dan kategori.
 ## Membagi permintaan menjadi beberapa PO
 
 - Form Buat PO otomatis mengelompokkan baris permintaan Gudang maupun PPIC
-  berdasarkan `items[].proyek`. Spasi di awal/akhir nama proyek diabaikan.
-  Setiap proyek memiliki form tersendiri dengan tanggal, supplier, PIC,
-  harga barang, diskon, PPN, dan jasa yang diisi terpisah. Satu PO hanya
-  memuat satu proyek dan satu supplier; permintaan asal tetap satu dokumen.
-- Purchasing menyimpan setiap form proyek dengan tombol **Buat**.
-  `POST /api/v1/purchase-orders` menerima `approvalRequestId` permintaan asal,
-  `kebutuhanProyek` nama satu proyek, dan `barang[].lineIndex` indeks asli
-  baris permintaan sebelum pengelompokan. Hanya baris yang dicentang yang
-  dihitung dan dikirim; barang dari proyek lain tidak masuk PO tersebut.
-- Untuk beberapa supplier pada proyek yang sama, centang barang untuk
-  supplier pertama. Setelah berhasil, tombol **Buat PO berikutnya untuk
-  proyek ini** membuka kembali form untuk sisa barang. Supplier, PIC, dan
+  berdasarkan pasangan `items[].proyek` dan `items[].noSpk`. Spasi di
+  awal/akhir nama proyek diabaikan. Setiap grup memiliki form tersendiri
+  dengan tanggal, supplier, PIC, harga barang, diskon, PPN, dan jasa yang
+  diisi terpisah. Satu PO hanya memuat satu proyek, satu SPK, dan satu
+  supplier; permintaan asal tetap satu dokumen. `noSpk` berasal dari server.
+- Purchasing menyimpan setiap form dengan tombol **Simpan Draft**.
+  `POST /api/v1/purchase-orders` menerima `approvalRequestId` permintaan asal
+  dan `barang[].lineIndex` indeks asli baris permintaan sebelum
+  pengelompokan. Proyek dan `noSpk` dibaca backend dari baris permintaan
+  yang sudah disetujui, bukan dikirim oleh form. Hanya baris yang dicentang
+  yang dihitung dan dikirim; barang dari proyek lain tidak masuk PO tersebut.
+- Untuk beberapa supplier pada proyek dan SPK yang sama, centang barang untuk
+  supplier pertama. Setelah berhasil, tombol **Simpan Draft PO berikutnya
+  untuk proyek ini** membuka kembali form untuk sisa barang. Supplier, PIC, dan
   jasa dikosongkan agar diisi untuk pesanan berikutnya. Baris yang berhasil
   disimpan langsung ditandai sudah dipesan dan tidak dikirim ulang.
 - Hasil penyimpanan ditampilkan pada setiap proyek. Jika satu proyek gagal,
   pesan kegagalannya tampil dan isiannya tetap tersedia untuk dicoba lagi;
   PO proyek lain yang berhasil tetap tersimpan dan ditampilkan. Barang yang
   belum dipilih tetap menjadi sisa pesanan, bukan dihapus.
-- Tombol **Buat** dinonaktifkan selama daftar PO sebelumnya dimuat, jika
+- Tombol **Simpan Draft** dinonaktifkan selama daftar PO sebelumnya dimuat, jika
   pemuatan gagal, jika proyek kosong, atau jika semua barang proyek sudah
   dipesan. Kegagalan memuat daftar PO menyediakan tombol **Coba lagi**.
   Barang tanpa proyek tetap ditampilkan dengan pesan agar permintaan asal
@@ -118,14 +131,20 @@ berupa kode, nama, pajak vendor, satuan, dan kategori.
   Tujuan Pemesanan (Supplier) dan Pemesan berdampingan, rincian barang, lalu
   ringkasan biaya. Alamat, telepon, NPWP, dan bank supplier berasal dari data
   yang dikembalikan endpoint detail PO. PO batal menampilkan alasannya.
+- Status `DRAFT`, `ISSUED`, `PARTIALLY_RECEIVED`, dan `RECEIVED` mengikuti
+  kontrak backend: tiga status penerimaan turunan dari baris inbound aktif.
+  Detail PO menampilkan `No SPK`, `Diterima`, dan `Sisa` per barang, serta
+  tanggal submit bila ada. PO `DRAFT` menampilkan ajakan submit dan tautan
+  edit untuk pemilik `purchase-order.update`.
 - Setelah PO tersimpan, layar sukses menampilkan nomor dan grand total serta
   tombol **Cetak PO**. Tombol ini hanya mencetak PO yang sudah tersimpan
   (`printPurchaseOrder`), termasuk saat mencetak ulang setelah dialog cetak
   gagal. Mencetak tidak membuat PO baru atau mengubah status PO.
 - Template A4 portrait mengikuti dokumen PO: kop dan logo perusahaan,
-  nomor/tanggal PO, tabel supplier dan pemesan, rincian barang dan harga,
-  DPP/PPN/jasa/grand total, enam catatan pemesanan, dan kolom tanda tangan
-  kosong. Angka dan total selalu berasal dari PO yang dibuat backend.
+  nomor/tanggal PO, tabel supplier dan pemesan, rincian barang, `No SPK`, dan
+  harga, DPP/PPN/jasa/grand total, enam catatan pemesanan, dan kolom tanda
+  tangan kosong. PO `DRAFT` diberi penanda belum disubmit; PO batal tetap
+  memuat alasan pembatalan. Angka dan total selalu berasal dari PO backend.
 
 ## Detail Barang Supplier
 
@@ -164,17 +183,19 @@ belum diuji.
 
 ## Edit PO Barang Purchasing
 
-Setiap baris PO berstatus `ISSUED` menampilkan tombol **Edit** untuk akun
+Hanya baris PO berstatus `DRAFT` yang menampilkan tombol **Edit** untuk akun
 dengan `purchase-order.update`. Form berada di
 `/dashboard/purchasing/transaksi/buat-po-barang/edit-po/{id}` dan memerlukan
-`purchase-order.view` serta `purchase-order.update`.
+`purchase-order.view` serta `purchase-order.update`. PO yang sudah disubmit
+atau dibatalkan tidak membuka form.
 
 Form edit memakai susunan yang sama dengan form Buat PO: proyek dan
-tanggal di atas, tabel supplier serta pemesan berdampingan, tabel barang,
-lalu kotak total harga, DPP, PPN, dan jasa. Bagian supplier/pemesan dan
-perhitungan total memakai komponen bersama agar kedua form konsisten.
-Kolom **Pilih** awalnya mencentang semua barang; hanya barang yang tetap
-dipilih yang dihitung dan disimpan, dengan minimal satu barang.
+tanggal di atas, tabel supplier serta pemesan berdampingan, tabel barang
+dengan `No SPK` read-only, lalu kotak total harga, DPP, PPN, dan jasa.
+Bagian supplier/pemesan dan perhitungan total memakai komponen bersama agar
+kedua form konsisten. Kolom **Pilih** awalnya mencentang semua barang; hanya
+barang yang tetap dipilih yang dihitung dan disimpan, dengan minimal satu
+barang.
 
 Form memuat nilai tersimpan dan dapat mengubah tanggal PO, supplier,
 PIC supplier, kebutuhan proyek, kode/nama/satuan setiap barang, jumlah,
@@ -186,8 +207,11 @@ bersama, sedangkan total dihitung ulang otomatis dengan rumus yang sama
 seperti form pembuatan PO.
 
 **Simpan Perubahan** mengirim `PUT /api/v1/purchase-orders/{id}` dengan
-seluruh isian dan daftar barang. Backend menyinkronkan pemetaan supplier
-untuk PO terkait permintaan dalam transaksi yang sama; pemetaan PO lain
-tidak diambil alih. Kegagalan menampilkan pesan dan mempertahankan isian.
-Setelah berhasil, tersedia tautan detail PO tersimpan. **Batal** kembali ke
-daftar PO Purchasing. PO batal tidak menyediakan tombol atau form edit.
+seluruh isian dan daftar barang. Backend hanya menerima perubahan pada PO
+`DRAFT` dan menyinkronkan pemetaan supplier untuk PO terkait permintaan
+dalam transaksi yang sama; pemetaan PO lain tidak diambil alih. Kegagalan
+menampilkan pesan dan mempertahankan isian. Setelah berhasil, tersedia
+tautan detail PO dan tombol **Submit PO** yang memanggil
+`POST /api/v1/purchase-orders/{id}/submit`. **Batal** kembali ke daftar PO
+Purchasing. PO yang sudah disubmit atau dibatalkan tidak menyediakan tombol
+atau form edit.

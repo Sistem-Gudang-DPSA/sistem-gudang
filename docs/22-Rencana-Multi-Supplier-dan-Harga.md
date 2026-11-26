@@ -152,15 +152,15 @@ Poin 6 tidak memerlukan kode baru. Permission `purchase-request.approve` sudah t
 
 ## Pemetaan Master Barang
 
-Pemetaan master barang ke beberapa supplier memakai `item_suppliers` dan
-endpoint `PUT /items/{id}/suppliers`, dijelaskan di
-[21-Pemetaan-Supplier-Barang.md](21-Pemetaan-Supplier-Barang.md). Pemetaan ini
-berbeda dari `purchase_mappings` yang khusus per permintaan pembelian.
-Material tetap satu dan stok tidak diduplikasi.
+Tidak ada tabel `item_suppliers` baru. Master barang tetap memakai field
+`supplierId` tunggal. Relasi barang ke banyak supplier untuk permintaan
+pembelian memakai `purchase_mappings`, yang dibuat per baris permintaan
+pembelian, bukan tabel master baru.
 
 ## Yang Sengaja Tidak Dibuat
 
 ```text
+Tidak ada tabel item_suppliers baru
 Tidak ada kolom qty_received atau price_locked baru
 Tidak ada tabel stock_lots / outbound_allocations baru
 Tidak ada penulisan ulang transaksi lama

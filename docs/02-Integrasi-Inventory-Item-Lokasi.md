@@ -134,11 +134,6 @@ bertahan saat pencarian, filter, atau urutan berubah, dan hilang saat layar
 ditutup. Banner hijau di atas tabel menampilkan jumlah baris terpilih beserta
 tombol **Bersihkan pilihan**.
 
-Kolom **Supplier** di tabel Data Barang disembunyikan untuk semua role,
-termasuk Superadmin, Gudang/Inventory, PPIC, Purchasing, dan Keuangan.
-Filter supplier, pemetaan supplier massal sesuai permission, dan data supplier
-dalam export tetap tersedia. Supplier di detail penerimaan barang tetap tampil.
-
 Kolom harga pada Data Barang PPIC, Purchasing, dan Superadmin memakai label
 **Harga Terbaru** dan format ribuan `id-ID` yang sama (contoh `1.000`).
 Bila respons `GET /items` menyertakan tanggal harga terakhir, sel yang sama

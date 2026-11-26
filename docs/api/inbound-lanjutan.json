@@ -1,0 +1,380 @@
+{
+  "paths": {
+    "/api/v1/inbound/{id}/cancel": {
+      "post": {
+        "tags": [
+          "Inbound"
+        ],
+        "summary": "Cancel an inbound transaction (superadmin)",
+        "description": "Superadmin only, 403 otherwise. Works for every source, client returns (KLIEN) included. Subtracts qtyArrived from the item stock and keeps the row with cancelledAt, cancelledByName and cancelReason set, in one transaction. 404 for an unknown id, 409 when already cancelled or when the current stock is lower than qtyArrived (already used; nothing is written). The creator is notified (INBOUND_CANCELLED). Cancelled rows are left out of summaries, exports, mutations and the stock card; lists and detail still return them.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "date": {
+                          "type": "string",
+                          "example": "2026-09-30"
+                        },
+                        "itemId": {
+                          "type": "number"
+                        },
+                        "itemCode": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "itemName": {
+                          "type": "string"
+                        },
+                        "locationCode": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "Where the item is stored now"
+                        },
+                        "supplierId": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "supplierName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "source": {
+                          "type": "string",
+                          "enum": [
+                            "SUPPLIER",
+                            "PRODUKSI",
+                            "KLIEN"
+                          ]
+                        },
+                        "purchaseOrderId": {
+                          "type": "number",
+                          "nullable": true,
+                          "description": "PO this receipt was booked against"
+                        },
+                        "purchaseOrderLineId": {
+                          "type": "number",
+                          "nullable": true,
+                          "description": "PO line this receipt was booked against"
+                        },
+                        "qtyArrived": {
+                          "type": "number"
+                        },
+                        "qtyPurchased": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "statusQc": {
+                          "type": "string",
+                          "nullable": true,
+                          "enum": [
+                            "PASS",
+                            "PARTIAL_RETUR",
+                            null
+                          ]
+                        },
+                        "referenceNo": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "supplierDeliveryNo": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "clientName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "spk": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "notes": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdBy": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "cancelledAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "Set when a superadmin cancelled it"
+                        },
+                        "cancelledByName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "cancelReason": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "date",
+                        "itemId",
+                        "itemCode",
+                        "itemName",
+                        "locationCode",
+                        "supplierId",
+                        "supplierName",
+                        "source",
+                        "purchaseOrderId",
+                        "purchaseOrderLineId",
+                        "qtyArrived",
+                        "qtyPurchased",
+                        "statusQc",
+                        "referenceNo",
+                        "supplierDeliveryNo",
+                        "clientName",
+                        "spk",
+                        "notes",
+                        "createdBy",
+                        "createdAt",
+                        "cancelledAt",
+                        "cancelledByName",
+                        "cancelReason"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already cancelled, or stock is too low to take the quantity back out",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
