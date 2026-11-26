@@ -73,6 +73,19 @@ CRUD Supplier dan daftar barang per supplier sudah memakai API.
 dan menampilkan identitas barang tanpa kolom harga bulanan atau rata-rata.
 Detail sumber data dijelaskan di `12-Pemesanan-Pembelian-dan-Histori-Harga-Supplier.md`.
 
+## Kolom PIC pada tabel supplier
+
+Tabel supplier di Purchasing dan Superadmin menampilkan kolom **PIC**
+sebelum kolom **Kontak**. Nilainya dibaca dari field `pic` pada payload
+supplier; supplier tanpa nilai ditampilkan sebagai `-`. Kolom ini belum
+memakai sort karena endpoint supplier belum menerima `pic` sebagai kunci
+urut. Field `pic` di form tambah/edit dan di API supplier masih menunggu
+dukungan backend.
+
+Kolom **Kode** tidak ditampilkan di tabel supplier. Kode tetap ada di
+form tambah/edit karena `POST /suppliers` mewajibkannya, dan tetap dipakai
+untuk mendeteksi duplikat saat import.
+
 ## Alamat dan Pajak Vendor pada form supplier
 
 Modal Tambah/Edit di Purchasing dan Superadmin memakai textarea untuk

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import PurchasingReport from "@/app/dashboard/purchasing/laporan/realisasi-dokubah/page";
+import PurchasingReport from "@/app/dashboard/purchasing/laporan/realisasi-spk/page";
 import GudangReport from "@/domains/inventory/components/DashboardRealisasiSpk";
 
 const mocks = vi.hoisted(() => ({

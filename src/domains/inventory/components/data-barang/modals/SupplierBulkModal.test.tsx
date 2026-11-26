@@ -16,7 +16,7 @@ function setup(over: Partial<ComponentProps<typeof SupplierBulkModal>> = {}) {
   const props = {
     items,
     suppliers,
-    value: "",
+    value: [],
     onChange: vi.fn(),
     onSave: vi.fn(),
     onClose: vi.fn(),
@@ -38,11 +38,11 @@ describe("SupplierBulkModal", () => {
 
   it("warns when selected items already have a supplier", () => {
     setup();
-    expect(screen.getByText("1 barang sudah punya supplier dan akan diganti.")).not.toBeNull();
+    expect(screen.getByText("1 barang sudah punya supplier. Daftar suppliernya akan diganti sesuai pilihan.")).not.toBeNull();
   });
 
   it("reviews item names and current suppliers before saving", () => {
-    const props = setup({ value: "7" });
+    const props = setup({ value: ["7"] });
     fireEvent.click(screen.getByRole("button", { name: "Tinjau 2 Barang" }));
 
     expect(screen.getByText(/Tinjau Pemetaan · 2 Barang/i)).not.toBeNull();
@@ -58,7 +58,7 @@ describe("SupplierBulkModal", () => {
   });
 
   it("returns to the supplier step without saving", () => {
-    const props = setup({ value: "7" });
+    const props = setup({ value: ["7"] });
     fireEvent.click(screen.getByRole("button", { name: "Tinjau 2 Barang" }));
     fireEvent.click(screen.getByRole("button", { name: "Kembali" }));
 
@@ -67,14 +67,14 @@ describe("SupplierBulkModal", () => {
   });
 
   it("explains when the supplier will be cleared", () => {
-    setup({ value: "none" });
+    setup({ value: ["none"] });
     fireEvent.click(screen.getByRole("button", { name: "Tinjau 2 Barang" }));
     expect(screen.getByText("Supplier pada 1 barang akan dikosongkan.")).not.toBeNull();
     expect(screen.getByText("Tanpa supplier")).not.toBeNull();
   });
 
   it("blocks closing and saving while the request is running", () => {
-    const props = setup({ saving: true, value: "7" });
+    const props = setup({ saving: true, value: ["7"] });
     fireEvent.click(screen.getByRole("button", { name: "Batal" }));
     expect(props.onClose).not.toHaveBeenCalled();
   });
