@@ -14,7 +14,7 @@ const po: PurchaseOrder = {
   dppLain: 1833, persenPpn: 12, jasa: 0,
   subtotal: 2000, nilaiPpn: 220, grandTotal: 2220, createdBy: 1, createdAt: '2026-11-14T00:00:00Z',
   status: 'ISSUED', submittedAt: '2026-11-14T08:00:00Z', submittedBy: 1, cancelledAt: null, cancelledBy: null, cancelReason: null,
-  barang: [{ kodeBarang: 'b01-tri4-jk-001', namaBarang: 'Triplex 4mm', satuan: 'Lembar', noSpk: 'SPK-9', jumlah: 1, qtyReceived: 1, sisa: 0, hargaSatuan: 2000, diskon: 0, receipts: [] }],
+  barang: [{ id: 5401, kodeBarang: 'b01-tri4-jk-001', namaBarang: 'Triplex 4mm', satuan: 'Lembar', noSpk: 'SPK-9', jumlah: 1, qtyReceived: 1, sisa: 0, hargaSatuan: 2000, diskon: 0, receipts: [] }],
 };
 
 describe('Detail PO Barang', () => {

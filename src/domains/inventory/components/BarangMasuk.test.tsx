@@ -40,11 +40,32 @@ const scannedItem = { id: 3, code: 'BRG-3', name: 'Paku', unit: 'pcs', stock: 10
 const firstItem = { ...scannedItem, id: 1, code: 'BRG-1', name: 'Triplex 1', unit: 'lbr' };
 const items = paged([firstItem]);
 const suppliers = paged([{ id: 7, name: 'PT Kayu' }, { id: 8, name: 'PT Besi' }]);
+const poLine = (id: number, itemId: number, over: Record<string, unknown> = {}) => ({
+  id, lineIndex: itemId - 1, itemId, noSpk: `SPK-${itemId}`, kodeBarang: `BRG-${itemId}`,
+  namaBarang: itemId === 3 ? 'Paku' : `Triplex ${itemId}`, satuan: itemId === 3 ? 'pcs' : 'lbr',
+  jumlah: itemId === 3 ? 12 : 20, hargaSatuan: 1000, diskon: 0, qtyReceived: 0,
+  sisa: itemId === 3 ? 12 : 20, receipts: [], ...over,
+});
+const poDetail = (id: number, supplierName: string, barang: unknown[], over: Record<string, unknown> = {}) => ({
+  id, nomorPo: `PO-${id}`, approvalRequestId: null, tanggalPo: '2026-03-01', supplierId: supplierName === 'PT Kayu' ? 7 : 8,
+  supplierName, status: id === 101 ? 'ISSUED' : 'PARTIALLY_RECEIVED', barang, ...over,
+});
+const po101 = poDetail(101, 'PT Kayu', [poLine(11, 1), poLine(12, 3)]);
+const po102 = poDetail(102, 'PT Besi', [poLine(21, 2, { namaBarang: 'Triplex 2', sisa: 5, jumlah: 5 })]);
+const poList = paged([
+  { id: 101, nomorPo: 'PO-101', supplierName: 'PT Kayu', status: 'ISSUED' },
+  { id: 102, nomorPo: 'PO-102', supplierName: 'PT Besi', status: 'PARTIALLY_RECEIVED' },
+]);
 const batchSuccess = { count: 1, items: [inbound(1)] };
 const BATCH = 'POST /api/v1/inbound/batch';
+const PO_LIST = 'GET /api/v1/purchase-orders';
 
 function setup(extra: Record<string, unknown> = {}, rows: unknown = paged([inbound(1), inbound(2, { supplierName: null, source: 'KLIEN', clientName: 'Budi' })])) {
-  const api = installFakeApi({ 'GET /api/v1/inbound': rows, 'GET /api/v1/items': items, 'GET /api/v1/suppliers': suppliers, [BATCH]: batchSuccess, ...extra });
+  const api = installFakeApi({
+    'GET /api/v1/inbound': rows, 'GET /api/v1/items': items, 'GET /api/v1/suppliers': suppliers,
+    [PO_LIST]: poList, 'GET /api/v1/purchase-orders/101': po101, 'GET /api/v1/purchase-orders/102': po102,
+    [BATCH]: batchSuccess, ...extra,
+  });
   const view = render(<BarangMasuk />);
   return { api, view };
 }
@@ -54,28 +75,26 @@ const dateSelect = (placeholder: string) => screen.getByRole('option', { name: p
 const formDialog = () => screen.getByRole('dialog', { name: 'FORM BARANG MASUK' });
 const previewDialog = () => screen.getByRole('dialog', { name: 'PREVIEW BARANG MASUK' });
 const arrived = (name = 'Triplex 1') => screen.getByLabelText(`Jumlah Sesuai Kedatangan ${name}`) as HTMLInputElement;
-const purchased = (name = 'Triplex 1') => screen.getByLabelText(`Jumlah Sesuai Rekap Pembelian ${name}`) as HTMLInputElement;
 const tableRow = (code: string) => within(screen.getByRole('dialog')).getByText(code).closest('tr')!;
 
-async function pickSupplier(name = 'PT Kayu') {
-  fireEvent.click(screen.getByRole('button', { name: 'Nama Supplier' }));
+async function pickPo(name = 'PO-101 — PT Kayu') {
+  fireEvent.click(screen.getByRole('button', { name: 'Nomor PO' }));
   fireEvent.click(await screen.findByRole('option', { name }));
 }
-async function openBaru({ supplier = true, manual = true } = {}) {
+async function openBaru({ pilihPo = true, manual = true } = {}) {
   await screen.findByText('Triplex 1');
   fireEvent.click(screen.getByText('Barang Baru'));
   await screen.findByText('FORM BARANG MASUK');
-  if (supplier) await pickSupplier();
+  if (pilihPo) await pickPo();
   if (manual) fireEvent.click(screen.getByRole('button', { name: 'Input Manual' }));
 }
-async function pickItem(name = 'Triplex 1 (BRG-1)', index = 0) {
+async function pickItem(name = 'Triplex 1 (BRG-1) · SPK-1', index = 0) {
   fireEvent.click(within(formDialog()).getAllByRole('button', { name: /^Nama material/ })[index]);
   fireEvent.click(await screen.findByRole('option', { name }));
 }
 async function fillBaru() {
   await pickItem();
   fireEvent.change(arrived(), { target: { value: '15' } });
-  fireEvent.change(purchased(), { target: { value: '20' } });
 }
 const scan = (code: string) => {
   const input = screen.getByLabelText('Hasil scan');
@@ -83,6 +102,7 @@ const scan = (code: string) => {
   fireEvent.keyDown(input, { key: 'Enter' });
 };
 const confirm = () => fireEvent.click(screen.getByRole('button', { name: 'Konfirmasi Simpan' }));
+const line1 = (qtyArrived: number, over = {}) => ({ itemId: 1, purchaseOrderId: 101, purchaseOrderLineId: 11, qtyArrived, qtyPurchased: 20, statusQc: 'PASS', ...over });
 
 describe('BarangMasuk list', () => {
   it('shows rows incl. return rows and loads every page with pageSize 100', async () => {
@@ -176,15 +196,15 @@ describe('BarangMasuk toolbar', () => {
 });
 
 describe('BarangMasuk create inbound', () => {
-  it('shows the supplier/date header, scan/manual actions and an empty material table without Status QC', async () => {
+  it('shows the PO/date header, scan/manual actions and an empty material table without Status QC', async () => {
     setup();
-    await openBaru({ supplier: false, manual: false });
+    await openBaru({ pilihPo: false, manual: false });
     const dialog = formDialog();
-    expect(within(dialog).getByRole('button', { name: 'Nama Supplier' })).not.toBeNull();
+    expect(within(dialog).getByRole('button', { name: 'Nomor PO' })).not.toBeNull();
     expect(within(dialog).getByLabelText('Tanggal')).not.toBeNull();
     expect((within(dialog).getByRole('button', { name: 'Scan Barang' }) as HTMLButtonElement).disabled).toBe(true);
     expect((within(dialog).getByRole('button', { name: 'Input Manual' }) as HTMLButtonElement).disabled).toBe(true);
-    expect(within(dialog).getByText('Pilih nama supplier dulu')).not.toBeNull();
+    expect(within(dialog).getByText('Pilih PO dulu')).not.toBeNull();
     expect(within(dialog).queryByText('Status QC')).toBeNull();
     expect(within(dialog).getByText(/Barang masuk yang diinput adalah barang yang sudah lolos QC/)).not.toBeNull();
     expect(within(dialog).getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['No', 'Nama Material', 'Satuan/Vol', 'Kode', 'Rekap Pembelian', 'Kedatangan', 'Hapus']);
@@ -192,12 +212,61 @@ describe('BarangMasuk create inbound', () => {
     expect(within(dialog).getByText(/Waktu Sekarang/)).not.toBeNull();
   });
 
-  it('validates supplier, date, at least one item and unfinished manual rows before preview', async () => {
+  it('opens and closes Barang Baru without return fields or SPK requests', async () => {
     const { api } = setup();
-    await openBaru({ supplier: false, manual: false });
+    await openBaru({ pilihPo: false, manual: false });
+    expect(screen.queryByLabelText('SPK')).toBeNull();
+    expect(screen.queryByText('FORM BARANG KEMBALI')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Tutup' }));
+    expect(screen.queryByText('FORM BARANG MASUK')).toBeNull();
+    expect(screen.getByText('Triplex 1')).not.toBeNull();
+    expect(api.calls('GET /api/v1/tracking/spk')).toHaveLength(0);
+    expect(api.calls(BATCH)).toHaveLength(0);
+  });
+
+  it('loads only submitted POs and reports a PO load failure', async () => {
+    const { api } = setup();
+    await openBaru();
+    expect(api.calls(PO_LIST).some((call) => call.query.get('status') === 'ISSUED')).toBe(true);
+    expect(api.calls(PO_LIST).some((call) => call.query.get('status') === 'PARTIALLY_RECEIVED')).toBe(true);
+    expect(api.calls('GET /api/v1/purchase-orders/101')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Nomor PO' }));
+    expect(await screen.findByRole('option', { name: 'PO-102 — PT Besi' })).not.toBeNull();
+  });
+
+  it('does not offer DRAFT or CANCELLED purchase orders for receiving', async () => {
+    setup({
+      [PO_LIST]: paged([
+        { id: 104, nomorPo: 'PO-104', supplierName: 'PT Kayu', status: 'DRAFT' },
+        { id: 105, nomorPo: 'PO-105', supplierName: 'PT Besi', status: 'CANCELLED' },
+        poList.rows[0],
+      ]),
+      'GET /api/v1/purchase-orders/104': poDetail(104, 'PT Kayu', [poLine(41, 1)], { status: 'DRAFT' }),
+      'GET /api/v1/purchase-orders/105': poDetail(105, 'PT Besi', [poLine(51, 2)], { status: 'CANCELLED' }),
+    });
+    await screen.findByText('Triplex 1');
+    fireEvent.click(screen.getByText('Barang Baru'));
+    await screen.findByText('FORM BARANG MASUK');
+    fireEvent.click(screen.getByRole('button', { name: 'Nomor PO' }));
+    expect(await screen.findByRole('option', { name: 'PO-101 — PT Kayu' })).not.toBeNull();
+    expect(screen.queryByRole('option', { name: 'PO-104 — PT Kayu' })).toBeNull();
+    expect(screen.queryByRole('option', { name: 'PO-105 — PT Besi' })).toBeNull();
+  });
+
+  it('surfaces a PO load failure without discarding the form', async () => {
+    setup({ [PO_LIST]: fail(500, 'PO down') });
+    await screen.findByText('Triplex 1');
+    fireEvent.click(screen.getByText('Barang Baru'));
+    expect(await screen.findByText('PO down')).not.toBeNull();
+    expect(formDialog()).not.toBeNull();
+  });
+
+  it('validates PO, date, at least one item and unfinished manual rows before preview', async () => {
+    const { api } = setup();
+    await openBaru({ pilihPo: false, manual: false });
     fireEvent.click(screen.getByText('Simpan'));
-    expect(screen.getByText('Nama supplier dan tanggal wajib diisi.')).not.toBeNull();
-    await pickSupplier();
+    expect(screen.getByText('Nomor PO dan tanggal wajib diisi.')).not.toBeNull();
+    await pickPo();
     fireEvent.click(screen.getByText('Simpan'));
     expect(screen.getByText('Tambahkan minimal satu barang.')).not.toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Input Manual' }));
@@ -206,22 +275,21 @@ describe('BarangMasuk create inbound', () => {
     expect(api.calls(BATCH)).toHaveLength(0);
   });
 
-  it('accepts comma decimals and rejects invalid characters and excess precision without changing quantities', async () => {
+  it('accepts comma decimals and rejects invalid characters on arrival quantity', async () => {
     setup();
     await openBaru();
     await fillBaru();
-    for (const input of [arrived(), purchased()]) {
-      expect(input.inputMode).toBe('decimal');
-      fireEvent.change(input, { target: { value: '1,125' } });
+    const input = arrived();
+    expect(input.inputMode).toBe('decimal');
+    fireEvent.change(input, { target: { value: '1,125' } });
+    expect(input.value).toBe('1,125');
+    for (const value of ['1e2', '-2', '1.5', '1,2,3', '1,1234']) {
+      fireEvent.change(input, { target: { value } });
       expect(input.value).toBe('1,125');
-      for (const value of ['1e2', '-2', '1.5', '1,2,3', '1,1234']) {
-        fireEvent.change(input, { target: { value } });
-        expect(input.value).toBe('1,125');
-        expect(input.getAttribute('aria-invalid')).toBe('true');
-      }
-      fireEvent.change(input, { target: { value: '0,5' } });
-      expect(input.getAttribute('aria-invalid')).toBe('false');
+      expect(input.getAttribute('aria-invalid')).toBe('true');
     }
+    fireEvent.change(input, { target: { value: '0,5' } });
+    expect(input.getAttribute('aria-invalid')).toBe('false');
   });
 
   it('previews comma decimals and sends numeric decimal quantities in the batch', async () => {
@@ -229,19 +297,18 @@ describe('BarangMasuk create inbound', () => {
     await openBaru();
     await fillBaru();
     fireEvent.change(arrived(), { target: { value: '0,125' } });
-    fireEvent.change(purchased(), { target: { value: '2,375' } });
     fireEvent.click(screen.getByText('Simpan'));
     expect(within(tableRow('BRG-1')).getByText('0,125')).not.toBeNull();
-    expect(within(tableRow('BRG-1')).getByText('2,375')).not.toBeNull();
+    expect(within(tableRow('BRG-1')).getByText('20')).not.toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Kembali Edit' }));
     expect(arrived().value).toBe('0,125');
     fireEvent.click(screen.getByText('Simpan'));
     confirm();
     await waitFor(() => expect(api.calls(BATCH)).toHaveLength(1));
-    expect(api.calls(BATCH)[0].body).toMatchObject({ lines: [{ itemId: 1, qtyArrived: 0.125, qtyPurchased: 2.375 }] });
+    expect(api.calls(BATCH)[0].body).toMatchObject({ lines: [line1(0.125)] });
   });
 
-  it('increments decimals by one and clamps buttons and repeated scans at the arrival limit', async () => {
+  it('increments decimals by one and clamps buttons and repeated scans at the PO line remainder', async () => {
     setup();
     await openBaru();
     await fillBaru();
@@ -250,13 +317,13 @@ describe('BarangMasuk create inbound', () => {
     expect(arrived().value).toBe('2,125');
     fireEvent.click(screen.getByRole('button', { name: 'Kurangi Triplex 1' }));
     expect(arrived().value).toBe('1,125');
-    fireEvent.change(arrived(), { target: { value: '99999,5' } });
+    fireEvent.change(arrived(), { target: { value: '19,5' } });
     fireEvent.click(screen.getByRole('button', { name: 'Tambah Triplex 1' }));
-    expect(arrived().value).toBe('100000');
-    fireEvent.change(arrived(), { target: { value: '99999,5' } });
+    expect(arrived().value).toBe('20');
+    fireEvent.change(arrived(), { target: { value: '19,5' } });
     fireEvent.click(screen.getByRole('button', { name: 'Scan Barang' }));
     scan('BRG-1');
-    expect(arrived().value).toBe('100000');
+    expect(arrived().value).toBe('20');
     expect((screen.getByRole('button', { name: 'Tambah Triplex 1' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
@@ -267,47 +334,19 @@ describe('BarangMasuk create inbound', () => {
     fireEvent.change(screen.getByLabelText('Tanggal'), { target: { value: '2026-04-01' } });
     fireEvent.click(screen.getByText('Simpan'));
     const preview = previewDialog();
-    expect(within(preview).getByText('PT Kayu')).not.toBeNull();
+    expect(within(preview).getByText(/PT Kayu/)).not.toBeNull();
     expect(within(preview).getByText('01-04-2026')).not.toBeNull();
     for (const value of ['Triplex 1', 'BRG-1', 'lbr', '15', '20']) expect(within(tableRow('BRG-1')).getByText(value)).not.toBeNull();
     expect(api.calls(BATCH)).toHaveLength(0);
     confirm();
     await waitFor(() => expect(api.calls(BATCH)).toHaveLength(1));
-    expect(api.calls(BATCH)[0].body).toEqual({ date: '2026-04-01', source: 'SUPPLIER', lines: [{ itemId: 1, qtyArrived: 15, qtyPurchased: 20, statusQc: 'PASS' }] });
+    expect(api.calls(BATCH)[0].body).toEqual({ date: '2026-04-01', source: 'SUPPLIER', lines: [line1(15)] });
     expect(api.calls(BATCH)[0].headers.get('Idempotency-Key')).toMatch(/^[\w-]{8,100}$/);
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     await waitFor(() => expect(api.calls('GET /api/v1/inbound').length).toBeGreaterThan(1));
     expect(api.calls('POST /api/v1/inbound')).toHaveLength(0);
     expect(api.calls('POST /api/v1/inbound/returns')).toHaveLength(0);
     expect(api.calls('GET /api/v1/tracking/spk')).toHaveLength(0);
-  });
-
-  it('posts the selected item ID when two materials share a name', async () => {
-    const { api } = setup({ 'GET /api/v1/items': paged([{ ...firstItem, name: 'Triplex' }, { ...firstItem, id: 2, code: 'BRG-2', name: 'Triplex' }]) });
-    await openBaru();
-    await pickItem('Triplex (BRG-2)');
-    fireEvent.change(arrived('Triplex'), { target: { value: '1' } });
-    fireEvent.change(purchased('Triplex'), { target: { value: '1' } });
-    fireEvent.click(screen.getByText('Simpan'));
-    confirm();
-    await waitFor(() => expect(api.calls(BATCH)).toHaveLength(1));
-    expect(api.calls(BATCH)[0].body).toMatchObject({ lines: [{ itemId: 2, qtyArrived: 1, qtyPurchased: 1, statusQc: 'PASS' }] });
-  });
-
-  it('searches materials on the server within the chosen supplier', async () => {
-    const { api } = setup();
-    await openBaru();
-    fireEvent.click(screen.getByRole('button', { name: 'Nama material baris 1' }));
-    fireEvent.change(screen.getByLabelText('Cari Nama material baris 1'), { target: { value: 'Triplex 1' } });
-    await waitFor(() => expect(api.calls('GET /api/v1/items').some((call) => call.query.get('search') === 'Triplex 1' && call.query.get('supplierId') === '7')).toBe(true));
-    expect(api.calls('GET /api/v1/items').every((call) => call.query.get('pageSize') !== '100')).toBe(true);
-  });
-
-  it('surfaces an item load failure without discarding the form', async () => {
-    setup({ 'GET /api/v1/items': fail(500, 'Items down') });
-    await openBaru();
-    expect(await screen.findByText('Items down')).not.toBeNull();
-    expect(formDialog()).not.toBeNull();
   });
 
   it('shows backend errors in the preview, blocks duplicate saves and lets the user edit and retry', async () => {
@@ -336,15 +375,15 @@ describe('BarangMasuk create inbound', () => {
     fireEvent.click(screen.getByText('Simpan'));
     confirm();
     await waitFor(() => expect(api.calls(BATCH)).toHaveLength(2));
-    expect(api.calls(BATCH)[1].body).toMatchObject({ lines: [{ itemId: 1, qtyArrived: 18, qtyPurchased: 20, statusQc: 'PASS' }] });
+    expect(api.calls(BATCH)[1].body).toMatchObject({ lines: [line1(18)] });
     expect(api.calls(BATCH)[1].headers.get('Idempotency-Key')).not.toBe(api.calls(BATCH)[0].headers.get('Idempotency-Key'));
     expect(await screen.findByText('Konflik data')).not.toBeNull();
   });
 });
 
 describe('BarangMasuk preview', () => {
-  it('preserves supplier, date and quantities when returning to edit and saves only the corrected preview', async () => {
-    const { api } = setup({ 'GET /api/v1/items': paged([firstItem, scannedItem]) });
+  it('preserves PO, date and quantities when returning to edit and saves only the corrected preview', async () => {
+    const { api } = setup();
     await openBaru();
     await fillBaru();
     fireEvent.change(screen.getByLabelText('Tanggal'), { target: { value: '2026-11-12' } });
@@ -352,20 +391,23 @@ describe('BarangMasuk preview', () => {
     expect(within(previewDialog()).getByText('12-11-2026')).not.toBeNull();
     expect(api.calls(BATCH)).toHaveLength(0);
     fireEvent.click(screen.getByRole('button', { name: 'Kembali Edit' }));
-    expect(screen.getByRole('button', { name: 'Nama Supplier' }).textContent).toContain('PT Kayu');
+    expect(screen.getByRole('button', { name: 'Nomor PO' }).textContent).toContain('PO-101');
     expect(arrived().value).toBe('15');
-    expect(purchased().value).toBe('20');
+    expect(screen.getByLabelText('Tanggal')).toBeTruthy();
     expect((screen.getByLabelText('Tanggal') as HTMLInputElement).value).toBe('2026-11-12');
-    await pickItem('Paku (BRG-3)');
+    fireEvent.click(screen.getByRole('button', { name: 'Input Manual' }));
+    await pickItem('Paku (BRG-3) · SPK-3', 1);
     fireEvent.change(arrived('Paku'), { target: { value: '7' } });
-    fireEvent.change(purchased('Paku'), { target: { value: '0' } });
     fireEvent.change(screen.getByLabelText('Tanggal'), { target: { value: '2026-11-13' } });
     fireEvent.click(screen.getByText('Simpan'));
     expect(within(previewDialog()).getByText('13-11-2026')).not.toBeNull();
-    for (const value of ['BRG-3', 'Paku', '7', '0']) expect(within(tableRow('BRG-3')).getByText(value)).not.toBeNull();
+    for (const value of ['BRG-3', 'Paku', '7', '12']) expect(within(tableRow('BRG-3')).getByText(value)).not.toBeNull();
     confirm();
     await waitFor(() => expect(api.calls(BATCH)).toHaveLength(1));
-    expect(api.calls(BATCH)[0].body).toEqual({ date: '2026-11-13', source: 'SUPPLIER', lines: [{ itemId: 3, qtyArrived: 7, qtyPurchased: 0, statusQc: 'PASS' }] });
+    expect(api.calls(BATCH)[0].body).toEqual({ date: '2026-11-13', source: 'SUPPLIER', lines: [
+      line1(15),
+      { itemId: 3, purchaseOrderId: 101, purchaseOrderLineId: 12, qtyArrived: 7, qtyPurchased: 12, statusQc: 'PASS' },
+    ] });
   });
 
   it.each(['0', '100001'])('rejects an arrival quantity of %s before preview', async (value) => {
@@ -379,17 +421,23 @@ describe('BarangMasuk preview', () => {
     expect(api.calls(BATCH)).toHaveLength(0);
   });
 
-  it('requires a date and rekap quantity before previewing Simpan + Cetak', async () => {
+  it('rejects an arrival quantity above the PO line remainder', async () => {
+    const { api } = setup();
+    await openBaru();
+    await fillBaru();
+    fireEvent.change(arrived(), { target: { value: '21' } });
+    fireEvent.click(screen.getByText('Simpan'));
+    expect(screen.getByText('Baris 1 (Triplex 1): jumlah kedatangan melebihi sisa PO (20).')).not.toBeNull();
+    expect(api.calls(BATCH)).toHaveLength(0);
+  });
+
+  it('requires a date before previewing Simpan + Cetak', async () => {
     const { api } = setup();
     await openBaru();
     await fillBaru();
     fireEvent.change(screen.getByLabelText('Tanggal'), { target: { value: '' } });
     fireEvent.click(screen.getByText('Simpan + Cetak'));
-    expect(screen.getByText('Nama supplier dan tanggal wajib diisi.')).not.toBeNull();
-    fireEvent.change(screen.getByLabelText('Tanggal'), { target: { value: '2026-11-12' } });
-    fireEvent.change(purchased(), { target: { value: '' } });
-    fireEvent.click(screen.getByText('Simpan + Cetak'));
-    expect(screen.getByText(/Baris 1.*Isi jumlah rekap pembelian/)).not.toBeNull();
+    expect(screen.getByText('Nomor PO dan tanggal wajib diisi.')).not.toBeNull();
     expect(screen.queryByRole('dialog', { name: 'PREVIEW BARANG MASUK' })).toBeNull();
     expect(api.calls(BATCH)).toHaveLength(0);
   });
@@ -397,7 +445,6 @@ describe('BarangMasuk preview', () => {
   it('saves the whole batch and prints every item only after confirming the print preview', async () => {
     const print = vi.spyOn(printFormulir, 'cetakFormulir').mockResolvedValue(undefined);
     const { api } = setup({
-      'GET /api/v1/items': paged([firstItem, scannedItem]),
       [BATCH]: { count: 2, items: [inbound(1), inbound(3, { itemName: 'Paku' })] },
       'GET /api/v1/items/1': firstItem,
       'GET /api/v1/items/3': scannedItem,
@@ -405,8 +452,7 @@ describe('BarangMasuk preview', () => {
     await openBaru();
     await fillBaru();
     fireEvent.click(screen.getByRole('button', { name: 'Input Manual' }));
-    await pickItem('Paku (BRG-3)', 1);
-    fireEvent.change(purchased('Paku'), { target: { value: '3' } });
+    await pickItem('Paku (BRG-3) · SPK-3', 1);
     fireEvent.click(screen.getByText('Simpan + Cetak'));
     expect(previewDialog()).not.toBeNull();
     expect(api.calls(BATCH)).toHaveLength(0);
@@ -425,7 +471,7 @@ describe('BarangMasuk preview', () => {
 });
 
 describe('BarangMasuk scan inside Barang Baru', () => {
-  it('adds a scanned item outside the search results and previews it before saving with QC PASS', async () => {
+  it('adds an item from the selected PO line and previews it before saving with QC PASS', async () => {
     const { api } = setup({ 'GET /api/v1/items/by-code/BRG-3': scannedItem });
     await openBaru({ manual: false });
     fireEvent.click(screen.getByRole('button', { name: 'Scan Barang' }));
@@ -438,17 +484,18 @@ describe('BarangMasuk scan inside Barang Baru', () => {
     expect(api.calls(BATCH)).toHaveLength(0);
     expect(screen.queryByRole('dialog', { name: 'PREVIEW BARANG MASUK' })).toBeNull();
     fireEvent.change(arrived('Paku'), { target: { value: '10' } });
-    fireEvent.change(purchased('Paku'), { target: { value: '12' } });
     fireEvent.change(screen.getByLabelText('Tanggal'), { target: { value: '2026-11-12' } });
     fireEvent.click(screen.getByText('Simpan'));
     expect(within(tableRow('BRG-3')).getByText('Paku')).not.toBeNull();
     confirm();
     await waitFor(() => expect(api.calls(BATCH)).toHaveLength(1));
-    expect(api.calls(BATCH)[0].body).toEqual({ date: '2026-11-12', source: 'SUPPLIER', lines: [{ itemId: 3, qtyArrived: 10, qtyPurchased: 12, statusQc: 'PASS' }] });
+    expect(api.calls(BATCH)[0].body).toEqual({ date: '2026-11-12', source: 'SUPPLIER', lines: [
+      { itemId: 3, purchaseOrderId: 101, purchaseOrderLineId: 12, qtyArrived: 10, qtyPurchased: 12, statusQc: 'PASS' },
+    ] });
   });
 
-  it('reports unknown codes without changing existing rows and can add more materials manually', async () => {
-    const { api } = setup({ 'GET /api/v1/items': paged([firstItem, scannedItem]), 'GET /api/v1/items/by-code/NOPE': fail(404, 'Item not found') });
+  it('reports unknown codes and items outside the selected PO without changing rows', async () => {
+    const { api } = setup({ 'GET /api/v1/items/by-code/NOPE': fail(404, 'Item not found'), 'GET /api/v1/items/by-code/BRG-1': firstItem });
     await openBaru();
     await fillBaru();
     fireEvent.click(screen.getByRole('button', { name: 'Scan Barang' }));
@@ -457,10 +504,10 @@ describe('BarangMasuk scan inside Barang Baru', () => {
     expect(await screen.findByText('Kode "NOPE" tidak dikenal.')).not.toBeNull();
     expect(document.activeElement).toBe(screen.getByLabelText('Hasil scan'));
     expect(arrived().value).toBe('15');
-    fireEvent.click(screen.getByRole('button', { name: 'Input Manual' }));
-    await pickItem('Paku (BRG-3)', 1);
-    expect(within(tableRow('BRG-1')).getByRole('button', { name: 'Nama material Triplex 1' })).not.toBeNull();
-    expect(arrived('Paku').value).toBe('1');
+    await pickPo('PO-102 — PT Besi');
+    fireEvent.click(screen.getByRole('button', { name: 'Scan Barang' }));
+    scan('BRG-1');
+    expect(await screen.findByText('Barang "Triplex 1" tidak ada di PO yang dipilih.')).not.toBeNull();
     expect(api.calls(BATCH)).toHaveLength(0);
   });
 
@@ -505,7 +552,6 @@ describe('BarangMasuk scan inside Barang Baru', () => {
     act(() => { qr.onScan!({ data: 'BRG-3' }); });
     await screen.findByLabelText('Jumlah Sesuai Kedatangan Paku');
     fireEvent.change(arrived('Paku'), { target: { value: '3' } });
-    fireEvent.change(purchased('Paku'), { target: { value: '4' } });
     fireEvent.click(screen.getByText('Simpan'));
     expect(previewDialog()).not.toBeNull();
     expect(qr.stop).toHaveBeenCalled();
@@ -530,12 +576,58 @@ describe('BarangMasuk scan inside Barang Baru', () => {
     expect(screen.getByRole('button', { name: 'Kamera' }).getAttribute('aria-pressed')).toBe('false');
     fireEvent.click(screen.getByRole('button', { name: 'Input Manual' }));
     await pickItem();
-    expect(within(tableRow('BRG-1')).getByRole('button', { name: 'Nama material Triplex 1' })).not.toBeNull();
+    expect(within(formDialog()).getByRole('button', { name: 'Nama material Triplex 1' })).not.toBeNull();
   });
 });
 
-describe('BarangMasuk multiple materials and suppliers', () => {
-  it('combines manual input and repeat scans into one batch without duplicate materials', async () => {
+describe('BarangMasuk multiple PO lines in one batch', () => {
+  it('posts the exact PO line ID when two lines share a material name', async () => {
+    const { api } = setup({
+      [PO_LIST]: paged([{ id: 103, nomorPo: 'PO-103', supplierName: 'PT Kayu', status: 'ISSUED' }]),
+      'GET /api/v1/purchase-orders/103': poDetail(103, 'PT Kayu', [
+        poLine(31, 1), poLine(32, 3, { namaBarang: 'Triplex 1' }),
+      ]),
+    });
+    await screen.findByText('Triplex 1');
+    fireEvent.click(screen.getByText('Barang Baru'));
+    await screen.findByText('FORM BARANG MASUK');
+    await pickPo('PO-103 — PT Kayu');
+    fireEvent.click(screen.getByRole('button', { name: 'Input Manual' }));
+    fireEvent.click(within(formDialog()).getAllByRole('button', { name: /^Nama material/ })[0]);
+    fireEvent.click(await screen.findByRole('option', { name: 'Triplex 1 (BRG-3) · SPK-3' }));
+    fireEvent.click(screen.getByText('Simpan'));
+    confirm();
+    await waitFor(() => expect(api.calls(BATCH)).toHaveLength(1));
+    expect(api.calls(BATCH)[0].body).toEqual({ date: expect.any(String), source: 'SUPPLIER', lines: [
+      { itemId: 3, purchaseOrderId: 103, purchaseOrderLineId: 32, qtyArrived: 1, qtyPurchased: 12, statusQc: 'PASS' },
+    ] });
+  });
+
+  it('distinguishes PO lines that share an item code by their SPK', async () => {
+    const { api } = setup({
+      [PO_LIST]: paged([{ id: 103, nomorPo: 'PO-103', supplierName: 'PT Kayu', status: 'ISSUED' }]),
+      'GET /api/v1/purchase-orders/103': poDetail(103, 'PT Kayu', [
+        poLine(31, 1), poLine(32, 1, { kodeBarang: 'BRG-1', noSpk: 'SPK-9' }),
+      ]),
+    });
+    await screen.findByText('Triplex 1');
+    fireEvent.click(screen.getByText('Barang Baru'));
+    await screen.findByText('FORM BARANG MASUK');
+    await pickPo('PO-103 — PT Kayu');
+    fireEvent.click(screen.getByRole('button', { name: 'Input Manual' }));
+    fireEvent.click(within(formDialog()).getAllByRole('button', { name: /^Nama material/ })[0]);
+    expect(await screen.findByRole('option', { name: 'Triplex 1 (BRG-1) · SPK-1' })).not.toBeNull();
+    expect(screen.getByRole('option', { name: 'Triplex 1 (BRG-1) · SPK-9' })).not.toBeNull();
+    fireEvent.click(screen.getByRole('option', { name: 'Triplex 1 (BRG-1) · SPK-9' }));
+    fireEvent.click(screen.getByText('Simpan'));
+    confirm();
+    await waitFor(() => expect(api.calls(BATCH)).toHaveLength(1));
+    expect(api.calls(BATCH)[0].body).toEqual({ date: expect.any(String), source: 'SUPPLIER', lines: [
+      { itemId: 1, purchaseOrderId: 103, purchaseOrderLineId: 32, qtyArrived: 1, qtyPurchased: 20, statusQc: 'PASS' },
+    ] });
+  });
+
+  it('combines manual input and repeat scans into one batch without duplicate lines', async () => {
     const { api } = setup({ 'GET /api/v1/items/by-code/BRG-3': scannedItem });
     await openBaru();
     await fillBaru();
@@ -546,7 +638,6 @@ describe('BarangMasuk multiple materials and suppliers', () => {
     expect(arrived('Paku').value).toBe('2');
     scan('BRG-1');
     expect(arrived().value).toBe('16');
-    fireEvent.change(purchased('Paku'), { target: { value: '5' } });
     expect(api.calls('GET /api/v1/items/by-code/BRG-3')).toHaveLength(1);
     expect(api.calls('GET /api/v1/items/by-code/BRG-1')).toHaveLength(0);
     expect(within(formDialog()).getAllByRole('row')).toHaveLength(3);
@@ -557,8 +648,8 @@ describe('BarangMasuk multiple materials and suppliers', () => {
     confirm();
     await waitFor(() => expect(api.calls(BATCH)).toHaveLength(1));
     expect(api.calls(BATCH)[0].body).toMatchObject({ source: 'SUPPLIER', lines: [
-      { itemId: 1, qtyArrived: 16, qtyPurchased: 20, statusQc: 'PASS' },
-      { itemId: 3, qtyArrived: 2, qtyPurchased: 5, statusQc: 'PASS' },
+      line1(16),
+      { itemId: 3, purchaseOrderId: 101, purchaseOrderLineId: 12, qtyArrived: 2, qtyPurchased: 12, statusQc: 'PASS' },
     ] });
     expect(api.calls('POST /api/v1/inbound')).toHaveLength(0);
   });
@@ -582,13 +673,13 @@ describe('BarangMasuk multiple materials and suppliers', () => {
   });
 
   it('rejects duplicate manual choices and lets users adjust, remove and renumber rows', async () => {
-    const { api } = setup({ 'GET /api/v1/items': paged([firstItem, scannedItem]) });
+    const { api } = setup();
     await openBaru();
     await fillBaru();
     fireEvent.click(screen.getByRole('button', { name: 'Input Manual' }));
-    await pickItem('Triplex 1 (BRG-1)', 1);
+    await pickItem('Triplex 1 (BRG-1) · SPK-1', 1);
     expect(screen.getByText('Barang "Triplex 1" sudah ada di baris 1. Ubah jumlah di baris tersebut.').getAttribute('role')).toBe('alert');
-    fireEvent.click(screen.getByRole('button', { name: 'Hapus baris 2' }));
+    fireEvent.click(within(within(formDialog()).getAllByRole('row')[2]).getByRole('button', { name: /^Hapus/ }));
     fireEvent.change(arrived(), { target: { value: '1' } });
     expect((screen.getByRole('button', { name: 'Kurangi Triplex 1' }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Tambah Triplex 1' }));
@@ -596,68 +687,43 @@ describe('BarangMasuk multiple materials and suppliers', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Kurangi Triplex 1' }));
     expect(arrived().value).toBe('1');
     fireEvent.click(screen.getByRole('button', { name: 'Input Manual' }));
-    await pickItem('Paku (BRG-3)', 1);
-    fireEvent.change(purchased('Paku'), { target: { value: '0' } });
+    await pickItem('Paku (BRG-3) · SPK-3', 1);
     fireEvent.click(screen.getByRole('button', { name: 'Hapus Triplex 1' }));
     expect(tableRow('BRG-3').querySelector('td')?.textContent).toBe('1');
     fireEvent.click(screen.getByText('Simpan'));
     confirm();
     await waitFor(() => expect(api.calls(BATCH)).toHaveLength(1));
-    expect(api.calls(BATCH)[0].body).toMatchObject({ lines: [{ itemId: 3, qtyArrived: 1, qtyPurchased: 0, statusQc: 'PASS' }] });
+    expect(api.calls(BATCH)[0].body).toMatchObject({ lines: [
+      { itemId: 3, purchaseOrderId: 101, purchaseOrderLineId: 12, qtyArrived: 1, qtyPurchased: 12, statusQc: 'PASS' },
+    ] });
   });
 
-  it('searches suppliers on the server and reports supplier load errors', async () => {
-    const { api } = setup({ 'GET /api/v1/suppliers': fail(500, 'Suppliers down') });
-    await openBaru({ supplier: false, manual: false });
-    expect(await screen.findByText('Suppliers down')).not.toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Nama Supplier' }));
-    fireEvent.change(screen.getByLabelText('Cari Nama Supplier'), { target: { value: 'Kayu' } });
-    await waitFor(() => expect(api.calls('GET /api/v1/suppliers').some((call) => call.query.get('search') === 'Kayu' && call.query.get('pageSize') === '50')).toBe(true));
-    expect(api.calls(BATCH)).toHaveLength(0);
-  });
-
-  it('rejects scanned and manually selected materials from another supplier', async () => {
-    const other = { ...scannedItem, supplierId: 8, supplierName: 'PT Besi' };
-    const { api } = setup({ 'GET /api/v1/items': paged([firstItem, other]), 'GET /api/v1/items/by-code/BRG-3': other });
-    await openBaru();
-    fireEvent.click(screen.getByRole('button', { name: 'Scan Barang' }));
-    scan('BRG-3');
-    expect(await screen.findByText('Barang "Paku" bukan dari supplier yang dipilih.')).not.toBeNull();
-    expect(screen.queryByLabelText('Jumlah Sesuai Kedatangan Paku')).toBeNull();
-    fireEvent.change(screen.getByLabelText('Hasil scan'), { target: { value: '' } });
-    await pickItem('Paku (BRG-3)');
-    expect(screen.getByText('Barang "Paku" bukan dari supplier yang dipilih.').getAttribute('role')).toBe('alert');
-    expect(screen.queryByLabelText('Jumlah Sesuai Kedatangan Paku')).toBeNull();
-    expect(api.calls(BATCH)).toHaveLength(0);
-  });
-
-  it('keeps rows after a supplier correction and blocks saving until their materials match', async () => {
-    const other = { ...scannedItem, supplierId: 8, supplierName: 'PT Besi' };
-    const { api } = setup({ 'GET /api/v1/items': paged([firstItem, other]) });
+  it('lets the user switch PO so one batch mixes POs and shows both suppliers', async () => {
+    const { api } = setup();
     await openBaru();
     await fillBaru();
-    await pickSupplier('PT Besi');
-    expect(arrived().value).toBe('15');
+    await pickPo('PO-102 — PT Besi');
+    fireEvent.click(screen.getByRole('button', { name: 'Input Manual' }));
+    await pickItem('Triplex 2 (BRG-2) · SPK-2', 1);
+    expect(arrived('Triplex 2').value).toBe('1');
     fireEvent.click(screen.getByText('Simpan'));
-    expect(screen.getByRole('alert').textContent).toContain('barang bukan dari supplier yang dipilih');
-    expect(api.calls(BATCH)).toHaveLength(0);
-    await pickItem('Paku (BRG-3)');
-    expect(arrived('Paku').value).toBe('15');
-    fireEvent.click(screen.getByText('Simpan'));
-    expect(within(previewDialog()).getByText('PT Besi')).not.toBeNull();
+    expect(within(previewDialog()).getByText(/PT Kayu, PT Besi/)).not.toBeNull();
     confirm();
     await waitFor(() => expect(api.calls(BATCH)).toHaveLength(1));
-    expect(api.calls(BATCH)[0].body).toMatchObject({ lines: [{ itemId: 3, qtyArrived: 15, qtyPurchased: 20, statusQc: 'PASS' }] });
+    expect(api.calls(BATCH)[0].body).toEqual({ date: expect.any(String), source: 'SUPPLIER', lines: [
+      line1(15),
+      { itemId: 2, purchaseOrderId: 102, purchaseOrderLineId: 21, qtyArrived: 1, qtyPurchased: 5, statusQc: 'PASS' },
+    ] });
   });
 
-  it('ignores pending scans after the supplier changes', async () => {
+  it('ignores pending scans after the selected PO changes', async () => {
     let resolve!: (item: typeof scannedItem) => void;
     setup();
     vi.spyOn(inventoryApi, 'getItemByCode').mockReturnValue(new Promise((done) => { resolve = done; }));
     await openBaru({ manual: false });
     fireEvent.click(screen.getByRole('button', { name: 'Scan Barang' }));
     scan('BRG-3');
-    await pickSupplier('PT Besi');
+    await pickPo('PO-102 — PT Besi');
     await act(async () => { resolve(scannedItem); });
     expect(within(formDialog()).getByText(/Belum ada barang/)).not.toBeNull();
     expect(screen.queryByLabelText('Hasil scan')).toBeNull();
@@ -680,34 +746,17 @@ describe('BarangMasuk multiple materials and suppliers', () => {
   });
 
   it('shows per-line batch errors with the material name and leaves every row available for editing', async () => {
-    setup({ 'GET /api/v1/items': paged([firstItem, scannedItem]), [BATCH]: fail(400, 'Validation failed', { 'lines.1.itemId': ['Supplier tidak cocok'] }) });
+    setup({ [BATCH]: fail(400, 'Validation failed', { 'lines.1.itemId': ['Supplier tidak cocok'] }) });
     await openBaru();
     await fillBaru();
     fireEvent.click(screen.getByRole('button', { name: 'Input Manual' }));
-    await pickItem('Paku (BRG-3)', 1);
-    fireEvent.change(purchased('Paku'), { target: { value: '4' } });
+    await pickItem('Paku (BRG-3) · SPK-3', 1);
     fireEvent.click(screen.getByText('Simpan'));
     confirm();
     expect(await screen.findByText('Paku: Supplier tidak cocok')).not.toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Kembali Edit' }));
     expect(arrived().value).toBe('15');
-    expect(purchased('Paku').value).toBe('4');
     expect(within(formDialog()).getAllByRole('row')).toHaveLength(3);
-  });
-});
-
-describe('BarangMasuk removed return flow', () => {
-  it('opens and closes Barang Baru without return fields or SPK requests', async () => {
-    const { api } = setup();
-    await openBaru();
-    expect(screen.queryByLabelText('SPK')).toBeNull();
-    expect(screen.queryByText('FORM BARANG KEMBALI')).toBeNull();
-    expect(screen.getAllByPlaceholderText('0')).toHaveLength(2);
-    fireEvent.click(screen.getByRole('button', { name: 'Tutup' }));
-    expect(screen.queryByText('FORM BARANG MASUK')).toBeNull();
-    expect(screen.getByText('Triplex 1')).not.toBeNull();
-    expect(api.calls('GET /api/v1/tracking/spk')).toHaveLength(0);
-    expect(api.calls('POST /api/v1/inbound/returns')).toHaveLength(0);
   });
 });
 

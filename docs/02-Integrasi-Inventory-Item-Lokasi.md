@@ -23,6 +23,7 @@ barang yang sama, hanya dengan aksi berbeda sesuai peran divisi.
 |---|---|
 | Satu domain `src/domains/inventory/` dipakai bersama oleh gudang, ppic, dan purchasing | Mengikuti batas modul backend. Ketiga halaman memanggil barang dan lokasi yang sama, jadi duplikasi fungsi fetch di tiga domain hanya menambah tempat yang harus disinkronkan kalau field API berubah. |
 | Form "Tambah Barang" penuh (nama, satuan, kategori, harga, supplier) ditaruh di halaman PPIC | Ini satu-satunya halaman yang sebelumnya sudah punya form create barang (nama, satuan, kategori). Field harga dan supplier ditambahkan supaya lengkap sesuai skema wajib `POST /items`, tapi lokasi form itu sendiri tidak dipindah supaya perubahan tetap kecil. |
+| Supplier dan harga di master barang hanya acuan, bukan sumber transaksi barang masuk | Barang masuk dari supplier mengacu ke baris PO yang sudah disubmit. Supplier, SPK, rekap pembelian, dan harga berasal dari PO, jadi master barang tidak lagi menentukan supplier pada form Gudang. |
 | Halaman Purchasing menampilkan harga read-only, tanpa aksi isi harga | Harga akan menempel otomatis dari barang masuk, bukan diisi manual. Modal "Lengkapi" (supplier + harga) dihapus; pemetaan supplier massal tetap lewat `BulkSupplierAction`, dan pengubahan harga manual hanya ada di Superadmin (mode edit). |
 | Modal "Tambah Lokasi" di halaman Gudang memakai alur `suggest-code` lalu `assign-location` | Ini urutan yang diminta skema API: kode disarankan server berdasarkan lokasi yang dipilih, lalu bisa diedit manual sebelum dikirim lewat `PUT /items/{id}/assign-location`. Field "Stok" yang ada di modal versi dummy dihapus karena `assign-location` tidak menerima stok, dan tidak ada endpoint lain untuk mengubah stok. |
 | Kode lokasi baru dihasilkan dari gabungan `namaRak + nomerRak` (misal "A" + "04" jadi "A04") | Form Data Lokasi versi dummy memang punya pola ini di data contohnya, dan API `POST /locations` mensyaratkan field `code` terpisah dari `rackName`/`rackNumber`, jadi frontend perlu menyusunnya sendiri. |
@@ -35,9 +36,12 @@ barang yang sama, hanya dengan aksi berbeda sesuai peran divisi.
 Berisi tipe `Item`, `Location`, `PaginatedResult`, dan fungsi
 `listItems`, `createItem`, `updateItem`, `deleteItem`,
 `listUnassignedItems`, `suggestItemCode`, `assignItemLocation`,
-`listLocations`, `createLocation`, `deleteLocation`. Semua memanggil
-`apiClient` dari `shared/lib/api-client.ts` (lihat
-`01-Integrasi-Auth.md` untuk detail wrapper itu).
+`listLocations`, `createLocation`, `deleteLocation`. `CreateInboundInput`
+dan `InboundBatchLine` kini membawa `purchaseOrderId` dan
+`purchaseOrderLineId` untuk barang masuk supplier; `purchase-order.view`
+diperlukan Gudang agar bisa memilih PO. Semua memanggil `apiClient` dari
+`shared/lib/api-client.ts` (lihat `01-Integrasi-Auth.md` untuk detail
+wrapper itu).
 
 ### `src/domains/inventory/components/DataBarang.tsx`
 
