@@ -247,11 +247,15 @@ export interface OutboundReport {
   filteredSummary?: { bahanBaku: number; wip: number; barangJadi: number };
 }
 
+export type StockOpnameStatus = "OPEN" | "SUBMITTED" | "POSTED";
+
 export interface StockOpnameRow {
   id: number;
   month: number;
   year: number;
   notes: string | null;
+  status?: StockOpnameStatus;
+  progress?: { filled: number; total: number };
   createdBy: number;
   createdAt: string;
   lineCount: number;
@@ -263,15 +267,18 @@ export interface StockOpnameLine {
   itemName: string;
   category: string;
   unit: string;
-  systemQty: number;
-  physicalQty: number;
-  difference: number;
-  systemPrice: number;
-  physicalPrice: number;
+  // Null for Gudang: system figures stay hidden from the counting form.
+  systemQty: number | null;
+  physicalQty: number | null;
+  difference: number | null;
+  systemPrice: number | null;
+  physicalPrice: number | null;
   note: string | null;
 }
 
 export interface StockOpnameDetail extends Omit<StockOpnameRow, "lineCount"> {
+  status: StockOpnameStatus;
+  progress: { filled: number; total: number };
   lines: StockOpnameLine[];
 }
 
@@ -283,7 +290,61 @@ export interface StockOpnameListParams extends SortParams {
   year?: number;
 }
 
-export interface CreateStockOpnameInput {
+export interface OpenStockOpnameInput {
+  month: number;
+  year: number;
+}
+
+export interface SaveStockOpnameLinesInput {
+  lines: { itemId: number; physicalQty: number | null; note?: string }[];
+}
+
+export type StockReconciliationStatus = "DRAFT" | "POSTED";
+
+export interface StockReconciliationRow {
+  id: number;
+  month: number;
+  year: number;
+  status: StockReconciliationStatus;
+  lineCount?: number;
+  notes?: string | null;
+  createdBy?: number;
+  createdAt?: string;
+  postedBy?: number | null;
+  postedByName?: string | null;
+  postedAt?: string | null;
+}
+
+export interface StockReconciliationLine {
+  itemId: number;
+  itemCode: string | null;
+  itemName: string;
+  unit: string;
+  category: string;
+  systemQty: number | null;
+  physicalQty: number | null;
+  difference: number | null;
+  unitPrice: number | null;
+  reviewedSystemQty?: number | null;
+  note?: string | null;
+}
+
+export interface StockReconciliationDetail extends StockReconciliationRow {
+  lines: StockReconciliationLine[];
+}
+
+export type StockReconciliationSuggestion = StockReconciliationLine;
+
+export interface StockReconciliationListParams extends SortParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  month?: number;
+  year?: number;
+  status?: StockReconciliationStatus;
+}
+
+export interface SaveStockReconciliationInput {
   month: number;
   year: number;
   notes?: string;

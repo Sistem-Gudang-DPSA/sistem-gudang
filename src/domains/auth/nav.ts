@@ -91,6 +91,7 @@ export const NAV_DIVISIONS: NavDivision[] = [
           { href: "/dashboard/gudang/transaksi/barang-keluar", label: "Barang Keluar", anyOf: ["outbound.view"] },
            { href: "/dashboard/gudang/transaksi/ceklist-dokubah", label: "Checklist Dokubah", anyOf: ["checklist-dokubah.view"], hidden: true },
           { href: "/dashboard/gudang/transaksi/stock-opname", label: "Stock Opname", anyOf: ["stock-opname.view"] },
+          { href: "/dashboard/gudang/transaksi/pemutihan-stok", label: "Pemutihan Stok", anyOf: ["stock-reconciliation.view"] },
           { href: "/dashboard/gudang/transaksi/permintaan-pembelian", label: "Permintaan Pembelian", anyOf: ["purchase-request.create"] },
         ],
       },
@@ -166,6 +167,8 @@ export const NAV_DIVISIONS: NavDivision[] = [
         title: "Transaksi",
         items: [
           { href: "/dashboard/ppic/transaksi/dokubah", label: "Dokubah", anyOf: ["dokubah.view"], hidden: true },
+          { href: "/dashboard/ppic/transaksi/stock-opname", label: "Stok Opname", anyOf: ["stock-opname.view", "stock-opname.open"] },
+          { href: "/dashboard/ppic/transaksi/pemutihan-stok", label: "Pemutihan Stok", anyOf: ["stock-reconciliation.view"] },
           { href: "/dashboard/ppic/transaksi/spk-mutasi-internal", label: "SPK Internal & Mutasi Stok", anyOf: ["spk-internal.view"], hidden: true },
           { href: "/dashboard/ppic/transaksi/permintaan-pembelian", label: "Permintaan Pembelian", anyOf: ["purchase-request.approve", "purchase-request.create"] },
           { href: "/dashboard/ppic/transaksi/approval", label: "Approval", anyOf: ["material-request.create", "purchase-request.create"], hidden: true },
