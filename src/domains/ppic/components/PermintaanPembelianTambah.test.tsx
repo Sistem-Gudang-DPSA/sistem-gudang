@@ -207,7 +207,9 @@ describe('purchase request form', () => {
     change('Keterangan baris 1', 'Tambahan');
     fireEvent.click(screen.getByRole('button', { name: 'Simpan Perubahan' }));
     await waitFor(() => expect(api.calls('PUT /api/v1/approvals/7')).toHaveLength(1));
-    expect(api.calls('PUT /api/v1/approvals/7')[0].body).toMatchObject({ payload: { periode: 'November 2026', notes: 'Penting', items: [{ ...existing.barang[0], keterangan: 'Tambahan' }] } });
+    const expectedItem = { ...existing.barang[0], keterangan: 'Tambahan' };
+    delete expectedItem.supplier;
+    expect(api.calls('PUT /api/v1/approvals/7')[0].body).toMatchObject({ payload: { periode: 'November 2026', notes: 'Penting', items: [expectedItem] } });
     expect(api.calls('POST /api/v1/approvals')).toHaveLength(0);
     await waitFor(() => expect(push).toHaveBeenCalledWith(basePath));
   });
@@ -318,7 +320,7 @@ describe('purchase request form', () => {
     expect(screen.getByLabelText('Nama Barang baris 2')).toBeTruthy();
   });
 
-  it('menambahkan barang menipis dari rekomendasi dengan qty saran dan supplier master', async () => {
+  it('menambahkan barang menipis Gudang dengan qty saran tanpa menetapkan supplier', async () => {
     const master = { id: 31, code: 'TRP001', externalCode: null, name: 'Triplex 2 mm', stock: 2, minimumStock: 10, unit: 'lembar', category: 'Lembaran', price: 1000, locationId: null, locationCode: null, supplierId: 4, supplierName: 'PT Kayu' };
     const api = installFakeApi({ ...routes, 'GET /api/v1/items': paged([master]), 'POST /api/v1/approvals': { id: 9 } });
     render(<Form basePath={basePath} />);
@@ -330,7 +332,8 @@ describe('purchase request form', () => {
     expect((screen.getByLabelText('QTY baris 1') as HTMLInputElement).value).toBe('8');
     expect((screen.getByLabelText('Satuan baris 1') as HTMLInputElement).value).toBe('lembar');
     const supplier = screen.getByLabelText('Supplier baris 1') as HTMLInputElement;
-    expect(supplier.value).toBe('PT Kayu');
+    expect(supplier.value).toBe('');
+    expect(supplier.placeholder).toBe('Diisi Purchasing');
     expect(supplier.readOnly).toBe(true);
     expect(screen.getByRole('button', { name: 'Tambah Triplex 2 mm ke permintaan' })).toHaveProperty('disabled', true);
 
@@ -339,8 +342,38 @@ describe('purchase request form', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ajukan Permintaan Pembelian' }));
     await waitFor(() => expect(api.calls('POST /api/v1/approvals')).toHaveLength(1));
     expect((api.calls('POST /api/v1/approvals')[0].body as { payload: { items: unknown[] } }).payload.items).toEqual([{
-      itemId: 31, namaBarang: 'Triplex 2 mm', satuan: 'lembar', proyek: 'Client', supplier: 'PT Kayu', qty: 8, noSpk: undefined, keterangan: undefined, tanggal: undefined, deadlineTanggal: undefined,
+      itemId: 31, namaBarang: 'Triplex 2 mm', satuan: 'lembar', proyek: 'Client', supplier: undefined, qty: 8, noSpk: undefined, keterangan: undefined, tanggal: undefined, deadlineTanggal: undefined,
     }]);
+  });
+
+  it.each(['mouse', 'keyboard'])('pemilihan barang melalui %s di Gudang tidak mengisi atau mengirim supplier', async (method) => {
+    const master = { id: 31, code: 'TRP001', name: 'Triplex 2 mm', stock: 2, unit: 'lembar', supplierId: 4, supplierName: 'PT Kayu' };
+    const api = installFakeApi({ ...routes, 'GET /api/v1/items': paged([master]), 'POST /api/v1/approvals': { id: 9 } });
+    render(<Form basePath={basePath} />);
+    fillHeader();
+    fireEvent.focus(screen.getByLabelText('Nama Barang baris 1'));
+    const option = await screen.findByRole('button', { name: /Triplex 2 mm TRP001/ });
+    if (method === 'mouse') fireEvent.mouseDown(option);
+    else fireEvent.keyDown(option, { key: 'Enter' });
+    expect(screen.getByLabelText('Nama Barang baris 1')).toHaveProperty('value', 'Triplex 2 mm');
+    expect(screen.getByLabelText('Supplier baris 1')).toHaveProperty('value', '');
+    change('QTY baris 1', '5');
+    await chooseProject(1, 'Client');
+    fireEvent.click(screen.getByRole('button', { name: 'Ajukan Permintaan Pembelian' }));
+    await waitFor(() => expect(api.calls('POST /api/v1/approvals')).toHaveLength(1));
+    const body = api.calls('POST /api/v1/approvals')[0].body as { payload: { items: Record<string, unknown>[] } };
+    expect(body.payload.items[0]).toMatchObject({ itemId: 31, namaBarang: 'Triplex 2 mm', qty: 5 });
+    expect(body.payload.items[0]).not.toHaveProperty('supplier');
+  });
+
+  it('edit permintaan Gudang lama tidak meneruskan supplier master yang tersimpan', async () => {
+    const api = installFakeApi({ ...routes, 'PUT /api/v1/approvals/7': null });
+    render(<Form permintaan={existing} basePath={basePath} editing />);
+    expect(screen.getByLabelText('Supplier baris 1')).toHaveProperty('value', '');
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan Perubahan' }));
+    await waitFor(() => expect(api.calls('PUT /api/v1/approvals/7')).toHaveLength(1));
+    const body = api.calls('PUT /api/v1/approvals/7')[0].body as { payload: { items: Record<string, unknown>[] } };
+    expect(body.payload.items[0]).not.toHaveProperty('supplier');
   });
 
   it('keeps noSpk when the edited row has one', async () => {

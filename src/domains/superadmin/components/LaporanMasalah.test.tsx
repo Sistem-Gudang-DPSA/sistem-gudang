@@ -19,7 +19,7 @@ const row = {
 };
 
 describe("Laporan Masalah (superadmin)", () => {
-  it("lists open reports and marks one as done", async () => {
+  it("lists all reports by default and marks one as done", async () => {
     const api = installFakeApi({
       "GET /api/v1/bug-reports": paged([row]),
       "PATCH /api/v1/bug-reports/3": { ...row, status: "SELESAI" },
@@ -27,13 +27,28 @@ describe("Laporan Masalah (superadmin)", () => {
     render(<LaporanMasalah />);
     expect(await screen.findByText("Tabel barang keluar kosong")).toBeTruthy();
     expect(screen.getByText("Staf Gudang")).toBeTruthy();
-    expect(api.calls("GET /api/v1/bug-reports")[0].query.get("status")).toBe("OPEN");
+    expect(screen.getByLabelText("Status")).toHaveProperty("value", "");
+    expect(api.calls("GET /api/v1/bug-reports")[0].query.get("status")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Selesai" }));
     await waitFor(() =>
       expect(api.calls("PATCH /api/v1/bug-reports/3")[0]?.body).toEqual({ status: "SELESAI" }),
     );
     expect(api.calls("PATCH /api/v1/bug-reports/3")).toHaveLength(1);
+  });
+
+  it("applies the selected status and resets to Semua when reopened", async () => {
+    const api = installFakeApi({ "GET /api/v1/bug-reports": paged([]) });
+    const first = render(<LaporanMasalah />);
+    await waitFor(() => expect(api.calls("GET /api/v1/bug-reports")).toHaveLength(1));
+    fireEvent.change(screen.getByLabelText("Status"), { target: { value: "OPEN" } });
+    await waitFor(() => expect(api.calls("GET /api/v1/bug-reports").at(-1)?.query.get("status")).toBe("OPEN"));
+    first.unmount();
+
+    render(<LaporanMasalah />);
+    expect(screen.getByLabelText("Status")).toHaveProperty("value", "");
+    await waitFor(() => expect(api.calls("GET /api/v1/bug-reports")).toHaveLength(3));
+    expect(api.calls("GET /api/v1/bug-reports").at(-1)?.query.has("status")).toBe(false);
   });
 
   it("saves the IT note typed in the textarea", async () => {

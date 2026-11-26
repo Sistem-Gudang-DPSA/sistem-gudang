@@ -47,7 +47,7 @@ describe("production sidebar", () => {
   it("tidak menampilkan divisi yang disembunyikan (#6)", () => {
     render(<SidebarNav user={user} pathname="/dashboard/superadmin" />);
     expect(screen.queryByText("Produksi")).toBeNull();
-    expect(screen.queryByText("Keuangan")).toBeNull();
+    expect(screen.getByText("Keuangan")).toBeTruthy();
     expect(screen.queryByText("Gudang Barang Jadi")).toBeNull();
   });
 });
