@@ -120,16 +120,15 @@ export default function DataBarangPPIC() {
   };
 
   const handleExportCSV = () => {
-    const rows: unknown[][] = [['No', 'Kode Barang', 'Kode Bawaan', 'Nama Barang', 'Supplier', 'Jumlah Stok', 'Satuan', 'Kategori', 'Harga', 'Lokasi']];
-    dataBarang.forEach((item, index) => rows.push([index + 1, item.code ?? '-', item.externalCode ?? '-', item.name, supplierName(item.supplierId), item.stock, item.unit, item.category, item.price, locationCode(item.locationId)]));
+    const rows: unknown[][] = [['No', 'Kode Barang', 'Nama Barang', 'Supplier', 'Jumlah Stok', 'Satuan', 'Kategori', 'Harga', 'Lokasi']];
+    dataBarang.forEach((item, index) => rows.push([index + 1, item.code ?? '-', item.name, supplierName(item.supplierId), item.stock, item.unit, item.category, item.price, locationCode(item.locationId)]));
     downloadCsv('Data_Barang_PPIC.csv', rows);
   };
 
   const columns: BarangColumn[] = [
     { label: 'Kode Barang', tdClassName: 'px-6 py-4 font-mono text-xs text-gray-500', cell: (item) => item.code ?? '-' },
     { label: 'Informasi Barang', sortKey: 'name', tdClassName: 'px-6 py-4 font-bold text-gray-900', cell: (item) => item.name },
-    { label: 'Kode Bawaan', tdClassName: 'px-6 py-4 text-gray-600', cell: (item) => item.externalCode || '-' },
-    { label: 'Supplier', hidden: true, sortKey: 'supplierName', cell: (item) => <SupplierCell name={supplierName(item.supplierId)} /> },
+    { label: 'Supplier', sortKey: 'supplierName', cell: (item) => <SupplierCell name={supplierName(item.supplierId)} /> },
     { label: 'Stok', sortKey: 'stock', cell: (item) => <StokCell stock={item.stock} /> },
     { label: 'Stok Minimum', cell: (item) => <StokMinimumCell item={item} onSaved={reload} /> },
     { label: 'Satuan', tdClassName: 'px-6 py-4 text-gray-600', cell: (item) => item.unit },
@@ -141,7 +140,6 @@ export default function DataBarangPPIC() {
         {locationCode(item.locationId)}
       </span>
     ) },
-    { label: 'Keterangan', sortKey: 'detail', tdClassName: 'px-6 py-4 text-gray-600', cell: (item) => item.detail || '-' },
   ];
 
   const renderRowActions = (item: ItemListRow) => (
@@ -233,6 +231,7 @@ export default function DataBarangPPIC() {
         <DataBarangTable
           rows={dataBarang}
           loading={d.loading}
+          colSpan={showSelection ? 13 : 12}
           columns={columns}
           sort={d.sort}
           onSort={d.toggle}

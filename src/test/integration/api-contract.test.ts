@@ -10,7 +10,7 @@ const walk = (dir: string): string[] =>
     const p = join(dir, f);
     return statSync(p).isDirectory() ? walk(p) : [p];
   });
-const files = walk(join(ROOT, "src")).filter((f) => /(domains\/.*\/api|shared\/lib\/[^/]*)\.ts$/.test(f) && !f.endsWith(".test.ts"));
+const files = walk(join(ROOT, "src")).filter((f) => /(domains\/.*\/api|shared\/lib\/[^/]*)\.ts$/.test(f.replace(/\\/g, "/")) && !f.endsWith(".test.ts"));
 
 const norm = (p: string) =>
   p.replace(/\$\{toQuery\([^)]*\)\}/g, "").replace(/\?.*$/, "").replace(/\$\{[^}]*\}/g, "{param}").replace(/\/+$/, "");

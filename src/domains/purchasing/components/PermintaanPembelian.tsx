@@ -16,7 +16,7 @@ function AksiPurchasing({ permintaan }: { permintaan: PermintaanPembelian }) {
     return null;
   }
   if (permintaan.statusApi === 'pending') {
-    return <p className="text-sm text-gray-600">{permintaan.currentStepOrder === 3 ? 'Lengkapi supplier dan Qty Beli, lalu buat PO.' : 'Menunggu persetujuan PPIC.'}</p>;
+    return <p className="text-sm text-gray-600">{permintaan.currentStepOrder === 3 ? 'Lengkapi supplier, harga, dan Qty Dibeli, lalu Generate PO.' : 'Menunggu persetujuan PPIC.'}</p>;
   }
   return <p className="text-sm text-gray-600">Status permintaan: {permintaan.status}</p>;
 }
