@@ -15,7 +15,7 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-export type NavTheme = "orange" | "rose" | "purple" | "teal" | "indigo" | "emerald" | "blue";
+export type NavTheme = "orange" | "rose" | "purple" | "teal" | "indigo" | "emerald" | "blue" | "fuchsia";
 
 export interface NavDivision {
   key: string;
