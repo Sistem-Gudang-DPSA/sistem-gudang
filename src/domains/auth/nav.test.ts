@@ -9,13 +9,26 @@ const withDomain = (u: AuthUser, domainCode: string | null): AuthUser => ({ ...u
 const labels = (u: AuthUser) => visibleNav(u).map((d) => d.key);
 
 describe("visibleNav", () => {
-  it("menyembunyikan divisi Keuangan, Produksi, dan Gudang Barang Jadi (#6)", () => {
-    expect(labels(withDomain(user(["report.view"]), "keuangan"))).toEqual([]);
+  it("menyembunyikan divisi Produksi dan Gudang Barang Jadi (#6)", () => {
     expect(labels(withDomain(user(["report.view"]), "produksi"))).toEqual([]);
     expect(labels(withDomain(user(SEEDED.kInventory), "gudang-barang-jadi"))).toEqual([]);
-    expect(visibleNav(user([], true)).map((division) => division.key)).not.toContain("keuangan");
     expect(visibleNav(user([], true)).map((division) => division.key)).not.toContain("produksi");
     expect(visibleNav(user([], true)).map((division) => division.key)).not.toContain("gudang-barang-jadi");
+  });
+
+  it("menampilkan menu Keuangan dengan report.view dan menjaga akses divisinya", () => {
+    const keuangan = withDomain(user(["report.view"]), "keuangan");
+    const paths = ["/dashboard/keuangan/laporan/data-barang", "/dashboard/keuangan/laporan/realisasi-spk"];
+    expect(labels(keuangan)).toEqual(["keuangan"]);
+    expect(itemsOf(keuangan, "keuangan")).toEqual(["Data Barang", "Realisasi Dokubah"]);
+    expect(visibleNav(keuangan)[0].groups.flatMap((group) => group.items.map((item) => item.href))).toEqual(paths);
+    expect(labels(withDomain(user([]), "keuangan"))).toEqual([]);
+    for (const path of paths) {
+      expect(canAccess(keuangan, path)).toBe(true);
+      expect(canAccess(withDomain(user([]), "keuangan"), path)).toBe(false);
+      expect(canAccess(withDomain(user(["report.view"]), "ppic"), path)).toBe(false);
+      expect(canAccess(withDomain(user(["report.view"]), "purchasing"), path)).toBe(false);
+    }
   });
 
   it("menyembunyikan menu yang belum dipakai di PPIC dan Gudang (#6)", () => {
@@ -60,7 +73,7 @@ describe("visibleNav", () => {
   });
 
   it("shows every remaining division to a superadmin", () => {
-    expect(labels(user([], true))).toEqual(["superadmin", "gudang", "ppic", "purchasing"]);
+    expect(labels(user([], true))).toEqual(["superadmin", "gudang", "ppic", "purchasing", "keuangan"]);
   });
 
   it("keeps the Super Admin division away from non-superadmins, whatever their permissions", () => {
@@ -89,8 +102,8 @@ describe("visibleNav", () => {
   });
 
   it("falls back to permissions only when the user has no domainCode", () => {
-    expect(labels(withDomain(user(SEEDED.ppic), null))).toEqual(["ppic"]);
-    expect(labels(withDomain(user(SEEDED.kInventory), null))).toEqual(["gudang"]);
+    expect(labels(withDomain(user(SEEDED.ppic), null))).toEqual(["ppic", "keuangan"]);
+    expect(labels(withDomain(user(SEEDED.kInventory), null))).toEqual(["gudang", "keuangan"]);
   });
 
   it("puts permintaan pembelian under ppic, and also under gudang", () => {

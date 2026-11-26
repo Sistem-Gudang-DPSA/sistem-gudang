@@ -138,12 +138,24 @@ tersebut tidak tampil di sidebar (`visibleNav`) tetapi tetap dipakai
 `canAccess`, sehingga URL-nya masih dijaga permission dan bukan terbuka bebas.
 Saat ini yang disembunyikan (#6):
 
-- Divisi **Gudang Barang Jadi**, **Keuangan**, dan **Produksi**.
+- Divisi **Gudang Barang Jadi** dan **Produksi**.
 - Gudang: **Checklist Dokubah**, **Rekap Dokubah**, **Realisasi Dokubah**.
 - PPIC: **Penawaran Harga**, **Dokubah**, **SPK Internal & Mutasi Stok**,
   **Approval**.
 
 Untuk menampilkan kembali, hapus `hidden: true` pada entri terkait.
+
+## Menu Keuangan
+
+Divisi **Keuangan** tampil untuk pengguna domain `keuangan` dengan permission
+`report.view`, serta superadmin. Menu laporannya adalah **Data Barang**
+(`/dashboard/keuangan/laporan/data-barang`) dan **Realisasi Dokubah**
+(`/dashboard/keuangan/laporan/realisasi-spk`). Kedua halaman dijaga dengan
+permission `report.view` dan domain pengguna; akun PPIC dan Purchasing yang
+memiliki `report.view` tetap tidak mendapat akses Keuangan.
+
+Untuk akun tanpa `domainCode`, navigasi mengikuti permission saja sehingga
+`report.view` juga menampilkan Keuangan.
 
 ## Laporan Masalah Superadmin
 
