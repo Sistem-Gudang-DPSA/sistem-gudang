@@ -150,10 +150,17 @@ Realisasi SPK dan rekap bulanan menjumlahkan qty barang keluar per klien, SPK, d
 
 Poin 6 tidak memerlukan kode baru. Permission `purchase-request.approve` sudah terdaftar. Pengaturannya bisa dilakukan manual dari Superadmin → Roles. Endpoint yang dipakai adalah `PUT /api/v1/superadmin/roles/{id}/permissions` dan bersifat **replace-all**, jadi seluruh permission PPIC yang sudah ada harus tetap dicentang saat menambah permission ini.
 
+## Pemetaan Master Barang
+
+Pemetaan master barang ke beberapa supplier memakai `item_suppliers` dan
+endpoint `PUT /items/{id}/suppliers`, dijelaskan di
+[21-Pemetaan-Supplier-Barang.md](21-Pemetaan-Supplier-Barang.md). Pemetaan ini
+berbeda dari `purchase_mappings` yang khusus per permintaan pembelian.
+Material tetap satu dan stok tidak diduplikasi.
+
 ## Yang Sengaja Tidak Dibuat
 
 ```text
-Tidak ada tabel item_suppliers baru
 Tidak ada kolom qty_received atau price_locked baru
 Tidak ada tabel stock_lots / outbound_allocations baru
 Tidak ada penulisan ulang transaksi lama
@@ -162,7 +169,7 @@ Tidak ada grid bulanan sebagai sumber harga transaksi
 Tidak ada alur invoice, pembayaran, atau hutang
 ```
 
-Alasannya: backend sudah memiliki padanannya. `purchase_mappings` adalah relasi barang ke banyak supplier, inbound aktif adalah `qty_received`, adanya submit PO adalah kunci harga, dan `stock_cost_layers` dengan `stock_cost_consumptions` adalah lot serta alokasi FIFO.
+Alasannya: backend sudah memiliki padanannya. `purchase_mappings` adalah pembagian supplier per baris permintaan pembelian, inbound aktif adalah `qty_received`, adanya submit PO adalah kunci harga, dan `stock_cost_layers` dengan `stock_cost_consumptions` adalah lot serta alokasi FIFO.
 
 Lini Keuangan memang sudah ada sebagai domain, tetapi untuk sementara tidak berperan dalam alur ini. Cukup dibiarkan, tidak perlu dibahas dalam rencana ini.
 

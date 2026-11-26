@@ -41,6 +41,8 @@ describe('DataBarang PPIC: header dan sel tabel', () => {
     const table = row?.closest('table');
     expect(row?.querySelectorAll('td').length).toBe(table?.querySelectorAll('thead th').length);
     expect(screen.queryByText('Stok & Satuan')).toBeNull();
+    expect(screen.queryByRole('columnheader', { name: 'Supplier' })).toBeNull();
+    expect(within(row!).queryByText('PT Kayu')).toBeNull();
   });
 
   it('menampilkan kolom Harga Terbaru dengan format ribuan seperti Superadmin', async () => {

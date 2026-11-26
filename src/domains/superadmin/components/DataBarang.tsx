@@ -22,6 +22,7 @@ import EditModeBar, { useBatchEdit } from '@/shared/components/EditModeBar';
 import { kodeKategoriNotice, type CodeChange } from '@/domains/inventory/item-code-notice';
 import { useDataBarang } from '@/domains/inventory/components/data-barang/useDataBarang';
 import DataBarangTable, { type BarangColumn, HargaCell, KategoriBadge, StokCell, SupplierCell } from '@/domains/inventory/components/data-barang/DataBarangTable';
+import { totalStockValue } from '@/domains/inventory/components/data-barang/dummy-receipts';
 import DataBarangToolbar, { FilterToggle } from '@/domains/inventory/components/data-barang/DataBarangToolbar';
 import { useBulkSupplierAction, type SupplierMappingResult } from '@/domains/inventory/components/data-barang/useBulkSupplierAction';
 import ActionMenu from '@/shared/components/ActionMenu';
@@ -251,7 +252,7 @@ export default function DataBarangGudang() {
         {edit.errors[item.id] && <span className="text-xs text-red-600 mt-0.5 whitespace-normal">{edit.errors[item.id]}</span>}
       </div>
     ) },
-    { label: 'Supplier', sortKey: 'supplierName', cell: (item) => (
+    { label: 'Supplier', hidden: true, sortKey: 'supplierName', cell: (item) => (
       edit.editing && canSetSupplier ? (
         <select aria-label={`Supplier ${item.name}`} className={cellInput} value={edit.value(item.id, 'supplierId', idText(item.supplierId))} onChange={setF(item, 'supplierId', idText(item.supplierId))}>
           <option value="">Belum ada supplier</option>
@@ -278,6 +279,7 @@ export default function DataBarangGudang() {
         <input aria-label={`Harga ${item.name}`} inputMode="numeric" className={`${cellInput} min-w-24`} maxLength={9} value={edit.value(item.id, 'price', String(item.price))} onChange={(e) => edit.set(item.id, 'price', e.target.value.replace(/\D/g, ''), String(item.price))} />
       ) : <HargaCell price={item.price} updatedAt={item.priceUpdatedAt} />
     ) },
+    { label: 'Nilai Stok', tdClassName: 'px-6 py-4 text-gray-700', cell: () => <span title="Data dummy: total nilai stok dari detail barang">{totalStockValue.toLocaleString('id-ID')}</span> },
     // Lokasi: dipilih langsung di barisnya
     { label: 'Lokasi', sortKey: 'locationCode', cell: (item) => (
       edit.editing && canAssign ? (
@@ -447,7 +449,6 @@ export default function DataBarangGudang() {
         <DataBarangTable
           rows={dataBarang}
           loading={d.loading}
-          colSpan={canSelect ? 12 : 11}
           columns={columns}
           sort={d.sort}
           onSort={d.toggle}
