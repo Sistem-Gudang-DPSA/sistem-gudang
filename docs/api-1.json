@@ -9674,6 +9674,10 @@
                           "items": {
                             "type": "object",
                             "properties": {
+                              "id": {
+                                "type": "number",
+                                "description": "Purchase order line id, used as purchaseOrderLineId on inbound"
+                              },
                               "lineIndex": {
                                 "type": "number",
                                 "nullable": true
@@ -9754,6 +9758,7 @@
                               }
                             },
                             "required": [
+                              "id",
                               "lineIndex",
                               "itemId",
                               "noSpk",
@@ -10067,6 +10072,10 @@
                           "items": {
                             "type": "object",
                             "properties": {
+                              "id": {
+                                "type": "number",
+                                "description": "Purchase order line id, used as purchaseOrderLineId on inbound"
+                              },
                               "lineIndex": {
                                 "type": "number",
                                 "nullable": true
@@ -10147,6 +10156,7 @@
                               }
                             },
                             "required": [
+                              "id",
                               "lineIndex",
                               "itemId",
                               "noSpk",
@@ -10546,6 +10556,10 @@
                           "items": {
                             "type": "object",
                             "properties": {
+                              "id": {
+                                "type": "number",
+                                "description": "Purchase order line id, used as purchaseOrderLineId on inbound"
+                              },
                               "lineIndex": {
                                 "type": "number",
                                 "nullable": true
@@ -10626,6 +10640,7 @@
                               }
                             },
                             "required": [
+                              "id",
                               "lineIndex",
                               "itemId",
                               "noSpk",
@@ -10939,6 +10954,10 @@
                           "items": {
                             "type": "object",
                             "properties": {
+                              "id": {
+                                "type": "number",
+                                "description": "Purchase order line id, used as purchaseOrderLineId on inbound"
+                              },
                               "lineIndex": {
                                 "type": "number",
                                 "nullable": true
@@ -11019,6 +11038,7 @@
                               }
                             },
                             "required": [
+                              "id",
                               "lineIndex",
                               "itemId",
                               "noSpk",
@@ -11351,6 +11371,10 @@
                           "items": {
                             "type": "object",
                             "properties": {
+                              "id": {
+                                "type": "number",
+                                "description": "Purchase order line id, used as purchaseOrderLineId on inbound"
+                              },
                               "lineIndex": {
                                 "type": "number",
                                 "nullable": true
@@ -11431,6 +11455,7 @@
                               }
                             },
                             "required": [
+                              "id",
                               "lineIndex",
                               "itemId",
                               "noSpk",

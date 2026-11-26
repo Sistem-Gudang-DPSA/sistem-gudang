@@ -1372,6 +1372,84 @@
         }
       }
     },
+    "/api/v1/stock-reconciliations": {
+      "get": {
+        "tags": [
+          "Stock Reconciliation"
+        ],
+        "summary": "List stock reconciliations",
+        "description": "PPIC sees drafts and posted rows. Gudang only sees POSTED rows.",
+        "responses": {
+          "200": {
+            "description": "Stock reconciliations"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Stock Reconciliation"
+        ],
+        "summary": "Create a stock reconciliation draft",
+        "description": "Needs Idempotency-Key. Prefill physicalQty from the suggestions endpoint.",
+        "responses": {
+          "200": {
+            "description": "Stock reconciliation draft"
+          }
+        }
+      }
+    },
+    "/api/v1/stock-reconciliations/suggestions": {
+      "get": {
+        "tags": [
+          "Stock Reconciliation"
+        ],
+        "summary": "Suggest stock reconciliation lines for a month",
+        "responses": {
+          "200": {
+            "description": "Suggested lines"
+          }
+        }
+      }
+    },
+    "/api/v1/stock-reconciliations/{id}": {
+      "get": {
+        "tags": [
+          "Stock Reconciliation"
+        ],
+        "summary": "Stock reconciliation detail",
+        "description": "Gudang gets 404 for a DRAFT document.",
+        "responses": {
+          "200": {
+            "description": "Stock reconciliation detail"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Stock Reconciliation"
+        ],
+        "summary": "Update a stock reconciliation draft",
+        "responses": {
+          "200": {
+            "description": "Stock reconciliation detail"
+          }
+        }
+      }
+    },
+    "/api/v1/stock-reconciliations/{id}/post": {
+      "post": {
+        "tags": [
+          "Stock Reconciliation"
+        ],
+        "summary": "Post a stock reconciliation",
+        "description": "Needs Idempotency-Key. Sets stock to physicalQty and closes every difference.",
+        "responses": {
+          "200": {
+            "description": "Posted stock reconciliation"
+          }
+        }
+      }
+    },
     "/api/v1/stock-opname": {
       "get": {
         "tags": [
@@ -2023,6 +2101,48 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/stock-opname/{id}/lines": {
+      "patch": {
+        "tags": [
+          "Stock Opname"
+        ],
+        "summary": "Save part of an open stock opname",
+        "description": "Gudang saves counted lines in parts. physicalQty null removes the line. itemId must not repeat in one request.",
+        "responses": {
+          "200": {
+            "description": "Stock opname lines saved"
+          }
+        }
+      }
+    },
+    "/api/v1/stock-opname/{id}/submit": {
+      "post": {
+        "tags": [
+          "Stock Opname"
+        ],
+        "summary": "Submit a stock opname",
+        "description": "Closes the physical count. System stock is not changed by submit; PPIC posts the write-off later.",
+        "responses": {
+          "200": {
+            "description": "Stock opname submitted"
+          }
+        }
+      }
+    },
+    "/api/v1/stock-opname/{id}/reopen": {
+      "post": {
+        "tags": [
+          "Stock Opname"
+        ],
+        "summary": "Reopen a submitted stock opname",
+        "description": "PPIC reopens a submitted opname so Gudang can correct the count.",
+        "responses": {
+          "200": {
+            "description": "Stock opname reopened"
           }
         }
       }

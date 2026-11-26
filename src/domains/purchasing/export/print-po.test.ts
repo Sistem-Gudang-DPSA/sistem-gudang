@@ -12,7 +12,7 @@ const po: PurchaseOrder = {
   picSupplier: 'Andi / 081234',
   subtotal: 39000, dppLain: 35750, persenPpn: 12, nilaiPpn: 4290, jasa: 1000, grandTotal: 44290,
   status: 'ISSUED', cancelledAt: null, cancelledBy: null, cancelReason: null, createdBy: 1, createdAt: '2026-11-20',
-  barang: [{ kodeBarang: 'BRG-1', namaBarang: 'Triplex', satuan: 'Lembar', noSpk: 'SPK-1', jumlah: 2, hargaSatuan: 20000, diskon: 1000 }],
+  barang: [{ id: 5401, kodeBarang: 'BRG-1', namaBarang: 'Triplex', satuan: 'Lembar', noSpk: 'SPK-1', jumlah: 2, hargaSatuan: 20000, diskon: 1000 }],
 };
 
 describe('Purchase order print template', () => {
