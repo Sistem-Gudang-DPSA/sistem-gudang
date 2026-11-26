@@ -6,7 +6,6 @@ import { useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { useCan } from '@/domains/auth/user-context';
 import { formatAngka, formatRupiah } from '@/domains/ppic/data/dokubah';
-import SearchableSelect from '@/shared/components/SearchableSelect';
 import StatusBadge from '@/shared/components/StatusBadge';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { INTEGER_INPUT, decimalOnly, digitsOnly, parsePpn } from '@/shared/lib/input';
@@ -14,7 +13,6 @@ import { getPurchaseOrder, submitPurchaseOrder, updatePurchaseOrder } from '../a
 import { detailPoPath, po_barang_path, purchaseOrderSpk } from '../data/pembelian';
 import { purchaseOrderTotals } from '../po-totals';
 import type { PurchaseOrder, PurchaseOrderLineInput, Supplier } from '../types';
-import { useSupplierSearch } from '../use-supplier-search';
 import { PurchaseOrderParties, PurchaseOrderTotalsSection } from './PurchaseOrderSections';
 
 const fieldClass = 'w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500/20';
@@ -48,9 +46,8 @@ export default function EditPOBarang() {
 
 function FormEditPO({ po }: { po: PurchaseOrder }) {
   const [tanggal, setTanggal] = useState(po.tanggalPo.slice(0, 10));
-  const [supplier, setSupplier] = useState<Supplier>({ id: po.supplierId, code: '', name: po.supplierName, address: po.supplierAddress ?? '', phone: po.supplierPhone ?? '', bank: po.supplierBank ?? '', npwp: po.supplierNpwp ?? '', pajak: 'NON_PKP' });
-  const { suppliers, onSearch, pending, error: supplierError } = useSupplierSearch();
-  const options = suppliers.some((row) => row.id === supplier.id) ? suppliers : [supplier, ...suppliers];
+  // Supplier is fixed on a PO; the backend PUT rejects supplierId, so it is display only.
+  const supplier: Supplier = { id: po.supplierId, code: '', name: po.supplierName, address: po.supplierAddress ?? '', phone: po.supplierPhone ?? '', bank: po.supplierBank ?? '', npwp: po.supplierNpwp ?? '', pajak: 'NON_PKP' };
   const [pic, setPic] = useState(po.picSupplier);
   // SPK berasal dari baris permintaan yang disalin backend; bukan field PO yang bisa diedit.
   const noSpk = purchaseOrderSpk(po.barang);
@@ -100,7 +97,7 @@ function FormEditPO({ po }: { po: PurchaseOrder }) {
     setSaving(true);
     setError('');
     try {
-      const updated = await updatePurchaseOrder(po.id, { tanggalPo: tanggal, supplierId: supplier.id, picSupplier: pic.trim(), barang: orderLines.map((line) => ({ ...line, kodeBarang: line.kodeBarang.trim(), namaBarang: line.namaBarang.trim(), satuan: line.satuan.trim() })), persenPpn, jasa: Number(jasa) });
+      const updated = await updatePurchaseOrder(po.id, { tanggalPo: tanggal, picSupplier: pic.trim(), barang: orderLines.map((line) => ({ ...line, kodeBarang: line.kodeBarang.trim(), namaBarang: line.namaBarang.trim(), satuan: line.satuan.trim() })), persenPpn, jasa: Number(jasa) });
       setSaved(updated);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Gagal menyimpan perubahan PO.');
@@ -151,8 +148,7 @@ function FormEditPO({ po }: { po: PurchaseOrder }) {
         <hr className={dividerClass} />
         <PurchaseOrderParties
           supplier={supplier}
-          supplierControl={<SearchableSelect aria-label="Data Supplier" value={String(supplier.id)} options={options.map((row) => ({ value: String(row.id), label: `${row.code ? `${row.code} - ` : ''}${row.name}` }))} onChange={(id) => { const chosen = options.find((row) => String(row.id) === id); if (chosen) setSupplier(chosen); }} onSearch={onSearch} pending={pending} disabled={saving} placeholder="Kode Supplier" className={cellInputClass} />}
-          supplierError={supplierError}
+          supplierControl={<input type="text" readOnly aria-label="Data Supplier" value={supplier.name} className={`${cellInputClass} cursor-default`} />}
           pic={pic}
           onPicChange={setPic}
           picLabel="PIC / Telp Supplier"
