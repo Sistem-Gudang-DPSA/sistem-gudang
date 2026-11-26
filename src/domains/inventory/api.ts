@@ -73,11 +73,6 @@ export function listItems(params?: ListParams & SortParams & ItemFilterParams) {
   return apiClient.get<PaginatedResult<ItemListRow> & { summary?: { totalJenis: number; totalStock: number } }>(`/api/v1/items${toQuery(params)}`);
 }
 
-// Replace the complete supplier mapping; supplierId remains the backend's primary supplier.
-export function replaceItemSuppliers(itemId: number, supplierIds: number[]) {
-  return apiClient.put<Item>(`/api/v1/items/${itemId}/suppliers`, { supplierIds });
-}
-
 // Master lists of item categories and units; items reference them by name.
 // `itemCount` is how many items use the name; a name still in use cannot be deleted (409).
 // prefix: kategori saja, 3 huruf awal kode barang (LBR001); default dari BE bila tidak diisi
@@ -104,8 +99,8 @@ export type BulkItemsResult = { dryRun: boolean; created: number; skipped: { row
 
 export type InboundScanBatchInput = {
   date: string;
-  pass: { itemId: number; supplierId?: number; qtyArrived: number }[];
-  retur: { itemId: number; supplierId?: number; qty: number; reason: string }[];
+  pass: { itemId: number; qtyArrived: number }[];
+  retur: { itemId: number; qty: number; reason: string }[];
 };
 
 export type InboundScanBatchResult = {

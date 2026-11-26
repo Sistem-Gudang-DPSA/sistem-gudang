@@ -1,6 +1,6 @@
 import { apiClient, downloadFile, toQuery } from "@/shared/lib/api-client";
 import type { PaginatedResult, ListParams, SortParams } from "@/domains/inventory/types";
-import type { CreatePurchaseOrderInput, CreateSupplierInput, PurchaseRequestMapping, Pajak, PurchaseOrder, Supplier, SupplierPriceChange, SupplierPrices, UpdatePurchaseOrderInput } from "./types";
+import type { CreatePurchaseOrderInput, CreateSupplierInput, PurchaseOrderStatus, PurchaseRequestMapping, Pajak, PurchaseOrder, Supplier, SupplierPriceChange, SupplierPrices, UpdatePurchaseOrderInput } from "./types";
 import { SupplierImportRow } from "./modal/supplier";
 
 export function listSuppliers(params?: ListParams & SortParams & { pajak?: Pajak }) {
@@ -32,7 +32,7 @@ export function saveSupplierPrices(id: number | string, tahun: number, prices: S
   return apiClient.put<SupplierPrices>(`/api/v1/suppliers/${id}/prices`, { tahun, prices });
 }
 
-export function listPurchaseOrders(params?: ListParams & SortParams & { approvalRequestId?: number; status?: "ISSUED" | "CANCELLED"; startDate?: string; endDate?: string }) {
+export function listPurchaseOrders(params?: ListParams & SortParams & { approvalRequestId?: number; status?: PurchaseOrderStatus; startDate?: string; endDate?: string }) {
   return apiClient.get<PaginatedResult<PurchaseOrder>>(`/api/v1/purchase-orders${toQuery(params)}`);
 }
 
@@ -47,6 +47,11 @@ export function createPurchaseOrder(input: CreatePurchaseOrderInput) {
 
 export function updatePurchaseOrder(id: number | string, input: UpdatePurchaseOrderInput) {
   return apiClient.put<PurchaseOrder>(`/api/v1/purchase-orders/${id}`, input);
+}
+
+// Submit freezes the lines and their prices; only a DRAFT can be submitted.
+export function submitPurchaseOrder(id: number | string) {
+  return apiClient.post<PurchaseOrder>(`/api/v1/purchase-orders/${id}/submit`);
 }
 
 // Final: a cancelled PO cannot be edited or reopened. Stock and the purchase request are untouched.

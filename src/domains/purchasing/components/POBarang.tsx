@@ -18,8 +18,16 @@ import SelectionBanner from '@/shared/components/SelectionBanner';
 import { useCan } from '@/domains/auth/user-context';
 import { useSelection } from '@/shared/lib/use-selection';
 import { printPurchaseOrders } from '@/domains/purchasing/export/print-po';
-import type { PurchaseOrder } from '@/domains/purchasing/types';
+import type { PurchaseOrder, PurchaseOrderStatus } from '@/domains/purchasing/types';
+import StatusBadge, { type BadgeTone } from '@/shared/components/StatusBadge';
 
+const STATUS_TONE: Record<PurchaseOrderStatus, BadgeTone> = {
+  DRAFT: 'amber',
+  ISSUED: 'blue',
+  PARTIALLY_RECEIVED: 'amber',
+  RECEIVED: 'green',
+  CANCELLED: 'red',
+};
 
 export default function POBarang() {
   const canView = useCan('purchase-order.view');
@@ -195,9 +203,7 @@ export default function POBarang() {
                   <td className="px-6 py-4">{item.supplierName}</td>
 
                   <td className="px-6 py-4">
-                    <div className="flex flex-col">
-                      <span className="font-bold text-gray-900">{item.status}</span>
-                    </div>
+                    <StatusBadge tone={STATUS_TONE[item.status] ?? 'gray'}>{item.status}</StatusBadge>
                   </td>
 
                   <td className="px-6 py-4">
@@ -209,7 +215,7 @@ export default function POBarang() {
                         >
                           Lihat Detail PO
                         </Link>}
-                        {canUpdate && item.status === 'ISSUED' && <Link
+                        {canUpdate && item.status === 'DRAFT' && <Link
                           href={editPoPath(item.id)}
                           aria-label={`Edit ${item.nomorPo}`}
                           className="inline-block px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-md hover:bg-blue-100 transition-colors mr-2"

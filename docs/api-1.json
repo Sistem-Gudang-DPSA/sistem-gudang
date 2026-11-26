@@ -9042,7 +9042,7 @@
           "Purchase order"
         ],
         "summary": "List purchase orders",
-        "description": "Newest tanggalPo first. search matches nomorPo and supplier name. status filters ISSUED or CANCELLED. startDate and endDate are inclusive. sortBy is date (tanggalPo) or status, with sortDir asc (default) or desc; without sortBy the newest-first order is kept.",
+        "description": "Newest tanggalPo first. search matches nomorPo and supplier name. status filters DRAFT, ISSUED, PARTIALLY_RECEIVED, RECEIVED or CANCELLED. DRAFT and CANCELLED are stored. ISSUED, PARTIALLY_RECEIVED and RECEIVED are computed from the active inbound rows: ISSUED when nothing arrived, RECEIVED when every line is complete, PARTIALLY_RECEIVED otherwise. A draft stays DRAFT until submit; only an issued PO can receive goods. Cancelling an inbound takes its quantity back out, so a PO can go back to an earlier status. startDate and endDate are inclusive. sortBy is date (tanggalPo) or status, with sortDir asc (default) or desc; without sortBy the newest-first order is kept.",
         "security": [
           {
             "bearerAuth": []
@@ -9086,7 +9086,10 @@
             "schema": {
               "type": "string",
               "enum": [
+                "DRAFT",
                 "ISSUED",
+                "PARTIALLY_RECEIVED",
+                "RECEIVED",
                 "CANCELLED"
               ]
             },
@@ -9225,9 +9228,20 @@
                               "status": {
                                 "type": "string",
                                 "enum": [
+                                  "DRAFT",
                                   "ISSUED",
+                                  "PARTIALLY_RECEIVED",
+                                  "RECEIVED",
                                   "CANCELLED"
                                 ]
+                              },
+                              "submittedAt": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "submittedBy": {
+                                "type": "number",
+                                "nullable": true
                               },
                               "cancelledAt": {
                                 "type": "string",
@@ -9263,6 +9277,8 @@
                               "nilaiPpn",
                               "grandTotal",
                               "status",
+                              "submittedAt",
+                              "submittedBy",
                               "cancelledAt",
                               "cancelledBy",
                               "cancelReason",
@@ -9441,7 +9457,7 @@
           "Purchase order"
         ],
         "summary": "Create a purchase order",
-        "description": "nomorPo is generated (PO-001, PO-002, ...). The approval request must be a purchase-request (400 when it is another type) in status approved (409 when it is not). A missing request or supplier is a 404. One request may have several POs. subtotal, dppLain, nilaiPpn and grandTotal are computed by the server and rounded to a rupiah: subtotal = sum of (jumlah * hargaSatuan - diskon), dppLain (DPP nilai lain) = subtotal * 11 / 12, nilaiPpn = dppLain * persenPpn / 100, grandTotal = subtotal + nilaiPpn + jasa. diskon is rupiah per line. Sending dppLain is a 400. A request that has a supplier mapping, or has no PO yet, is ordered through the mapping: every barang line carries lineIndex, the supplier must have that line mapped, jumlah must equal the mapped qty, and an already ordered line is a 409; anything else is a 400. Only a request that already had a PO before mapping existed may skip lineIndex. Optional Idempotency-Key header (8 to 100 characters): with it, the same key and payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true and does not repeat the write; the same key with a different payload is 409; a malformed key is 400. Without it the request behaves as before.",
+        "description": "A new PO starts as DRAFT; use /purchase-orders/{id}/submit to issue it. nomorPo is generated (PO-001, PO-002, ...). The approval request must be a purchase-request (400 when it is another type) in status approved (409 when it is not). A missing request or supplier is a 404. One request may have several POs. subtotal, dppLain, nilaiPpn and grandTotal are computed by the server and rounded to a rupiah: subtotal = sum of (jumlah * hargaSatuan - diskon), dppLain (DPP nilai lain) = subtotal * 11 / 12, nilaiPpn = dppLain * persenPpn / 100, grandTotal = subtotal + nilaiPpn + jasa. diskon is rupiah per line. Sending dppLain is a 400. A request that has a supplier mapping, or has no PO yet, is ordered through the mapping: every barang line carries lineIndex, the supplier must have that line mapped, jumlah must equal the mapped qty, and an already ordered line is a 409; anything else is a 400. Only a request that already had a PO before mapping existed may skip lineIndex. Each line stores itemId and noSpk, read from the approved request payload by lineIndex, never from the client. hargaSatuan is the final purchase price and is frozen when the PO is submitted. Optional Idempotency-Key header (8 to 100 characters): with it, the same key and payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true and does not repeat the write; the same key with a different payload is 409; a malformed key is 400. Without it the request behaves as before.",
         "security": [
           {
             "bearerAuth": []
@@ -9508,7 +9524,7 @@
                           "maxLength": 50
                         },
                         "jumlah": {
-                          "type": "integer",
+                          "type": "number",
                           "minimum": 0,
                           "exclusiveMinimum": true,
                           "maximum": 1000000
@@ -9620,9 +9636,20 @@
                         "status": {
                           "type": "string",
                           "enum": [
+                            "DRAFT",
                             "ISSUED",
+                            "PARTIALLY_RECEIVED",
+                            "RECEIVED",
                             "CANCELLED"
                           ]
+                        },
+                        "submittedAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "submittedBy": {
+                          "type": "number",
+                          "nullable": true
                         },
                         "cancelledAt": {
                           "type": "string",
@@ -9651,6 +9678,16 @@
                                 "type": "number",
                                 "nullable": true
                               },
+                              "itemId": {
+                                "type": "number",
+                                "nullable": true,
+                                "description": "Catalog item of the request line; null for old POs"
+                              },
+                              "noSpk": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "SPK copied from the request line"
+                              },
                               "kodeBarang": {
                                 "type": "string"
                               },
@@ -9668,16 +9705,67 @@
                               },
                               "diskon": {
                                 "type": "number"
+                              },
+                              "qtyReceived": {
+                                "type": "number",
+                                "description": "Sum of the active receipts of this line"
+                              },
+                              "sisa": {
+                                "type": "number",
+                                "description": "jumlah minus qtyReceived"
+                              },
+                              "receipts": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "inboundId": {
+                                      "type": "number"
+                                    },
+                                    "date": {
+                                      "type": "string",
+                                      "example": "2026-09-30"
+                                    },
+                                    "qtyArrived": {
+                                      "type": "number"
+                                    },
+                                    "statusQc": {
+                                      "type": "string",
+                                      "nullable": true
+                                    },
+                                    "referenceNo": {
+                                      "type": "string",
+                                      "nullable": true
+                                    },
+                                    "createdAt": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "inboundId",
+                                    "date",
+                                    "qtyArrived",
+                                    "statusQc",
+                                    "referenceNo",
+                                    "createdAt"
+                                  ]
+                                },
+                                "description": "Active receipts of this line, oldest first; cancelled ones are left out"
                               }
                             },
                             "required": [
                               "lineIndex",
+                              "itemId",
+                              "noSpk",
                               "kodeBarang",
                               "namaBarang",
                               "satuan",
                               "jumlah",
                               "hargaSatuan",
-                              "diskon"
+                              "diskon",
+                              "qtyReceived",
+                              "sisa",
+                              "receipts"
                             ]
                           }
                         }
@@ -9697,6 +9785,8 @@
                         "nilaiPpn",
                         "grandTotal",
                         "status",
+                        "submittedAt",
+                        "submittedBy",
                         "cancelledAt",
                         "cancelledBy",
                         "cancelReason",
@@ -9859,7 +9949,8 @@
         "tags": [
           "Purchase order"
         ],
-        "summary": "Get a purchase order with its lines",
+        "summary": "Get a purchase order with its lines and receipts",
+        "description": "Each barang line carries noSpk, qtyReceived, sisa and receipts (the active inbound rows of that line: date, qtyArrived, statusQc, referenceNo and inboundId), oldest first. status is DRAFT until submit, then follows the receipts: ISSUED, PARTIALLY_RECEIVED, RECEIVED, or CANCELLED when it was cancelled. submittedAt and submittedBy are set by the submit endpoint.",
         "security": [
           {
             "bearerAuth": []
@@ -9938,9 +10029,20 @@
                         "status": {
                           "type": "string",
                           "enum": [
+                            "DRAFT",
                             "ISSUED",
+                            "PARTIALLY_RECEIVED",
+                            "RECEIVED",
                             "CANCELLED"
                           ]
+                        },
+                        "submittedAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "submittedBy": {
+                          "type": "number",
+                          "nullable": true
                         },
                         "cancelledAt": {
                           "type": "string",
@@ -9969,6 +10071,16 @@
                                 "type": "number",
                                 "nullable": true
                               },
+                              "itemId": {
+                                "type": "number",
+                                "nullable": true,
+                                "description": "Catalog item of the request line; null for old POs"
+                              },
+                              "noSpk": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "SPK copied from the request line"
+                              },
                               "kodeBarang": {
                                 "type": "string"
                               },
@@ -9986,16 +10098,67 @@
                               },
                               "diskon": {
                                 "type": "number"
+                              },
+                              "qtyReceived": {
+                                "type": "number",
+                                "description": "Sum of the active receipts of this line"
+                              },
+                              "sisa": {
+                                "type": "number",
+                                "description": "jumlah minus qtyReceived"
+                              },
+                              "receipts": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "inboundId": {
+                                      "type": "number"
+                                    },
+                                    "date": {
+                                      "type": "string",
+                                      "example": "2026-09-30"
+                                    },
+                                    "qtyArrived": {
+                                      "type": "number"
+                                    },
+                                    "statusQc": {
+                                      "type": "string",
+                                      "nullable": true
+                                    },
+                                    "referenceNo": {
+                                      "type": "string",
+                                      "nullable": true
+                                    },
+                                    "createdAt": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "inboundId",
+                                    "date",
+                                    "qtyArrived",
+                                    "statusQc",
+                                    "referenceNo",
+                                    "createdAt"
+                                  ]
+                                },
+                                "description": "Active receipts of this line, oldest first; cancelled ones are left out"
                               }
                             },
                             "required": [
                               "lineIndex",
+                              "itemId",
+                              "noSpk",
                               "kodeBarang",
                               "namaBarang",
                               "satuan",
                               "jumlah",
                               "hargaSatuan",
-                              "diskon"
+                              "diskon",
+                              "qtyReceived",
+                              "sisa",
+                              "receipts"
                             ]
                           }
                         }
@@ -10015,6 +10178,8 @@
                         "nilaiPpn",
                         "grandTotal",
                         "status",
+                        "submittedAt",
+                        "submittedBy",
                         "cancelledAt",
                         "cancelledBy",
                         "cancelReason",
@@ -10176,7 +10341,7 @@
           "Purchase order"
         ],
         "summary": "Edit a purchase order",
-        "description": "Needs purchase-order.update. Only while status is ISSUED, 409 once cancelled. No time limit. Sends tanggalPo, picSupplier, persenPpn, jasa and the full barang list, which replaces the old lines; totals are recomputed with the same rules as create. supplierId, approvalRequestId and nomorPo cannot change: sending them is a 400. 404 when the PO does not exist.",
+        "description": "Needs purchase-order.update. Only while status is DRAFT, 409 once submitted or cancelled, because the lines are replaced. Sends tanggalPo, picSupplier, persenPpn, jasa and the full barang list, which replaces the old lines; totals are recomputed with the same rules as create. supplierId, approvalRequestId and nomorPo cannot change: sending them is a 400. 404 when the PO does not exist.",
         "security": [
           {
             "bearerAuth": []
@@ -10199,11 +10364,6 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "supplierId": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "exclusiveMinimum": true
-                  },
                   "tanggalPo": {
                     "type": "string",
                     "format": "date"
@@ -10238,7 +10398,7 @@
                           "maxLength": 50
                         },
                         "jumlah": {
-                          "type": "integer",
+                          "type": "number",
                           "minimum": 0,
                           "exclusiveMinimum": true,
                           "maximum": 1000000
@@ -10348,9 +10508,20 @@
                         "status": {
                           "type": "string",
                           "enum": [
+                            "DRAFT",
                             "ISSUED",
+                            "PARTIALLY_RECEIVED",
+                            "RECEIVED",
                             "CANCELLED"
                           ]
+                        },
+                        "submittedAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "submittedBy": {
+                          "type": "number",
+                          "nullable": true
                         },
                         "cancelledAt": {
                           "type": "string",
@@ -10379,6 +10550,16 @@
                                 "type": "number",
                                 "nullable": true
                               },
+                              "itemId": {
+                                "type": "number",
+                                "nullable": true,
+                                "description": "Catalog item of the request line; null for old POs"
+                              },
+                              "noSpk": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "SPK copied from the request line"
+                              },
                               "kodeBarang": {
                                 "type": "string"
                               },
@@ -10396,16 +10577,67 @@
                               },
                               "diskon": {
                                 "type": "number"
+                              },
+                              "qtyReceived": {
+                                "type": "number",
+                                "description": "Sum of the active receipts of this line"
+                              },
+                              "sisa": {
+                                "type": "number",
+                                "description": "jumlah minus qtyReceived"
+                              },
+                              "receipts": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "inboundId": {
+                                      "type": "number"
+                                    },
+                                    "date": {
+                                      "type": "string",
+                                      "example": "2026-09-30"
+                                    },
+                                    "qtyArrived": {
+                                      "type": "number"
+                                    },
+                                    "statusQc": {
+                                      "type": "string",
+                                      "nullable": true
+                                    },
+                                    "referenceNo": {
+                                      "type": "string",
+                                      "nullable": true
+                                    },
+                                    "createdAt": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "inboundId",
+                                    "date",
+                                    "qtyArrived",
+                                    "statusQc",
+                                    "referenceNo",
+                                    "createdAt"
+                                  ]
+                                },
+                                "description": "Active receipts of this line, oldest first; cancelled ones are left out"
                               }
                             },
                             "required": [
                               "lineIndex",
+                              "itemId",
+                              "noSpk",
                               "kodeBarang",
                               "namaBarang",
                               "satuan",
                               "jumlah",
                               "hargaSatuan",
-                              "diskon"
+                              "diskon",
+                              "qtyReceived",
+                              "sisa",
+                              "receipts"
                             ]
                           }
                         }
@@ -10425,6 +10657,401 @@
                         "nilaiPpn",
                         "grandTotal",
                         "status",
+                        "submittedAt",
+                        "submittedBy",
+                        "cancelledAt",
+                        "cancelledBy",
+                        "cancelReason",
+                        "createdBy",
+                        "createdAt",
+                        "barang"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/purchase-orders/{id}/submit": {
+      "post": {
+        "tags": [
+          "Purchase order"
+        ],
+        "summary": "Submit a purchase order",
+        "description": "Needs purchase-order.update. Only a DRAFT can be submitted; 409 when it was already submitted or cancelled. Sets status to ISSUED and records submittedAt and submittedBy. After submit the lines and hargaSatuan are frozen, so edit is rejected and the PO can receive goods. 404 when the PO does not exist.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Submitted purchase order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "nomorPo": {
+                          "type": "string"
+                        },
+                        "approvalRequestId": {
+                          "type": "number"
+                        },
+                        "tanggalPo": {
+                          "type": "string"
+                        },
+                        "supplierId": {
+                          "type": "number"
+                        },
+                        "supplierName": {
+                          "type": "string"
+                        },
+                        "picSupplier": {
+                          "type": "string"
+                        },
+                        "dppLain": {
+                          "type": "number"
+                        },
+                        "persenPpn": {
+                          "type": "number"
+                        },
+                        "jasa": {
+                          "type": "number"
+                        },
+                        "subtotal": {
+                          "type": "number"
+                        },
+                        "nilaiPpn": {
+                          "type": "number"
+                        },
+                        "grandTotal": {
+                          "type": "number"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "DRAFT",
+                            "ISSUED",
+                            "PARTIALLY_RECEIVED",
+                            "RECEIVED",
+                            "CANCELLED"
+                          ]
+                        },
+                        "submittedAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "submittedBy": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "cancelledAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "cancelledBy": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "cancelReason": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdBy": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "barang": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "lineIndex": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "itemId": {
+                                "type": "number",
+                                "nullable": true,
+                                "description": "Catalog item of the request line; null for old POs"
+                              },
+                              "noSpk": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "SPK copied from the request line"
+                              },
+                              "kodeBarang": {
+                                "type": "string"
+                              },
+                              "namaBarang": {
+                                "type": "string"
+                              },
+                              "satuan": {
+                                "type": "string"
+                              },
+                              "jumlah": {
+                                "type": "number"
+                              },
+                              "hargaSatuan": {
+                                "type": "number"
+                              },
+                              "diskon": {
+                                "type": "number"
+                              },
+                              "qtyReceived": {
+                                "type": "number",
+                                "description": "Sum of the active receipts of this line"
+                              },
+                              "sisa": {
+                                "type": "number",
+                                "description": "jumlah minus qtyReceived"
+                              },
+                              "receipts": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "inboundId": {
+                                      "type": "number"
+                                    },
+                                    "date": {
+                                      "type": "string",
+                                      "example": "2026-09-30"
+                                    },
+                                    "qtyArrived": {
+                                      "type": "number"
+                                    },
+                                    "statusQc": {
+                                      "type": "string",
+                                      "nullable": true
+                                    },
+                                    "referenceNo": {
+                                      "type": "string",
+                                      "nullable": true
+                                    },
+                                    "createdAt": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "inboundId",
+                                    "date",
+                                    "qtyArrived",
+                                    "statusQc",
+                                    "referenceNo",
+                                    "createdAt"
+                                  ]
+                                },
+                                "description": "Active receipts of this line, oldest first; cancelled ones are left out"
+                              }
+                            },
+                            "required": [
+                              "lineIndex",
+                              "itemId",
+                              "noSpk",
+                              "kodeBarang",
+                              "namaBarang",
+                              "satuan",
+                              "jumlah",
+                              "hargaSatuan",
+                              "diskon",
+                              "qtyReceived",
+                              "sisa",
+                              "receipts"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "nomorPo",
+                        "approvalRequestId",
+                        "tanggalPo",
+                        "supplierId",
+                        "supplierName",
+                        "picSupplier",
+                        "dppLain",
+                        "persenPpn",
+                        "jasa",
+                        "subtotal",
+                        "nilaiPpn",
+                        "grandTotal",
+                        "status",
+                        "submittedAt",
+                        "submittedBy",
                         "cancelledAt",
                         "cancelledBy",
                         "cancelReason",
@@ -10588,7 +11215,7 @@
           "Purchase order"
         ],
         "summary": "Cancel a purchase order",
-        "description": "Needs purchase-order.cancel. reason is required (1 to 255 characters). Only from ISSUED, 409 when already cancelled; cancelling is final. No effect on stock. The purchase request stays approved, so a new PO can be made from it. Sets status, cancelledAt, cancelledBy and cancelReason.",
+        "description": "Needs purchase-order.cancel. reason is required (1 to 255 characters). A DRAFT or ISSUED PO can be cancelled; 409 when already cancelled or when an active inbound received goods against its lines. Cancelling is final and releases the supplier mapping. No effect on stock. The purchase request stays approved, so a new PO can be made from it. Sets status, cancelledAt, cancelledBy and cancelReason.",
         "security": [
           {
             "bearerAuth": []
@@ -10686,9 +11313,20 @@
                         "status": {
                           "type": "string",
                           "enum": [
+                            "DRAFT",
                             "ISSUED",
+                            "PARTIALLY_RECEIVED",
+                            "RECEIVED",
                             "CANCELLED"
                           ]
+                        },
+                        "submittedAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "submittedBy": {
+                          "type": "number",
+                          "nullable": true
                         },
                         "cancelledAt": {
                           "type": "string",
@@ -10717,6 +11355,16 @@
                                 "type": "number",
                                 "nullable": true
                               },
+                              "itemId": {
+                                "type": "number",
+                                "nullable": true,
+                                "description": "Catalog item of the request line; null for old POs"
+                              },
+                              "noSpk": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "SPK copied from the request line"
+                              },
                               "kodeBarang": {
                                 "type": "string"
                               },
@@ -10734,16 +11382,67 @@
                               },
                               "diskon": {
                                 "type": "number"
+                              },
+                              "qtyReceived": {
+                                "type": "number",
+                                "description": "Sum of the active receipts of this line"
+                              },
+                              "sisa": {
+                                "type": "number",
+                                "description": "jumlah minus qtyReceived"
+                              },
+                              "receipts": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "inboundId": {
+                                      "type": "number"
+                                    },
+                                    "date": {
+                                      "type": "string",
+                                      "example": "2026-09-30"
+                                    },
+                                    "qtyArrived": {
+                                      "type": "number"
+                                    },
+                                    "statusQc": {
+                                      "type": "string",
+                                      "nullable": true
+                                    },
+                                    "referenceNo": {
+                                      "type": "string",
+                                      "nullable": true
+                                    },
+                                    "createdAt": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "inboundId",
+                                    "date",
+                                    "qtyArrived",
+                                    "statusQc",
+                                    "referenceNo",
+                                    "createdAt"
+                                  ]
+                                },
+                                "description": "Active receipts of this line, oldest first; cancelled ones are left out"
                               }
                             },
                             "required": [
                               "lineIndex",
+                              "itemId",
+                              "noSpk",
                               "kodeBarang",
                               "namaBarang",
                               "satuan",
                               "jumlah",
                               "hargaSatuan",
-                              "diskon"
+                              "diskon",
+                              "qtyReceived",
+                              "sisa",
+                              "receipts"
                             ]
                           }
                         }
@@ -10763,6 +11462,8 @@
                         "nilaiPpn",
                         "grandTotal",
                         "status",
+                        "submittedAt",
+                        "submittedBy",
                         "cancelledAt",
                         "cancelledBy",
                         "cancelReason",
@@ -12152,24 +12853,6 @@
                                   "display"
                                 ],
                                 "description": "Relative URLs under /uploads (WebP), null when no photo"
-                              },
-                              "suppliers": {
-                                "type": "array",
-                                "items": {
-                                  "type": "object",
-                                  "properties": {
-                                    "id": {
-                                      "type": "number"
-                                    },
-                                    "name": {
-                                      "type": "string"
-                                    }
-                                  },
-                                  "required": [
-                                    "id",
-                                    "name"
-                                  ]
-                                }
                               }
                             },
                             "required": [
@@ -12832,24 +13515,6 @@
                         "updatedAt": {
                           "type": "string",
                           "nullable": true
-                        },
-                        "suppliers": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "id": {
-                                "type": "number"
-                              },
-                              "name": {
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "id",
-                              "name"
-                            ]
-                          }
                         }
                       },
                       "required": [
@@ -15906,24 +16571,6 @@
                         "updatedAt": {
                           "type": "string",
                           "nullable": true
-                        },
-                        "suppliers": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "id": {
-                                "type": "number"
-                              },
-                              "name": {
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "id",
-                              "name"
-                            ]
-                          }
                         }
                       },
                       "required": [
@@ -18764,6 +19411,16 @@
                                   "KLIEN"
                                 ]
                               },
+                              "purchaseOrderId": {
+                                "type": "number",
+                                "nullable": true,
+                                "description": "PO this receipt was booked against"
+                              },
+                              "purchaseOrderLineId": {
+                                "type": "number",
+                                "nullable": true,
+                                "description": "PO line this receipt was booked against"
+                              },
                               "qtyArrived": {
                                 "type": "number"
                               },
@@ -18805,6 +19462,19 @@
                               },
                               "createdAt": {
                                 "type": "string"
+                              },
+                              "cancelledAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Set when a superadmin cancelled it"
+                              },
+                              "cancelledByName": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "cancelReason": {
+                                "type": "string",
+                                "nullable": true
                               }
                             },
                             "required": [
@@ -18817,6 +19487,8 @@
                               "supplierId",
                               "supplierName",
                               "source",
+                              "purchaseOrderId",
+                              "purchaseOrderLineId",
                               "qtyArrived",
                               "qtyPurchased",
                               "statusQc",
@@ -18826,7 +19498,10 @@
                               "spk",
                               "notes",
                               "createdBy",
-                              "createdAt"
+                              "createdAt",
+                              "cancelledAt",
+                              "cancelledByName",
+                              "cancelReason"
                             ]
                           }
                         },
@@ -19000,7 +19675,7 @@
           "Inbound"
         ],
         "summary": "Record goods received from a supplier or production",
-        "description": "Raises the item's stock by qtyArrived in the same transaction and records audit logs. statusQc is the result of the manual QC check, not derived from the quantities. When source is SUPPLIER (the default) and supplierId is left out, it is taken from the item's mapped supplier; 400 when the item has none. qtyPurchased is optional. Optional Idempotency-Key header (8 to 100 characters): with it, the same key and payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true and does not repeat the write; the same key with a different payload is 409; a malformed key is 400. Without it the request behaves as before.",
+        "description": "Raises the item's stock by qtyArrived in the same transaction and records audit logs. statusQc is the result of the manual QC check, not derived from the quantities. A receipt against a PO sends purchaseOrderId and purchaseOrderLineId together: supplierId and qtyPurchased are then taken from the PO and the client's values are ignored (a different supplierId is a 400), qtyArrived must be at most the line's sisa, and source must be SUPPLIER. The PO is locked for the check, so concurrent receipts cannot take the same remaining qty twice. 404 for an unknown PO, 409 for a cancelled one, 400 when the line does not belong to the PO or the item does not match the line. Without a PO, source SUPPLIER (the default) and no supplierId takes the item's mapped supplier; 400 when the item has none. qtyPurchased is optional. Optional Idempotency-Key header (8 to 100 characters): with it, the same key and payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true and does not repeat the write; the same key with a different payload is 409; a malformed key is 400. Without it the request behaves as before.",
         "security": [
           {
             "bearerAuth": []
@@ -19040,19 +19715,29 @@
                     ],
                     "default": "SUPPLIER"
                   },
+                  "purchaseOrderId": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true
+                  },
+                  "purchaseOrderLineId": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true
+                  },
                   "supplierId": {
                     "type": "integer",
                     "minimum": 0,
                     "exclusiveMinimum": true
                   },
                   "qtyArrived": {
-                    "type": "integer",
+                    "type": "number",
                     "minimum": 0,
                     "exclusiveMinimum": true,
                     "maximum": 100000
                   },
                   "qtyPurchased": {
-                    "type": "integer",
+                    "type": "number",
                     "minimum": 0
                   },
                   "statusQc": {
@@ -19146,6 +19831,16 @@
                             "KLIEN"
                           ]
                         },
+                        "purchaseOrderId": {
+                          "type": "number",
+                          "nullable": true,
+                          "description": "PO this receipt was booked against"
+                        },
+                        "purchaseOrderLineId": {
+                          "type": "number",
+                          "nullable": true,
+                          "description": "PO line this receipt was booked against"
+                        },
                         "qtyArrived": {
                           "type": "number"
                         },
@@ -19187,6 +19882,19 @@
                         },
                         "createdAt": {
                           "type": "string"
+                        },
+                        "cancelledAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "Set when a superadmin cancelled it"
+                        },
+                        "cancelledByName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "cancelReason": {
+                          "type": "string",
+                          "nullable": true
                         }
                       },
                       "required": [
@@ -19199,6 +19907,8 @@
                         "supplierId",
                         "supplierName",
                         "source",
+                        "purchaseOrderId",
+                        "purchaseOrderLineId",
                         "qtyArrived",
                         "qtyPurchased",
                         "statusQc",
@@ -19208,7 +19918,10 @@
                         "spk",
                         "notes",
                         "createdBy",
-                        "createdAt"
+                        "createdAt",
+                        "cancelledAt",
+                        "cancelledByName",
+                        "cancelReason"
                       ]
                     }
                   },
@@ -19440,6 +20153,16 @@
                             "KLIEN"
                           ]
                         },
+                        "purchaseOrderId": {
+                          "type": "number",
+                          "nullable": true,
+                          "description": "PO this receipt was booked against"
+                        },
+                        "purchaseOrderLineId": {
+                          "type": "number",
+                          "nullable": true,
+                          "description": "PO line this receipt was booked against"
+                        },
                         "qtyArrived": {
                           "type": "number"
                         },
@@ -19481,6 +20204,19 @@
                         },
                         "createdAt": {
                           "type": "string"
+                        },
+                        "cancelledAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "Set when a superadmin cancelled it"
+                        },
+                        "cancelledByName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "cancelReason": {
+                          "type": "string",
+                          "nullable": true
                         }
                       },
                       "required": [
@@ -19493,6 +20229,8 @@
                         "supplierId",
                         "supplierName",
                         "source",
+                        "purchaseOrderId",
+                        "purchaseOrderLineId",
                         "qtyArrived",
                         "qtyPurchased",
                         "statusQc",
@@ -19502,7 +20240,10 @@
                         "spk",
                         "notes",
                         "createdBy",
-                        "createdAt"
+                        "createdAt",
+                        "cancelledAt",
+                        "cancelledByName",
+                        "cancelReason"
                       ]
                     }
                   },
@@ -19660,7 +20401,7 @@
           "Inbound"
         ],
         "summary": "Record several received items in one request",
-        "description": "Needs inbound.create and an Idempotency-Key header (8 to 100 characters, one per draft). All lines or none: one database transaction, stock raised under a row lock per item. lines holds 1 to 200 entries, qtyArrived is at most 100000 per line. For source SUPPLIER, each line may send supplierId selected from the item mappings; omitted supplierId falls back to items.supplierId; a line whose item has no supplier, or an unknown itemId, fails the whole request with 400 and errors keyed lines.<index>.itemId (index from 0), and nothing is written. Same key and same payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true, without adding stock again. Same key with a different payload is 409. A missing or malformed key is 400. A failed request stores no key, so it can be corrected and sent again with the same key.",
+        "description": "Needs inbound.create and an Idempotency-Key header (8 to 100 characters, one per draft). All lines or none: one database transaction, stock raised under a row lock per item. lines holds 1 to 200 entries, qtyArrived is at most 100000 per line. purchaseOrderId and purchaseOrderLineId go per line, because one document may receive goods of several POs; supplierId and qtyPurchased are then taken from the PO, qtyArrived must be at most that line's sisa (several lines of the same PO in one request share the remaining qty), and a cancelled or unknown PO fails the whole request (409 or 404). Without a PO, supplierId comes from items.supplierId for source SUPPLIER; a line whose item has no supplier, or an unknown itemId, fails the whole request with 400 and errors keyed lines.<index>.itemId (index from 0), and nothing is written. Same key and same payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true, without adding stock again. Same key with a different payload is 409. A missing or malformed key is 400. A failed request stores no key, so it can be corrected and sent again with the same key.",
         "security": [
           {
             "bearerAuth": []
@@ -19710,20 +20451,30 @@
                           "minimum": 0,
                           "exclusiveMinimum": true
                         },
-                        "supplierId": {
-                          "type": "integer",
-                          "minimum": 0,
-                          "exclusiveMinimum": true
-                        },
                         "qtyArrived": {
-                          "type": "integer",
+                          "type": "number",
                           "minimum": 0,
                           "exclusiveMinimum": true,
                           "maximum": 100000
                         },
                         "qtyPurchased": {
-                          "type": "integer",
+                          "type": "number",
                           "minimum": 0
+                        },
+                        "purchaseOrderId": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        },
+                        "purchaseOrderLineId": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        },
+                        "supplierId": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
                         },
                         "statusQc": {
                           "type": "string",
@@ -19817,6 +20568,16 @@
                                   "KLIEN"
                                 ]
                               },
+                              "purchaseOrderId": {
+                                "type": "number",
+                                "nullable": true,
+                                "description": "PO this receipt was booked against"
+                              },
+                              "purchaseOrderLineId": {
+                                "type": "number",
+                                "nullable": true,
+                                "description": "PO line this receipt was booked against"
+                              },
                               "qtyArrived": {
                                 "type": "number"
                               },
@@ -19858,6 +20619,19 @@
                               },
                               "createdAt": {
                                 "type": "string"
+                              },
+                              "cancelledAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Set when a superadmin cancelled it"
+                              },
+                              "cancelledByName": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "cancelReason": {
+                                "type": "string",
+                                "nullable": true
                               }
                             },
                             "required": [
@@ -19870,6 +20644,8 @@
                               "supplierId",
                               "supplierName",
                               "source",
+                              "purchaseOrderId",
+                              "purchaseOrderLineId",
                               "qtyArrived",
                               "qtyPurchased",
                               "statusQc",
@@ -19879,7 +20655,10 @@
                               "spk",
                               "notes",
                               "createdBy",
-                              "createdAt"
+                              "createdAt",
+                              "cancelledAt",
+                              "cancelledByName",
+                              "cancelReason"
                             ]
                           }
                         }
@@ -20078,7 +20857,7 @@
           "Inbound"
         ],
         "summary": "Record a scanner session: goods that passed QC and goods returned to the supplier",
-        "description": "Needs inbound.create and an Idempotency-Key header (8 to 100 characters), with the same replay rules as POST /inbound/batch: same key and payload within 24 hours returns the stored answer with Idempotency-Replayed: true and adds nothing, same key with a different payload is 409. pass lines are SUPPLIER receipts with statusQc PASS and raise stock. retur lines are only recorded as a return to the item's supplier, one return request per supplier, and never change stock. Each pass/retur line may send supplierId selected from the item mappings; otherwise it falls back to items.supplierId. pass and retur each hold 0 to 200 lines, at least one line in total, qty at most 100000 per line, reason 1 to 255 characters. All or nothing: a bad line fails the whole request with 400 and errors keyed pass.<index>.<field> or retur.<index>.<field>, index from 0, for example retur.2.itemId for an unknown item or an item without a supplier.",
+        "description": "Needs inbound.create and an Idempotency-Key header (8 to 100 characters), with the same replay rules as POST /inbound/batch: same key and payload within 24 hours returns the stored answer with Idempotency-Replayed: true and adds nothing, same key with a different payload is 409. pass lines are SUPPLIER receipts with statusQc PASS and raise stock. retur lines are only recorded as a return to the item's supplier, one return request per supplier, and never change stock. Both take supplierId from items.supplierId. pass and retur each hold 0 to 200 lines, at least one line in total, qty at most 100000 per line, reason 1 to 255 characters. All or nothing: a bad line fails the whole request with 400 and errors keyed pass.<index>.<field> or retur.<index>.<field>, index from 0, for example retur.2.itemId for an unknown item or an item without a supplier.",
         "security": [
           {
             "bearerAuth": []
@@ -20115,21 +20894,28 @@
                           "minimum": 0,
                           "exclusiveMinimum": true
                         },
-                        "supplierId": {
+                        "qtyArrived": {
+                          "type": "number",
+                          "minimum": 0,
+                          "exclusiveMinimum": true,
+                          "maximum": 100000
+                        },
+                        "purchaseOrderId": {
                           "type": "integer",
                           "minimum": 0,
                           "exclusiveMinimum": true
                         },
-                        "qtyArrived": {
+                        "purchaseOrderLineId": {
                           "type": "integer",
                           "minimum": 0,
-                          "exclusiveMinimum": true,
-                          "maximum": 100000
+                          "exclusiveMinimum": true
                         }
                       },
                       "required": [
                         "itemId",
-                        "qtyArrived"
+                        "qtyArrived",
+                        "purchaseOrderId",
+                        "purchaseOrderLineId"
                       ]
                     },
                     "maxItems": 200,
@@ -20145,13 +20931,8 @@
                           "minimum": 0,
                           "exclusiveMinimum": true
                         },
-                        "supplierId": {
-                          "type": "integer",
-                          "minimum": 0,
-                          "exclusiveMinimum": true
-                        },
                         "qty": {
-                          "type": "integer",
+                          "type": "number",
                           "minimum": 0,
                           "exclusiveMinimum": true,
                           "maximum": 100000
@@ -20248,6 +21029,16 @@
                                   "KLIEN"
                                 ]
                               },
+                              "purchaseOrderId": {
+                                "type": "number",
+                                "nullable": true,
+                                "description": "PO this receipt was booked against"
+                              },
+                              "purchaseOrderLineId": {
+                                "type": "number",
+                                "nullable": true,
+                                "description": "PO line this receipt was booked against"
+                              },
                               "qtyArrived": {
                                 "type": "number"
                               },
@@ -20289,6 +21080,19 @@
                               },
                               "createdAt": {
                                 "type": "string"
+                              },
+                              "cancelledAt": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Set when a superadmin cancelled it"
+                              },
+                              "cancelledByName": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "cancelReason": {
+                                "type": "string",
+                                "nullable": true
                               }
                             },
                             "required": [
@@ -20301,6 +21105,8 @@
                               "supplierId",
                               "supplierName",
                               "source",
+                              "purchaseOrderId",
+                              "purchaseOrderLineId",
                               "qtyArrived",
                               "qtyPurchased",
                               "statusQc",
@@ -20310,7 +21116,10 @@
                               "spk",
                               "notes",
                               "createdBy",
-                              "createdAt"
+                              "createdAt",
+                              "cancelledAt",
+                              "cancelledByName",
+                              "cancelReason"
                             ]
                           }
                         },
@@ -20566,7 +21375,7 @@
                     "format": "date"
                   },
                   "qty": {
-                    "type": "integer",
+                    "type": "number",
                     "minimum": 0,
                     "exclusiveMinimum": true,
                     "maximum": 100000
@@ -20654,6 +21463,16 @@
                             "KLIEN"
                           ]
                         },
+                        "purchaseOrderId": {
+                          "type": "number",
+                          "nullable": true,
+                          "description": "PO this receipt was booked against"
+                        },
+                        "purchaseOrderLineId": {
+                          "type": "number",
+                          "nullable": true,
+                          "description": "PO line this receipt was booked against"
+                        },
                         "qtyArrived": {
                           "type": "number"
                         },
@@ -20695,6 +21514,19 @@
                         },
                         "createdAt": {
                           "type": "string"
+                        },
+                        "cancelledAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "Set when a superadmin cancelled it"
+                        },
+                        "cancelledByName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "cancelReason": {
+                          "type": "string",
+                          "nullable": true
                         }
                       },
                       "required": [
@@ -20707,6 +21539,8 @@
                         "supplierId",
                         "supplierName",
                         "source",
+                        "purchaseOrderId",
+                        "purchaseOrderLineId",
                         "qtyArrived",
                         "qtyPurchased",
                         "statusQc",
@@ -20716,7 +21550,10 @@
                         "spk",
                         "notes",
                         "createdBy",
-                        "createdAt"
+                        "createdAt",
+                        "cancelledAt",
+                        "cancelledByName",
+                        "cancelReason"
                       ]
                     }
                   },
@@ -40760,8 +41597,8 @@
         "tags": [
           "Inbound"
         ],
-        "summary": "Cancel a inbound transaction (superadmin only)",
-        "description": "Body: reason (1-500 chars). Returns the updated transaction with cancelledAt, cancelledByName and cancelReason. 404 not found, 409 already cancelled (or stock already used for inbound).",
+        "summary": "Cancel an inbound transaction (superadmin)",
+        "description": "Superadmin only, 403 otherwise. Works for every source, client returns (KLIEN) included. Subtracts qtyArrived from the item stock and keeps the row with cancelledAt, cancelledByName and cancelReason set, in one transaction. 404 for an unknown id, 409 when already cancelled or when the current stock is lower than qtyArrived (already used; nothing is written). The creator is notified (INBOUND_CANCELLED). Cancelled rows are left out of summaries, exports, mutations and the stock card; lists and detail still return them.",
         "security": [
           {
             "bearerAuth": []
@@ -40799,7 +41636,334 @@
         },
         "responses": {
           "200": {
-            "description": "Transaction cancelled"
+            "description": "Cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "date": {
+                          "type": "string",
+                          "example": "2026-09-30"
+                        },
+                        "itemId": {
+                          "type": "number"
+                        },
+                        "itemCode": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "itemName": {
+                          "type": "string"
+                        },
+                        "locationCode": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "Where the item is stored now"
+                        },
+                        "supplierId": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "supplierName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "source": {
+                          "type": "string",
+                          "enum": [
+                            "SUPPLIER",
+                            "PRODUKSI",
+                            "KLIEN"
+                          ]
+                        },
+                        "purchaseOrderId": {
+                          "type": "number",
+                          "nullable": true,
+                          "description": "PO this receipt was booked against"
+                        },
+                        "purchaseOrderLineId": {
+                          "type": "number",
+                          "nullable": true,
+                          "description": "PO line this receipt was booked against"
+                        },
+                        "qtyArrived": {
+                          "type": "number"
+                        },
+                        "qtyPurchased": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "statusQc": {
+                          "type": "string",
+                          "nullable": true,
+                          "enum": [
+                            "PASS",
+                            "PARTIAL_RETUR",
+                            null
+                          ]
+                        },
+                        "referenceNo": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "supplierDeliveryNo": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "clientName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "spk": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "notes": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdBy": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "cancelledAt": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "Set when a superadmin cancelled it"
+                        },
+                        "cancelledByName": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "cancelReason": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "date",
+                        "itemId",
+                        "itemCode",
+                        "itemName",
+                        "locationCode",
+                        "supplierId",
+                        "supplierName",
+                        "source",
+                        "purchaseOrderId",
+                        "purchaseOrderLineId",
+                        "qtyArrived",
+                        "qtyPurchased",
+                        "statusQc",
+                        "referenceNo",
+                        "supplierDeliveryNo",
+                        "clientName",
+                        "spk",
+                        "notes",
+                        "createdBy",
+                        "createdAt",
+                        "cancelledAt",
+                        "cancelledByName",
+                        "cancelReason"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already cancelled, or stock is too low to take the quantity back out",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
           }
         }
       }
@@ -41502,334 +42666,6 @@
                       "items": {
                         "type": "string"
                       }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message",
-                    "data"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Validation failed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing or invalid access token",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Authenticated, but not authorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        false
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "errors": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "success",
-                    "message"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/items/{id}/suppliers": {
-      "put": {
-        "tags": [
-          "Item"
-        ],
-        "summary": "Replace all suppliers mapped to one material",
-        "description": "Needs item.update and item.set-supplier. supplierIds is the complete desired set, up to 100 distinct supplier ids; [] clears it. Validates all suppliers and saves atomically. Preserves the primary supplier if still selected, otherwise uses the first selected supplier. Does not alter stock, price, or historical transactions. Unknown item/supplier is 404. GET /items and GET /items/{id} return suppliers: [{id,name}] including legacy primary mappings.",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "example": "1"
-            },
-            "required": true,
-            "name": "id",
-            "in": "path"
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "supplierIds": {
-                    "type": "array",
-                    "items": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "exclusiveMinimum": true
-                    },
-                    "maxItems": 100
-                  }
-                },
-                "required": [
-                  "supplierIds"
-                ],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Item supplier mappings replaced",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "enum": [
-                        true
-                      ]
-                    },
-                    "message": {
-                      "type": "string"
-                    },
-                    "data": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "number"
-                        },
-                        "code": {
-                          "type": "string",
-                          "description": "Internal code, category prefix + number (LEM001), generated on create, never changes",
-                          "example": "LEM001"
-                        },
-                        "externalCode": {
-                          "type": "string",
-                          "nullable": true,
-                          "description": "The code the item was imported with, shown under the name only"
-                        },
-                        "name": {
-                          "type": "string"
-                        },
-                        "detail": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "category": {
-                          "type": "string"
-                        },
-                        "unit": {
-                          "type": "string"
-                        },
-                        "price": {
-                          "type": "number"
-                        },
-                        "stock": {
-                          "type": "number",
-                          "description": "Up to two decimals"
-                        },
-                        "minimumStock": {
-                          "type": "number",
-                          "nullable": true,
-                          "description": "Low-stock threshold, up to 3 decimals; null disables alerts. Only superadmins and PPIC domain roles may set it via POST/PUT; other roles receive 403 even with item.update."
-                        },
-                        "locationId": {
-                          "type": "number",
-                          "nullable": true
-                        },
-                        "supplierId": {
-                          "type": "number",
-                          "nullable": true,
-                          "description": "Primary supplier; null until Purchasing sets it"
-                        },
-                        "suppliers": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "id": {
-                                "type": "number"
-                              },
-                              "name": {
-                                "type": "string"
-                              }
-                            },
-                            "required": [
-                              "id",
-                              "name"
-                            ]
-                          }
-                        },
-                        "photo": {
-                          "type": "object",
-                          "nullable": true,
-                          "properties": {
-                            "thumb": {
-                              "type": "string",
-                              "example": "/uploads/items/<uuid>-thumb.webp"
-                            },
-                            "display": {
-                              "type": "string",
-                              "example": "/uploads/items/<uuid>-display.webp"
-                            }
-                          },
-                          "required": [
-                            "thumb",
-                            "display"
-                          ],
-                          "description": "Relative URLs under /uploads (WebP), null when no photo"
-                        },
-                        "createdAt": {
-                          "type": "string",
-                          "nullable": true
-                        },
-                        "updatedAt": {
-                          "type": "string",
-                          "nullable": true
-                        }
-                      },
-                      "required": [
-                        "id",
-                        "code",
-                        "externalCode",
-                        "name",
-                        "detail",
-                        "category",
-                        "unit",
-                        "price",
-                        "stock",
-                        "minimumStock",
-                        "locationId",
-                        "supplierId",
-                        "suppliers",
-                        "photo",
-                        "createdAt",
-                        "updatedAt"
-                      ]
                     }
                   },
                   "required": [

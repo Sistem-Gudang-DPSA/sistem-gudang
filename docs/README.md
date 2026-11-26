@@ -25,5 +25,24 @@ Satu dokumen membahas satu pekerjaan atau satu keputusan besar. Lihat
 | [17-Rencana-Audit-Log.md](17-Rencana-Audit-Log.md) | Catatan kondisi audit log, apa yang belum tercatat, dan pembagian tugas backend dan frontend untuk layar Log Aktivitas, belum dikerjakan. |
 | [18-Pengajuan-Edit-Barang-Keluar.md](18-Pengajuan-Edit-Barang-Keluar.md) | Pengajuan edit 24 jam, persetujuan superadmin, satu kali edit dan riwayat sebelum/sesudah, beserta migrasi API. |
 | [20-Notifikasi-Stok-Minimum.md](20-Notifikasi-Stok-Minimum.md) | Batas stok minimum per barang, pengaturan di Data Barang, notifikasi bel, dan status dibaca per pengguna. |
-| [21-Pemetaan-Supplier-Barang.md](21-Pemetaan-Supplier-Barang.md) | Checklist barang di Data Barang untuk memetakan banyak barang ke satu supplier, dengan izin, hasil per barang, dan batasannya. |
 | [22-Rencana-Multi-Supplier-dan-Harga.md](22-Rencana-Multi-Supplier-dan-Harga.md) | Rencana multi supplier dan multi harga dari permintaan sampai realisasi: PPIC sebagai gerbang, harga beku saat submit PO, penerimaan per baris PO, FIFO dari layer biaya, dan SPK yang turun sampai inbound. |
+
+## Kontrak API
+
+Sumber kontrak ada di `docs/api/*.json`, dipecah per area/modul mengikuti pola
+`*.openapi.ts` di backend. File `docs/api-1.json` adalah hasil generate yang
+dibaca langsung oleh `src/test/integration/api-contract.test.ts`, jadi jangan
+diedit manual.
+
+Setiap mengubah fragmen, regenerasi dengan:
+
+```sh
+bun run build:api-contract
+```
+
+`scripts/build-api-contract.ts` menggabungkan fragmen sesuai daftar `FRAGMENTS`
+yang berurutan, lalu menulis JSON dengan urutan kunci stabil, indentasi 2 spasi,
+dan newline akhir. Urutan path sengaja dipertahankan apa adanya: fragmen
+`reports-ringkas.json` dan `*-lanjutan.json` memisahkan blok yang muncul di
+tengah/akhir spec agar tidak terjadi reordering. Setelah regenerate, cek
+`git diff docs/api-1.json` sebelum menjalankan test kontrak.

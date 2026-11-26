@@ -273,7 +273,7 @@ describe('BarangMasuk create inbound', () => {
     expect(api.calls(BATCH)).toHaveLength(0);
     confirm();
     await waitFor(() => expect(api.calls(BATCH)).toHaveLength(1));
-    expect(api.calls(BATCH)[0].body).toEqual({ date: '2026-04-01', source: 'SUPPLIER', lines: [{ itemId: 1, supplierId: 7, qtyArrived: 15, qtyPurchased: 20, statusQc: 'PASS' }] });
+    expect(api.calls(BATCH)[0].body).toEqual({ date: '2026-04-01', source: 'SUPPLIER', lines: [{ itemId: 1, qtyArrived: 15, qtyPurchased: 20, statusQc: 'PASS' }] });
     expect(api.calls(BATCH)[0].headers.get('Idempotency-Key')).toMatch(/^[\w-]{8,100}$/);
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     await waitFor(() => expect(api.calls('GET /api/v1/inbound').length).toBeGreaterThan(1));
@@ -365,7 +365,7 @@ describe('BarangMasuk preview', () => {
     for (const value of ['BRG-3', 'Paku', '7', '0']) expect(within(tableRow('BRG-3')).getByText(value)).not.toBeNull();
     confirm();
     await waitFor(() => expect(api.calls(BATCH)).toHaveLength(1));
-    expect(api.calls(BATCH)[0].body).toEqual({ date: '2026-11-13', source: 'SUPPLIER', lines: [{ itemId: 3, supplierId: 7, qtyArrived: 7, qtyPurchased: 0, statusQc: 'PASS' }] });
+    expect(api.calls(BATCH)[0].body).toEqual({ date: '2026-11-13', source: 'SUPPLIER', lines: [{ itemId: 3, qtyArrived: 7, qtyPurchased: 0, statusQc: 'PASS' }] });
   });
 
   it.each(['0', '100001'])('rejects an arrival quantity of %s before preview', async (value) => {
@@ -444,7 +444,7 @@ describe('BarangMasuk scan inside Barang Baru', () => {
     expect(within(tableRow('BRG-3')).getByText('Paku')).not.toBeNull();
     confirm();
     await waitFor(() => expect(api.calls(BATCH)).toHaveLength(1));
-    expect(api.calls(BATCH)[0].body).toEqual({ date: '2026-11-12', source: 'SUPPLIER', lines: [{ itemId: 3, supplierId: 7, qtyArrived: 10, qtyPurchased: 12, statusQc: 'PASS' }] });
+    expect(api.calls(BATCH)[0].body).toEqual({ date: '2026-11-12', source: 'SUPPLIER', lines: [{ itemId: 3, qtyArrived: 10, qtyPurchased: 12, statusQc: 'PASS' }] });
   });
 
   it('reports unknown codes without changing existing rows and can add more materials manually', async () => {
@@ -535,33 +535,6 @@ describe('BarangMasuk scan inside Barang Baru', () => {
 });
 
 describe('BarangMasuk multiple materials and suppliers', () => {
-  it('accepts a mapped second supplier for manual material entry and sends the chosen supplier', async () => {
-    const { api } = setup({ 'GET /api/v1/items': paged([{ ...firstItem, suppliers: [{ id: 7, name: 'PT Kayu' }, { id: 8, name: 'PT Besi' }] }]) });
-    await openBaru({ supplier: false, manual: false });
-    await pickSupplier('PT Besi');
-    fireEvent.click(screen.getByRole('button', { name: 'Input Manual' }));
-    await pickItem();
-    fireEvent.change(purchased(), { target: { value: '0' } });
-    fireEvent.click(screen.getByText('Simpan'));
-    confirm();
-    await waitFor(() => expect(api.calls(BATCH)).toHaveLength(1));
-    expect(api.calls(BATCH)[0].body).toMatchObject({ lines: [{ itemId: 1, supplierId: 8, qtyArrived: 1 }] });
-  });
-
-  it('accepts a mapped second supplier from a scanned material', async () => {
-    const { api } = setup({ 'GET /api/v1/items/by-code/BRG-3': { ...scannedItem, suppliers: [{ id: 7, name: 'PT Kayu' }, { id: 8, name: 'PT Besi' }] } });
-    await openBaru({ supplier: false, manual: false });
-    await pickSupplier('PT Besi');
-    fireEvent.click(screen.getByRole('button', { name: 'Scan Barang' }));
-    scan('BRG-3');
-    await screen.findByLabelText('Jumlah Sesuai Kedatangan Paku');
-    fireEvent.change(purchased('Paku'), { target: { value: '0' } });
-    fireEvent.click(screen.getByText('Simpan'));
-    confirm();
-    await waitFor(() => expect(api.calls(BATCH)).toHaveLength(1));
-    expect(api.calls(BATCH)[0].body).toMatchObject({ lines: [{ itemId: 3, supplierId: 8, qtyArrived: 1 }] });
-  });
-
   it('combines manual input and repeat scans into one batch without duplicate materials', async () => {
     const { api } = setup({ 'GET /api/v1/items/by-code/BRG-3': scannedItem });
     await openBaru();

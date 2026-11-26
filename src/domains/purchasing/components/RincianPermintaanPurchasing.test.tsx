@@ -16,10 +16,10 @@ vi.mock('next/navigation', () => ({
 const supplierA = { id: 1, code: 'S1', name: 'PT Kayu', address: 'Jl. A', phone: '081', bank: 'BCA', npwp: '01', pajak: 'PKP' };
 const supplierB = { ...supplierA, id: 2, code: 'S2', name: 'PT Besi' };
 const items = [
-  { itemId: 1, namaBarang: 'Triplex', qty: 10, satuan: 'lbr', proyek: 'Proyek A', tanggal: '2026-11-23', deadlineTanggal: '2026-11-30', keterangan: 'Segera' },
-  { itemId: 2, namaBarang: 'Paku', qty: 2, satuan: 'kg', proyek: 'Proyek A' },
-  { itemId: 3, namaBarang: 'Cat', qty: 3, satuan: 'kaleng', proyek: 'Proyek B' },
-  { itemId: 4, namaBarang: 'Baut', qty: 4, satuan: 'pcs', proyek: 'Proyek A' },
+  { itemId: 1, namaBarang: 'Triplex', qty: 10, satuan: 'lbr', proyek: 'Proyek A', noSpk: 'SPK-1', tanggal: '2026-11-23', deadlineTanggal: '2026-11-30', keterangan: 'Segera' },
+  { itemId: 2, namaBarang: 'Paku', qty: 2, satuan: 'kg', proyek: 'Proyek A', noSpk: 'SPK-1' },
+  { itemId: 3, namaBarang: 'Cat', qty: 3, satuan: 'kaleng', proyek: 'Proyek B', noSpk: 'SPK-2' },
+  { itemId: 4, namaBarang: 'Baut', qty: 4, satuan: 'pcs', proyek: 'Proyek A', noSpk: 'SPK-1' },
 ];
 const request = {
   request: { id: 7, type: 'purchase-request', status: 'approved', createdAt: '2026-11-23T00:00:00Z',
@@ -69,10 +69,11 @@ describe('rincian permintaan Purchasing', () => {
   it('menampilkan kolom baru, stok, harga terakhir, harga saat ini, dan qty awal', async () => {
     setup();
     await ready();
-    const headers = screen.getAllByRole('columnheader').slice(0, 11).map((el) => el.textContent);
-    expect(headers).toEqual(['No', 'Nama Barang', 'Satuan', 'Stok Saat Ini', 'Supplier', 'Harga Terakhir', 'Harga Saat Ini', 'Qty Permintaan', 'Qty Dibeli', 'Keterangan', 'Tanggal Datang']);
-    expect(screen.getByLabelText('Qty Dibeli baris 1 supplier 1')).toHaveProperty('value', '10');
-    expect(screen.getByLabelText('Harga Saat Ini baris 1 supplier 1')).toHaveProperty('value', '1000');
+    const headers = screen.getAllByRole('columnheader').slice(0, 12).map((el) => el.textContent);
+    expect(headers).toEqual(['No', 'Nama Barang', 'Satuan', 'No SPK', 'Stok Saat Ini', 'Supplier', 'Harga Terakhir', 'Harga Saat Ini', 'Qty Permintaan', 'Qty Dibeli', 'Keterangan', 'Tanggal Datang']);
+    expect(within(screen.getByText('Triplex').closest('tr')!).getByText('SPK-1')).toBeTruthy();
+    expect(await screen.findByLabelText('Qty Dibeli baris 1 supplier 1')).toHaveProperty('value', '10');
+    expect(await screen.findByLabelText('Harga Saat Ini baris 1 supplier 1')).toHaveProperty('value', '1000');
     expect((await screen.findByText('20')).textContent).toBe('20');
     expect(screen.getByText('Segera')).toBeTruthy();
     expect(screen.getByLabelText('Kembali').getAttribute('href')).toBe('/dashboard/purchasing/laporan/rekap-pembelian');
@@ -133,7 +134,7 @@ describe('rincian permintaan Purchasing', () => {
     expect(target.pathname).toBe('/dashboard/purchasing/transaksi/buat-po-barang/buat-po/7');
     const token = target.searchParams.get('draft')!;
     const saved = JSON.parse(sessionStorage.getItem(`po-preparation:${token}`)!);
-    expect(saved.lines.find((line: { lineIndex: number }) => line.lineIndex === 0)).toMatchObject({ qtyBeli: 10, harga: 1500, hargaTerbaru: 1000, kodeBarang: 'BRG-1' });
+    expect(saved.lines.find((line: { lineIndex: number }) => line.lineIndex === 0)).toMatchObject({ qtyBeli: 10, harga: 1500, hargaTerbaru: 1000, kodeBarang: 'BRG-1', noSpk: 'SPK-1' });
     nav.query = target.search;
     view.unmount();
     render(withUser(<Pemesanan />, permissions));
@@ -141,10 +142,12 @@ describe('rincian permintaan Purchasing', () => {
     expect(form.getByLabelText('Harga satuan Triplex')).toHaveProperty('value', '1500');
     expect(form.getByText('Harga terbaru: 1.000')).toBeTruthy();
     fireEvent.change(form.getByLabelText('PIC / Telp'), { target: { value: 'Andi' } });
-    fireEvent.click(form.getByRole('button', { name: 'Buat' }));
-    await screen.findByText('PO PO/20 berhasil dibuat');
+    const simpan = form.getByRole('button', { name: 'Simpan Draft' }) as HTMLButtonElement;
+    await waitFor(() => expect(simpan.disabled).toBe(false));
+    fireEvent.click(simpan);
+    await screen.findByText('PO PO/20 berhasil disimpan sebagai DRAFT');
     expect(api.calls('PUT /api/v1/approvals/7/mapping')).toHaveLength(1);
-    expect(api.calls('PUT /api/v1/items/1')[0].body).toEqual({ price: 1500 });
+    expect(api.calls('PUT /api/v1/items/1')).toHaveLength(0);
   });
 
   it('menyelesaikan tahap Purchasing sekali lalu membuka form PO tanpa menyimpan ulang mapping', async () => {
@@ -164,8 +167,10 @@ describe('rincian permintaan Purchasing', () => {
     const first = within(await screen.findByRole('form', { name: 'PO Proyek A — PT Kayu' }));
     expect(first.getByText('7')).toBeTruthy();
     fireEvent.change(first.getByLabelText('PIC / Telp'), { target: { value: 'Andi' } });
-    fireEvent.click(first.getByRole('button', { name: 'Buat' }));
-    await screen.findByText('PO PO/20 berhasil dibuat');
+    const simpan = first.getByRole('button', { name: 'Simpan Draft' }) as HTMLButtonElement;
+    await waitFor(() => expect(simpan.disabled).toBe(false));
+    fireEvent.click(simpan);
+    await screen.findByText('PO PO/20 berhasil disimpan sebagai DRAFT');
     expect(api.calls('POST /api/v1/approvals/7/approve')).toHaveLength(1);
     expect(api.calls('PUT /api/v1/approvals/7/mapping')).toHaveLength(1);
     expect(api.calls('POST /api/v1/purchase-orders')).toHaveLength(1);

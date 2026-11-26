@@ -252,7 +252,7 @@ export default function DataBarangGudang() {
         {edit.errors[item.id] && <span className="text-xs text-red-600 mt-0.5 whitespace-normal">{edit.errors[item.id]}</span>}
       </div>
     ) },
-    { label: 'Supplier', hidden: true, sortKey: 'supplierName', cell: (item) => (
+    { label: 'Supplier', sortKey: 'supplierName', cell: (item) => (
       edit.editing && canSetSupplier ? (
         <select aria-label={`Supplier ${item.name}`} className={cellInput} value={edit.value(item.id, 'supplierId', idText(item.supplierId))} onChange={setF(item, 'supplierId', idText(item.supplierId))}>
           <option value="">Belum ada supplier</option>
@@ -449,6 +449,7 @@ export default function DataBarangGudang() {
         <DataBarangTable
           rows={dataBarang}
           loading={d.loading}
+          colSpan={canSelect ? 13 : 12}
           columns={columns}
           sort={d.sort}
           onSort={d.toggle}
