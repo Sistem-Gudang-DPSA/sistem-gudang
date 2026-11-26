@@ -139,9 +139,12 @@ tersebut tidak tampil di sidebar (`visibleNav`) tetapi tetap dipakai
 Saat ini yang disembunyikan (#6):
 
 - Divisi **Gudang Barang Jadi** dan **Produksi**.
-- Gudang: **Checklist Dokubah**, **Rekap Dokubah**, **Realisasi Dokubah**.
+- Gudang: **Checklist Dokubah**, **Rekap Dokubah**, **Realisasi SPK**.
 - PPIC: **Penawaran Harga**, **Dokubah**, **SPK Internal & Mutasi Stok**,
   **Approval**.
+- Purchasing: **Penawaran Harga / SPH**, **Retur ke Supplier**, **Rekap Stock
+  Opname**.
+- Keuangan: **Rekap Stok Opname**.
 
 Untuk menampilkan kembali, hapus `hidden: true` pada entri terkait.
 
@@ -149,7 +152,7 @@ Untuk menampilkan kembali, hapus `hidden: true` pada entri terkait.
 
 Divisi **Keuangan** tampil untuk pengguna domain `keuangan` dengan permission
 `report.view`, serta superadmin. Menu laporannya adalah **Data Barang**
-(`/dashboard/keuangan/laporan/data-barang`) dan **Realisasi Dokubah**
+(`/dashboard/keuangan/laporan/data-barang`) dan **Realisasi SPK**
 (`/dashboard/keuangan/laporan/realisasi-spk`). Kedua halaman dijaga dengan
 permission `report.view` dan domain pengguna; akun PPIC dan Purchasing yang
 memiliki `report.view` tetap tidak mendapat akses Keuangan.

@@ -102,7 +102,7 @@ describe('purchase request form', () => {
     await chooseProject(1, 'Client');
     change('Keterangan baris 1', 'Segera');
     change('Dikirim Tanggal baris 1', '2026-11-20');
-    expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['No', 'Tanggal', 'Supplier', 'Nama Barang', 'QTY', 'SAT', 'Proyek', 'Keterangan', 'Dikirim Tanggal']);
+    expect(screen.getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['No', 'Tanggal', 'Supplier', 'Nama Barang', 'Stok', 'QTY', 'SAT', 'Proyek', 'Keterangan', 'Dikirim Tanggal']);
     expect(screen.queryByRole('button', { name: 'Client' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'No SPK' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Ajukan Permintaan Pembelian' }));
@@ -330,6 +330,7 @@ describe('purchase request form', () => {
 
     expect((screen.getByLabelText('Nama Barang baris 1') as HTMLInputElement).value).toBe('Triplex 2 mm');
     expect((screen.getByLabelText('QTY baris 1') as HTMLInputElement).value).toBe('8');
+    expect((screen.getByLabelText('Stok baris 1') as HTMLInputElement).value).toBe('2');
     expect((screen.getByLabelText('Satuan baris 1') as HTMLInputElement).value).toBe('lembar');
     const supplier = screen.getByLabelText('Supplier baris 1') as HTMLInputElement;
     expect(supplier.value).toBe('');
@@ -356,6 +357,7 @@ describe('purchase request form', () => {
     if (method === 'mouse') fireEvent.mouseDown(option);
     else fireEvent.keyDown(option, { key: 'Enter' });
     expect(screen.getByLabelText('Nama Barang baris 1')).toHaveProperty('value', 'Triplex 2 mm');
+    expect(screen.getByLabelText('Stok baris 1')).toHaveProperty('value', '2');
     expect(screen.getByLabelText('Supplier baris 1')).toHaveProperty('value', '');
     change('QTY baris 1', '5');
     await chooseProject(1, 'Client');
@@ -382,6 +384,13 @@ describe('purchase request form', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Simpan Perubahan' }));
     await waitFor(() => expect(api.calls('PUT /api/v1/approvals/7')).toHaveLength(1));
     expect(api.calls('PUT /api/v1/approvals/7')[0].body).toMatchObject({ payload: { items: [{ noSpk: 'SPK-1' }] } });
+  });
+
+  it('mengambil stok master untuk baris lama yang punya itemId', async () => {
+    const withItem = { ...existing, barang: [{ ...existing.barang[0], itemId: 31 }] };
+    installFakeApi({ ...routes, 'GET /api/v1/items/31': { id: 31, name: 'Paku', stock: 12, unit: 'Kg' } });
+    render(<Form permintaan={withItem} basePath={basePath} editing />);
+    await waitFor(() => expect((screen.getByLabelText('Stok baris 1') as HTMLInputElement).value).toBe('12'));
   });
 
   it('shows a server error on items.0.namaBarang next to the right row', async () => {
