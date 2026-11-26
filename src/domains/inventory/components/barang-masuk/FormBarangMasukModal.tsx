@@ -27,7 +27,7 @@ export default function FormBarangMasukModal({ onClose, onSave }: { onClose: () 
   const { scanRef, ...f } = useFormBarangMasuk(onSave);
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => { if (f.preview || !f.scanOpen) headingRef.current?.focus(); }, [f.preview, f.scanOpen]);
-  const visibleError = f.error || (!f.preview ? f.supplierSearch.error || (f.baris.some((row) => row.manual) ? f.itemSearch.error : '') : '');
+  const visibleError = f.error || (!f.preview ? f.poError : '');
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4">
@@ -52,17 +52,20 @@ export default function FormBarangMasukModal({ onClose, onSave }: { onClose: () 
           {f.preview ? (
             <>
               <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-4 mb-4 text-sm">
-                <div className={rowClass}><dt className={labelClass}>Nama Supplier</dt><dd className="font-semibold text-gray-900">{f.supplier?.name}</dd></div>
+                <div className={rowClass}><dt className={labelClass}>Supplier / PO</dt><dd className="font-semibold text-gray-900">
+                  {[...new Set(f.baris.map((row) => row.supplierName))].join(', ')}
+                  <span className="ml-2 text-xs font-normal text-gray-500">{[...new Set(f.baris.map((row) => row.poNumber))].join(', ')}</span>
+                </dd></div>
                 <div className={rowClass}><dt className={labelClass}>Tanggal</dt><dd className="font-semibold text-gray-900">{displayDate(f.tanggal)}</dd></div>
               </dl>
             </>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-4 mb-6">
               <div className={rowClass}>
-                <span className={labelClass}>Nama Supplier</span>
-                <SearchableSelect value={f.supplier ? String(f.supplier.id) : ''} options={f.pilihanSupplier}
-                  onChange={f.pilihSupplier} onSearch={f.supplierSearch.onSearch} pending={f.supplierSearch.pending}
-                  aria-label="Nama Supplier" placeholder="Pilih supplier" emptyText="Supplier tidak ditemukan" className={inputClass} />
+                <span className={labelClass}>Nomor PO</span>
+                <SearchableSelect value={f.po ? String(f.po.id) : ''} options={f.pilihanPo}
+                  onChange={f.pilihPo} pending={f.poLoading}
+                  aria-label="Nomor PO" placeholder="Pilih PO yang sudah disubmit" emptyText="PO tidak tersedia" className={inputClass} />
               </div>
               <div className={rowClass}>
                 <label htmlFor="barang-masuk-tanggal" className={labelClass}>Tanggal</label>
@@ -75,14 +78,14 @@ export default function FormBarangMasukModal({ onClose, onSave }: { onClose: () 
           {!f.preview && (
             <>
               <div className="flex flex-wrap gap-2">
-                <button type="button" disabled={!f.supplier} onClick={f.bukaScan} className={primaryClass}>
+                <button type="button" disabled={!f.po || f.poLoading} onClick={f.bukaScan} className={primaryClass}>
                   <ScanLine className="w-4 h-4" /> Scan Barang
                 </button>
-                <button type="button" disabled={!f.supplier} onClick={f.tambahManual} className={secondaryClass}>
+                <button type="button" disabled={!f.po || f.poLoading} onClick={f.tambahManual} className={secondaryClass}>
                   <Plus className="w-4 h-4" /> Input Manual
                 </button>
               </div>
-              {!f.supplier && <p className="mt-2 text-xs text-gray-500">Pilih nama supplier dulu</p>}
+              {!f.po && <p className="mt-2 text-xs text-gray-500">Pilih PO dulu</p>}
               {f.scanOpen && (
                 <div className="flex flex-wrap gap-2 mt-4">
                   <input ref={scanRef} type="text" aria-label="Hasil scan" value={f.scanValue} autoComplete="off" maxLength={191}
