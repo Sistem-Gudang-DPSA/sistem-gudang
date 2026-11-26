@@ -12152,6 +12152,24 @@
                                   "display"
                                 ],
                                 "description": "Relative URLs under /uploads (WebP), null when no photo"
+                              },
+                              "suppliers": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "number"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "name"
+                                  ]
+                                }
                               }
                             },
                             "required": [
@@ -12814,6 +12832,24 @@
                         "updatedAt": {
                           "type": "string",
                           "nullable": true
+                        },
+                        "suppliers": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "number"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name"
+                            ]
+                          }
                         }
                       },
                       "required": [
@@ -15870,6 +15906,24 @@
                         "updatedAt": {
                           "type": "string",
                           "nullable": true
+                        },
+                        "suppliers": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "number"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name"
+                            ]
+                          }
                         }
                       },
                       "required": [
@@ -19606,7 +19660,7 @@
           "Inbound"
         ],
         "summary": "Record several received items in one request",
-        "description": "Needs inbound.create and an Idempotency-Key header (8 to 100 characters, one per draft). All lines or none: one database transaction, stock raised under a row lock per item. lines holds 1 to 200 entries, qtyArrived is at most 100000 per line. supplierId comes from items.supplierId for source SUPPLIER; a line whose item has no supplier, or an unknown itemId, fails the whole request with 400 and errors keyed lines.<index>.itemId (index from 0), and nothing is written. Same key and same payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true, without adding stock again. Same key with a different payload is 409. A missing or malformed key is 400. A failed request stores no key, so it can be corrected and sent again with the same key.",
+        "description": "Needs inbound.create and an Idempotency-Key header (8 to 100 characters, one per draft). All lines or none: one database transaction, stock raised under a row lock per item. lines holds 1 to 200 entries, qtyArrived is at most 100000 per line. For source SUPPLIER, each line may send supplierId selected from the item mappings; omitted supplierId falls back to items.supplierId; a line whose item has no supplier, or an unknown itemId, fails the whole request with 400 and errors keyed lines.<index>.itemId (index from 0), and nothing is written. Same key and same payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true, without adding stock again. Same key with a different payload is 409. A missing or malformed key is 400. A failed request stores no key, so it can be corrected and sent again with the same key.",
         "security": [
           {
             "bearerAuth": []
@@ -19652,6 +19706,11 @@
                       "type": "object",
                       "properties": {
                         "itemId": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        },
+                        "supplierId": {
                           "type": "integer",
                           "minimum": 0,
                           "exclusiveMinimum": true
@@ -20019,7 +20078,7 @@
           "Inbound"
         ],
         "summary": "Record a scanner session: goods that passed QC and goods returned to the supplier",
-        "description": "Needs inbound.create and an Idempotency-Key header (8 to 100 characters), with the same replay rules as POST /inbound/batch: same key and payload within 24 hours returns the stored answer with Idempotency-Replayed: true and adds nothing, same key with a different payload is 409. pass lines are SUPPLIER receipts with statusQc PASS and raise stock. retur lines are only recorded as a return to the item's supplier, one return request per supplier, and never change stock. Both take supplierId from items.supplierId. pass and retur each hold 0 to 200 lines, at least one line in total, qty at most 100000 per line, reason 1 to 255 characters. All or nothing: a bad line fails the whole request with 400 and errors keyed pass.<index>.<field> or retur.<index>.<field>, index from 0, for example retur.2.itemId for an unknown item or an item without a supplier.",
+        "description": "Needs inbound.create and an Idempotency-Key header (8 to 100 characters), with the same replay rules as POST /inbound/batch: same key and payload within 24 hours returns the stored answer with Idempotency-Replayed: true and adds nothing, same key with a different payload is 409. pass lines are SUPPLIER receipts with statusQc PASS and raise stock. retur lines are only recorded as a return to the item's supplier, one return request per supplier, and never change stock. Each pass/retur line may send supplierId selected from the item mappings; otherwise it falls back to items.supplierId. pass and retur each hold 0 to 200 lines, at least one line in total, qty at most 100000 per line, reason 1 to 255 characters. All or nothing: a bad line fails the whole request with 400 and errors keyed pass.<index>.<field> or retur.<index>.<field>, index from 0, for example retur.2.itemId for an unknown item or an item without a supplier.",
         "security": [
           {
             "bearerAuth": []
@@ -20056,6 +20115,11 @@
                           "minimum": 0,
                           "exclusiveMinimum": true
                         },
+                        "supplierId": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        },
                         "qtyArrived": {
                           "type": "integer",
                           "minimum": 0,
@@ -20077,6 +20141,11 @@
                       "type": "object",
                       "properties": {
                         "itemId": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        },
+                        "supplierId": {
                           "type": "integer",
                           "minimum": 0,
                           "exclusiveMinimum": true
@@ -41433,6 +41502,334 @@
                       "items": {
                         "type": "string"
                       }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/items/{id}/suppliers": {
+      "put": {
+        "tags": [
+          "Item"
+        ],
+        "summary": "Replace all suppliers mapped to one material",
+        "description": "Needs item.update and item.set-supplier. supplierIds is the complete desired set, up to 100 distinct supplier ids; [] clears it. Validates all suppliers and saves atomically. Preserves the primary supplier if still selected, otherwise uses the first selected supplier. Does not alter stock, price, or historical transactions. Unknown item/supplier is 404. GET /items and GET /items/{id} return suppliers: [{id,name}] including legacy primary mappings.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "supplierIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "exclusiveMinimum": true
+                    },
+                    "maxItems": 100
+                  }
+                },
+                "required": [
+                  "supplierIds"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Item supplier mappings replaced",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "code": {
+                          "type": "string",
+                          "description": "Internal code, category prefix + number (LEM001), generated on create, never changes",
+                          "example": "LEM001"
+                        },
+                        "externalCode": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "The code the item was imported with, shown under the name only"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "detail": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "category": {
+                          "type": "string"
+                        },
+                        "unit": {
+                          "type": "string"
+                        },
+                        "price": {
+                          "type": "number"
+                        },
+                        "stock": {
+                          "type": "number",
+                          "description": "Up to two decimals"
+                        },
+                        "minimumStock": {
+                          "type": "number",
+                          "nullable": true,
+                          "description": "Low-stock threshold, up to 3 decimals; null disables alerts. Only superadmins and PPIC domain roles may set it via POST/PUT; other roles receive 403 even with item.update."
+                        },
+                        "locationId": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "supplierId": {
+                          "type": "number",
+                          "nullable": true,
+                          "description": "Primary supplier; null until Purchasing sets it"
+                        },
+                        "suppliers": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "number"
+                              },
+                              "name": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name"
+                            ]
+                          }
+                        },
+                        "photo": {
+                          "type": "object",
+                          "nullable": true,
+                          "properties": {
+                            "thumb": {
+                              "type": "string",
+                              "example": "/uploads/items/<uuid>-thumb.webp"
+                            },
+                            "display": {
+                              "type": "string",
+                              "example": "/uploads/items/<uuid>-display.webp"
+                            }
+                          },
+                          "required": [
+                            "thumb",
+                            "display"
+                          ],
+                          "description": "Relative URLs under /uploads (WebP), null when no photo"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "nullable": true
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "code",
+                        "externalCode",
+                        "name",
+                        "detail",
+                        "category",
+                        "unit",
+                        "price",
+                        "stock",
+                        "minimumStock",
+                        "locationId",
+                        "supplierId",
+                        "suppliers",
+                        "photo",
+                        "createdAt",
+                        "updatedAt"
+                      ]
                     }
                   },
                   "required": [
