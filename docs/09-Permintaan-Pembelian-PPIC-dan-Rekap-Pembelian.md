@@ -147,9 +147,10 @@ Jika tracking gagal dimuat, form menampilkan pesan kesalahan.
 
 ## Judul halaman rekap
 
-Halaman Rekap Pembelian di PPIC dan Rekap Permintaan Pembelian di Purchasing
+Halaman Rekap Pembelian di PPIC dan Permintaan Pembelian di Purchasing
 memakai judul **DAFTAR PERMINTAAN PEMBELIAN** dengan teks pengantar
-**Kelola pengajuan permintaan pembelian barang.**
+**Kelola pengajuan permintaan pembelian barang.** Menu Permintaan Pembelian
+Purchasing berada di grup **Transaksi**, tepat di atas **PO Barang**.
 
 ## Tanggal pada form permintaan
 
@@ -187,7 +188,7 @@ tahap Purchasing yang masih diwajibkan backend diselesaikan saat PO disimpan.
 
 ## Rincian permintaan dan persiapan PO Purchasing
 
-Detail permintaan pada **Rekap Permintaan Pembelian** Purchasing dan pada
+Detail permintaan pada **Permintaan Pembelian** Purchasing dan pada
 **PO Barang** memakai tabel rincian yang sama: No, Tanggal, Supplier, Nama
 Barang, Stok Saat Ini, QTY, Qty Beli, SAT, Proyek, Keterangan, dan Dikirim
 Tanggal. Tanggal, keterangan, serta tanggal kirim berasal dari payload

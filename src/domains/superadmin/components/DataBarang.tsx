@@ -6,8 +6,8 @@ import StokMinimumCell from '@/domains/inventory/components/data-barang/StokMini
 import dynamic from 'next/dynamic';
 import { useAuthUser, useCan } from '@/domains/auth/user-context';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { Images, RefreshCw, Trash2, Edit2, Truck, Info } from 'lucide-react';
-import { adjustItemStock, assignItemLocation, bulkRecodeItems, deleteItem, recodeItem, updateItem } from '@/domains/inventory/api';
+import { Images, Trash2, Edit2, Truck, Info } from 'lucide-react';
+import { adjustItemStock, assignItemLocation, deleteItem, updateItem } from '@/domains/inventory/api';
 import type { ItemListRow, UpdateItemInput } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
 import { randomId } from '@/shared/lib/random-id';
@@ -20,7 +20,6 @@ const BulkPhotoModal = dynamic(() => import('@/domains/inventory/components/Bulk
 import BarangFilterPanel, { countActiveFilters } from '@/domains/inventory/components/BarangFilterPanel';
 import EditModeBar, { useBatchEdit } from '@/shared/components/EditModeBar';
 import { kodeKategoriNotice, type CodeChange } from '@/domains/inventory/item-code-notice';
-import { printItemLabels } from '@/domains/inventory/label-print';
 import { useDataBarang } from '@/domains/inventory/components/data-barang/useDataBarang';
 import DataBarangTable, { type BarangColumn, HargaCell, KategoriBadge, StokCell, SupplierCell } from '@/domains/inventory/components/data-barang/DataBarangTable';
 import { totalStockValue } from '@/domains/inventory/components/data-barang/dummy-receipts';
@@ -29,13 +28,10 @@ import { useBulkSupplierAction, type SupplierMappingResult } from '@/domains/inv
 import ActionMenu from '@/shared/components/ActionMenu';
 import AdjustStokModal from '@/domains/inventory/components/data-barang/modals/AdjustStokModal';
 import Link from 'next/link';
-import RecodeNotice from '@/domains/inventory/components/data-barang/modals/RecodeModal';
 import { MasterData, mstrDataTemplateExample, mstrDataTemplateHeaders, type MasterDataImportRow, MAX_IMPORT_ROWS } from '@/domains/inventory/components/data-barang/modals/ImportMasterData';
 
 export { MasterData, mstrDataTemplateExample, mstrDataTemplateHeaders };
 export type { MasterDataImportRow };
-
-type CodeLabel = { code: string | null; name: string; externalCode?: string | null; locationCode: string };
 
 const cellInput = 'w-full min-w-28 border border-gray-200 rounded-lg py-1.5 px-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500';
 const idText = (v: number | null) => (v === null ? '' : String(v));
@@ -55,8 +51,8 @@ export default function DataBarangGudang() {
   const canSetSupplier = useCan('item.set-supplier');
   const canUploadPhoto = useCan('item.upload-photo');
   const canAssignSupplier = canUpdate && canSetSupplier;
-  // Pilihan baris dipakai Edit Supplier, Pasang Foto Massal, dan Ganti Kode Massal.
-  const canSelect = canUploadPhoto || canAssignSupplier || isSuperadmin;
+  // Pilihan baris dipakai Edit Supplier dan Pasang Foto Massal.
+  const canSelect = canUploadPhoto || canAssignSupplier;
   const edit = useBatchEdit();
   const seen = useRef(new Map<number, ItemListRow>()); // semua baris yang pernah tampil, untuk menyimpan perubahan dari halaman lain
   const d = useDataBarang();
@@ -64,7 +60,6 @@ export default function DataBarangGudang() {
 
   const [pendingImport, setPendingImport] = useState<MasterDataImportRow[]>([]);
   const [importNote, setImportNote] = useState('');
-  const [codeNotice, setCodeNotice] = useState<{ headline: string; lines: string[]; labels: CodeLabel[] } | null>(null); // hasil Ganti kode, satu atau banyak barang
   const [actionError, setActionError] = useState('');
   const [supplierNotice, setSupplierNotice] = useState<{ text: string; failed: boolean } | null>(null);
 
@@ -132,23 +127,6 @@ export default function DataBarangGudang() {
     });
   };
 
-  const handleGantiKode = async (item: ItemListRow) => {
-    if (!window.confirm(`Ganti kode ${item.code}? Label lama tidak bisa di-scan lagi. Cetak ulang label setelah ini.`)) return;
-    setActionError('');
-    setCodeNotice(null);
-    try {
-      const updated = await recodeItem(item.id);
-      reload();
-      setCodeNotice({
-        headline: `Kode barang berubah dari ${item.code ?? '-'} menjadi ${updated.code ?? '-'}.`,
-        lines: [],
-        labels: [{ code: updated.code, name: updated.name, externalCode: updated.externalCode, locationCode: locationCode(updated.locationId) }],
-      });
-    } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : 'Gagal mengganti kode barang.');
-    }
-  };
-
   // Untuk barang dobel/salah input, satu per satu (sengaja tanpa hapus massal). BE menolak (409) barang yang sudah
   // dipakai transaksi atau punya riwayat harga supplier, supaya kartu stok tidak putus.
   const handleHapus = async (item: ItemListRow) => {
@@ -199,36 +177,6 @@ export default function DataBarangGudang() {
     }
     setImportNote(`${deleted} barang dihapus.${inUse ? ` ${inUse} barang dilewati karena sudah dipakai transaksi.` : ''}`);
     if (errors.length) setActionError(`${errors.length} barang gagal dihapus: ${errors.slice(0, 5).join('; ')}${errors.length > 5 ? '; ...' : ''}`);
-  };
-
-  const handleGantiKodeMassal = async () => {
-    const rows = [...selected.values()];
-    if (!window.confirm(`Ganti kode ${rows.length} barang? Label lama tidak bisa di-scan lagi. Cetak ulang label setelah ini.`)) return;
-    setActionError('');
-    setCodeNotice(null);
-    try {
-      const res = await bulkRecodeItems(rows.map((r) => r.id));
-      const byId = new Map(rows.map((r) => [r.id, r]));
-      reload();
-      setSelected(new Map());
-      setCodeNotice({
-        headline: `${res.items.length} kode barang diganti.`,
-        lines: [
-          ...res.items.slice(0, 10).map((c) => `${c.oldCode} → ${c.newCode}`),
-          ...(res.items.length > 10 ? [`dan ${res.items.length - 10} lainnya`] : []),
-        ],
-        labels: res.items.map((c) => {
-          const row = byId.get(c.id);
-          return { code: c.newCode, name: row?.name ?? '', externalCode: row?.externalCode ?? null, locationCode: locationCode(row?.locationId ?? null) };
-        }),
-      });
-    } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : 'Gagal mengganti kode barang massal.');
-    }
-  };
-
-  const cetakLabel = async (labels: CodeLabel[]) => {
-    setActionError(await printItemLabels(labels) ?? '');
   };
 
   const openStockModal = (item: ItemListRow) => {
@@ -346,11 +294,6 @@ export default function DataBarangGudang() {
         </span>
       )
     ) },
-    { label: 'Keterangan', sortKey: 'detail', tdClassName: 'px-6 py-4 text-gray-600', cell: (item) => (
-      edit.editing && canUpdate ? (
-        <input aria-label={`Keterangan ${item.name}`} className={cellInput} maxLength={255} value={edit.value(item.id, 'detail', item.detail ?? '')} onChange={setF(item, 'detail', item.detail ?? '')} />
-      ) : (item.detail || '-')
-    ) },
   ];
 
   const renderRowActions = (item: ItemListRow) => (
@@ -372,16 +315,6 @@ export default function DataBarangGudang() {
         <Edit2 className="w-3.5 h-3.5" strokeWidth={2.5} />
         Stok
       </button>}
-      {isSuperadmin && (
-        <button
-          onClick={() => handleGantiKode(item)}
-          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 text-xs font-bold rounded-lg hover:bg-amber-100 transition-all duration-200 opacity-90 group-hover:opacity-100"
-          title="Ganti kode dari prefix kategori"
-        >
-          <RefreshCw className="w-3.5 h-3.5" strokeWidth={2.5} />
-          Ganti kode
-        </button>
-      )}
       {canDelete && (
         <button
           onClick={() => handleHapus(item)}
@@ -454,14 +387,6 @@ export default function DataBarangGudang() {
                   disabled: selected.size === 0,
                 },
                 {
-                  key: 'recode',
-                  label: 'Ganti Kode Massal',
-                  icon: <RefreshCw className="w-4 h-4" />,
-                  onClick: handleGantiKodeMassal,
-                  hidden: !isSuperadmin,
-                  disabled: selected.size === 0,
-                },
-                {
                   // TEMP(hapus-semua): sementara untuk membersihkan data produksi; hapus item ini dan test-nya setelah selesai.
                   key: 'delete-all',
                   label: `Hapus Semua (${total})`,
@@ -516,10 +441,6 @@ export default function DataBarangGudang() {
 
         {deletingAll && <div role="status" className="mx-5 mt-5 p-3 bg-amber-50 text-amber-700 text-sm rounded-lg">{deletingAll}</div>}
 
-        {codeNotice && (
-          <RecodeNotice headline={codeNotice.headline} lines={codeNotice.lines} onPrint={() => cetakLabel(codeNotice.labels)} />
-        )}
-
         {(d.error || actionError) && (
           <div className="mx-5 mt-5 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{d.error || actionError}</div>
         )}
@@ -528,6 +449,7 @@ export default function DataBarangGudang() {
         <DataBarangTable
           rows={dataBarang}
           loading={d.loading}
+          colSpan={canSelect ? 12 : 11}
           columns={columns}
           sort={d.sort}
           onSort={d.toggle}

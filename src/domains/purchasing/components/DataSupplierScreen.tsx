@@ -182,11 +182,11 @@ export default function DataSupplierScreen({ detailHref, paginationActiveClass }
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
               <tr>
-                <SortableTh label="Kode" sortKey="code" sort={sort} onSort={toggle} align="center" className="px-6 py-4 w-20" />
                 <SortableTh label="Nama Supplier" sortKey="name" sort={sort} onSort={toggle} />
                 <SortableTh label="Bank" sortKey="bank" sort={sort} onSort={toggle} align="center" />
                 <SortableTh label="NPWP" sortKey="npwp" sort={sort} onSort={toggle} align="center" />
                 <SortableTh label="Pajak" sortKey="pajak" sort={sort} onSort={toggle} align="center" />
+                <th scope="col" className="px-6 py-4 text-center">PIC</th>
                 <SortableTh label="Kontak" sortKey="phone" sort={sort} onSort={toggle} align="center" />
                 <SortableTh label="Alamat" sortKey="address" sort={sort} onSort={toggle} />
                 <th scope="col" className="px-6 py-4 text-center">Aksi</th>
@@ -202,11 +202,11 @@ export default function DataSupplierScreen({ detailHref, paginationActiveClass }
               {!loading && dataSupplier.map((item) => {
                 return (
                   <tr key={item.id} className="hover:bg-[#FF8A00]/5 transition-colors group">
-                    <td className="px-6 py-4 text-gray-500 text-center font-medium">{item.code}</td>
                     <td className="px-6 py-4 font-bold text-gray-900">{item.name}</td>
                     <td className="px-6 py-4 text-center">{item.bank}</td>
                     <td className="px-6 py-4 text-center font-mono text-xs">{item.npwp}</td>
                     <td className="px-6 py-4 text-center text-xs">{item.pajak === 'PKP' ? 'PKP' : 'Non PKP'}</td>
+                    <td className="px-6 py-4 text-center text-xs">{item.pic || '-'}</td>
                     <td className="px-6 py-4 text-center text-xs">{item.phone}</td>
                     <td className="px-6 py-4 max-w-xs truncate" title={item.address}>{item.address}</td>
                     <td className="px-6 py-4 text-center">

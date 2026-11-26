@@ -5,6 +5,7 @@ export interface Supplier {
   bank: string;
   npwp: string;
   phone: string;
+  pic?: string;
   address: string;
   pajak: Pajak;
 }
