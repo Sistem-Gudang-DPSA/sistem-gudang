@@ -51,6 +51,8 @@ Submit PO (ttd basah)    → ISSUED, hargaSatuan dibekukan
 
 Harga tidak digantung sampai barang datang. Setelah submit, koreksi harga wajib lewat batal PO dan PO baru. Data lama yang sudah `ISSUED` tidak perlu diubah ke `DRAFT`.
 
+Supplier ditetapkan saat PO dibuat dan tidak bisa diubah lewat edit. Form edit menampilkan supplier read-only dan `PUT /purchase-orders/{id}` tidak mengirim `supplierId` (backend `.strict()` menolak field itu).
+
 ### 4. Barang masuk
 
 Gudang memilih PO/baris PO, bukan memilih supplier terlebih dahulu. Supplier, qty beli, dan harga sudah melekat di baris PO. Inbound supplier wajib membawa `purchaseOrderId` dan `purchaseOrderLineId`; PO masih `DRAFT` ditolak.

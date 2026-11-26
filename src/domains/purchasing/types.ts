@@ -63,8 +63,9 @@ export interface PurchaseOrderLine extends PurchaseOrderLineInput {
   receipts?: { inboundId: number; date: string; qtyArrived: number; statusQc: string | null; referenceNo: string | null; createdAt: string }[];
 }
 
-// Editing replaces the PO fields and lines; the original request and generated number remain fixed.
-export type UpdatePurchaseOrderInput = Omit<CreatePurchaseOrderInput, "approvalRequestId">;
+// Editing replaces the editable PO fields and lines. The original request,
+// generated number and supplier are fixed; the PUT schema rejects supplierId.
+export type UpdatePurchaseOrderInput = Omit<CreatePurchaseOrderInput, "approvalRequestId" | "supplierId">;
 
 // nomorPo and every total are computed by the backend, so they are not part of the input.
 export interface CreatePurchaseOrderInput {

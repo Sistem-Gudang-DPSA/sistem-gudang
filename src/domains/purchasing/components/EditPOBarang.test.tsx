@@ -1,12 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { installFakeApi, paged, fail, type FakeRequest } from '@/test/fake-api';
+import { installFakeApi, fail, type FakeRequest } from '@/test/fake-api';
 import { withUser } from '@/test/as-user';
 import Page from '@/app/dashboard/purchasing/transaksi/buat-po-barang/edit-po/[id]/page';
 import type { PurchaseOrder } from '../types';
 
 vi.mock('next/navigation', () => ({ useParams: () => ({ id: '12' }) }));
-const supplier = { id: 4, code: 'S4', name: 'Supplier Baru', address: 'Jl. Baru', phone: '0812', npwp: '123', bank: 'BCA', pajak: 'PKP' };
 const po: PurchaseOrder = {
   id: 12, nomorPo: 'PO-012', approvalRequestId: 7, supplierId: 3, supplierName: 'Supplier Lama', tanggalPo: '2026-11-23', picSupplier: 'Andi',
   barang: [{ lineIndex: 0, itemId: 1, noSpk: 'SPK-1', kodeBarang: 'A1', namaBarang: 'Triplex', satuan: 'Lembar', jumlah: 12, hargaSatuan: 1000, diskon: 0, qtyReceived: 0, sisa: 12, receipts: [] }],
@@ -16,8 +15,7 @@ const permissions = ['purchase-order.view', 'purchase-order.update', 'supplier.v
 function setup(extra: Record<string, unknown> = {}, perms = permissions) {
   const api = installFakeApi({
     'GET /api/v1/purchase-orders/12': po,
-    'GET /api/v1/suppliers': paged([supplier]),
-    'PUT /api/v1/purchase-orders/12': (req: FakeRequest) => ({ ...po, ...req.body as object, supplierName: supplier.name, grandTotal: 44445 }),
+    'PUT /api/v1/purchase-orders/12': (req: FakeRequest) => ({ ...po, ...req.body as object, grandTotal: 44445 }),
     ...extra,
   });
   render(withUser(<Page />, perms));
@@ -50,12 +48,11 @@ describe('Edit PO Barang', () => {
     expect(screen.getByRole('link', { name: 'Kembali ke PO Barang' }).getAttribute('href')).toBe('/dashboard/purchasing/transaksi/buat-po-barang');
   });
 
-  it('mengirim perubahan seluruh field, termasuk supplier dan qty, lewat PUT tanpa membuat PO baru', async () => {
+  it('mengirim perubahan field yang bisa diubah lewat PUT tanpa supplierId atau PO baru', async () => {
     const api = setup();
     await screen.findByRole('form', { name: 'Edit PO-012' });
-    fireEvent.click(screen.getByLabelText('Data Supplier'));
-    fireEvent.click(await screen.findByRole('option', { name: 'S4 - Supplier Baru' }));
-    expect(screen.getByText('Jl. Baru / 0812')).toBeTruthy();
+    expect(screen.getByLabelText('Data Supplier')).toHaveProperty('readOnly', true);
+    expect(screen.getByLabelText('Data Supplier')).toHaveProperty('value', 'Supplier Lama');
     change('Tanggal PO', '2026-11-24');
     change('PIC / Telp Supplier', ' Budi ');
     change('Kode barang baris 1', ' B2 ');
@@ -69,7 +66,7 @@ describe('Edit PO Barang', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Simpan Perubahan' }));
     await screen.findByText('Perubahan PO PO-012 berhasil disimpan.');
     expect(api.calls('PUT /api/v1/purchase-orders/12')[0].body).toEqual({
-      tanggalPo: '2026-11-24', supplierId: 4, picSupplier: 'Budi', persenPpn: 11.5, jasa: 300,
+      tanggalPo: '2026-11-24', picSupplier: 'Budi', persenPpn: 11.5, jasa: 300,
       barang: [{ lineIndex: 0, kodeBarang: 'B2', namaBarang: 'Barang Baru', satuan: 'Kg', jumlah: 20, hargaSatuan: 2000, diskon: 1000 }],
     });
     expect(api.calls('POST /api/v1/purchase-orders')).toHaveLength(0);
