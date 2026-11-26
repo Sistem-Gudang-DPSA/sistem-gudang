@@ -10199,6 +10199,11 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "supplierId": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true
+                  },
                   "tanggalPo": {
                     "type": "string",
                     "format": "date"
@@ -11296,7 +11301,7 @@
           "Purchase order"
         ],
         "summary": "Get the supplier mapping of a purchase request",
-        "description": "Needs purchase-order.view. 400 when the request is not a purchase-request, 409 when it is not approved. Each line of the request lists the suppliers it is mapped to with qty and, once a PO was issued from the row, purchaseOrderId and nomorPo (null otherwise, also after that PO is cancelled). status is NOT_STARTED, PARTIAL, or COMPLETE when every line is fully mapped. Suppliers are never prefilled from the item master.",
+        "description": "Needs purchase-order.view. 400 when the request is not a purchase-request, 409 when it is not approved. Each line of the request lists the suppliers it is mapped to with qty and, once a PO was issued from the row, purchaseOrderId and nomorPo (null otherwise, also after that PO is cancelled). status is NOT_STARTED, PARTIAL, or COMPLETE when every line is mapped to at least its requested qty. remainingQty is clamped to zero when purchase qty exceeds request qty. Suppliers are never prefilled from the item master.",
         "security": [
           {
             "bearerAuth": []
@@ -11582,7 +11587,7 @@
           "Purchase order"
         ],
         "summary": "Save the supplier mapping of a purchase request",
-        "description": "Needs purchase-order.create. Only the lines sent are replaced; others stay as they are, so mapping can be done in steps. A line may go to several suppliers. The total qty of a line, rows already ordered included, must stay within the line qty; a supplier cannot appear twice on a line; rows already ordered are locked. 400 for an unknown lineIndex or a bad total, 404 for an unknown supplier, 409 when the request is not approved. Returns the same body as GET.",
+        "description": "Needs purchase-order.create. Only the lines sent are replaced; others stay as they are, so mapping can be done in steps. A line may go to several suppliers. Purchase qty may exceed the original request qty, which is kept unchanged. Total qty of a line, including rows already ordered, must not exceed 1000000; a supplier cannot appear twice on a line; rows already ordered are locked. 400 for an unknown lineIndex or a bad total, 404 for an unknown supplier, 409 when the request is not approved. Returns the same body as GET.",
         "security": [
           {
             "bearerAuth": []
@@ -24857,7 +24862,7 @@
           "Dokubah"
         ],
         "summary": "List SPK numbers with their client",
-        "description": "Source of the SPK and its client for dokubah, SPK internal, outbound, material requests and client returns, and for the dropdowns of Barang Keluar. Read from the tracking system and kept in memory for TRACKING_CACHE_TTL_MINUTES (default 30), then reloaded in the background; refresh=1 reloads it first (the refresh button). search matches noSpk or client, case-insensitively. client keeps only the SPK of that client name (exact, case-insensitive, trimmed), and can be combined with search. limit is optional; without it every SPK is returned. Applied after client. projectName is included when the tracking source sends it. tanggalMasuk is the SPK masuk date from tracking (spk.tanggal_masuk), passed through as is, null when missing. Products are not listed here, use GET /api/v1/tracking/spk/{noSpk}.",
+        "description": "Readable by every authenticated role without dokubah.view, including custom roles with no permissions, for Daftar Proyek. Source of the SPK and its client for dokubah, SPK internal, outbound, material requests and client returns, and for the dropdowns of Barang Keluar. Read from the tracking system and kept in memory for TRACKING_CACHE_TTL_MINUTES (default 30), then reloaded in the background; refresh=1 reloads it first (the refresh button). search matches noSpk or client, case-insensitively. client keeps only the SPK of that client name (exact, case-insensitive, trimmed), and can be combined with search. limit is optional; without it every SPK is returned. Applied after client. projectName is included when the tracking source sends it. tanggalMasuk is the SPK masuk date from tracking (spk.tanggal_masuk), passed through as is, null when missing. Products are not listed here, use GET /api/v1/tracking/spk/{noSpk}.",
         "security": [
           {
             "bearerAuth": []

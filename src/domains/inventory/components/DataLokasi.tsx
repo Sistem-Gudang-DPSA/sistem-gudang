@@ -6,6 +6,7 @@ import { Search, Plus } from 'lucide-react';
 import { createLocation, deleteLocation, importLocationData, listLocations, updateLocation } from '../api';
 import { useClampPage } from '@/shared/lib/use-page';
 import Pagination from '@/shared/components/Pagination';
+import Modal from '@/shared/components/Modal';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
 import { useBatchEdit } from '@/shared/components/EditModeBar';
 import { ApiError } from '@/shared/lib/api-client';
@@ -75,6 +76,8 @@ export function DataLokasi({
   const isSuperadmin = useAuthUser()?.isSuperadmin === true;
   const { sort, toggle, params: sortParams } = useSort();
   const edit = useBatchEdit();
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 20;
@@ -108,10 +111,18 @@ export function DataLokasi({
   useClampPage(page, loaded?.total ?? 0, pageSize, setPage);
   const error = formError || loadError || actionError;
 
-  // Baris yang diedit disimpan per id; pindah halaman, cari, atau urutkan membuat baris itu tidak tampil lagi, jadi tanya dulu.
-  const leaveRows = (apply: () => void) => {
-    if (edit.dirty > 0 && !window.confirm("Ada perubahan yang belum disimpan. Buang perubahan?")) return;
+  const cancelEdit = () => {
     edit.cancel();
+    setEditingId(null);
+  };
+  // Pencarian, pengurutan, dan paginasi tidak boleh membuang perubahan tanpa konfirmasi.
+  const leaveRows = (apply: () => void) => {
+    if (edit.saving) return;
+    if (edit.dirty > 0) {
+      setPendingLeave(() => apply);
+      return;
+    }
+    cancelEdit();
     apply();
   };
   const sortBy = (by: string) => leaveRows(() => { toggle(by); setPage(1); });
@@ -146,20 +157,36 @@ export function DataLokasi({
     }
   };
 
-  const simpanSemua = () =>
-    edit.save((id, patch) => {
+  const simpanBaris = async () => {
+    if (!canUpdate || editingId === null || edit.saving) return;
+    let succeeded = true;
+    await edit.save(async (id, patch) => {
       const row = dataLokasi.find((l) => l.id === id);
-      if (!row) return Promise.resolve();
-      const rackName = patch.rackName ?? row.rackName;
-      const rackNumber = patch.rackNumber ?? row.rackNumber;
-      const description = 'description' in patch ? patch.description.trim() || null : undefined;
-      return updateLocation(id, {
-        code: `${rackName}.${rackNumber}`,
-        rackName,
-        rackNumber,
-        ...(description !== undefined && { description }),
-      }).then(() => undefined);
-    }, reload);
+      try {
+        if (!row) throw new Error("Data lokasi tidak ditemukan. Muat ulang halaman.");
+        const rackName = (patch.rackName ?? row.rackName).trim().toUpperCase();
+        const rackNumber = (patch.rackNumber ?? row.rackNumber).trim();
+        if (!/^[A-Z]+$/.test(rackName) || !/^[1-9]\d*\.[1-9]\d*$/.test(rackNumber)) {
+          throw new Error("Nama rak harus berupa huruf A–Z dan nomor rak harus Kolom.Baris, mulai dari 1 tanpa nol di depan.");
+        }
+        const description = 'description' in patch ? patch.description.trim() || null : undefined;
+        await updateLocation(id, {
+          code: `${rackName}.${rackNumber}`,
+          rackName,
+          rackNumber,
+          ...(description !== undefined && { description }),
+        });
+      } catch (err) {
+        succeeded = false;
+        throw err;
+      }
+    }, () => {
+      if (succeeded) {
+        setEditingId(null);
+        reload();
+      }
+    });
+  };
 
   const handleHapus = async (id: number) => {
     if (!window.confirm('Apakah Anda yakin ingin menghapus data ini?')) return;
@@ -186,7 +213,7 @@ export function DataLokasi({
               type="text"
               value={searchQuery}
               maxLength={100}
-              onChange={(e) => leaveRows(() => { setSearchQuery(e.target.value); setPage(1); })}
+              onChange={(e) => { const query = e.target.value; leaveRows(() => { setSearchQuery(query); setPage(1); }); }}
               placeholder="Cari..."
               className="w-full border border-gray-200 rounded-full py-2.5 pl-5 pr-10 shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 text-sm text-gray-700 placeholder-gray-400 transition-all duration-200"
             />
@@ -272,6 +299,7 @@ export function DataLokasi({
                   <tr><td colSpan={7} className="px-6 py-6 text-center text-gray-400">Belum ada data lokasi.</td></tr>
                 )}
                 {!loading && dataLokasi.map((item, i) => {
+                  const isEditing = canUpdate && editingId === item.id;
                   const nama = edit.value(item.id, "rackName", item.rackName);
                   const nomor = edit.value(item.id, "rackNumber", item.rackNumber);
                   const sel = "w-full border border-gray-200 rounded-lg py-1.5 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
@@ -279,22 +307,22 @@ export function DataLokasi({
                     <tr key={item.id} className={`${edit.isDirty(item.id) ? "bg-amber-50" : i % 2 ? "bg-gray-50" : "bg-white"} hover:bg-orange-50/50 transition-colors duration-200`}>
                       <td className="px-6 py-4 text-center text-gray-500">{(page - 1) * pageSize + i + 1}</td>
                       <td className="px-6 py-4 h-13 text-gray-700 font-medium whitespace-nowrap">
-                        {edit.editing ? `${nama}.${nomor}` : item.code}
+                        {isEditing ? `${nama}.${nomor}` : item.code}
                         {edit.errors[item.id] && <p className="text-xs font-normal text-red-600">{edit.errors[item.id]}</p>}
                       </td>
                       <td className="px-6 py-3 text-gray-600 whitespace-nowrap">
-                        {edit.editing ? (
-                          <input aria-label={`Nama rak ${item.code}`} className={sel} maxLength={10} value={nama} onChange={(e) => edit.set(item.id, "rackName", e.target.value.toUpperCase(), item.rackName)} />
+                        {isEditing ? (
+                          <input disabled={edit.saving} aria-label={`Nama rak ${item.code}`} className={sel} maxLength={10} value={nama} onChange={(e) => edit.set(item.id, "rackName", e.target.value.toUpperCase(), item.rackName)} />
                         ) : item.rackName}
                       </td>
                       <td className="px-6 py-3 text-gray-600 whitespace-nowrap">
-                        {edit.editing ? (
-                          <input aria-label={`Nomer rak ${item.code}`} className={sel} maxLength={10} placeholder="Kolom.Baris" value={nomor} onChange={(e) => edit.set(item.id, "rackNumber", e.target.value, item.rackNumber)} />
+                        {isEditing ? (
+                          <input disabled={edit.saving} aria-label={`Nomer rak ${item.code}`} className={sel} maxLength={10} placeholder="Kolom.Baris" value={nomor} onChange={(e) => edit.set(item.id, "rackNumber", e.target.value, item.rackNumber)} />
                         ) : item.rackNumber}
                       </td>
                       <td className="px-3 py-2 text-gray-600 max-w-50 min-w-30 w-auto">
-                        {edit.editing ? (
-                          <input aria-label={`Keterangan ${item.code}`} className={`${sel} w-full text-sm px-2 py-1`} maxLength={255} placeholder="Opsional" value={edit.value(item.id, "description", item.description ?? "")} onChange={(e) => edit.set(item.id, "description", e.target.value, item.description ?? "")} />
+                        {isEditing ? (
+                          <input disabled={edit.saving} aria-label={`Keterangan ${item.code}`} className={`${sel} w-full text-sm px-2 py-1`} maxLength={255} placeholder="Opsional" value={edit.value(item.id, "description", item.description ?? "")} onChange={(e) => edit.set(item.id, "description", e.target.value, item.description ?? "")} />
                         ) : (
                           <span className="block text-sm wrap-break-word whitespace-normal">
                             {item.description || "-"}
@@ -304,22 +332,23 @@ export function DataLokasi({
                       <td className="px-6 py-4 text-gray-600"><BarangLokasi location={item} /></td>
                       <td className="px-6 py-4 text-gray-600 text-center whitespace-nowrap">
                         <div className="flex flex-wrap items-center justify-center gap-2">
-                          {canUpdate && !edit.editing && (
+                          {canUpdate && !isEditing && (
                             <button
                               type="button"
                               aria-label={`Edit lokasi ${item.code}`}
-                              onClick={edit.toggle}
-                              className="px-3 py-1 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs hover:bg-blue-100 border border-blue-100"
+                              disabled={editingId !== null || edit.saving}
+                              onClick={() => { edit.cancel(); setEditingId(item.id); }}
+                              className="px-3 py-1 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs hover:bg-blue-100 border border-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               Edit
                             </button>
                           )}
-                          {canUpdate && edit.editing && (
+                          {isEditing && (
                             <>
                               <button
                                 type="button"
                                 disabled={edit.saving}
-                                onClick={() => void simpanSemua()}
+                                onClick={() => void simpanBaris()}
                                 className="px-3 py-1 bg-green-50 text-green-700 font-bold rounded-lg text-xs hover:bg-green-100 border border-green-100 disabled:opacity-50"
                               >
                                 Simpan
@@ -327,7 +356,7 @@ export function DataLokasi({
                               <button
                                 type="button"
                                 disabled={edit.saving}
-                                onClick={edit.cancel}
+                                onClick={cancelEdit}
                                 className="px-3 py-1 bg-gray-50 text-gray-600 font-bold rounded-lg text-xs hover:bg-gray-100 border border-gray-200 disabled:opacity-50"
                               >
                                 Batal
@@ -336,8 +365,9 @@ export function DataLokasi({
                           )}
                           {isSuperadmin && canDelete && (
                             <button
+                              disabled={editingId !== null || edit.saving}
                               onClick={() => handleHapus(item.id)}
-                              className="px-3 py-1 bg-red-50 text-red-600 font-bold rounded-lg text-xs hover:bg-red-100 transition-all border border-red-100"
+                              className="px-3 py-1 bg-red-50 text-red-600 font-bold rounded-lg text-xs hover:bg-red-100 transition-all border border-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               Hapus
                             </button>
@@ -353,6 +383,17 @@ export function DataLokasi({
         </div>
         <Pagination page={page} pageSize={pageSize} total={loaded?.total ?? 0} onPageChange={(p) => leaveRows(() => setPage(p))} activeClass={paginationActiveClass} />
       </div>
+
+      {pendingLeave && (
+        <Modal title="Perubahan belum disimpan" onClose={() => setPendingLeave(null)} footer={
+          <>
+            <button type="button" onClick={() => setPendingLeave(null)} className="px-4 py-2 border rounded-lg">Lanjut edit</button>
+            <button type="button" onClick={() => { cancelEdit(); setPendingLeave(null); pendingLeave(); }} className="px-4 py-2 bg-orange-500 text-white rounded-lg">Buang perubahan</button>
+          </>
+        }>
+          <p className="text-sm text-gray-600">Ada perubahan yang belum disimpan. Buang perubahan dan lanjutkan?</p>
+        </Modal>
+      )}
 
       {isBatchOpen && (
         <BatchLokasiModal

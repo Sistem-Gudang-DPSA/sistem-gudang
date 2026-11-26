@@ -1,6 +1,6 @@
 import { apiClient, downloadFile, toQuery } from "@/shared/lib/api-client";
 import type { PaginatedResult, ListParams, SortParams } from "@/domains/inventory/types";
-import type { CreatePurchaseOrderInput, CreateSupplierInput, Pajak, PurchaseOrder, Supplier, SupplierPriceChange, SupplierPrices, UpdatePurchaseOrderInput } from "./types";
+import type { CreatePurchaseOrderInput, CreateSupplierInput, PurchaseRequestMapping, Pajak, PurchaseOrder, Supplier, SupplierPriceChange, SupplierPrices, UpdatePurchaseOrderInput } from "./types";
 import { SupplierImportRow } from "./modal/supplier";
 
 export function listSuppliers(params?: ListParams & SortParams & { pajak?: Pajak }) {
@@ -58,4 +58,8 @@ export type BulkSupplierResult = { created: number; skipped: { row: number; code
 
 export function importSupplierData(rows: SupplierImportRow[]) {
   return apiClient.post<BulkSupplierResult>("/api/v1/suppliers/bulk", { rows });
+}
+
+export function savePurchaseRequestMapping(id: number, lines: { lineIndex: number; suppliers: { supplierId: number; qty: number }[] }[]) {
+  return apiClient.put<PurchaseRequestMapping>(`/api/v1/approvals/${id}/mapping`, { lines });
 }

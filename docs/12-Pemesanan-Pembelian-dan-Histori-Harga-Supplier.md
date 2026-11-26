@@ -2,10 +2,9 @@
 
 ## Ringkasan
 
-Layar Buat PO di Purchasing dan grid harga bulanan di Detail Data Barang
-supplier disambungkan ke backend. Sebelumnya PO hanya disimpan di memori
-dan hilang saat halaman di-refresh, sedangkan grid harga memakai data
-contoh dan tombol simpannya hanya menampilkan alert.
+Layar Buat PO di Purchasing menyimpan pesanan melalui backend. Detail
+Data Barang pada Data Supplier menampilkan daftar barang terkait supplier
+berupa kode, nama, pajak vendor, satuan, dan kategori.
 
 ## Pemesanan Pembelian
 
@@ -128,16 +127,22 @@ contoh dan tombol simpannya hanya menampilkan alert.
   DPP/PPN/jasa/grand total, enam catatan pemesanan, dan kolom tanda tangan
   kosong. Angka dan total selalu berasal dari PO yang dibuat backend.
 
-## Histori Harga Supplier
+## Detail Barang Supplier
 
-- Detail Data Barang ada di `/dashboard/purchasing/master/data-supplier/{id}/detail`
-  karena halaman lama tidak tahu supplier mana yang dibuka. Superadmin memakai
-  `/dashboard/superadmin/master/data-supplier/{id}/detail?from=superadmin` dengan komponen yang sama.
-- Grid membaca `GET /suppliers/{id}/prices?tahun=` dan menyimpan lewat
-  `PUT /suppliers/{id}/prices`. Pemilih tahun menentukan tahun yang diedit.
-  Rata-rata tahun terpilih dan tahun sebelumnya dihitung backend.
-- Sel yang diubah ditandai kuning dan baru dikirim saat Simpan Perubahan,
-  dalam satu panggilan. Mengosongkan sel menghapus harganya.
+- Detail Data Barang ada di `/dashboard/purchasing/master/data-supplier/{id}/detail`.
+  Superadmin memakai `/dashboard/superadmin/master/data-supplier/{id}/detail?from=superadmin`
+  dengan komponen yang sama.
+- Panah kembali di samping judul membuka daftar supplier pada divisi asal.
+  Tabel dibatasi lebar 48rem dengan jarak kolom dan baris rapat; pada layar
+  kecil, tabel dapat digeser horizontal.
+- Tabel hanya menampilkan No, Kode Barang, Nama Barang, Pajak Vendor,
+  Satuan, dan Kategori. Pencarian mencakup kode dan nama barang.
+- Harga bulanan, kolom rata-rata, pemilih tahun, dan aksi Simpan Perubahan
+  tidak ditampilkan. Halaman tidak lagi mengedit histori harga.
+- Daftar dan identitas supplier tetap dibaca lewat
+  `GET /suppliers/{id}/prices?tahun=<tahun sekarang>`, satu kali tanpa
+  permintaan tahun sebelumnya. Data harga yang ikut dikembalikan tidak
+  ditampilkan atau diubah oleh halaman ini.
 - Supplier punya field Pajak Vendor, yaitu PKP atau Non PKP. Field itu ada
   di form dan tabel Data Supplier.
 
@@ -156,3 +161,33 @@ ditolak 403. PO yang dibuat menghasilkan subtotal 1.200.000, DPP nilai lain
 dengan pratinjau di layar. Mengirim `dppLain` ditolak 400. Histori harga
 diuji dengan GET, PUT, dan mengembalikan nilai awal. Layar di browser
 belum diuji.
+
+## Edit PO Barang Purchasing
+
+Setiap baris PO berstatus `ISSUED` menampilkan tombol **Edit** untuk akun
+dengan `purchase-order.update`. Form berada di
+`/dashboard/purchasing/transaksi/buat-po-barang/edit-po/{id}` dan memerlukan
+`purchase-order.view` serta `purchase-order.update`.
+
+Form edit memakai susunan yang sama dengan form Buat PO: proyek dan
+tanggal di atas, tabel supplier serta pemesan berdampingan, tabel barang,
+lalu kotak total harga, DPP, PPN, dan jasa. Bagian supplier/pemesan dan
+perhitungan total memakai komponen bersama agar kedua form konsisten.
+Kolom **Pilih** awalnya mencentang semua barang; hanya barang yang tetap
+dipilih yang dihitung dan disimpan, dengan minimal satu barang.
+
+Form memuat nilai tersimpan dan dapat mengubah tanggal PO, supplier,
+PIC supplier, kebutuhan proyek, kode/nama/satuan setiap barang, jumlah,
+harga satuan, diskon, PPN, dan jasa. Memilih supplier memperbarui informasi
+perusahaan dari master supplier. Jumlah pembelian boleh melebihi permintaan
+asli, dengan batas 1.000.000. Nomor PO dibuat sistem dan referensi
+permintaan asal tetap. Data pemesan menggunakan identitas perusahaan
+bersama, sedangkan total dihitung ulang otomatis dengan rumus yang sama
+seperti form pembuatan PO.
+
+**Simpan Perubahan** mengirim `PUT /api/v1/purchase-orders/{id}` dengan
+seluruh isian dan daftar barang. Backend menyinkronkan pemetaan supplier
+untuk PO terkait permintaan dalam transaksi yang sama; pemetaan PO lain
+tidak diambil alih. Kegagalan menampilkan pesan dan mempertahankan isian.
+Setelah berhasil, tersedia tautan detail PO tersimpan. **Batal** kembali ke
+daftar PO Purchasing. PO batal tidak menyediakan tombol atau form edit.
