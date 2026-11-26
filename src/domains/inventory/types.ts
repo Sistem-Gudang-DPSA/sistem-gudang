@@ -16,7 +16,6 @@ export interface Item {
   minimumStock?: number | null;
   locationId: number | null;
   supplierId: number | null;
-  suppliers?: { id: number; name: string }[];
   // Path relatif foto barang (dilayani lewat fileUrl); null bila belum ada foto.
   photo?: { thumb: string; display: string } | null;
   createdAt: string | null;
@@ -145,7 +144,6 @@ export interface CreateInboundInput {
 
 export interface InboundBatchLine {
   itemId: number;
-  supplierId?: number;
   qtyArrived: number;
   statusQc: StatusQc;
   qtyPurchased?: number;

@@ -12,7 +12,6 @@ const rows: Row[] = [
   ['getItemByCode', ['A1/03'], 'GET /api/v1/items/by-code/A1%2F03', {}, undefined],
   ['createItem', [{ name: 'I' }], 'POST /api/v1/items', {}, { name: 'I' }],
   ['updateItem', [1, { name: 'J' }], 'PUT /api/v1/items/1', {}, { name: 'J' }],
-  ['replaceItemSuppliers', [1, [7, 8]], 'PUT /api/v1/items/1/suppliers', {}, { supplierIds: [7, 8] }],
   ['recodeItem', [1], 'POST /api/v1/items/1/recode', {}, undefined],
   ['bulkRecodeItems', [[1, 2]], 'POST /api/v1/items/recode/bulk', {}, { itemIds: [1, 2] }],
   ['deleteItem', [1], 'DELETE /api/v1/items/1', {}, undefined],

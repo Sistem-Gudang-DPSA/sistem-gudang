@@ -66,8 +66,6 @@ describe('DataBarang superadmin: kolom harga', () => {
     setup({});
     const row = (await screen.findByText('Barang 1')).closest('tr');
     expect(screen.getByRole('columnheader', { name: 'Harga Terbaru' })).toBeTruthy();
-    expect(screen.queryByRole('columnheader', { name: 'Supplier' })).toBeNull();
-    expect(within(row!).queryByText('PT Kayu')).toBeNull();
     expect(within(row!).getByText('1.000')).toBeTruthy();
     expect(within(row!).queryByText(/^per /)).toBeNull();
   });
@@ -79,8 +77,6 @@ describe('DataBarang superadmin: kolom harga', () => {
     fireEvent.click(screen.getByText('Mode Edit'));
     await waitFor(() => expect(screen.getByLabelText('Harga Barang 1')).toBeTruthy());
     expect(screen.queryByText('per 23-11-2026')).toBeNull();
-    expect(screen.queryByLabelText('Supplier Barang 1')).toBeNull();
-    expect(screen.queryByRole('columnheader', { name: 'Supplier' })).toBeNull();
   });
 });
 
@@ -226,11 +222,11 @@ describe('DataBarang superadmin: pemetaan supplier massal', () => {
   const routes = {
     'GET /api/v1/items': paged([item, second]),
     'GET /api/v1/locations': paged([{ id: 1, code: 'A01', rackName: 'A', rackNumber: '01' }]),
-    'GET /api/v1/suppliers': paged([{ id: 7, name: 'PT Kayu' }, { id: 8, name: 'CV Baja' }]),
+    'GET /api/v1/suppliers': paged([{ id: 7, name: 'PT Kayu' }]),
     'GET /api/v1/items/categories': [{ id: 1, name: 'Lembaran' }],
     'GET /api/v1/items/units': [{ id: 1, name: 'pcs' }],
-    'PUT /api/v1/items/1/suppliers': { ...item, supplierId: 7 },
-    'PUT /api/v1/items/2/suppliers': { ...second, supplierId: 7 },
+    'PUT /api/v1/items/1': { ...item, supplierId: 7 },
+    'PUT /api/v1/items/2': { ...second, supplierId: 7 },
   };
 
   it('memetakan barang yang dicentang ke supplier', async () => {
@@ -245,14 +241,12 @@ describe('DataBarang superadmin: pemetaan supplier massal', () => {
     const dialog = within(screen.getByRole('dialog'));
     fireEvent.click(dialog.getByRole('button', { name: 'Supplier' }));
     fireEvent.click(dialog.getByRole('option', { name: 'PT Kayu' }));
-    fireEvent.click(dialog.getByRole('button', { name: 'Supplier' }));
-    fireEvent.click(dialog.getByRole('option', { name: 'CV Baja' }));
     fireEvent.click(dialog.getByRole('button', { name: 'Tinjau 2 Barang' }));
     fireEvent.click(dialog.getByRole('button', { name: 'Simpan 2 Barang' }));
 
-    await waitFor(() => expect(api.calls('PUT /api/v1/items/2/suppliers')).toHaveLength(1));
-    expect(api.calls('PUT /api/v1/items/1/suppliers')[0].body).toEqual({ supplierIds: [7, 8] });
-    expect(await screen.findByText('2 barang dipetakan ke PT Kayu, CV Baja.')).not.toBeNull();
+    await waitFor(() => expect(api.calls('PUT /api/v1/items/2')).toHaveLength(1));
+    expect(api.calls('PUT /api/v1/items/1')[0].body).toEqual({ supplierId: 7 });
+    expect(await screen.findByText('2 barang dipetakan ke PT Kayu.')).not.toBeNull();
   });
 
   it('menyembunyikan aksi massal tanpa izin apa pun', async () => {

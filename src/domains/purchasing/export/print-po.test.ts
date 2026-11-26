@@ -9,10 +9,10 @@ vi.mock('@/shared/lib/print-html', () => print);
 const po: PurchaseOrder = {
   id: 54, nomorPo: 'PO-054', tanggalPo: '2026-11-20', approvalRequestId: null,
   supplierId: 1, supplierName: 'PT Kayu', supplierAddress: 'Jl Supplier', supplierPhone: '081234', supplierNpwp: '123.456', supplierBank: 'Bank A',
-  picSupplier: 'Andi / 081234', kebutuhanProyek: 'Lemari kantor',
+  picSupplier: 'Andi / 081234',
   subtotal: 39000, dppLain: 35750, persenPpn: 12, nilaiPpn: 4290, jasa: 1000, grandTotal: 44290,
   status: 'ISSUED', cancelledAt: null, cancelledBy: null, cancelReason: null, createdBy: 1, createdAt: '2026-11-20',
-  barang: [{ kodeBarang: 'BRG-1', namaBarang: 'Triplex', satuan: 'Lembar', jumlah: 2, hargaSatuan: 20000, diskon: 1000 }],
+  barang: [{ kodeBarang: 'BRG-1', namaBarang: 'Triplex', satuan: 'Lembar', noSpk: 'SPK-1', jumlah: 2, hargaSatuan: 20000, diskon: 1000 }],
 };
 
 describe('Purchase order print template', () => {
@@ -25,9 +25,10 @@ describe('Purchase order print template', () => {
     expect(doc.querySelector('.po-meta')?.textContent).toContain('PO-054');
     expect(doc.querySelector('.po-meta')?.textContent).toContain('20 November 2026');
     const parties = doc.querySelector('.parties')?.textContent;
-    for (const value of ['PT Kayu', 'Jl Supplier / 081234', '123.456', 'Bank A', 'Andi / 081234', 'Lemari kantor']) expect(parties).toContain(value);
+    for (const value of ['PT Kayu', 'Jl Supplier / 081234', '123.456', 'Bank A', 'Andi / 081234', 'No SPK', 'SPK-1']) expect(parties).toContain(value);
     const items = doc.querySelector('.po-items tbody')?.textContent;
-    for (const value of ['BRG-1', 'Triplex', 'Lembar', '20,000', '1,000', '39,000', '2.00']) expect(items).toContain(value);
+    for (const value of ['BRG-1', 'Triplex', 'Lembar', 'SPK-1', '20,000', '1,000', '39,000', '2.00']) expect(items).toContain(value);
+    expect(doc.querySelector('.po-items thead')?.textContent).toContain('No SPK');
     expect(doc.querySelector('tfoot')?.textContent).toContain('44,290');
     expect(doc.querySelector('tfoot')?.textContent).toContain('35.750');
     expect(doc.querySelector('.notes')?.textContent).toContain('30 hari kerja');
@@ -46,7 +47,7 @@ describe('Purchase order print template', () => {
   });
 
   it('escapes PO, supplier and item text rather than inserting markup', () => {
-    const html = buildPurchaseOrderHtml({ ...po, nomorPo: '<script>bad()</script>', supplierName: '<img src=x onerror=bad()>', kebutuhanProyek: 'Kantor & Gudang', barang: [{ ...po.barang[0], namaBarang: '<b>Triplex</b>' }] });
+    const html = buildPurchaseOrderHtml({ ...po, nomorPo: '<script>bad()</script>', supplierName: '<img src=x onerror=bad()>', barang: [{ ...po.barang[0], namaBarang: '<b>Triplex</b>', noSpk: 'Kantor & Gudang' }] });
     const doc = new DOMParser().parseFromString(html, 'text/html');
     expect(doc.querySelector('script')).toBeNull();
     expect(doc.querySelector('[onerror]')).toBeNull();
@@ -78,6 +79,12 @@ describe('Purchase order print template', () => {
     const doc = new DOMParser().parseFromString(buildPurchaseOrderHtml({ ...po, status: 'CANCELLED', cancelReason: '<b>Batal</b>' }), 'text/html');
     expect(doc.querySelector('.cancelled')?.textContent).toBe('DIBATALKAN: <b>Batal</b>');
     expect(doc.querySelector('.cancelled b')).toBeNull();
+  });
+
+  it('marks draft POs as not yet submitted', () => {
+    const doc = new DOMParser().parseFromString(buildPurchaseOrderHtml({ ...po, status: 'DRAFT' }), 'text/html');
+    expect(doc.querySelector('.draft')?.textContent).toBe('DRAFT — belum disubmit');
+    expect(doc.querySelector('.cancelled')).toBeNull();
   });
 
   it('uses the shared print helper and waits for the logo', async () => {

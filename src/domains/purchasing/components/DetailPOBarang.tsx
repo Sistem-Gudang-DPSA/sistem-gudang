@@ -6,8 +6,9 @@ import { ArrowLeft } from 'lucide-react';
 import { useCan } from '@/domains/auth/user-context';
 import { formatAngka, formatRupiah, formatTanggal } from '@/domains/ppic/data/dokubah';
 import { getPurchaseOrder } from '@/domains/purchasing/api';
-import { lihatPermintaanPoPath, PEMESAN, po_barang_path } from '@/domains/purchasing/data/pembelian';
-import StatusBadge from '@/shared/components/StatusBadge';
+import { editPoPath, lihatPermintaanPoPath, PEMESAN, po_barang_path, purchaseOrderSpk } from '@/domains/purchasing/data/pembelian';
+import StatusBadge, { type BadgeTone } from '@/shared/components/StatusBadge';
+import type { PurchaseOrderStatus } from '@/domains/purchasing/types';
 import { useApiData } from '@/shared/lib/use-api-data';
 
 const cellClass = 'px-3 py-2 border-b border-r border-gray-300';
@@ -16,9 +17,18 @@ const infoValueClass = `${cellClass} text-xs text-gray-800 whitespace-normal`;
 const sectionTitleClass = 'text-xs font-bold text-gray-900 uppercase mb-3';
 const dividerClass = 'border-t border-gray-400 my-6';
 
+const STATUS_TONE: Record<PurchaseOrderStatus, BadgeTone> = {
+  DRAFT: 'amber',
+  ISSUED: 'blue',
+  PARTIALLY_RECEIVED: 'amber',
+  RECEIVED: 'green',
+  CANCELLED: 'red',
+};
+
 export default function DetailPOBarang() {
   const { id } = useParams<{ id: string }>();
   const canView = useCan('purchase-order.view');
+  const canUpdate = useCan('purchase-order.update');
   const canReview = useCan('purchase-request.approve');
   const { data: po, loading, error } = useApiData(
     () => canView ? getPurchaseOrder(id) : Promise.resolve(null),
@@ -44,9 +54,14 @@ export default function DetailPOBarang() {
           <dl className="flex flex-wrap items-center gap-x-10 gap-y-4 text-sm text-gray-800">
             <div className="flex items-center gap-3"><dt className="font-medium">Nomor PO</dt><dd className="font-bold">{po.nomorPo}</dd></div>
             <div className="flex items-center gap-3"><dt className="font-medium">Tanggal PO</dt><dd className="border border-gray-300 rounded-lg px-3 py-2">{formatTanggal(po.tanggalPo)}</dd></div>
-            <div className="flex items-center gap-3"><dt className="font-medium">Status</dt><dd><StatusBadge tone={po.status === 'CANCELLED' ? 'red' : 'green'}>{po.status}</StatusBadge></dd></div>
+            <div className="flex items-center gap-3"><dt className="font-medium">Status</dt><dd><StatusBadge tone={STATUS_TONE[po.status] ?? 'gray'}>{po.status}</StatusBadge></dd></div>
+            {po.submittedAt && <div className="flex items-center gap-3"><dt className="font-medium">Disubmit</dt><dd className="border border-gray-300 rounded-lg px-3 py-2">{formatTanggal(po.submittedAt.slice(0, 10))}</dd></div>}
           </dl>
+          {po.status === 'DRAFT' && <p className="mt-4 text-sm text-amber-700">PO masih berupa draf. Submit PO untuk membekukan harga dan mengizinkan penerimaan barang.</p>}
           {po.cancelReason && <p className="mt-4 text-sm text-red-600">Alasan Pembatalan: {po.cancelReason}</p>}
+          {canUpdate && po.status === 'DRAFT' && (
+            <Link href={editPoPath(po.id)} className="mt-4 inline-block rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100">Edit Draft PO</Link>
+          )}
           <hr className={dividerClass} />
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-6">
@@ -76,7 +91,7 @@ export default function DetailPOBarang() {
                     {[
                       ['NPWP', PEMESAN.npwp],
                       ['Alamat Pengiriman', PEMESAN.alamatPengiriman],
-                      ['Kebutuhan Proyek', po.kebutuhanProyek || ''],
+                      ['No SPK', purchaseOrderSpk(po.barang) || '-'],
                       ['PIC / Telp', PEMESAN.pic],
                     ].map(([label, value]) => <tr key={label}><th scope="row" className={`${infoLabelClass} font-normal`}>{label}</th><td className={infoValueClass}>{value}</td></tr>)}
                   </tbody>
@@ -90,7 +105,7 @@ export default function DetailPOBarang() {
           <div className="overflow-x-auto border-t border-l border-gray-300 mb-6">
             <table className="w-full text-left text-sm whitespace-nowrap border-collapse">
               <thead className="bg-gray-100 text-gray-900"><tr>
-                {['No', 'Kode Barang', 'Nama Item / Barang', 'Satuan', 'Jumlah', 'Harga/Sat', 'Diskon', 'Total Harga'].map((label) => <th key={label} scope="col" className={cellClass}>{label}</th>)}
+                {['No', 'Kode Barang', 'Nama Item / Barang', 'Satuan', 'No SPK', 'Jumlah', 'Diterima', 'Sisa', 'Harga/Sat', 'Diskon', 'Total Harga'].map((label) => <th key={label} scope="col" className={cellClass}>{label}</th>)}
               </tr></thead>
               <tbody className="text-gray-800">
                 {po.barang.map((barang, index) => (
@@ -99,7 +114,10 @@ export default function DetailPOBarang() {
                     <td className={cellClass}>{barang.kodeBarang}</td>
                     <td className={cellClass}>{barang.namaBarang}</td>
                     <td className={cellClass}>{barang.satuan}</td>
+                    <td className={cellClass}>{barang.noSpk || '-'}</td>
                     <td className={cellClass}>{formatAngka(barang.jumlah)}</td>
+                    <td className={cellClass}>{formatAngka(barang.qtyReceived ?? 0)}</td>
+                    <td className={cellClass}>{formatAngka(barang.sisa ?? barang.jumlah)}</td>
                     <td className={cellClass}>{formatRupiah(barang.hargaSatuan)}</td>
                     <td className={cellClass}>{formatRupiah(barang.diskon)}</td>
                     <td className={cellClass}>{formatRupiah(barang.jumlah * barang.hargaSatuan - barang.diskon)}</td>

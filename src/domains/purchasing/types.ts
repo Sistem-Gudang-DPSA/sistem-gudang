@@ -54,6 +54,15 @@ export interface PurchaseOrderLineInput {
   diskon: number;
 }
 
+// `noSpk` is stored by the backend from the approved request line. It is read-only in the FE.
+export interface PurchaseOrderLine extends PurchaseOrderLineInput {
+  itemId?: number | null;
+  noSpk?: string | null;
+  qtyReceived?: number;
+  sisa?: number;
+  receipts?: { inboundId: number; date: string; qtyArrived: number; statusQc: string | null; referenceNo: string | null; createdAt: string }[];
+}
+
 // Editing replaces the PO fields and lines; the original request and generated number remain fixed.
 export type UpdatePurchaseOrderInput = Omit<CreatePurchaseOrderInput, "approvalRequestId">;
 
@@ -63,13 +72,12 @@ export interface CreatePurchaseOrderInput {
   tanggalPo: string;
   supplierId: number;
   picSupplier: string;
-  kebutuhanProyek?: string;
   barang: PurchaseOrderLineInput[];
   persenPpn: number;
   jasa: number;
 }
 
-export type PurchaseOrderStatus = "ISSUED" | "CANCELLED";
+export type PurchaseOrderStatus = "DRAFT" | "ISSUED" | "PARTIALLY_RECEIVED" | "RECEIVED" | "CANCELLED";
 
 export interface PurchaseOrder {
   id: number;
@@ -83,7 +91,6 @@ export interface PurchaseOrder {
   supplierNpwp?: string;
   supplierBank?: string;
   picSupplier: string;
-  kebutuhanProyek?: string | null;
   dppLain: number;
   persenPpn: number;
   jasa: number;
@@ -93,10 +100,12 @@ export interface PurchaseOrder {
   createdBy: number;
   createdAt: string;
   status: PurchaseOrderStatus;
+  submittedAt?: string | null;
+  submittedBy?: number | null;
   cancelledAt: string | null;
   cancelledBy: number | null;
   cancelReason: string | null;
-  barang: PurchaseOrderLineInput[];
+  barang: PurchaseOrderLine[];
 }
 
 export interface PurchaseRequestMapping {

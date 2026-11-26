@@ -1,0 +1,574 @@
+{
+  "paths": {
+    "/api/v1/reports/mutations": {
+      "get": {
+        "tags": [
+          "Report"
+        ],
+        "summary": "Stock mutations, inbound and outbound together",
+        "description": "Inbound transactions are Masuk, each outbound line is Keluar. Newest first. tanggal is the transaction date (YYYY-MM-DD), transactions carry no time. noReferensiSpk is the SPK, or the reference number for an inbound without one. lokasi filters on the item's location code. id is a string, in-<id> or out-<lineId>.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "maximum": 100,
+              "default": 10
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "required": false,
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Masuk",
+                "Keluar"
+              ]
+            },
+            "required": false,
+            "name": "tipe",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "required": false,
+            "name": "lokasi",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false,
+            "name": "startDate",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false,
+            "name": "endDate",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mutation list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "rows": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "tanggal": {
+                                "type": "string"
+                              },
+                              "noReferensiSpk": {
+                                "type": "string"
+                              },
+                              "kodeBarang": {
+                                "type": "string"
+                              },
+                              "namaItem": {
+                                "type": "string"
+                              },
+                              "tipe": {
+                                "type": "string",
+                                "enum": [
+                                  "Masuk",
+                                  "Keluar"
+                                ]
+                              },
+                              "qty": {
+                                "type": "number"
+                              },
+                              "lokasi": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "tanggal",
+                              "noReferensiSpk",
+                              "kodeBarang",
+                              "namaItem",
+                              "tipe",
+                              "qty",
+                              "lokasi"
+                            ]
+                          }
+                        },
+                        "total": {
+                          "type": "number"
+                        },
+                        "page": {
+                          "type": "number"
+                        },
+                        "pageSize": {
+                          "type": "number"
+                        },
+                        "summary": {
+                          "type": "object",
+                          "properties": {
+                            "totalTransaksi": {
+                              "type": "number",
+                              "description": "Row count, all pages"
+                            },
+                            "jumlahMasuk": {
+                              "type": "number",
+                              "description": "Masuk row count"
+                            },
+                            "jumlahKeluar": {
+                              "type": "number",
+                              "description": "Keluar row count"
+                            },
+                            "totalMasuk": {
+                              "type": "number",
+                              "description": "Quantity of Masuk rows"
+                            },
+                            "totalKeluar": {
+                              "type": "number",
+                              "description": "Quantity of Keluar rows"
+                            }
+                          },
+                          "required": [
+                            "totalTransaksi",
+                            "jumlahMasuk",
+                            "jumlahKeluar",
+                            "totalMasuk",
+                            "totalKeluar"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "rows",
+                        "total",
+                        "page",
+                        "pageSize",
+                        "summary"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/stock-opname-summary": {
+      "get": {
+        "tags": [
+          "Report"
+        ],
+        "summary": "Stock opname totals for a period",
+        "description": "totalAudit is the number of opnames, totalItemSelisih the counted lines whose physical quantity differs from the system quantity, totalAdjustmentNilai the rupiah value of those differences at the line price (negative is a loss). Both filters are optional.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 12
+            },
+            "required": false,
+            "name": "month",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 2000,
+              "maximum": 2100
+            },
+            "required": false,
+            "name": "year",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "totalAudit": {
+                          "type": "number"
+                        },
+                        "totalItemSelisih": {
+                          "type": "number"
+                        },
+                        "totalAdjustmentNilai": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "totalAudit",
+                        "totalItemSelisih",
+                        "totalAdjustmentNilai"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

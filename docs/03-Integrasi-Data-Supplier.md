@@ -63,8 +63,9 @@ S7, Toko B". Baris tanpa kode ditampilkan dengan namanya. Daftar tabel ikut dipe
 ## Pemetaan Barang ke Supplier
 
 Supplier tiap barang dapat diatur sekaligus lewat checklist di Data Barang
-Purchasing dan Superadmin. Detail alur, endpoint, dan izinnya ada di
-`21-Pemetaan-Supplier-Barang.md`.
+Purchasing dan Superadmin. Pemetaan memakai field `supplierId` pada master
+barang dan `PUT /api/v1/items/{id}` per barang, dengan izin `item.update` dan
+`item.set-supplier`. Satu barang hanya memiliki satu supplier utama.
 
 ## Status dan Langkah Berikutnya
 

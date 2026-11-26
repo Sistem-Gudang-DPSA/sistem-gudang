@@ -25,7 +25,7 @@ export function useBulkSupplierAction({
   onFinished: (result: SupplierMappingResult) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [value, setValue] = useState<string[]>([]);
+  const [value, setValue] = useState("");
   const [saving, setSaving] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState("");
@@ -34,14 +34,13 @@ export function useBulkSupplierAction({
     id: item.id,
     name: item.name,
     code: item.code,
-    currentSupplier: item.suppliers?.length
-      ? item.suppliers.map((supplier) => supplier.name).join(", ")
-      : item.supplierId === null ? null : item.supplierName ?? suppliers.find((s) => s.id === item.supplierId)?.name ?? `#${item.supplierId}`,
+    currentSupplier: item.supplierId === null
+      ? null
+      : item.supplierName ?? suppliers.find((s) => s.id === item.supplierId)?.name ?? `#${item.supplierId}`,
   }));
 
   const buka = () => {
-    const item = selected.size === 1 ? [...selected.values()][0] : undefined;
-    setValue(item ? (item.suppliers?.map((supplier) => String(supplier.id)) ?? (item.supplierId === null ? [] : [String(item.supplierId)])) : []);
+    setValue("");
     setError("");
     setProgress(null);
     setOpen(true);
@@ -51,21 +50,23 @@ export function useBulkSupplierAction({
   };
 
   const simpan = async () => {
-    if (!value.length) {
+    if (!value) {
       setError("Pilih supplier dulu.");
       return;
     }
-    const supplierIds = value.includes(TANPA_SUPPLIER) ? [] : value.map(Number);
-    const supplierName = supplierIds.length === 0 ? "Tanpa supplier" : supplierIds.map((id) => suppliers.find((s) => s.id === id)?.name ?? `#${id}`).join(", ");
+    const supplierId = value === TANPA_SUPPLIER ? null : Number(value);
+    const supplierName = supplierId === null
+      ? "Tanpa supplier"
+      : suppliers.find((s) => s.id === supplierId)?.name ?? "-";
     const ids = [...selected.keys()];
 
     setSaving(true);
     setError("");
     setProgress({ done: 0, total: ids.length });
     try {
-      const res = await bulkAssignItemSupplier(ids, supplierIds, (done, total) => setProgress({ done, total }));
+      const res = await bulkAssignItemSupplier(ids, supplierId, (done, total) => setProgress({ done, total }));
       setOpen(false);
-      setValue([]);
+      setValue("");
       onFinished({
         supplierName,
         assigned: res.assigned,
