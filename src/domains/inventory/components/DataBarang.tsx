@@ -103,7 +103,7 @@ export default function DataBarangGudang() {
     { label: 'Kode Barang', tdClassName: 'px-6 py-4 font-mono text-xs text-gray-500', cell: (item) => item.code ?? '-' },
     { label: 'Informasi Barang', sortKey: 'name', tdClassName: 'px-6 py-4 font-bold text-gray-900', cell: (item) => item.name },
     { label: 'Kode Bawaan', tdClassName: 'px-6 py-4 text-gray-600', cell: (item) => item.externalCode || '-' },
-    { label: 'Supplier', sortKey: 'supplierName', cell: (item) => <SupplierCell name={supplierName(item.supplierId)} /> },
+    { label: 'Supplier', hidden: true, sortKey: 'supplierName', cell: (item) => <SupplierCell name={supplierName(item.supplierId)} /> },
     { label: 'Stok', sortKey: 'stock', cell: (item) => <StokCell stock={item.stock} /> },
     // Stok minimum hanya diatur PPIC dan Superadmin.
     { label: 'Stok Minimum', cell: (item) => <StokMinimumCell item={item} onSaved={reload} readOnly /> },
@@ -215,7 +215,6 @@ export default function DataBarangGudang() {
         <DataBarangTable
           rows={dataBarang}
           loading={d.loading}
-          colSpan={13}
           columns={columns}
           sort={d.sort}
           onSort={d.toggle}

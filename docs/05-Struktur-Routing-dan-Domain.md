@@ -131,6 +131,14 @@ menuju `/dashboard/<divisi>` tempat dashboard divisinya tampil, sedangkan
 superadmin menuju `/dashboard/superadmin`. Untuk akun tanpa divisi, menu ini
 jatuh ke `/dashboard` yang menampilkan ringkasan akses.
 
+## Divisi Manajemen
+
+Sidebar menyediakan bagian **Manajemen** berwarna magenta (fuchsia) yang
+dapat dibuka-tutup seperti divisi lain. Bagian ini tampil untuk Superadmin dan akun dengan
+`domainCode: manajemen`. Saat ini isinya kosong, tanpa menu atau link halaman;
+bagian ini hanya tampilan awal dan belum menambahkan role, route, atau
+permission backend.
+
 ## Fitur yang disembunyikan
 
 Entri `NAV_DIVISIONS` dan item menu punya penanda `hidden: true`. Entri
