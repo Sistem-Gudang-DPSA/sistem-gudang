@@ -68,7 +68,8 @@ diambil dari `jumlah` baris PO (bukan lagi dari master barang), dan ikut
 dikirim sebagai `qtyPurchased` dari server PO. Tombol tambah dan scan ulang
 menambah 1 hingga batas `sisa`; tombol kurang mengurangi 1 dengan batas 1,
 sedangkan pecahan di bawah 1 dapat diketik langsung. Baris PO yang sama
-tidak boleh duplikat; ganti PO aktif untuk menambah barang dari PO lain. Preview menampilkan desimal dengan koma dan `POST /inbound/batch`
+tidak boleh duplikat; ganti PO aktif untuk menambah barang dari PO lain. Pilihan material menampilkan nama, kode, dan SPK agar dua baris PO
+dengan barang sama tetap bisa dibedakan. Preview menampilkan desimal dengan koma dan `POST /inbound/batch`
 menerima `qtyArrived` serta `qtyPurchased` sebagai angka JSON sesuai spec
 `docs/api-1.json`. Scan mencocokkan kode ke baris PO aktif: kode yang tidak
 ada di PO atau baris yang sudah habis ditolak, dan scan yang tertunda

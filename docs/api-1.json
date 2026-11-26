@@ -33251,10 +33251,82 @@
           "Stock Reconciliation"
         ],
         "summary": "Create a stock reconciliation draft",
-        "description": "Needs Idempotency-Key. Prefill physicalQty from the suggestions endpoint.",
+        "description": "Optional Idempotency-Key replays the draft within 24 hours. Lines are prefilled from the suggestions endpoint.",
         "responses": {
           "200": {
             "description": "Stock reconciliation draft"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 100
+            },
+            "required": false,
+            "name": "Idempotency-Key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "month": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 12
+                  },
+                  "year": {
+                    "type": "integer",
+                    "minimum": 2000,
+                    "maximum": 2100
+                  },
+                  "notes": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "lines": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "itemId": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        },
+                        "physicalQty": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1000000,
+                          "multipleOf": 0.001
+                        },
+                        "note": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        }
+                      },
+                      "required": [
+                        "itemId",
+                        "physicalQty"
+                      ]
+                    },
+                    "minItems": 1
+                  }
+                },
+                "required": [
+                  "month",
+                  "year",
+                  "lines"
+                ]
+              }
+            }
           }
         }
       }
@@ -33269,7 +33341,29 @@
           "200": {
             "description": "Suggested lines"
           }
-        }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 12
+            },
+            "required": true,
+            "name": "month",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 2000,
+              "maximum": 2100
+            },
+            "required": true,
+            "name": "year",
+            "in": "query"
+          }
+        ]
       }
     },
     "/api/v1/stock-reconciliations/{id}": {
@@ -33283,7 +33377,18 @@
           "200": {
             "description": "Stock reconciliation detail"
           }
-        }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ]
       },
       "put": {
         "tags": [
@@ -33294,6 +33399,77 @@
           "200": {
             "description": "Stock reconciliation detail"
           }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "month": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 12
+                  },
+                  "year": {
+                    "type": "integer",
+                    "minimum": 2000,
+                    "maximum": 2100
+                  },
+                  "notes": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "lines": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "itemId": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        },
+                        "physicalQty": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1000000,
+                          "multipleOf": 0.001
+                        },
+                        "note": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        }
+                      },
+                      "required": [
+                        "itemId",
+                        "physicalQty"
+                      ]
+                    },
+                    "minItems": 1
+                  }
+                },
+                "required": [
+                  "month",
+                  "year",
+                  "lines"
+                ]
+              }
+            }
+          }
         }
       }
     },
@@ -33303,12 +33479,33 @@
           "Stock Reconciliation"
         ],
         "summary": "Post a stock reconciliation",
-        "description": "Needs Idempotency-Key. Sets stock to physicalQty and closes every difference.",
+        "description": "Optional Idempotency-Key prevents double posting. Sets stock to physicalQty and closes every difference.",
         "responses": {
           "200": {
             "description": "Posted stock reconciliation"
           }
-        }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 100
+            },
+            "required": false,
+            "name": "Idempotency-Key",
+            "in": "header"
+          }
+        ]
       }
     },
     "/api/v1/stock-opname": {
@@ -33977,6 +34174,62 @@
           "200": {
             "description": "Stock opname lines saved"
           }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "lines": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "itemId": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        },
+                        "physicalQty": {
+                          "type": "number",
+                          "nullable": true,
+                          "minimum": 0,
+                          "maximum": 1000000,
+                          "multipleOf": 0.001
+                        },
+                        "note": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        }
+                      },
+                      "required": [
+                        "itemId",
+                        "physicalQty"
+                      ]
+                    },
+                    "minItems": 1,
+                    "maxItems": 500
+                  }
+                },
+                "required": [
+                  "lines"
+                ]
+              }
+            }
+          }
         }
       }
     },
@@ -33991,7 +34244,18 @@
           "200": {
             "description": "Stock opname submitted"
           }
-        }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ]
       }
     },
     "/api/v1/stock-opname/{id}/reopen": {
@@ -34005,7 +34269,18 @@
           "200": {
             "description": "Stock opname reopened"
           }
-        }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ]
       }
     },
     "/api/v1/stock-opname/{id}": {
