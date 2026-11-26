@@ -8,7 +8,7 @@ import type { PurchaseOrder } from '../types';
 vi.mock('next/navigation', () => ({ useParams: () => ({ id: '12' }) }));
 const po: PurchaseOrder = {
   id: 12, nomorPo: 'PO-012', approvalRequestId: 7, supplierId: 3, supplierName: 'Supplier Lama', tanggalPo: '2026-11-23', picSupplier: 'Andi',
-  barang: [{ lineIndex: 0, itemId: 1, noSpk: 'SPK-1', kodeBarang: 'A1', namaBarang: 'Triplex', satuan: 'Lembar', jumlah: 12, hargaSatuan: 1000, diskon: 0, qtyReceived: 0, sisa: 12, receipts: [] }],
+  barang: [{ id: 1201, lineIndex: 0, itemId: 1, noSpk: 'SPK-1', kodeBarang: 'A1', namaBarang: 'Triplex', satuan: 'Lembar', jumlah: 12, hargaSatuan: 1000, diskon: 0, qtyReceived: 0, sisa: 12, receipts: [] }],
   persenPpn: 12, jasa: 100, subtotal: 12000, dppLain: 11000, nilaiPpn: 1320, grandTotal: 13420, status: 'DRAFT', createdBy: 1, createdAt: '2026-11-23', submittedAt: null, submittedBy: null, cancelledAt: null, cancelledBy: null, cancelReason: null,
 };
 const permissions = ['purchase-order.view', 'purchase-order.update', 'supplier.view'];

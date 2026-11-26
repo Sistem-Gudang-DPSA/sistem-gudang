@@ -134,6 +134,8 @@ export interface CreateInboundInput {
   date: string;
   source?: "SUPPLIER" | "PRODUKSI";
   supplierId?: number;
+  purchaseOrderId?: number;
+  purchaseOrderLineId?: number;
   qtyArrived: number;
   qtyPurchased?: number;
   statusQc: StatusQc;
@@ -142,8 +144,11 @@ export interface CreateInboundInput {
   notes?: string;
 }
 
+// SUPPLIER lines point at the submitted PO line; supplier, price and SPK come from there.
 export interface InboundBatchLine {
   itemId: number;
+  purchaseOrderId: number;
+  purchaseOrderLineId: number;
   qtyArrived: number;
   statusQc: StatusQc;
   qtyPurchased?: number;

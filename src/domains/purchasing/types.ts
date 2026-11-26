@@ -56,6 +56,8 @@ export interface PurchaseOrderLineInput {
 
 // `noSpk` is stored by the backend from the approved request line. It is read-only in the FE.
 export interface PurchaseOrderLine extends PurchaseOrderLineInput {
+  // Database id of the line; inbound sends it as purchaseOrderLineId.
+  id: number;
   itemId?: number | null;
   noSpk?: string | null;
   qtyReceived?: number;

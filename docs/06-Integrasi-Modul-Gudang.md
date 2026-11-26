@@ -44,7 +44,7 @@ berubah dan mengabaikan respons yang sudah kedaluwarsa.
 
 | Halaman | Endpoint | Catatan |
 |---|---|---|
-| Barang Masuk | `/inbound`, `POST /inbound/batch` | Pilih supplier dulu, lalu tambah barang lewat Scan Barang (scanner atau kamera) atau Input Manual. Barang dengan supplier berbeda ditandai merah. Semua baris tampil di Preview, lalu disimpan sekali lewat `/inbound/batch` dengan header `Idempotency-Key`. Tabel menampilkan kolom Supplier. Form Barang Kembali tidak ada. |
+| Barang Masuk | `/purchase-orders`, `/purchase-orders/{id}`, `/inbound/batch` | Pilih **Nomor PO** yang sudah disubmit (`ISSUED`/`PARTIALLY_RECEIVED`), lalu tambah baris dari PO itu lewat Scan Barang (scanner atau kamera) atau Input Manual. Supplier, SPK, dan Rekap Pembelian mengikuti baris PO dan bersifat read-only; kedatangan dibatasi `sisa`. Satu batch boleh mencampur beberapa PO dengan mengganti PO aktif sebelum menambah baris. Semua baris tampil di Preview, lalu disimpan sekali lewat `POST /inbound/batch` dengan `purchaseOrderId` + `purchaseOrderLineId` per baris dan header `Idempotency-Key`. Form Barang Kembali tidak ada. |
 | Barang Keluar | `/outbound` | Form punya Asal Gudang dan Tujuan/Penerima (wajib). Tabel diratakan satu baris per barang. Saat Preview terbuka, panel scan dan kamera ditutup dan scan baru diabaikan sampai Kembali Edit. Konfirmasi ditolak selama scan tertunda, memvalidasi ulang form, dan mengambil ulang stok (`GET /items/{id}`) hanya untuk baris yang qty-nya melebihi stok. |
 | Stock Opname | `/stock-opname` | Daftar dengan filter bulan dan tahun dari server, dan detail berisi stok sistem, fisik, dan selisih. Form menyediakan Simpan Draft di browser dan Submit final dengan konfirmasi karena hanya submit yang menyetel stok ke jumlah fisik. Jumlah fisik boleh desimal (maks. 3 angka di belakang koma, maks. 1.000.000). Baris yang sudah diisi, termasuk hasil scan dari halaman lain, tetap tampil di tabel dan bisa dikosongkan agar tidak ikut dikirim. |
 | Laporan Barang Masuk dan Keluar | `/reports/inbound`, `/reports/outbound` | Kartu per kategori memakai `summary` dari backend (abaikan filter sumber). Kartu total Barang Masuk memakai `filteredSummary` (qty dan jumlah transaksi, mengikuti semua filter) agar cocok dengan tabel. Ada kolom Lokasi. |
@@ -56,20 +56,23 @@ awal setiap kata saat diketik atau ditempel. Misalnya `pak mul`, `PAK MUL`,
 dan `pAk mUL` menjadi `Pak Mul`. Nama yang sudah disesuaikan dipakai pada
 Preview, catatan pengambil dan PIC tiap baris saat disimpan, serta cetakan.
 
-Jumlah **Rekap Pembelian** dan **Kedatangan** pada form Barang Masuk menerima
-angka desimal dengan koma, maksimal 3 angka di belakang koma. Huruf, titik,
-tanda plus/minus, koma ganda, dan presisi berlebih ditolak dengan pesan di
-kolom tanpa mengubah nilai sebelumnya. Pesan validasi hanya menyebut
-kesalahan yang perlu diperbaiki, misalnya "Lengkapi angka desimal." atau
-"Maksimal 100.000.". Kedatangan wajib lebih dari 0 dan
-maksimal 100.000; rekap pembelian wajib diisi, minimal 0 dan maksimal
-999999999. Nilai yang tidak valid menghalangi Preview. Tombol tambah dan
-scan ulang menambah 1 hingga batas kedatangan; tombol kurang mengurangi 1
-dengan batas 1, sedangkan pecahan di bawah 1 dapat diketik langsung.
-Preview menampilkan desimal dengan koma dan `POST /inbound/batch` menerima
-`qtyArrived` serta `qtyPurchased` sebagai angka JSON. Spec lokal
-`docs/api-1.json` masih mencantumkan keduanya sebagai integer; dukungan
-desimal di backend perlu diverifikasi sebelum dipakai di produksi.
+Jumlah **Kedatangan** pada form Barang Masuk menerima angka desimal dengan
+koma, maksimal 3 angka di belakang koma. Huruf, titik, tanda plus/minus,
+koma ganda, dan presisi berlebih ditolak dengan pesan di kolom tanpa
+mengubah nilai sebelumnya. Pesan validasi hanya menyebut kesalahan yang
+perlu diperbaiki, misalnya "Lengkapi angka desimal." atau "Maksimal
+100.000.". Kedatangan wajib lebih dari 0, maksimal 100.000, dan tidak boleh
+melebihi `sisa` baris PO yang dipilih; baris yang kelebihan ditandai merah
+dan langsung ditolak sebelum Preview. **Rekap Pembelian** kini read-only,
+diambil dari `jumlah` baris PO (bukan lagi dari master barang), dan ikut
+dikirim sebagai `qtyPurchased` dari server PO. Tombol tambah dan scan ulang
+menambah 1 hingga batas `sisa`; tombol kurang mengurangi 1 dengan batas 1,
+sedangkan pecahan di bawah 1 dapat diketik langsung. Baris PO yang sama
+tidak boleh duplikat; ganti PO aktif untuk menambah barang dari PO lain. Preview menampilkan desimal dengan koma dan `POST /inbound/batch`
+menerima `qtyArrived` serta `qtyPurchased` sebagai angka JSON sesuai spec
+`docs/api-1.json`. Scan mencocokkan kode ke baris PO aktif: kode yang tidak
+ada di PO atau baris yang sudah habis ditolak, dan scan yang tertunda
+diabaikan bila PO aktif diganti.
 
 ### Penggabungan branch `cal/updRabuGudang`
 
