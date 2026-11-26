@@ -26,10 +26,11 @@ export function peringatanJumlahMasuk(value: string, field: 'kedatangan' | 'reka
 
 export type SaveBarangMasuk = (input: CreateInboundBatchInput, key: string, printAfter: boolean) => Promise<void>;
 
-const labelBaris = (baris: { name?: string; code?: string | null; namaBarang?: string; kodeBarang?: string }) => {
+const labelBaris = (baris: { name?: string; code?: string | null; namaBarang?: string; kodeBarang?: string; noSpk?: string | null }) => {
   const nama = baris.name ?? baris.namaBarang ?? '';
   const kode = baris.code ?? baris.kodeBarang;
-  return kode ? `${nama} (${kode})` : nama;
+  const spk = baris.noSpk ? ` · ${baris.noSpk}` : '';
+  return kode ? `${nama} (${kode})${spk}` : `${nama}${spk}`;
 };
 
 export function useFormBarangMasuk(onSave: SaveBarangMasuk) {

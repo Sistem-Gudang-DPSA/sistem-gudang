@@ -88,7 +88,7 @@ async function openBaru({ pilihPo = true, manual = true } = {}) {
   if (pilihPo) await pickPo();
   if (manual) fireEvent.click(screen.getByRole('button', { name: 'Input Manual' }));
 }
-async function pickItem(name = 'Triplex 1 (BRG-1)', index = 0) {
+async function pickItem(name = 'Triplex 1 (BRG-1) · SPK-1', index = 0) {
   fireEvent.click(within(formDialog()).getAllByRole('button', { name: /^Nama material/ })[index]);
   fireEvent.click(await screen.findByRole('option', { name }));
 }
@@ -396,7 +396,7 @@ describe('BarangMasuk preview', () => {
     expect(screen.getByLabelText('Tanggal')).toBeTruthy();
     expect((screen.getByLabelText('Tanggal') as HTMLInputElement).value).toBe('2026-11-12');
     fireEvent.click(screen.getByRole('button', { name: 'Input Manual' }));
-    await pickItem('Paku (BRG-3)', 1);
+    await pickItem('Paku (BRG-3) · SPK-3', 1);
     fireEvent.change(arrived('Paku'), { target: { value: '7' } });
     fireEvent.change(screen.getByLabelText('Tanggal'), { target: { value: '2026-11-13' } });
     fireEvent.click(screen.getByText('Simpan'));
@@ -452,7 +452,7 @@ describe('BarangMasuk preview', () => {
     await openBaru();
     await fillBaru();
     fireEvent.click(screen.getByRole('button', { name: 'Input Manual' }));
-    await pickItem('Paku (BRG-3)', 1);
+    await pickItem('Paku (BRG-3) · SPK-3', 1);
     fireEvent.click(screen.getByText('Simpan + Cetak'));
     expect(previewDialog()).not.toBeNull();
     expect(api.calls(BATCH)).toHaveLength(0);
@@ -594,12 +594,36 @@ describe('BarangMasuk multiple PO lines in one batch', () => {
     await pickPo('PO-103 — PT Kayu');
     fireEvent.click(screen.getByRole('button', { name: 'Input Manual' }));
     fireEvent.click(within(formDialog()).getAllByRole('button', { name: /^Nama material/ })[0]);
-    fireEvent.click(await screen.findByRole('option', { name: 'Triplex 1 (BRG-3)' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Triplex 1 (BRG-3) · SPK-3' }));
     fireEvent.click(screen.getByText('Simpan'));
     confirm();
     await waitFor(() => expect(api.calls(BATCH)).toHaveLength(1));
     expect(api.calls(BATCH)[0].body).toEqual({ date: expect.any(String), source: 'SUPPLIER', lines: [
       { itemId: 3, purchaseOrderId: 103, purchaseOrderLineId: 32, qtyArrived: 1, qtyPurchased: 12, statusQc: 'PASS' },
+    ] });
+  });
+
+  it('distinguishes PO lines that share an item code by their SPK', async () => {
+    const { api } = setup({
+      [PO_LIST]: paged([{ id: 103, nomorPo: 'PO-103', supplierName: 'PT Kayu', status: 'ISSUED' }]),
+      'GET /api/v1/purchase-orders/103': poDetail(103, 'PT Kayu', [
+        poLine(31, 1), poLine(32, 1, { kodeBarang: 'BRG-1', noSpk: 'SPK-9' }),
+      ]),
+    });
+    await screen.findByText('Triplex 1');
+    fireEvent.click(screen.getByText('Barang Baru'));
+    await screen.findByText('FORM BARANG MASUK');
+    await pickPo('PO-103 — PT Kayu');
+    fireEvent.click(screen.getByRole('button', { name: 'Input Manual' }));
+    fireEvent.click(within(formDialog()).getAllByRole('button', { name: /^Nama material/ })[0]);
+    expect(await screen.findByRole('option', { name: 'Triplex 1 (BRG-1) · SPK-1' })).not.toBeNull();
+    expect(screen.getByRole('option', { name: 'Triplex 1 (BRG-1) · SPK-9' })).not.toBeNull();
+    fireEvent.click(screen.getByRole('option', { name: 'Triplex 1 (BRG-1) · SPK-9' }));
+    fireEvent.click(screen.getByText('Simpan'));
+    confirm();
+    await waitFor(() => expect(api.calls(BATCH)).toHaveLength(1));
+    expect(api.calls(BATCH)[0].body).toEqual({ date: expect.any(String), source: 'SUPPLIER', lines: [
+      { itemId: 1, purchaseOrderId: 103, purchaseOrderLineId: 32, qtyArrived: 1, qtyPurchased: 20, statusQc: 'PASS' },
     ] });
   });
 
@@ -653,7 +677,7 @@ describe('BarangMasuk multiple PO lines in one batch', () => {
     await openBaru();
     await fillBaru();
     fireEvent.click(screen.getByRole('button', { name: 'Input Manual' }));
-    await pickItem('Triplex 1 (BRG-1)', 1);
+    await pickItem('Triplex 1 (BRG-1) · SPK-1', 1);
     expect(screen.getByText('Barang "Triplex 1" sudah ada di baris 1. Ubah jumlah di baris tersebut.').getAttribute('role')).toBe('alert');
     fireEvent.click(within(within(formDialog()).getAllByRole('row')[2]).getByRole('button', { name: /^Hapus/ }));
     fireEvent.change(arrived(), { target: { value: '1' } });
@@ -663,7 +687,7 @@ describe('BarangMasuk multiple PO lines in one batch', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Kurangi Triplex 1' }));
     expect(arrived().value).toBe('1');
     fireEvent.click(screen.getByRole('button', { name: 'Input Manual' }));
-    await pickItem('Paku (BRG-3)', 1);
+    await pickItem('Paku (BRG-3) · SPK-3', 1);
     fireEvent.click(screen.getByRole('button', { name: 'Hapus Triplex 1' }));
     expect(tableRow('BRG-3').querySelector('td')?.textContent).toBe('1');
     fireEvent.click(screen.getByText('Simpan'));
@@ -680,7 +704,7 @@ describe('BarangMasuk multiple PO lines in one batch', () => {
     await fillBaru();
     await pickPo('PO-102 — PT Besi');
     fireEvent.click(screen.getByRole('button', { name: 'Input Manual' }));
-    await pickItem('Triplex 2 (BRG-2)', 1);
+    await pickItem('Triplex 2 (BRG-2) · SPK-2', 1);
     expect(arrived('Triplex 2').value).toBe('1');
     fireEvent.click(screen.getByText('Simpan'));
     expect(within(previewDialog()).getByText(/PT Kayu, PT Besi/)).not.toBeNull();
@@ -726,7 +750,7 @@ describe('BarangMasuk multiple PO lines in one batch', () => {
     await openBaru();
     await fillBaru();
     fireEvent.click(screen.getByRole('button', { name: 'Input Manual' }));
-    await pickItem('Paku (BRG-3)', 1);
+    await pickItem('Paku (BRG-3) · SPK-3', 1);
     fireEvent.click(screen.getByText('Simpan'));
     confirm();
     expect(await screen.findByText('Paku: Supplier tidak cocok')).not.toBeNull();
