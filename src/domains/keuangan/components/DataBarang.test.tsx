@@ -15,7 +15,7 @@ describe('Keuangan DataBarang export', () => {
   it('exports every filtered row across pages as an escaped CSV', async () => {
     const csv = await import('@/shared/lib/csv');
     const spy = vi.spyOn(csv, 'downloadCsv').mockImplementation(() => {});
-    const all = Array.from({ length: 25 }, (_, i) => item(i + 1, i === 0 ? { externalCode: '=Meja, "besar"' } : {}));
+    const all = Array.from({ length: 25 }, (_, i) => item(i + 1));
     const api = installFakeApi({
       'GET /api/v1/items': (req: { query: URLSearchParams }) => {
         const pageSize = Number(req.query.get('pageSize'));
@@ -23,7 +23,7 @@ describe('Keuangan DataBarang export', () => {
         return { rows: all.slice((page - 1) * pageSize, page * pageSize), total: 25, page, pageSize };
       },
       'GET /api/v1/locations': paged([{ id: 1, code: 'A01', rackName: 'A', rackNumber: '01' }]),
-      'GET /api/v1/suppliers': paged([{ id: 7, name: 'PT Kayu' }]),
+      'GET /api/v1/suppliers': paged([{ id: 7, name: '=Meja, "besar"' }]),
     });
     render(<DataBarang />);
     await screen.findByText('Barang 1');
@@ -61,5 +61,21 @@ it('DataBarang memuat semua halaman lokasi dan supplier', async () => {
   expect(api.calls('GET /api/v1/locations').map((c) => c.query.get('page')).sort()).toEqual(['1', '2']);
   expect(api.calls('GET /api/v1/locations')[0].query.get('pageSize')).toBe('100');
   // Id 150 hanya ada di halaman kedua.
-  expect(await screen.findByText('Supplier Terakhir')).not.toBeNull();
+  expect(screen.queryByRole('columnheader', { name: 'Supplier' })).toBeNull();
+  expect(screen.queryByText('Supplier Terakhir')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: /Filter/ }));
+  expect(await screen.findByRole('option', { name: 'Supplier Terakhir' })).not.toBeNull();
+});
+
+it('menampilkan kolom Harga Terbaru untuk Keuangan', async () => {
+  installFakeApi({
+    'GET /api/v1/items': paged([itemRow]),
+    'GET /api/v1/items/categories': [],
+    'GET /api/v1/items/units': [],
+    'GET /api/v1/locations': paged([{ id: 150, code: 'Z99', rackName: 'A', rackNumber: '01' }]),
+    'GET /api/v1/suppliers': paged([{ id: 150, name: 'PT Kayu' }]),
+  });
+  render(<DataBarang />);
+  expect(await screen.findByRole('columnheader', { name: 'Harga Terbaru' })).not.toBeNull();
+  expect(screen.getByText('1.000')).not.toBeNull();
 });

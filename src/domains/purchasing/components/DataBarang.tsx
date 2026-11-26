@@ -14,8 +14,10 @@ import { useDataBarang } from '@/domains/inventory/components/data-barang/useDat
 import DataBarangTable, { type BarangColumn, HargaCell, KategoriBadge, StokCell, SupplierCell } from '@/domains/inventory/components/data-barang/DataBarangTable';
 import DataBarangToolbar, { FilterToggle } from '@/domains/inventory/components/data-barang/DataBarangToolbar';
 import BulkSupplierAction, { type SupplierMappingResult } from '@/domains/inventory/components/data-barang/BulkSupplierAction';
+import Link from 'next/link';
 
 export default function DataBarangPurchasing() {
+  const canView = useCan('item.view');
   // PUT /items/:id menolak perubahan supplierId tanpa item.update + item.set-supplier.
   const canUpdateItem = useCan('item.update');
   const canSetSupplier = useCan('item.set-supplier');
@@ -43,8 +45,8 @@ export default function DataBarangPurchasing() {
   const handleExportCSV = () => {
     setExportError('');
     try {
-      const rows: unknown[][] = [['No', 'Kode Barang', 'Kode Bawaan', 'Nama Barang', 'Supplier', 'Jumlah Stok', 'Satuan', 'Kategori', 'Harga', 'Lokasi']];
-      dataBarang.forEach((item, index) => rows.push([index + 1, item.code ?? '-', item.externalCode ?? '-', item.name, supplierName(item.supplierId), item.stock, item.unit, item.category, item.price, locationCode(item.locationId)]));
+      const rows: unknown[][] = [['No', 'Kode Barang', 'Nama Barang', 'Supplier', 'Jumlah Stok', 'Satuan', 'Kategori', 'Harga', 'Lokasi']];
+      dataBarang.forEach((item, index) => rows.push([index + 1, item.code ?? '-', item.name, supplierName(item.supplierId), item.stock, item.unit, item.category, item.price, locationCode(item.locationId)]));
       downloadCsv('Data_Barang_Purchasing.csv', rows);
     } catch (err) {
       setExportError(err instanceof Error ? err.message : 'Gagal export data barang.');
@@ -54,8 +56,7 @@ export default function DataBarangPurchasing() {
   const columns: BarangColumn[] = [
     { label: 'Kode Barang', tdClassName: 'px-6 py-4 font-mono text-xs text-gray-500', cell: (item) => item.code ?? '-' },
     { label: 'Informasi Barang', sortKey: 'name', tdClassName: 'px-6 py-4 font-bold text-gray-900', cell: (item) => item.name },
-    { label: 'Kode Bawaan', tdClassName: 'px-6 py-4 text-gray-600', cell: (item) => item.externalCode || '-' },
-    { label: 'Supplier', sortKey: 'supplierName', cell: (item) => <SupplierCell name={supplierName(item.supplierId)} /> },
+    { label: 'Supplier', hidden: true, sortKey: 'supplierName', cell: (item) => <SupplierCell name={supplierName(item.supplierId)} /> },
     { label: 'Stok', sortKey: 'stock', cell: (item) => <StokCell stock={item.stock} /> },
     // Stok minimum diatur PPIC; Purchasing hanya melihat nilainya.
     { label: 'Stok Minimum', cell: (item) => <StokMinimumCell item={item} onSaved={reload} readOnly /> },
@@ -68,7 +69,6 @@ export default function DataBarangPurchasing() {
         {locationCode(item.locationId)}
       </span>
     ) },
-    { label: 'Keterangan', sortKey: 'detail', tdClassName: 'px-6 py-4 text-gray-600', cell: (item) => item.detail || '-' },
   ];
 
   return (
@@ -127,7 +127,6 @@ export default function DataBarangPurchasing() {
         <DataBarangTable
           rows={dataBarang}
           loading={d.loading}
-          colSpan={canAssignSupplier ? 14 : 13}
           columns={columns}
           sort={d.sort}
           onSort={d.toggle}
@@ -139,6 +138,11 @@ export default function DataBarangPurchasing() {
             onToggleAll: toggleAll,
             disableAllWhenEmpty: true,
           } : undefined}
+          rowActions={canView ? (item) => (
+            <Link href={`/dashboard/purchasing/master/data-barang/${item.id}`} aria-label={`Detail supplier ${item.name}`} className="rounded-lg border border-purple-100 bg-purple-50 px-3 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-100">
+              Detail
+            </Link>
+          ) : undefined}
           rowClassName={() => 'hover:bg-purple-50/30 transition-colors group'}
           tbodyClassName="divide-y divide-gray-50"
         />

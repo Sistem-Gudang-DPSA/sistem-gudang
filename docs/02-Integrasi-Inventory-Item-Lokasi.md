@@ -134,6 +134,11 @@ bertahan saat pencarian, filter, atau urutan berubah, dan hilang saat layar
 ditutup. Banner hijau di atas tabel menampilkan jumlah baris terpilih beserta
 tombol **Bersihkan pilihan**.
 
+Kolom **Supplier** di tabel Data Barang disembunyikan untuk semua role,
+termasuk Superadmin, Gudang/Inventory, PPIC, Purchasing, dan Keuangan.
+Filter supplier, pemetaan supplier massal sesuai permission, dan data supplier
+dalam export tetap tersedia. Supplier di detail penerimaan barang tetap tampil.
+
 Kolom harga pada Data Barang PPIC, Purchasing, dan Superadmin memakai label
 **Harga Terbaru** dan format ribuan `id-ID` yang sama (contoh `1.000`).
 Bila respons `GET /items` menyertakan tanggal harga terakhir, sel yang sama
@@ -142,6 +147,13 @@ ada di kontrak backend (usul nama `priceUpdatedAt`, diisi saat harga menempel
 dari barang masuk); selama kosong, baris tanggal disembunyikan. Nilai harga
 tetap `item.price`; Superadmin masih dapat mengeditnya di mode edit bila
 punya `item.set-price`.
+
+Data Barang Superadmin menampilkan kolom **Nilai Stok** tepat di kanan
+**Harga Terbaru**. Nilainya memakai **Total Nilai Stok** dari detail barang,
+yaitu jumlah sisa stok × harga per satuan tiap penerimaan, dengan format
+ribuan `id-ID`. Daftar dan detail memakai sumber dummy bersama sehingga
+angkanya sama: saat ini `3.700.000` untuk setiap barang. Angka ini belum
+mewakili stok aktual dan bukan hasil stok master × harga terbaru.
 
 ## Status dan Langkah Berikutnya
 
@@ -167,7 +179,11 @@ endpoint backend-nya:
 
 ## Detail Penerimaan Barang Superadmin
 
-Kolom Aksi di Data Barang Superadmin menyediakan tombol ikon **i / Detail** untuk pengguna dengan permission `item.view`. Tombol membuka halaman `/dashboard/superadmin/master/data-barang/[id]` yang menampilkan nama dan kode barang dari `GET /api/v1/items/{id}` beserta tabel **Tanggal Masuk, Jumlah, Harga per Satuan, Supplier**. Tabel mengikuti tampilan Data Barang: header abu-abu, baris lega dengan latar selang-seling, jumlah tebal, dan inisial supplier. Riwayat ini memakai data dummy yang sama untuk setiap material, dengan beberapa tanggal, harga, dan supplier berbeda. Halaman menyediakan link kembali ke Data Barang Superadmin dan menandai data contoh secara jelas; jumlahnya tidak mewakili stok aktual. Fitur ini belum memakai endpoint riwayat penerimaan dan tidak mengubah data barang.
+Kolom Aksi di Data Barang Superadmin menyediakan tombol ikon **i / Detail** untuk pengguna dengan permission `item.view`. Tombol membuka halaman `/dashboard/superadmin/master/data-barang/[id]` yang menampilkan nama dan kode barang dari `GET /api/v1/items/{id}` beserta tabel **Tanggal Masuk, Jumlah, Sisa Stok, Harga per Satuan, Nilai Stok, Supplier**. Tabel mengikuti tampilan Data Barang: header abu-abu, baris lega dengan latar selang-seling, jumlah tebal, dan inisial supplier. Riwayat ini memakai data dummy yang sama untuk setiap material, dengan beberapa tanggal, harga, dan supplier berbeda. Halaman menyediakan link kembali ke Data Barang Superadmin dan menandai data contoh secara jelas; jumlahnya tidak mewakili stok aktual. Fitur ini belum memakai endpoint riwayat penerimaan dan tidak mengubah data barang.
+
+Kolom **Sisa Stok** di kanan Jumlah menunjukkan contoh jumlah yang masih tersisa dari setiap penerimaan, termasuk penerimaan yang stoknya sudah habis. Kolom **Nilai Stok** di kanan Harga per Satuan menghitung sisa stok × harga per satuan penerimaan tersebut. Baris **Total Nilai Stok** di bawah tabel menjumlahkan seluruh nilai stok penerimaan. Semua sisa stok dan nilai ini merupakan dummy tetap, bukan saldo aktual atau pengurangan otomatis dari transaksi backend.
+
+Detail barang menyediakan filter **Dari tanggal**, **Sampai tanggal**, dan **Supplier** di atas tabel. Batas tanggal bersifat inklusif, dapat diisi salah satu atau keduanya, dan dapat digabung dengan pilihan supplier. **Reset filter** mengembalikan seluruh penerimaan. Header tabel tidak memiliki sort; urutan bawaan tetap tanggal terbaru lebih dulu. Bila tidak ada hasil, tabel menampilkan pesan kosong. **Total Nilai Stok** tetap menghitung seluruh penerimaan agar konsisten dengan daftar barang; saat filter aktif, total diberi keterangan **Seluruh penerimaan**.
 
 ## Import Excel Data Barang
 

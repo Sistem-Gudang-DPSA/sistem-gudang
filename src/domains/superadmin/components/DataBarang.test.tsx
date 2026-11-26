@@ -4,11 +4,12 @@ import { fail, installFakeApi, paged } from '@/test/fake-api';
 import { AuthUserProvider } from '@/domains/auth/user-context';
 import type { AuthUser } from '@/domains/auth/types';
 import DataBarangGudang from './DataBarang';
+import ItemReceiptDetail from '@/domains/inventory/components/data-barang/ItemReceiptDetail';
 
 vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
-  useParams: () => ({}),
+  useParams: () => ({ id: '1' }),
   usePathname: () => '/superadmin/barang',
 }));
 
@@ -38,10 +39,35 @@ async function ubahKategori(kategori: string) {
 }
 
 describe('DataBarang superadmin: kolom harga', () => {
+  it('menampilkan total nilai stok dummy dari detail tepat di kanan harga, terlepas dari stok dan harga terbaru', async () => {
+    setup({}, {}, { rows: [item, { ...item, id: 2, name: 'Barang kosong', stock: 0 }, { ...item, id: 3, name: 'Barang pecahan', stock: 2.5, price: 1500 }] });
+    await screen.findByText('Barang 1');
+    const headers = screen.getAllByRole('columnheader').map((cell) => cell.textContent);
+    const priceIndex = headers.findIndex((label) => label?.startsWith('Harga Terbaru'));
+    expect(headers[priceIndex + 1]).toBe('Nilai Stok');
+    for (const name of ['Barang 1', 'Barang kosong', 'Barang pecahan']) {
+      const row = screen.getByText(name).closest('tr')!;
+      const cells = within(row).getAllByRole('cell');
+      expect(cells[priceIndex + 1].textContent).toBe('3.700.000');
+    }
+  });
+
+  it('menampilkan angka yang sama pada daftar dan total detail untuk barang yang sama', async () => {
+    setup({}, { 'GET /api/v1/items/1': item });
+    const row = (await screen.findByText('Barang 1')).closest('tr')!;
+    const listValue = within(row).getByText('3.700.000').textContent;
+    const detail = render(<ItemReceiptDetail />);
+    const total = await detail.findByRole('rowheader', { name: 'Total Nilai Stok' });
+    const detailValue = within(total.closest('tr')!).getByRole('cell', { name: /Rp/ }).textContent;
+    expect(detailValue?.replace(/Rp\s*/, '')).toBe(listValue);
+  });
+
   it('memakai label Harga Terbaru dan format ribuan', async () => {
     setup({});
     const row = (await screen.findByText('Barang 1')).closest('tr');
     expect(screen.getByRole('columnheader', { name: 'Harga Terbaru' })).toBeTruthy();
+    expect(screen.queryByRole('columnheader', { name: 'Supplier' })).toBeNull();
+    expect(within(row!).queryByText('PT Kayu')).toBeNull();
     expect(within(row!).getByText('1.000')).toBeTruthy();
     expect(within(row!).queryByText(/^per /)).toBeNull();
   });
@@ -53,6 +79,8 @@ describe('DataBarang superadmin: kolom harga', () => {
     fireEvent.click(screen.getByText('Mode Edit'));
     await waitFor(() => expect(screen.getByLabelText('Harga Barang 1')).toBeTruthy());
     expect(screen.queryByText('per 23-11-2026')).toBeNull();
+    expect(screen.queryByLabelText('Supplier Barang 1')).toBeNull();
+    expect(screen.queryByRole('columnheader', { name: 'Supplier' })).toBeNull();
   });
 });
 
@@ -68,30 +96,6 @@ describe('DataBarang superadmin: notifikasi kode saat kategori berubah', () => {
     setup({ ...item, category: 'Permesinan' });
     await ubahKategori('Permesinan');
     expect(await screen.findByText('Kode barang tetap LEM013 karena barang sudah punya transaksi.')).not.toBeNull();
-  });
-});
-
-describe('DataBarang superadmin: Ganti kode', () => {
-  afterEach(() => vi.restoreAllMocks());
-
-  it('konfirmasi lalu memanggil recode dan menampilkan kode lama dan baru', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    const api = setup({}, { 'POST /api/v1/items/1/recode': { ...item, code: 'PER201', category: 'Permesinan' } });
-    await screen.findByText('Barang 1');
-    fireEvent.click(screen.getByRole('button', { name: 'Ganti kode' }));
-    expect(window.confirm).toHaveBeenCalledWith('Ganti kode LEM013? Label lama tidak bisa di-scan lagi. Cetak ulang label setelah ini.');
-    expect(await screen.findByText('Kode barang berubah dari LEM013 menjadi PER201.')).not.toBeNull();
-    expect(api.calls('POST /api/v1/items/1/recode')).toHaveLength(1);
-  });
-
-  it('batal di konfirmasi tidak memanggil recode', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
-    const api = setup({});
-    await screen.findByText('Barang 1');
-    fireEvent.click(screen.getByRole('button', { name: 'Ganti kode' }));
-    expect(window.confirm).toHaveBeenCalled();
-    await new Promise((r) => setTimeout(r, 0));
-    expect(api.calls('POST /api/v1/items/1/recode')).toHaveLength(0);
   });
 });
 
@@ -124,49 +128,7 @@ describe('DataBarang superadmin: detail penerimaan dummy', () => {
   });
 });
 
-describe('DataBarang superadmin: Ganti Kode Massal', () => {
-  afterEach(() => vi.restoreAllMocks());
-  const item2 = { ...item, id: 2, code: 'LEM014', name: 'Barang 2' };
-  const recoded = {
-    items: [
-      { id: 1, oldCode: 'LEM013', newCode: 'PER201' },
-      { id: 2, oldCode: 'LEM014', newCode: 'PER202' },
-    ],
-  };
-
-  it('konfirmasi lalu memanggil recode massal dan menampilkan daftar perubahan', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    const api = setup({}, { 'POST /api/v1/items/recode/bulk': recoded }, { rows: [item, item2] });
-    await screen.findByText('Barang 1');
-    openBulkMenu();
-    expect((screen.getByRole('menuitem', { name: 'Ganti Kode Massal' }) as HTMLButtonElement).disabled).toBe(true);
-    closeBulkMenu();
-
-    fireEvent.click(screen.getByLabelText('Pilih Barang 1'));
-    fireEvent.click(screen.getByLabelText('Pilih Barang 2'));
-    openBulkMenu();
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Ganti Kode Massal' }));
-    expect(window.confirm).toHaveBeenCalledWith('Ganti kode 2 barang? Label lama tidak bisa di-scan lagi. Cetak ulang label setelah ini.');
-    expect(await screen.findByText('2 kode barang diganti.')).not.toBeNull();
-    expect(screen.getByText('LEM013 → PER201')).not.toBeNull();
-    expect(screen.getByText('LEM014 → PER202')).not.toBeNull();
-    expect(api.calls('POST /api/v1/items/recode/bulk')[0].body).toEqual({ itemIds: [1, 2] });
-    openBulkMenu();
-    expect((screen.getByRole('menuitem', { name: 'Ganti Kode Massal' }) as HTMLButtonElement).disabled).toBe(true);
-  });
-
-  it('batal di konfirmasi tidak memanggil recode massal', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
-    const api = setup({}, { 'POST /api/v1/items/recode/bulk': recoded }, { rows: [item, item2] });
-    await screen.findByText('Barang 1');
-    fireEvent.click(screen.getByLabelText('Pilih Barang 1'));
-    openBulkMenu();
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Ganti Kode Massal' }));
-    expect(window.confirm).toHaveBeenCalled();
-    await new Promise((r) => setTimeout(r, 0));
-    expect(api.calls('POST /api/v1/items/recode/bulk')).toHaveLength(0);
-  });
-
+describe('DataBarang superadmin: aksi massal non-superadmin', () => {
   it('tidak tampil untuk pengguna non-superadmin', async () => {
     const user: AuthUser = { id: 1, username: 'u', email: 'u@x.id', roleId: 2, roleName: 'Staff', isSuperadmin: false, permissions: [] };
     setup({}, {}, { user });
@@ -190,19 +152,18 @@ describe('DataBarang superadmin: Hapus', () => {
 });
 
 describe('DataBarang superadmin: pilih semua barang', () => {
-  it('checkbox header memilih semua barang terfilter lalu aksi massal memakai semuanya', async () => {
+  it('checkbox header memilih semua barang terfilter lalu mengosongkan pilihan', async () => {
     const item2 = { ...item, id: 2, code: 'LEM014', name: 'Barang 2' };
     setup({}, { 'GET /api/v1/items': paged([item, item2], { total: 2 }) });
     await screen.findByText('Barang 1');
     fireEvent.click(screen.getByLabelText('Pilih semua barang'));
     expect(await screen.findByRole('button', { name: 'Aksi Massal (2)' })).not.toBeNull();
     openBulkMenu();
-    expect((screen.getByRole('menuitem', { name: 'Ganti Kode Massal' }) as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.queryByRole('menuitem', { name: 'Ganti Kode Massal' })).toBeNull();
     closeBulkMenu();
     // klik kedua pada checkbox header mengosongkan pilihan
     fireEvent.click(screen.getByLabelText('Pilih semua barang'));
-    openBulkMenu();
-    expect((screen.getByRole('menuitem', { name: 'Ganti Kode Massal' }) as HTMLButtonElement).disabled).toBe(true);
+    await waitFor(() => expect((screen.getByLabelText('Pilih semua barang') as HTMLInputElement).checked).toBe(false));
   });
 });
 
@@ -265,11 +226,11 @@ describe('DataBarang superadmin: pemetaan supplier massal', () => {
   const routes = {
     'GET /api/v1/items': paged([item, second]),
     'GET /api/v1/locations': paged([{ id: 1, code: 'A01', rackName: 'A', rackNumber: '01' }]),
-    'GET /api/v1/suppliers': paged([{ id: 7, name: 'PT Kayu' }]),
+    'GET /api/v1/suppliers': paged([{ id: 7, name: 'PT Kayu' }, { id: 8, name: 'CV Baja' }]),
     'GET /api/v1/items/categories': [{ id: 1, name: 'Lembaran' }],
     'GET /api/v1/items/units': [{ id: 1, name: 'pcs' }],
-    'PUT /api/v1/items/1': { ...item, supplierId: 7 },
-    'PUT /api/v1/items/2': { ...second, supplierId: 7 },
+    'PUT /api/v1/items/1/suppliers': { ...item, supplierId: 7 },
+    'PUT /api/v1/items/2/suppliers': { ...second, supplierId: 7 },
   };
 
   it('memetakan barang yang dicentang ke supplier', async () => {
@@ -284,12 +245,14 @@ describe('DataBarang superadmin: pemetaan supplier massal', () => {
     const dialog = within(screen.getByRole('dialog'));
     fireEvent.click(dialog.getByRole('button', { name: 'Supplier' }));
     fireEvent.click(dialog.getByRole('option', { name: 'PT Kayu' }));
+    fireEvent.click(dialog.getByRole('button', { name: 'Supplier' }));
+    fireEvent.click(dialog.getByRole('option', { name: 'CV Baja' }));
     fireEvent.click(dialog.getByRole('button', { name: 'Tinjau 2 Barang' }));
     fireEvent.click(dialog.getByRole('button', { name: 'Simpan 2 Barang' }));
 
-    await waitFor(() => expect(api.calls('PUT /api/v1/items/2')).toHaveLength(1));
-    expect(api.calls('PUT /api/v1/items/1')[0].body).toEqual({ supplierId: 7 });
-    expect(await screen.findByText('2 barang dipetakan ke PT Kayu.')).not.toBeNull();
+    await waitFor(() => expect(api.calls('PUT /api/v1/items/2/suppliers')).toHaveLength(1));
+    expect(api.calls('PUT /api/v1/items/1/suppliers')[0].body).toEqual({ supplierIds: [7, 8] });
+    expect(await screen.findByText('2 barang dipetakan ke PT Kayu, CV Baja.')).not.toBeNull();
   });
 
   it('menyembunyikan aksi massal tanpa izin apa pun', async () => {

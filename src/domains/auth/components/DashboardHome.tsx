@@ -7,6 +7,7 @@ import { visibleNav, type NavTheme } from "../nav";
 import { useAuthUser } from "../user-context";
 
 const THEME: Record<NavTheme, { icon: string; chip: string; border: string }> = {
+  fuchsia: { icon: "bg-fuchsia-100 text-fuchsia-700", chip: "hover:bg-fuchsia-50 hover:text-fuchsia-700", border: "hover:border-fuchsia-200" },
   blue: { icon: "bg-blue-100 text-blue-600", chip: "hover:bg-blue-50 hover:text-blue-600", border: "hover:border-blue-200" },
   emerald: { icon: "bg-emerald-100 text-emerald-600", chip: "hover:bg-emerald-50 hover:text-emerald-600", border: "hover:border-emerald-200" },
   orange: { icon: "bg-orange-100 text-orange-600", chip: "hover:bg-orange-50 hover:text-orange-600", border: "hover:border-orange-200" },
