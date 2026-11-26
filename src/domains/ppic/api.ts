@@ -99,16 +99,36 @@ export const getStockOpnameSummary = (params?: { month?: number; year?: number }
   apiClient.get<StockOpnameSummary>(`/api/v1/reports/stock-opname-summary${toQuery(params)}`);
 
 export function listApprovals(params?: ApprovalListParams) {
-  return apiClient.get<PaginatedResult<ApprovalRequest>>(`/api/v1/approvals${toQuery(params)}`);
+  return apiClient.get<PaginatedResult<StoredApproval>>(`/api/v1/approvals${toQuery(params)}`)
+    .then((res) => ({ ...res, rows: res.rows.map(normalizeApproval) }));
 }
 
+// MariaDB can return the stored JSON payload as a string. Parse it once at the API edge
+// so every screen reads the same object shape.
+export function normalizeApprovalPayload(payload: unknown): Partial<PurchaseRequestPayload> | null {
+  let value = payload;
+  if (typeof value === 'string') {
+    if (!value.trim()) return null;
+    try {
+      value = JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Partial<PurchaseRequestPayload> : null;
+}
+
+type StoredApproval = Omit<ApprovalRequest, 'payload'> & { payload: unknown };
+export const normalizeApproval = (raw: StoredApproval): ApprovalRequest => ({ ...raw, payload: normalizeApprovalPayload(raw.payload) });
+
 export function createPurchaseRequest(payload: PurchaseRequestPayload) {
-  return apiClient.post<ApprovalRequest>("/api/v1/approvals", { type: "purchase-request", payload });
+  return apiClient.post<StoredApproval>("/api/v1/approvals", { type: "purchase-request", payload }).then(normalizeApproval);
 }
 
 // Returns the request plus its action history (same shape as /approvals/{id}/actions).
 export function getApprovalDetail(id: number | string) {
-  return apiClient.get<{ request: ApprovalRequest; actions: ApprovalAction[] }>(`/api/v1/approvals/${id}`);
+  return apiClient.get<{ request: StoredApproval; actions: ApprovalAction[] }>(`/api/v1/approvals/${id}`)
+    .then((res) => ({ ...res, request: normalizeApproval(res.request) }));
 }
 
 export const editPurchaseRequest = (id: number, payload: PurchaseRequestPayload) =>
@@ -119,7 +139,7 @@ export const resubmitApproval = (id: number, payload: PurchaseRequestPayload) =>
 export const approveApproval = (id: number, note?: string) => apiClient.post(`/api/v1/approvals/${id}/approve`, note ? { note } : {});
 // Requester or superadmin, while pending or revision_requested. The reason is optional (max 500).
 export const cancelApproval = (id: number, reason?: string) =>
-  apiClient.post<ApprovalRequest>(`/api/v1/approvals/${id}/cancel`, reason ? { reason } : {});
+  apiClient.post<StoredApproval>(`/api/v1/approvals/${id}/cancel`, reason ? { reason } : {}).then(normalizeApproval);
 export const rejectApproval = (id: number, note: string) => apiClient.post(`/api/v1/approvals/${id}/reject`, { note });
 export const requestApprovalRevision = (id: number, note: string) =>
   apiClient.post(`/api/v1/approvals/${id}/request-revision`, { note });

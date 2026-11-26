@@ -99,8 +99,8 @@ it('Purchasing langsung menyiapkan PO tanpa tombol persetujuan terpisah', async 
     'GET /api/v1/suppliers': paged([]),
   });
   render(withUser(<Purchasing />, ['purchase-request.approve', 'purchase-order.create']));
-  expect(await screen.findByRole('button', { name: 'Buat PO' })).not.toBeNull();
-  expect(await screen.findByLabelText('Qty Beli baris 1')).toHaveProperty('value', '2');
+  expect(await screen.findByRole('button', { name: 'Generate PO' })).not.toBeNull();
+  expect(await screen.findByLabelText('Qty Dibeli baris 1 supplier 1')).toHaveProperty('value', '2');
   for (const name of ['Setuju', 'Tolak', 'Revisi']) expect(screen.queryByRole('button', { name })).toBeNull();
   expect(api.calls('POST /api/v1/approvals/7/approve')).toHaveLength(0);
 });

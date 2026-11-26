@@ -11,6 +11,10 @@ export function createSupplier(input: CreateSupplierInput) {
   return apiClient.post<Supplier>("/api/v1/suppliers", input);
 }
 
+export function getSupplier(id: number | string) {
+  return apiClient.get<Supplier>(`/api/v1/suppliers/${id}`);
+}
+
 export function updateSupplier(id: number, input: Partial<CreateSupplierInput>) {
   return apiClient.put<Supplier>(`/api/v1/suppliers/${id}`, input);
 }
@@ -58,6 +62,10 @@ export type BulkSupplierResult = { created: number; skipped: { row: number; code
 
 export function importSupplierData(rows: SupplierImportRow[]) {
   return apiClient.post<BulkSupplierResult>("/api/v1/suppliers/bulk", { rows });
+}
+
+export function getPurchaseRequestMapping(id: number | string) {
+  return apiClient.get<PurchaseRequestMapping>(`/api/v1/approvals/${id}/mapping`);
 }
 
 export function savePurchaseRequestMapping(id: number, lines: { lineIndex: number; suppliers: { supplierId: number; qty: number }[] }[]) {

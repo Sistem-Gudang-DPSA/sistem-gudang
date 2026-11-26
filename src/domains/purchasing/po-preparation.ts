@@ -6,6 +6,11 @@ export type PreparedPoLine = {
   qtyBeli: number;
   supplier: Supplier;
   kodeBarang: string;
+  itemId?: number;
+  // Harga Saat Ini yang diisi Purchasing di tabel mapping.
+  harga: number;
+  // items.price saat Generate; dipakai untuk tahu apakah harga master perlu diperbarui.
+  hargaTerbaru: number;
 };
 
 export type PoPreparation = {
@@ -25,10 +30,13 @@ export function readPoPreparation(token: string, request: PermintaanPembelian): 
   try {
     const value = JSON.parse(sessionStorage.getItem(`po-preparation:${token}`) ?? 'null') as PoPreparation | null;
     if (!value || value.requestId !== request.id || value.signature !== JSON.stringify(request.barang) || !Array.isArray(value.lines) || !value.lines.length) return null;
-    const seen = new Set<number>();
+    const seen = new Set<string>();
     for (const line of value.lines) {
-      if (!Number.isInteger(line.lineIndex) || line.lineIndex < 0 || !request.barang[line.lineIndex] || seen.has(line.lineIndex) || !Number.isInteger(line.qtyBeli) || line.qtyBeli <= 0 || line.qtyBeli > 1_000_000 || !line.supplier || !Number.isInteger(line.supplier.id) || line.supplier.id <= 0 || typeof line.supplier.name !== 'string' || typeof line.kodeBarang !== 'string') return null;
-      seen.add(line.lineIndex);
+      if (!Number.isInteger(line.lineIndex) || line.lineIndex < 0 || !request.barang[line.lineIndex] || !Number.isInteger(line.qtyBeli) || line.qtyBeli <= 0 || line.qtyBeli > 1_000_000 || !line.supplier || !Number.isInteger(line.supplier.id) || line.supplier.id <= 0 || typeof line.supplier.name !== 'string' || typeof line.kodeBarang !== 'string' || !Number.isInteger(line.harga) || line.harga < 0 || !Number.isInteger(line.hargaTerbaru) || line.hargaTerbaru < 0) return null;
+      // Satu baris permintaan boleh dipecah ke beberapa supplier, tetapi supplier yang sama tidak boleh dobel.
+      const key = `${line.lineIndex}:${line.supplier.id}`;
+      if (seen.has(key)) return null;
+      seen.add(key);
     }
     return value;
   } catch {
