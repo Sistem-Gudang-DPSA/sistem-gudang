@@ -35,7 +35,7 @@ describe('DataBarang list', () => {
     expect(screen.getAllByText('PT Kayu').length).toBe(2);
     await screen.findByText('A01');
     expect(screen.getByText('BRG-1')).not.toBeNull();
-    expect(screen.getByText('PL-778')).not.toBeNull();
+    expect(screen.queryByText('PL-778')).toBeNull();
     expect(screen.getByText('Barang 2')).not.toBeNull();
   });
 
@@ -281,7 +281,7 @@ describe('DataBarang export', () => {
   it('exports every filtered row across pages as a quoted CSV', async () => {
     const csv = await import('@/shared/lib/csv');
     const spy = vi.spyOn(csv, 'downloadCsv').mockImplementation(() => {});
-    const all = Array.from({ length: 25 }, (_, i) => item(i + 1, { name: i === 0 ? 'Barang 1' : `Barang ${i + 1}`, externalCode: i === 0 ? '=Meja, "besar"' : null }));
+    const all = Array.from({ length: 25 }, (_, i) => item(i + 1, { name: i === 0 ? 'Barang 1' : `Barang ${i + 1}`, unit: i === 0 ? '=Meja, "besar"' : 'pcs' }));
     const api = setup({
       'GET /api/v1/items': (req: { query: URLSearchParams }) => {
         const pageSize = Number(req.query.get('pageSize'));

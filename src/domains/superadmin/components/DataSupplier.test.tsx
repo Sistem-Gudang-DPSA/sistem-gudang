@@ -36,7 +36,7 @@ describe('superadmin DataSupplier', () => {
   it('uses the same table as purchasing: no No column, Pajak filter, or inline edit', async () => {
     await setup(userWith(['supplier.update']));
     expect([...screen.getAllByRole('columnheader')].map((h) => h.textContent)).toEqual(
-      ['Kode', 'Nama Supplier', 'Bank', 'NPWP', 'Pajak', 'Kontak', 'Alamat', 'Aksi'],
+      ['Nama Supplier', 'Bank', 'NPWP', 'Pajak', 'PIC', 'Kontak', 'Alamat', 'Aksi'],
     );
     expect(screen.queryByLabelText('Filter pajak')).toBeNull();
     expect(screen.queryByText('Mode Edit')).toBeNull();

@@ -31,10 +31,22 @@ describe('purchasing DataSupplier', () => {
     render(<DataSupplier />);
     await screen.findByText('Supplier 1');
     expect([...screen.getAllByRole('columnheader')].map((h) => h.textContent)).toEqual(
-      ['Kode', 'Nama Supplier', 'Bank', 'NPWP', 'Pajak', 'Kontak', 'Alamat', 'Aksi'],
+      ['Nama Supplier', 'Bank', 'NPWP', 'Pajak', 'PIC', 'Kontak', 'Alamat', 'Aksi'],
     );
     expect(screen.queryByLabelText('Filter pajak')).toBeNull();
     expect(screen.queryByText('Mode Edit')).toBeNull();
+  });
+
+  it('shows the PIC column and a dash when the supplier has no PIC', async () => {
+    installFakeApi({
+      'GET /api/v1/suppliers': paged([{ ...supplier(1), pic: 'Budi' }, supplier(2)]),
+    });
+    render(<DataSupplier />);
+    await screen.findByText('Supplier 1');
+    const row1 = screen.getByText('Supplier 1').closest('tr')!;
+    const row2 = screen.getByText('Supplier 2').closest('tr')!;
+    expect(row1.querySelectorAll('td')[4].textContent).toBe('Budi');
+    expect(row2.querySelectorAll('td')[4].textContent).toBe('-');
   });
 
   it('steps back a page when the last row of the last page is deleted', async () => {

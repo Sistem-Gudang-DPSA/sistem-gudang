@@ -8,7 +8,9 @@ import { formatAngka } from '@/domains/ppic/data/dokubah';
 import { approveApproval } from '@/domains/ppic/api';
 import { fetchPermintaan, type PermintaanPembelian } from '@/domains/ppic/data/pembelian';
 import { useApiData } from '@/shared/lib/use-api-data';
+import { updateItem } from '@/domains/inventory/api';
 import { createPurchaseOrder, savePurchaseRequestMapping } from '@/domains/purchasing/api';
+import { todayIso } from '@/domains/inventory/date';
 import { useSupplierSearch } from '@/domains/purchasing/use-supplier-search';
 import SearchableSelect from '@/shared/components/SearchableSelect';
 import { INTEGER_INPUT, decimalOnly, digitsOnly, parsePpn } from '@/shared/lib/input';
@@ -124,24 +126,30 @@ function FormPemesanan({ permintaan, proyek, showHeader, poState, initialSupplie
   const [dibuat, setDibuat] = useState<PurchaseOrder | null>(null);
   const [printing, setPrinting] = useState(false);
   const [printError, setPrintError] = useState('');
-  const [tanggalPo, setTanggalPo] = useState('');
+  const [tanggalPo, setTanggalPo] = useState(todayIso());
   const { suppliers, onSearch: cariSupplier, pending: supplierPending, error: supplierError } = useSupplierSearch();
   // Supplier terpilih disimpan sendiri supaya tetap ada walau di luar hasil pencarian terakhir.
   const [supplier, setSupplier] = useState<Supplier | null>(initialSupplier ?? null);
   const [picSupplier, setPicSupplier] = useState('');
   const [barisHarga, setBarisHarga] = useState<BarisHarga[]>(
-    () => permintaan.barang.map((_, index) => ({ kodeBarang: preparedLines?.find((line) => line.lineIndex === index)?.kodeBarang ?? '', harga: '', diskon: '' })),
+    () => permintaan.barang.map((_, index) => {
+      const prepared = preparedLines?.find((line) => line.lineIndex === index);
+      return { kodeBarang: prepared?.kodeBarang ?? '', harga: prepared && prepared.harga > 0 ? String(prepared.harga) : '', diskon: '' };
+    }),
   );
   const [persenPpn, setPersenPpn] = useState('12');
   const [jasa, setJasa] = useState('');
   const [formError, setFormError] = useState('');
+  const [priceWarning, setPriceWarning] = useState('');
+  const canSetPrice = useCan('item.set-price');
 
   // Baris permintaan yang sudah masuk PO aktif tidak boleh dipesan lagi.
+  // Pada draf Generate PO, satu baris boleh dipecah ke beberapa supplier, jadi kunci per baris tidak dipakai.
   const { pos, loading: poLoading, error: poError, reload } = poState;
-  const sudahDipesan = lineSudahDipesan(pos);
+  const sudahDipesan = preparedLines ? new Set<number>() : lineSudahDipesan(pos);
   pesanan.forEach(({ indices }) => indices.forEach((index) => sudahDipesan.add(index)));
   const [dipilih, setDipilih] = useState<Record<number, boolean>>({});
-  const terpilih = (index: number) => !sudahDipesan.has(index) && (dipilih[index] ?? true);
+  const terpilih = (index: number) => preparedLines ? true : !sudahDipesan.has(index) && (dipilih[index] ?? true);
 
   // Asal halaman menentukan tujuan kembali: daftar PO Barang, detail permintaan versi PO Barang, atau detail Rekap.
   const from = useSearchParams().get('from');
@@ -227,13 +235,17 @@ function FormPemesanan({ permintaan, proyek, showHeader, poState, initialSupplie
     }
     setSaving(true);
     setFormError('');
+    setPriceWarning('');
     try {
       await ensureApproved();
-      // Backend mewajibkan supplier dan jumlah PO sesuai pemetaan setiap baris permintaan.
-      await savePurchaseRequestMapping(permintaan.id, barang.map((b) => ({
-        lineIndex: b.index,
-        suppliers: [{ supplierId: supplier.id, qty: b.qty }],
-      })));
+      // Mapping sudah disimpan saat Generate PO. Menyimpannya lagi di sini akan menimpa split supplier.
+      if (!preparedLines) {
+        // Backend mewajibkan supplier dan jumlah PO sesuai pemetaan setiap baris permintaan.
+        await savePurchaseRequestMapping(permintaan.id, barang.map((b) => ({
+          lineIndex: b.index,
+          suppliers: [{ supplierId: supplier.id, qty: b.qty }],
+        })));
+      }
       // Totals shown on screen are a preview; the backend computes and stores the real ones.
       const po = await createPurchaseOrder({
           approvalRequestId: permintaan.id,
@@ -255,6 +267,27 @@ function FormPemesanan({ permintaan, proyek, showHeader, poState, initialSupplie
         });
       setPesanan((prev) => [...prev, { po, indices: barang.map((b) => b.index) }]);
       setDibuat(po);
+      if (preparedLines) {
+        const changed = barang.filter((b) => {
+          const prepared = preparedLines.find((line) => line.lineIndex === b.index);
+          return !!b.itemId && b.hargaSatuan > 0 && prepared && prepared.hargaTerbaru !== b.hargaSatuan;
+        });
+        const withoutItem = barang.filter((b) => b.hargaSatuan > 0 && !b.itemId).map((b) => b.namaBarang);
+        if (changed.length && !canSetPrice) {
+          setPriceWarning(`PO tersimpan, tetapi harga master ${changed.length} barang tidak diperbarui karena akun tidak punya izin item.set-price.`);
+        } else {
+          const failed: string[] = [];
+          for (const b of changed) {
+            try {
+              await updateItem(b.itemId!, { price: b.hargaSatuan });
+            } catch {
+              failed.push(b.namaBarang);
+            }
+          }
+          const skipped = [...failed, ...withoutItem];
+          if (skipped.length) setPriceWarning(`PO tersimpan, tetapi harga master gagal diperbarui untuk: ${skipped.join(', ')}.`);
+        }
+      }
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Gagal membuat PO.');
     } finally {
@@ -282,7 +315,8 @@ function FormPemesanan({ permintaan, proyek, showHeader, poState, initialSupplie
           <p className="mb-2 text-sm font-semibold text-gray-900">Proyek: {proyek || 'Belum diisi'}</p>
           <p className="text-base font-bold text-gray-900">PO {dibuat.nomorPo} berhasil dibuat</p>
           <p className="mt-2 text-sm text-gray-600">Supplier {dibuat.supplierName}, grand total Rp. {formatAngka(dibuat.grandTotal)}</p>
-          {sisaBarang.length > 0 && (
+          {priceWarning && <p role="alert" className="mt-4 text-sm text-amber-700">{priceWarning}</p>}
+          {!preparedLines && sisaBarang.length > 0 && (
             <button type="button" onClick={() => { setDibuat(null); setDipilih({}); setSupplier(initialSupplier ?? null); setPicSupplier(''); setJasa(''); }} className={`${orangeButtonClass} inline-block mt-6`}>Buat PO berikutnya untuk proyek ini ({sisaBarang.length} barang tersisa)</button>
           )}
           {printError && <p role="alert" className="mt-4 text-sm text-red-600">{printError}</p>}
@@ -368,6 +402,8 @@ function FormPemesanan({ permintaan, proyek, showHeader, poState, initialSupplie
                     <td className={`${cellClass} text-center`}>
                       {sudah ? (
                         <span className="text-xs text-gray-400">Sudah dipesan</span>
+                      ) : preparedLines ? (
+                        <span className="text-xs text-gray-600">Ya</span>
                       ) : (
                         <input type="checkbox" checked={b.dipilih} onChange={() => setDipilih((prev) => ({ ...prev, [b.index]: !b.dipilih }))}
                           aria-label={`Pilih ${b.namaBarang}`} />
@@ -397,6 +433,10 @@ function FormPemesanan({ permintaan, proyek, showHeader, poState, initialSupplie
                         aria-label={`Harga satuan ${b.namaBarang}`}
                         className={`${cellInputClass} text-right`}
                       />
+                      {preparedLines && (() => {
+                        const prepared = preparedLines.find((line) => line.lineIndex === b.index);
+                        return prepared ? <span className="mt-1 block text-xs text-gray-500">Harga terbaru: {prepared.hargaTerbaru > 0 ? formatAngka(prepared.hargaTerbaru) : '-'}</span> : null;
+                      })()}
                     </td>
                     <td className={cellClass}>
                       <input

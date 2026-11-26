@@ -35,13 +35,20 @@ describe('detail permintaan yang dibuka dari PO Barang', () => {
     expect(screen.queryByRole('button', { name: 'Setuju' })).toBeNull();
   });
 
-  it('meneruskan asal PO Barang ke form Buat PO', async () => {
-    installFakeApi({ 'GET /api/v1/approvals/7': request('approved'), 'GET /api/v1/purchase-orders': paged([]), 'GET /api/v1/suppliers': paged([{ id: 3, code: 'S3', name: 'PT Kayu' }]) });
-    render(<AuthUserProvider user={purchasing(['purchase-order.create'])}><Page /></AuthUserProvider>);
+  it('meneruskan asal PO Barang ke form PO setelah Generate PO', async () => {
+    installFakeApi({
+      'GET /api/v1/approvals/7': request('approved'),
+      'GET /api/v1/approvals/7/mapping': { approvalRequestId: 7, status: 'NOT_STARTED', lines: [] },
+      'GET /api/v1/purchase-orders': paged([]),
+      'GET /api/v1/suppliers': paged([{ id: 3, code: 'S3', name: 'PT Kayu' }]),
+      'GET /api/v1/suppliers/3': { id: 3, code: 'S3', name: 'PT Kayu', address: '', phone: '', bank: '', npwp: '', pajak: 'PKP' },
+      'PUT /api/v1/approvals/7/mapping': {},
+    });
+    render(<AuthUserProvider user={purchasing(['purchase-order.create', 'purchase-order.view'])}><Page /></AuthUserProvider>);
 
-    fireEvent.click(await screen.findByLabelText('Supplier baris 1'));
+    fireEvent.click(await screen.findByLabelText('Supplier baris 1 supplier 1'));
     fireEvent.click(await screen.findByRole('option', { name: 'S3 - PT Kayu' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Buat PO' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Generate PO' }));
     await waitFor(() => expect(nav.push).toHaveBeenCalled());
     const target = new URL(nav.push.mock.calls.at(-1)![0], 'http://localhost');
     expect(target.pathname).toBe('/dashboard/purchasing/transaksi/buat-po-barang/buat-po/7');
@@ -49,11 +56,11 @@ describe('detail permintaan yang dibuka dari PO Barang', () => {
     expect(target.searchParams.get('draft')).toBeTruthy();
   });
 
-  it('menampilkan status disetujui tanpa tombol Buat PO saat pengguna hanya punya purchase-order.view', async () => {
-    installFakeApi({ 'GET /api/v1/approvals/7': request('approved'), 'GET /api/v1/purchase-orders': paged([]) });
+  it('menampilkan status disetujui tanpa tombol Generate PO saat pengguna hanya punya purchase-order.view', async () => {
+    installFakeApi({ 'GET /api/v1/approvals/7': request('approved'), 'GET /api/v1/approvals/7/mapping': { approvalRequestId: 7, status: 'NOT_STARTED', lines: [] }, 'GET /api/v1/purchase-orders': paged([]) });
     render(<AuthUserProvider user={purchasing(['purchase-order.view'])}><Page /></AuthUserProvider>);
 
     expect(await screen.findByText('Disetujui')).toBeTruthy();
-    expect(screen.queryByText('Buat PO')).toBeNull();
+    expect(screen.queryByText('Generate PO')).toBeNull();
   });
 });
