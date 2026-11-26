@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ShoppingCart, ClipboardCheck, FileClock, Truck } from "lucide-react";
 import StatCard from "@/shared/components/StatCard";
 import { useApiData } from "@/shared/lib/use-api-data";
+import { fetchAllPages } from "@/shared/lib/fetch-all";
 import { useCan } from "@/domains/auth/user-context";
 import { listApprovals } from "@/domains/ppic/api";
 import { formatRupiah } from "@/domains/ppic/data/dokubah";
@@ -20,9 +21,12 @@ const tanggal = (iso?: string) => {
   return d && !isNaN(d.getTime()) ? d.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : iso || "-";
 };
 
+const listSiapPurchasing = () => fetchAllPages((page, pageSize) => listApprovals({ type: "purchase-request", status: "pending", page, pageSize }))
+  .then((rows) => rows.filter((a) => a.status === "pending" && a.currentStepOrder === 3));
+
 function PendingCard() {
-  const { data, error } = useApiData(() => listApprovals({ type: "purchase-request", status: "pending", pageSize: 1 }), "pending");
-  return <StatCard label="Menunggu Persetujuan" value={data?.total} error={error} icon={ClipboardCheck} tone="amber" href={REKAP} hint="Permintaan pembelian" />;
+  const { data, error } = useApiData(listSiapPurchasing, "purchasing-siap-po", "Gagal memuat permintaan pembelian yang siap diproses.", 1000);
+  return <StatCard label="Siap Diproses" value={data?.length} error={error} icon={ClipboardCheck} tone="amber" href={REKAP} hint="Sudah disetujui PPIC" />;
 }
 
 function BelumPoCard() {
@@ -91,11 +95,11 @@ function PoTerbaru() {
 }
 
 function PerluTindakan() {
-  const { data, loading, error } = useApiData(() => listApprovals({ type: "purchase-request", status: "pending", pageSize: 5 }), "perlu-tindakan");
-  const rows = data?.rows ?? [];
+  const { data, loading, error } = useApiData(listSiapPurchasing, "purchasing-siap-po", "Gagal memuat permintaan pembelian yang siap diproses.", 1000);
+  const rows = data?.slice(0, 5) ?? [];
   return (
     <Section title="Perlu Tindakan">
-      <Status loading={loading} error={error} empty={!rows.length} text="Tidak ada permintaan pembelian yang menunggu." />
+      <Status loading={loading} error={error} empty={!rows.length} text="Tidak ada permintaan pembelian yang sudah disetujui PPIC dan siap diproses Purchasing." />
       {rows.length > 0 && (
         <table className="w-full text-left text-sm text-gray-500">
           <thead className="text-xs text-gray-700 uppercase bg-gray-50">
@@ -119,7 +123,7 @@ function PerluTindakan() {
 }
 
 export default function PurchasingDashboard() {
-  const canApprove = useCan("purchase-request.approve");
+  const canCreatePo = useCan("purchase-order.create");
   const canPo = useCan("purchase-order.view");
   const canSupplier = useCan("supplier.view");
 
@@ -131,15 +135,15 @@ export default function PurchasingDashboard() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-        {canApprove && <PendingCard />}
-        {canApprove && <BelumPoCard />}
+        {canCreatePo && <PendingCard />}
+        {canCreatePo && <BelumPoCard />}
         {canPo && <PoBulanIniCard />}
         {canSupplier && <SupplierCard />}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {canPo && <PoTerbaru />}
-        {canApprove && <PerluTindakan />}
+        {canCreatePo && <PerluTindakan />}
       </div>
     </div>
   );

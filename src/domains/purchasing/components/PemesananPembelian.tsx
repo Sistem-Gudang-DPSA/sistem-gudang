@@ -1,35 +1,31 @@
 "use client";
 
-import React, { useId, useState } from 'react';
+import React, { useId, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { formatAngka } from '@/domains/ppic/data/dokubah';
+import { approveApproval } from '@/domains/ppic/api';
 import { fetchPermintaan, type PermintaanPembelian } from '@/domains/ppic/data/pembelian';
 import { useApiData } from '@/shared/lib/use-api-data';
-import { createPurchaseOrder } from '@/domains/purchasing/api';
+import { createPurchaseOrder, savePurchaseRequestMapping } from '@/domains/purchasing/api';
 import { useSupplierSearch } from '@/domains/purchasing/use-supplier-search';
 import SearchableSelect from '@/shared/components/SearchableSelect';
 import { INTEGER_INPUT, decimalOnly, digitsOnly, parsePpn } from '@/shared/lib/input';
-import { lihatPermintaanPath, lihatPermintaanPoPath, PEMESAN, po_barang_path, rekap_pembelian_path } from '@/domains/purchasing/data/pembelian';
+import { lihatPermintaanPath, lihatPermintaanPoPath, po_barang_path, rekap_pembelian_path } from '@/domains/purchasing/data/pembelian';
 import type { PurchaseOrder, Supplier } from '@/domains/purchasing/types';
 import { useCan } from '@/domains/auth/user-context';
-import { ApiError } from '@/shared/lib/api-client';
 import { lineSudahDipesan, usePoPermintaan } from '@/domains/purchasing/use-po-permintaan';
 import { printPurchaseOrder } from '@/domains/purchasing/export/print-po';
+import { PurchaseOrderParties, PurchaseOrderTotalsSection } from './PurchaseOrderSections';
+import { purchaseOrderTotals } from '../po-totals';
+import { groupPoPreparation, readPoPreparation, type PreparedPoLine } from '../po-preparation';
 
 type BarisHarga = { kodeBarang: string; harga: string; diskon: string };
 
 const cellClass = 'px-3 py-2 border-b border-r border-gray-300';
-const infoLabelClass = `${cellClass} w-40 text-xs text-gray-800 align-top`;
-const infoValueClass = `${cellClass} text-xs text-gray-800 whitespace-normal`;
-const sectionTitleClass = 'text-xs font-bold text-gray-900 uppercase mb-3';
 const fieldClass = 'w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors';
-const readOnlyFieldClass = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-800 bg-white text-right cursor-default focus:outline-none';
 const cellInputClass = 'w-full min-w-24 px-2 py-1 bg-white border border-gray-300 rounded-md text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors';
-const totalLabelClass = 'text-xs font-bold text-gray-900 uppercase';
-// Kotak nilai di kolom kanan dibuat sama lebar supaya sejajar
-const kotakTotalClass = 'w-64 max-w-full shrink-0';
 const orangeButtonClass = 'min-w-24 px-8 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm text-center';
 const dividerClass = 'border-t border-gray-400 my-6';
 
@@ -41,6 +37,7 @@ const toNumber = (value: string) => {
 
 export default function PemesananPembelianPurchasing() {
   const { id } = useParams<{ id: string }>();
+  const preparationToken = useSearchParams().get('draft');
   const canCreate = useCan('purchase-order.create');
   const { data: permintaan, loading, error } = useApiData(() => fetchPermintaan(id), id, 'Gagal memuat permintaan pembelian.');
 
@@ -48,8 +45,8 @@ export default function PemesananPembelianPurchasing() {
     return <div className="py-10 text-center text-sm text-gray-400 italic">{error || 'Memuat data...'}</div>;
   }
 
-  if (permintaan && permintaan.statusApi !== 'approved') {
-    return <div className="py-10 text-center text-sm text-gray-500">PO baru bisa dibuat setelah permintaan pembelian disetujui.</div>;
+  if (permintaan && permintaan.statusApi !== 'approved' && !(permintaan.statusApi === 'pending' && permintaan.currentStepOrder === 3)) {
+    return <div className="py-10 text-center text-sm text-gray-500">PO baru bisa dibuat setelah permintaan pembelian disetujui PPIC.</div>;
   }
 
   if (!canCreate) {
@@ -73,23 +70,53 @@ export default function PemesananPembelianPurchasing() {
   }
 
   // Formnya baru dibuat setelah permintaan siap, supaya baris harga awal sesuai jumlah barang.
-  return <KelompokPemesanan permintaan={permintaan} />;
+  return <KelompokPemesanan key={`${id}|${preparationToken}`} permintaan={permintaan} />;
 }
 
 function KelompokPemesanan({ permintaan }: { permintaan: PermintaanPembelian }) {
   const poState = usePoPermintaan(permintaan.id);
+  const canApprove = useCan('purchase-request.approve');
+  const approvalTask = useRef<Promise<void> | null>(null);
+  const ensureApproved = () => {
+    if (permintaan.statusApi === 'approved') return Promise.resolve();
+    if (approvalTask.current) return approvalTask.current;
+    approvalTask.current = (async () => {
+      const latest = await fetchPermintaan(String(permintaan.id));
+      if (latest.statusApi === 'approved') return;
+      if (latest.statusApi !== 'pending' || latest.currentStepOrder !== 3) throw new Error('Permintaan belum disetujui PPIC atau statusnya sudah berubah. Muat ulang detail permintaan.');
+      if (!canApprove) throw new Error('Akun ini belum memiliki izin menyelesaikan proses permintaan untuk membuat PO. Hubungi Superadmin.');
+      await approveApproval(permintaan.id);
+      const updated = await fetchPermintaan(String(permintaan.id));
+      if (updated.statusApi !== 'approved') throw new Error('Status permintaan belum siap untuk PO. Muat ulang detail permintaan.');
+    })().catch((err) => { approvalTask.current = null; throw err; });
+    return approvalTask.current;
+  };
+  const params = useSearchParams();
+  const token = params.get('draft');
+  const [prepared] = useState(() => token ? readPoPreparation(token, permintaan) : null);
+  if (token && !prepared) {
+    const backPath = params.get('from') === 'permintaan-po-barang' ? lihatPermintaanPoPath(permintaan.id) : lihatPermintaanPath(permintaan.id);
+    return <div role="alert" className="p-6 text-sm text-red-600">Data persiapan PO tidak tersedia atau permintaan sudah berubah. <Link href={backPath} className="underline">Kembali ke detail permintaan dan lengkapi ulang.</Link></div>;
+  }
   const proyek = Array.from(new Set(permintaan.barang.map((b) => b.proyek.trim())));
+  if (prepared) {
+    const groups = groupPoPreparation(permintaan, prepared.lines);
+    return <>
+      <p className="mb-4 text-sm text-gray-600">Barang dikelompokkan otomatis per supplier dan proyek. Qty Beli digunakan sebagai jumlah pesanan. Lengkapi harga, tanggal PO, serta PIC lalu simpan setiap PO.</p>
+      {groups.map((group, index) => <FormPemesanan key={JSON.stringify([group.proyek, group.supplier.id])} permintaan={permintaan} proyek={group.proyek} initialSupplier={group.supplier} preparedLines={group.lines} showHeader={index === 0} poState={poState} ensureApproved={ensureApproved} />)}
+    </>;
+  }
   return (
     <>
       <p className="mb-4 text-sm text-gray-600">Barang dikelompokkan otomatis per proyek. Lengkapi dan simpan setiap PO secara terpisah. Untuk supplier berbeda, pilih sebagian barang lalu buat PO berikutnya pada proyek yang sama.</p>
       {(proyek.length ? proyek : ['']).map((nama, index) => (
-        <FormPemesanan key={nama} permintaan={permintaan} proyek={nama} showHeader={index === 0} poState={poState} />
+        <FormPemesanan key={nama} permintaan={permintaan} proyek={nama} showHeader={index === 0} poState={poState} ensureApproved={ensureApproved} />
       ))}
     </>
   );
 }
 
-function FormPemesanan({ permintaan, proyek, showHeader, poState }: { permintaan: PermintaanPembelian; proyek: string; showHeader: boolean; poState: ReturnType<typeof usePoPermintaan> }) {
+function FormPemesanan({ permintaan, proyek, showHeader, poState, initialSupplier, preparedLines, ensureApproved }: { permintaan: PermintaanPembelian; proyek: string; showHeader: boolean; poState: ReturnType<typeof usePoPermintaan>; initialSupplier?: Supplier; preparedLines?: PreparedPoLine[]; ensureApproved: () => Promise<void> }) {
 
   const idPrefix = useId();
   const [pesanan, setPesanan] = useState<{ po: PurchaseOrder; indices: number[] }[]>([]);
@@ -100,10 +127,10 @@ function FormPemesanan({ permintaan, proyek, showHeader, poState }: { permintaan
   const [tanggalPo, setTanggalPo] = useState('');
   const { suppliers, onSearch: cariSupplier, pending: supplierPending, error: supplierError } = useSupplierSearch();
   // Supplier terpilih disimpan sendiri supaya tetap ada walau di luar hasil pencarian terakhir.
-  const [supplier, setSupplier] = useState<Supplier | null>(null);
+  const [supplier, setSupplier] = useState<Supplier | null>(initialSupplier ?? null);
   const [picSupplier, setPicSupplier] = useState('');
   const [barisHarga, setBarisHarga] = useState<BarisHarga[]>(
-    () => permintaan.barang.map(() => ({ kodeBarang: '', harga: '', diskon: '' })),
+    () => permintaan.barang.map((_, index) => ({ kodeBarang: preparedLines?.find((line) => line.lineIndex === index)?.kodeBarang ?? '', harga: '', diskon: '' })),
   );
   const [persenPpn, setPersenPpn] = useState('12');
   const [jasa, setJasa] = useState('');
@@ -137,21 +164,19 @@ function FormPemesanan({ permintaan, proyek, showHeader, poState }: { permintaan
 
   const barisSemua = permintaan.barang.map((b, index) => {
     const baris = barisHarga[index];
+    const qty = preparedLines?.find((line) => line.lineIndex === index)?.qtyBeli ?? b.qty;
     const hargaSatuan = toNumber(baris.harga);
     const diskon = toNumber(baris.diskon);
-    return { ...b, index, kodeBarang: baris.kodeBarang, hargaSatuan, diskon, total: b.qty * hargaSatuan - diskon, dipilih: terpilih(index) };
-  }).filter((b) => b.proyek.trim() === proyek);
+    return { ...b, qty, index, kodeBarang: baris.kodeBarang, hargaSatuan, diskon, total: qty * hargaSatuan - diskon, dipilih: terpilih(index) };
+  }).filter((b) => b.proyek.trim() === proyek && (!preparedLines || preparedLines.some((line) => line.lineIndex === b.index)));
   const sisaBarang = barisSemua.filter((b) => !sudahDipesan.has(b.index));
   // Hanya baris yang dicentang yang masuk PO ini; sisanya untuk PO supplier lain.
   const barang = barisSemua.filter((b) => b.dipilih);
 
-  const totalSetelahDiskon = barang.reduce((sum, b) => sum + b.total, 0);
-  // DPP nilai lain = 11/12 dari harga jual; PPN dihitung dari DPP ini
-  const dppLain = Math.round((totalSetelahDiskon * 11) / 12);
   const ppn = parsePpn(persenPpn);
-  const nilaiPpn = Math.round((dppLain * (Number.isFinite(ppn) ? ppn : 0)) / 100);
-  const totalSetelahPpn = totalSetelahDiskon + nilaiPpn;
-  const grandTotal = totalSetelahPpn + toNumber(jasa);
+  const { subtotal: totalSetelahDiskon, dppLain, nilaiPpn, totalSetelahPpn, grandTotal } = purchaseOrderTotals(
+    barang.map((b) => ({ jumlah: b.qty, hargaSatuan: b.hargaSatuan, diskon: b.diskon })), ppn, toNumber(jasa),
+  );
 
   const updateBaris = (index: number, field: keyof BarisHarga, value: string) => {
     setBarisHarga((prev) => prev.map((baris, i) => (i === index ? { ...baris, [field]: value } : baris)));
@@ -203,6 +228,12 @@ function FormPemesanan({ permintaan, proyek, showHeader, poState }: { permintaan
     setSaving(true);
     setFormError('');
     try {
+      await ensureApproved();
+      // Backend mewajibkan supplier dan jumlah PO sesuai pemetaan setiap baris permintaan.
+      await savePurchaseRequestMapping(permintaan.id, barang.map((b) => ({
+        lineIndex: b.index,
+        suppliers: [{ supplierId: supplier.id, qty: b.qty }],
+      })));
       // Totals shown on screen are a preview; the backend computes and stores the real ones.
       const po = await createPurchaseOrder({
           approvalRequestId: permintaan.id,
@@ -225,7 +256,7 @@ function FormPemesanan({ permintaan, proyek, showHeader, poState }: { permintaan
       setPesanan((prev) => [...prev, { po, indices: barang.map((b) => b.index) }]);
       setDibuat(po);
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : 'Gagal membuat PO.');
+      setFormError(err instanceof Error ? err.message : 'Gagal membuat PO.');
     } finally {
       setSaving(false);
     }
@@ -252,7 +283,7 @@ function FormPemesanan({ permintaan, proyek, showHeader, poState }: { permintaan
           <p className="text-base font-bold text-gray-900">PO {dibuat.nomorPo} berhasil dibuat</p>
           <p className="mt-2 text-sm text-gray-600">Supplier {dibuat.supplierName}, grand total Rp. {formatAngka(dibuat.grandTotal)}</p>
           {sisaBarang.length > 0 && (
-            <button type="button" onClick={() => { setDibuat(null); setDipilih({}); setSupplier(null); setPicSupplier(''); setJasa(''); }} className={`${orangeButtonClass} inline-block mt-6`}>Buat PO berikutnya untuk proyek ini ({sisaBarang.length} barang tersisa)</button>
+            <button type="button" onClick={() => { setDibuat(null); setDipilih({}); setSupplier(initialSupplier ?? null); setPicSupplier(''); setJasa(''); }} className={`${orangeButtonClass} inline-block mt-6`}>Buat PO berikutnya untuk proyek ini ({sisaBarang.length} barang tersisa)</button>
           )}
           {printError && <p role="alert" className="mt-4 text-sm text-red-600">{printError}</p>}
           <button type="button" onClick={() => void handlePrint(dibuat)} disabled={printing} className={`${orangeButtonClass} inline-block mt-6 disabled:opacity-50`}>{printing ? 'Menyiapkan cetak...' : 'Cetak PO'}</button>
@@ -266,10 +297,10 @@ function FormPemesanan({ permintaan, proyek, showHeader, poState }: { permintaan
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       {showHeader && header}
 
-      <form aria-label={`PO ${proyek || 'Belum diisi'}`} onSubmit={handleBuat} noValidate className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <form aria-label={`PO ${proyek || 'Belum diisi'}${initialSupplier ? ` — ${initialSupplier.name}` : ''}`} onSubmit={handleBuat} noValidate className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <h2 className="text-base font-bold text-gray-900 text-center mb-6">Pemesanan Pembelian</h2>
 
-        <h3 className="mb-4 text-sm font-bold text-gray-900">Proyek: {proyek || 'Belum diisi'}</h3>
+        <h3 className="mb-4 text-sm font-bold text-gray-900">Proyek: {proyek || 'Belum diisi'}{initialSupplier && ` — Supplier: ${initialSupplier.name}`}</h3>
         {pesanan.map(({ po }) => <p key={po.id} role="status" className="mb-3 text-sm text-green-700">PO {po.nomorPo} berhasil dibuat untuk proyek {proyek}.</p>)}
         <fieldset disabled={saving}>
         {/* Nomor & tanggal PO */}
@@ -283,20 +314,11 @@ function FormPemesanan({ permintaan, proyek, showHeader, poState }: { permintaan
 
         <hr className={dividerClass} />
 
-        {/* Supplier & pemesan */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-6">
-          <div>
-            <h3 className={sectionTitleClass}>Tujuan Pemesanan (Supplier)</h3>
-            <div className="border-t border-l border-gray-300 rounded-sm">
-              <table className="w-full text-left border-collapse">
-                <thead className="bg-gray-100">
-                  <tr>
-                    <th scope="col" className={`${cellClass} w-40 text-xs font-bold text-gray-900 uppercase`}>
-                      <label>Data Supplier</label>
-                    </th>
-                    <th scope="col" className={`${cellClass} font-normal`}>
-                      <div className="relative">
+        <PurchaseOrderParties
+          supplier={supplier}
+          supplierControl={
                         <SearchableSelect
+                          disabled={!!preparedLines}
                           value={supplier ? String(supplier.id) : ''}
                           onChange={(v) => setSupplier((prev) => suppliers.find((s) => String(s.id) === v) ?? (prev && String(prev.id) === v ? prev : null))}
                           onSearch={cariSupplier}
@@ -309,78 +331,12 @@ function FormPemesanan({ permintaan, proyek, showHeader, poState }: { permintaan
                           aria-label="Data Supplier"
                           className={cellInputClass}
                         />
-                      </div>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className={infoLabelClass}>Nama Perusahaan</td>
-                    <td className={infoValueClass}>{supplier?.name}</td>
-                  </tr>
-                  <tr>
-                    <td className={infoLabelClass}>Alamat / Telp</td>
-                    <td className={infoValueClass}>{supplier && `${supplier.address} / ${supplier.phone}`}</td>
-                  </tr>
-                  <tr>
-                    <td className={infoLabelClass}>NPWP</td>
-                    <td className={infoValueClass}>{supplier?.npwp}</td>
-                  </tr>
-                  <tr>
-                    <td className={infoLabelClass}>No A/C (Bank)</td>
-                    <td className={infoValueClass}>{supplier?.bank}</td>
-                  </tr>
-                  <tr>
-                    <td className={infoLabelClass}>
-                      <label htmlFor={`${idPrefix}-po-pic-supplier`}>PIC / Telp</label>
-                    </td>
-                    <td className={infoValueClass}>
-                      <input
-                        id={`${idPrefix}-po-pic-supplier`}
-                        type="text"
-                        value={picSupplier}
-                        onChange={(e) => setPicSupplier(e.target.value)}
-                        className={cellInputClass}
-                      />
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            {supplierError && <p className="mt-2 text-xs text-red-600">{supplierError}</p>}
-          </div>
-
-          <div>
-            <h3 className={sectionTitleClass}>Pemesan</h3>
-            <div className="border-t border-l border-gray-300 rounded-sm">
-              <table className="w-full text-left border-collapse">
-                <thead className="bg-gray-100">
-                  <tr>
-                    <th scope="col" colSpan={2} className={`${cellClass} text-xs font-bold text-gray-900 text-center`}>{PEMESAN.nama}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className={infoLabelClass}>NPWP</td>
-                    <td className={infoValueClass}>{PEMESAN.npwp}</td>
-                  </tr>
-                  <tr>
-                    <td className={infoLabelClass}>Alamat Pengiriman</td>
-                    <td className={infoValueClass}>{PEMESAN.alamatPengiriman}</td>
-                  </tr>
-                  <tr>
-                    <td className={infoLabelClass}>Kebutuhan Proyek</td>
-                    <td className={infoValueClass}>{kebutuhanProyek}</td>
-                  </tr>
-                  <tr>
-                    <td className={infoLabelClass}>PIC / Telp</td>
-                    <td className={infoValueClass}>{PEMESAN.pic}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+          }
+          supplierError={supplierError}
+          pic={picSupplier}
+          onPicChange={setPicSupplier}
+          project={kebutuhanProyek}
+        />
 
         <hr className={dividerClass} />
 
@@ -471,69 +427,13 @@ function FormPemesanan({ permintaan, proyek, showHeader, poState }: { permintaan
           <p className="mt-3 text-sm text-gray-500">{sisaBarang.length === 0 ? 'Semua barang pada proyek ini sudah masuk PO.' : 'Belum ada barang yang dipilih untuk PO ini.'}</p>
         )}
 
-        {/* Perhitungan total */}
-        <div className="flex items-center gap-4 mt-6">
-          <span className={`${totalLabelClass} flex-1`}>Total Harga Setelah Diskon</span>
-          <div className={kotakTotalClass}>
-            <input type="text" readOnly value={formatAngka(totalSetelahDiskon)} aria-label="Total harga setelah diskon" className={readOnlyFieldClass} />
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between gap-4 border-t border-gray-400 mt-4 py-4">
-          <div className="flex items-center gap-4 min-w-0">
-            <label htmlFor={`${idPrefix}-po-dpp`} className={`${totalLabelClass} whitespace-nowrap`}>DPP Lain :</label>
-            <div className="w-64 min-w-0">
-              <input id={`${idPrefix}-po-dpp`} type="text" readOnly value={formatAngka(dppLain)} className={readOnlyFieldClass} />
-            </div>
-          </div>
-          <div className="flex items-center gap-4 min-w-0">
-            <label htmlFor={`${idPrefix}-po-ppn`} className={`${totalLabelClass} whitespace-nowrap`}>PPN :</label>
-            <div className="w-28 min-w-0">
-              <input
-                id={`${idPrefix}-po-ppn`}
-                type="text"
-                inputMode="decimal"
-                maxLength={6}
-                value={persenPpn}
-                onChange={(e) => setPersenPpn(decimalOnly(e.target.value.replace(',', '.')))}
-                aria-label="PPN (persen)"
-                className={`${fieldClass} text-right`}
-              />
-            </div>
-          </div>
-          <div className="w-64 min-w-0">
-            <input type="text" readOnly value={formatAngka(nilaiPpn)} aria-label="Nilai PPN" className={readOnlyFieldClass} />
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-3 border-t border-gray-400 pt-3">
-          <div className="flex items-center gap-4">
-            <span className={`${totalLabelClass} flex-1`}>Total Harga Setelah PPN</span>
-            <span className="text-sm font-bold text-gray-900">Rp.</span>
-            <div className={kotakTotalClass}>
-              <input type="text" readOnly value={formatAngka(totalSetelahPpn)} aria-label="Total harga setelah PPN" className={readOnlyFieldClass} />
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <label htmlFor={`${idPrefix}-po-jasa`} className={`${totalLabelClass} flex-1`}>Jasa</label>
-            <div className={kotakTotalClass}>
-              <input
-                id={`${idPrefix}-po-jasa`}
-                {...INTEGER_INPUT}
-                maxLength={9}
-                value={jasa}
-                onChange={(e) => setJasa(digitsOnly(e.target.value))}
-                className={`${fieldClass} text-right`}
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className={`${totalLabelClass} flex-1`}>Grand Total</span>
-            <div className={kotakTotalClass}>
-              <input type="text" readOnly value={formatAngka(grandTotal)} aria-label="Grand total" className={`${readOnlyFieldClass} font-bold`} />
-            </div>
-          </div>
-        </div>
+        <PurchaseOrderTotalsSection
+          totals={{ subtotal: totalSetelahDiskon, dppLain, nilaiPpn, totalSetelahPpn, grandTotal }}
+          ppn={persenPpn}
+          onPpnChange={(value) => setPersenPpn(decimalOnly(value.replace(',', '.')))}
+          jasa={jasa}
+          onJasaChange={(value) => setJasa(digitsOnly(value))}
+        />
 
         <div className="border-t-4 border-double border-gray-400 mt-6" />
 

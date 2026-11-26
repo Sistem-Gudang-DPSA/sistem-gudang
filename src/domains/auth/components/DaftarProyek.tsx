@@ -64,6 +64,9 @@ export default function DaftarProyekPage() {
           <p className="text-sm text-gray-500 mt-1">
             Daftar proyek yang tersedia.
           </p>
+          <p role="status" className="mt-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+            Setiap 30 menit sistem akan otomatis memuat ulang untuk mendapatkan proyek terbaru.
+          </p>
         </div>
       </div>
 
@@ -175,10 +178,6 @@ export default function DaftarProyekPage() {
           </div>
         )}
       </div>
-
-      <p role="status" className="mt-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
-        Sistem melakukan refresh setiap 30 menit.
-      </p>
     </div>
   );
 }

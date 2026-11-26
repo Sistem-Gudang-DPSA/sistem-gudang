@@ -31,7 +31,7 @@ describe('DaftarProyek', () => {
     render(<DaftarProyekPage />);
     await screen.findByText('SPK-1');
     expect(screen.queryByRole('button', { name: /refresh/i })).toBeNull();
-    expect(screen.getByRole('status').textContent).toContain('Sistem melakukan refresh setiap 30 menit');
+    expect(screen.getByRole('status').textContent).toContain('Setiap 30 menit sistem akan otomatis memuat ulang untuk mendapatkan proyek terbaru.');
   });
 
   it('requests the full list without a limit', async () => {
