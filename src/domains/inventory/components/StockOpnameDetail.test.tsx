@@ -7,10 +7,10 @@ import StockOpname from './StockOpname';
 import RekapStokOpname from './RekapStokOpname';
 
 const nav = vi.hoisted(() => ({ pathname: '', id: '7' }));
-vi.mock('next/navigation', () => ({ usePathname: () => nav.pathname, useParams: () => ({ id: nav.id }) }));
+vi.mock('next/navigation', () => ({ usePathname: () => nav.pathname, useParams: () => ({ id: nav.id }), useRouter: () => ({ push: vi.fn() }) }));
 
-const row = { id: 7, month: 3, year: 2026, createdBy: 1, createdAt: '2026-03-31T00:00:00Z', lineCount: 1, notes: null };
-const detail = { ...row, lines: [{ itemId: 1, itemName: 'Triplex', itemCode: 'BRG-1', category: 'Bahan', unit: 'lbr', systemQty: 10, physicalQty: 8, difference: -2, note: 'Hasil audit' }] };
+const row = { id: 7, month: 3, year: 2026, status: 'SUBMITTED', progress: { filled: 1, total: 1 }, createdBy: 1, createdAt: '2026-03-31T00:00:00Z', lineCount: 1, notes: null };
+const detail = { ...row, lines: [{ itemId: 1, itemName: 'Triplex', itemCode: 'BRG-1', category: 'Bahan', unit: 'lbr', systemQty: 10, physicalQty: 8, difference: -2, systemPrice: 1000, physicalPrice: 1000, note: 'Hasil audit' }] };
 const paths = [
   '/dashboard/gudang/transaksi/stock-opname',
   '/dashboard/gudang-barang-jadi/transaksi/stock-opname',

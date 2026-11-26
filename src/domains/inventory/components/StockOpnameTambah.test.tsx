@@ -1,563 +1,134 @@
-import { AuthUserProvider } from "@/domains/auth/user-context";
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { cleanup, render, screen, waitFor, fireEvent, within } from "@testing-library/react";
-import { installFakeApi, paged, fail } from "@/test/fake-api";
-import StockOpnameTambah from "./StockOpnameTambah";
-import StockOpname from "./StockOpname";
-import { opnameDraftKey, readOpnameDraft, listOpnameDrafts } from '../stock-opname-draft';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { installFakeApi, fail, type FakeRequest } from '@/test/fake-api';
+import { withUser } from '@/test/as-user';
+import { StockOpnameIsiGudang } from './StockOpnameTambah';
 
-const nav = vi.hoisted(() => ({ pathname: '/dashboard/gudang/transaksi/stock-opname/tambah', search: '' }));
-const push = vi.fn();
-const back = vi.fn();
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push, replace: vi.fn(), back }),
-  useParams: () => ({}),
-  usePathname: () => nav.pathname,
-  useSearchParams: () => new URLSearchParams(nav.search),
-}));
+const nav = vi.hoisted(() => ({ id: '7', pathname: '/dashboard/gudang/transaksi/stock-opname/isi/7', push: vi.fn(), scan: 'B-2' }));
+vi.mock('next/navigation', () => ({ useParams: () => ({ id: nav.id }), usePathname: () => nav.pathname, useRouter: () => ({ push: nav.push }) }));
+vi.mock('./QrCameraScanner', () => ({ default: ({ onScan }: { onScan: (code: string) => void }) => <button type="button" onClick={() => onScan(nav.scan)}>mock scan</button> }));
+beforeEach(() => { nav.id = '7'; nav.pathname = '/dashboard/gudang/transaksi/stock-opname/isi/7'; nav.push.mockClear(); });
 
-const qr = vi.hoisted(() => ({
-  cb: null as null | ((r: { data: string }) => void),
-  start: vi.fn(async () => {}),
-  stop: vi.fn(),
-  destroy: vi.fn(),
-}));
-vi.mock("qr-scanner", () => ({
-  default: class {
-    constructor(_video: unknown, cb: (r: { data: string }) => void) {
-      qr.cb = cb;
-    }
-    start = qr.start;
-    stop = qr.stop;
-    destroy = qr.destroy;
-  },
-}));
-
-const items = paged([
-  {
-    id: 1,
-    code: "BRG-1",
-    name: "Triplex",
-    unit: "lbr",
-    category: "Bahan Baku",
-    stock: 10,
-    price: 1000,
-  },
-  {
-    id: 2,
-    code: "BRG-2",
-    name: "Paku",
-    unit: "kg",
-    category: "Bahan Baku",
-    stock: 5,
-    price: 200,
-  },
-]);
-
-const setSecure = (value: boolean) =>
-  Object.defineProperty(window, "isSecureContext", {
-    value,
-    configurable: true,
-  });
-
-beforeEach(() => {
-  localStorage.clear();
-  nav.search = '';
-  nav.pathname = "/dashboard/gudang/transaksi/stock-opname/tambah";
-  push.mockClear();
-  back.mockClear();
-  setSecure(true);
-  qr.cb = null;
-  qr.start.mockClear();
-  qr.stop.mockClear();
-  qr.destroy.mockClear();
+const detail = (status = 'OPEN', over: Record<string, unknown> = {}) => ({
+  id: 7, month: 3, year: 2026, status, progress: { filled: 1, total: 2 }, notes: null, createdBy: 1, createdAt: '2026-03-01T00:00:00Z',
+  lines: [
+    { itemId: 1, itemCode: 'B-1', itemName: 'Triplex', unit: 'lbr', category: 'Bahan', systemQty: null, physicalQty: 8, difference: null, systemPrice: null, physicalPrice: null, note: 'rak A' },
+    { itemId: 2, itemCode: 'B-2', itemName: 'Paku', unit: 'kg', category: 'Bahan', systemQty: null, physicalQty: null, difference: null, systemPrice: null, physicalPrice: null, note: null },
+  ],
+  ...over,
 });
+const permissions = ['stock-opname.create', 'stock-opname.view'];
 
-async function setup(extra: Record<string, unknown> = {}, confirm = true) {
-  const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(confirm);
-  const api = installFakeApi({ "GET /api/v1/items": items, ...extra });
-  render(<StockOpnameTambah />);
-  await screen.findByText("Triplex");
-  return { api, confirmSpy };
+function setup(status = 'OPEN', extra: Record<string, unknown> = {}, perms = permissions) {
+  const api = installFakeApi({
+    'GET /api/v1/stock-opname/7': detail(status),
+    'PATCH /api/v1/stock-opname/7/lines': (req: FakeRequest) => ({ ...detail(status), ...req.body as object }),
+    'POST /api/v1/stock-opname/7/submit': detail('SUBMITTED'),
+    'GET /api/v1/items/by-code/B-2': { id: 2, code: 'B-2', name: 'Paku', unit: 'kg', category: 'Bahan', price: 0, stock: 99 },
+    ...extra,
+  });
+  render(withUser(<StockOpnameIsiGudang />, perms));
+  return api;
 }
-const qtys = () => screen.getAllByPlaceholderText("0") as HTMLInputElement[];
-const submit = () => {
-  fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
-  const confirm = screen.queryByRole('button', { name: 'Ya, Submit' });
-  if (confirm) fireEvent.click(confirm);
-};
+const loaded = () => screen.findByDisplayValue('8');
 
-describe("StockOpnameTambah", () => {
-  it("lists every item as a row, requests page 1 / pageSize 25, back button goes back", async () => {
-    const { api } = await setup();
-    expect(qtys().length).toBe(2);
-    const q = api.calls("GET /api/v1/items")[0].query;
-    expect(q.get("page")).toBe("1");
-    expect(q.get("pageSize")).toBe("25");
-    fireEvent.click(document.querySelector(".flex.items-center.gap-3 button")!);
-    expect(back).toHaveBeenCalled();
+describe('isi stok opname Gudang', () => {
+  it('shows the physical form without system stock, price, or difference', async () => {
+    setup();
+    await loaded();
+    expect(await screen.findByText(/Progress: 1 \/ 2 barang/)).not.toBeNull();
+    expect(screen.queryByRole('columnheader', { name: /Jumlah Administrasi|Selisih/ })).toBeNull();
+    expect(screen.getByLabelText('Jumlah fisik Triplex')).toHaveProperty('value', '8');
   });
 
-  it("shows item info and hides administration, difference, and notes before submit", async () => {
-    await setup();
-    expect(
-      (screen.getAllByPlaceholderText("Unit")[0] as HTMLInputElement).value,
-    ).toBe("lbr");
-    expect(
-      (screen.getAllByPlaceholderText("Kategori")[0] as HTMLInputElement).value,
-    ).toBe("Bahan Baku");
-    fireEvent.change(qtys()[0], { target: { value: "8" } });
-    expect(screen.queryByText("-2")).toBeNull();
-    expect(screen.queryByText("Administrasi")).toBeNull();
-    expect(screen.queryByText("Selisih")).toBeNull();
-    expect(screen.queryByPlaceholderText("Tambahkan catatan...")).toBeNull();
+  it('saves entered rows in chunks and reports that system stock did not change', async () => {
+    const api = setup();
+    await loaded();
+    fireEvent.change(screen.getByLabelText('Jumlah fisik Paku'), { target: { value: '3,5' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan Sebagian' }));
+    expect(await screen.findByText('Isian tersimpan. Stok sistem belum berubah.')).not.toBeNull();
+    expect(api.calls('PATCH /api/v1/stock-opname/7/lines')[0].body).toEqual({ lines: [{ itemId: 1, physicalQty: 8, note: 'rak A' }, { itemId: 2, physicalQty: 3.5 }] });
+    expect(api.calls('POST /api/v1/stock-opname/7/submit')).toHaveLength(0);
   });
 
-  it("refuses an empty form and does not ask for confirmation", async () => {
-    const { api, confirmSpy } = await setup();
-    submit();
-    expect(
-      screen.getByText("Isi jumlah fisik minimal satu barang."),
-    ).not.toBeNull();
-    expect(confirmSpy).not.toHaveBeenCalled();
-    expect(api.calls("POST /api/v1/stock-opname").length).toBe(0);
+  it('sends physicalQty null when a saved row is cleared', async () => {
+    const api = setup();
+    await loaded();
+    fireEvent.click(screen.getByLabelText('Hapus isian Triplex'));
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan Sebagian' }));
+    await screen.findByText('Isian tersimpan. Stok sistem belum berubah.');
+    expect(api.calls('PATCH /api/v1/stock-opname/7/lines')[0].body).toEqual({ lines: [{ itemId: 1, physicalQty: null }] });
   });
 
-  it("input restrictions: decimal with comma or dot, max 3 decimals, maxLength 11, and notes hidden", async () => {
-    await setup();
-    fireEvent.change(qtys()[0], { target: { value: "-1e2,5678" } });
-    expect(qtys()[0].value).toBe("12,567");
-    fireEvent.change(qtys()[0], { target: { value: "3.1234" } });
-    expect(qtys()[0].value).toBe("3.123");
-    expect(qtys()[0].maxLength).toBe(11);
-    expect(screen.queryByPlaceholderText("Tambahkan catatan...")).toBeNull();
-  });
-
-  it("sends 31,5 as physicalQty 31.5", async () => {
-    const { api } = await setup({ "POST /api/v1/stock-opname": { id: 1 } });
-    fireEvent.change(qtys()[0], { target: { value: "31,5" } });
-    submit();
-    await waitFor(() => expect(api.calls("POST /api/v1/stock-opname").length).toBe(1));
-    expect((api.calls("POST /api/v1/stock-opname")[0].body as { lines: unknown }).lines).toEqual([{ itemId: 1, physicalQty: 31.5 }]);
-  });
-
-  it("rejects a count above 1.000.000 with a message and does not post", async () => {
-    const { api, confirmSpy } = await setup();
-    fireEvent.change(qtys()[0], { target: { value: "1000001" } });
-    submit();
-    expect(screen.getByText(/0 sampai 1\.000\.000/)).not.toBeNull();
-    expect(confirmSpy).not.toHaveBeenCalled();
-    expect(api.calls("POST /api/v1/stock-opname").length).toBe(0);
-  });
-
-  it("does not post when confirm is cancelled", async () => {
-    const { api, confirmSpy } = await setup({}, false);
-    fireEvent.change(qtys()[0], { target: { value: "8" } });
+  it('submits after saving and uses the new confirmation text', async () => {
+    const api = setup();
+    await loaded();
+    fireEvent.change(screen.getByLabelText('Jumlah fisik Paku'), { target: { value: '3' } });
     fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
-    expect(screen.getByRole('dialog')).not.toBeNull();
-    expect(screen.getByText(/Stok 1 barang akan disetel/)).not.toBeNull();
-    expect(confirmSpy).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Batal' }));
-    expect(screen.queryByRole('dialog')).toBeNull();
-    expect(api.calls("POST /api/v1/stock-opname").length).toBe(0);
+    expect(await screen.findByText('Stok sistem belum berubah. Selisih akan diproses setelah PPIC memposting pemutihan.')).not.toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Ya, Submit' }));
+    await waitFor(() => expect(api.calls('POST /api/v1/stock-opname/7/submit')).toHaveLength(1));
+    expect(api.calls('PATCH /api/v1/stock-opname/7/lines')).toHaveLength(1);
+    expect(nav.push).toHaveBeenCalledWith('/dashboard/gudang/transaksi/stock-opname');
   });
 
-  it("posts only counted rows (empty rows are not zeroed), note omitted when empty, then redirects", async () => {
-    const { api } = await setup({ "POST /api/v1/stock-opname": { id: 1 } });
-    const now = new Date();
-    fireEvent.change(qtys()[0], { target: { value: "10" } });
-    submit();
-    await waitFor(() =>
-      expect(api.calls("POST /api/v1/stock-opname").length).toBe(1),
-    );
-    expect(api.calls("POST /api/v1/stock-opname")[0].body).toEqual({
-      month: now.getMonth() + 1,
-      year: now.getFullYear(),
-      lines: [{ itemId: 1, physicalQty: 10 }],
-    });
-    await waitFor(() =>
-      expect(push).toHaveBeenCalledWith(
-        "/dashboard/gudang/transaksi/stock-opname",
-      ),
-    );
+  it('keeps submitted opname read-only', async () => {
+    setup('SUBMITTED');
+    await screen.findByText(/Status: Disubmit/);
+    expect(screen.queryByLabelText('Jumlah fisik Triplex')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Simpan Sebagian' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Submit' })).toBeNull();
+    expect(screen.getByText('8')).not.toBeNull();
   });
 
-  it("sends a zero count without notes before submit", async () => {
-    const { api } = await setup({ "POST /api/v1/stock-opname": { id: 1 } });
-    fireEvent.change(qtys()[1], { target: { value: "0" } });
-    submit();
-    await waitFor(() =>
-      expect(api.calls("POST /api/v1/stock-opname").length).toBe(1),
-    );
-    expect(
-      (api.calls("POST /api/v1/stock-opname")[0].body as { lines: unknown })
-        .lines,
-    ).toEqual([{ itemId: 2, physicalQty: 0 }]);
-  });
-
-  it("uses chosen month/year", async () => {
-    const { api } = await setup({ "POST /api/v1/stock-opname": { id: 1 } });
-    const [month, year] = Array.from(document.querySelectorAll("select"));
-    fireEvent.change(month, { target: { value: "2" } });
-    fireEvent.change(year, {
-      target: { value: String(new Date().getFullYear() - 1) },
-    });
-    fireEvent.change(qtys()[0], { target: { value: "1" } });
-    submit();
-    await waitFor(() =>
-      expect(api.calls("POST /api/v1/stock-opname").length).toBe(1),
-    );
-    const b = api.calls("POST /api/v1/stock-opname")[0].body as {
-      month: number;
-      year: number;
-    };
-    expect(b.month).toBe(2);
-    expect(b.year).toBe(new Date().getFullYear() - 1);
-  });
-
-  it("shows backend error, stays on page, disables button while saving", async () => {
-    const { api } = await setup({
-      "POST /api/v1/stock-opname": fail(409, "Periode sudah ada"),
-    });
-    fireEvent.change(qtys()[0], { target: { value: "10" } });
-    submit();
-    const btn = within(screen.getByRole("dialog")).getByRole("button", { name: "Mengirim..." }) as HTMLButtonElement;
-    expect(btn.disabled).toBe(true);
-    expect((await screen.findAllByText("Periode sudah ada")).length).toBeGreaterThan(0);
-    expect(push).not.toHaveBeenCalled();
-    expect((screen.getByRole("button", { name: "Ya, Submit" }) as HTMLButtonElement).disabled).toBe(
-      false,
-    );
-    expect(api.calls("POST /api/v1/stock-opname").length).toBe(1);
-  });
-
-  it("shows error when items fail to load", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(true);
-    installFakeApi({ "GET /api/v1/items": fail(500, "Item error") });
-    render(<StockOpnameTambah />);
-    expect(await screen.findByText("Item error")).not.toBeNull();
-  });
-});
-
-describe("permissions", () => {
-  const user = (permissions: string[], isSuperadmin = false) => ({
-    id: 1,
-    username: "u",
-    email: "u@x.id",
-    roleId: 2,
-    roleName: "Staff",
-    isSuperadmin,
-    permissions,
-  });
-  const open = (u: ReturnType<typeof user>) => {
-    installFakeApi({ "GET /api/v1/items": paged([]) });
-    render(
-      <AuthUserProvider user={u}>
-        <StockOpnameTambah />
-      </AuthUserProvider>,
-    );
-  };
-
-  it("shows a no-permission message instead of the form", () => {
-    open(user(["stock-opname.view"]));
-    expect(screen.getByText(/Anda tidak punya izin/)).not.toBeNull();
-    expect(screen.queryByRole('button', { name: 'Simpan Draft' })).toBeNull();
+  it('does not allow editing without stock-opname.create', async () => {
+    setup('OPEN', {}, ['stock-opname.view']);
+    await screen.findByText(/Status: Open/);
+    expect(screen.queryByLabelText('Jumlah fisik Triplex')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Submit' })).toBeNull();
   });
 
-  it("shows the form with stock-opname.create or for a superadmin", async () => {
-    open(user(["stock-opname.create"]));
-    expect(await screen.findByText("Simpan Draft")).not.toBeNull();
+  it('shows the backend error when submit fails', async () => {
+    setup('OPEN', { 'POST /api/v1/stock-opname/7/submit': fail(409, 'Masih ada barang belum diisi') });
+    await loaded();
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Ya, Submit' }));
+    expect(await screen.findByText('Masih ada barang belum diisi')).not.toBeNull();
+    expect(nav.push).not.toHaveBeenCalled();
   });
 
-  it("shows the form to a superadmin", async () => {
-    open(user([], true));
-    expect(await screen.findByText("Simpan Draft")).not.toBeNull();
+  it('rejects a physical count above 1.000.000 without saving', async () => {
+    const api = setup();
+    await loaded();
+    fireEvent.change(screen.getByLabelText('Jumlah fisik Paku'), { target: { value: '1000001' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan Sebagian' }));
+    expect(await screen.findByText(/Jumlah fisik harus 0 sampai 1.000.000/)).not.toBeNull();
+    expect(api.calls('PATCH /api/v1/stock-opname/7/lines')).toHaveLength(0);
   });
-});
 
-describe("scan mode", () => {
-  const lem = {
-    id: 9,
-    code: "LBR001",
-    externalCode: "OLD-7",
-    name: "Lem Kayu",
-    unit: "kg",
-    category: "Bahan Baku",
-    stock: 4,
-    price: 300,
-    locationId: 1,
-    supplierId: 7,
-  };
-  const routes = {
-    "GET /api/v1/items/by-code/LBR001": lem,
-    "GET /api/v1/items/by-code/BRG-1": { ...items.rows[0] },
-    "GET /api/v1/items/by-code/NOPE": fail(404, "Item not found"),
-  };
-  const openScanner = async () => {
-    fireEvent.click(screen.getByText("Scan QR"));
-    await waitFor(() => expect(qr.start).toHaveBeenCalled());
-  };
-  const scanCode = (code: string) => qr.cb!({ data: code });
-
-  it("scan finds an item not on this page: system stock is hidden and its jumlah is submitted", async () => {
-    const { api } = await setup({
-      ...routes,
-      "POST /api/v1/stock-opname": { id: 1 },
+  it('scan fills a row that belongs to the opname and rejects an unknown item', async () => {
+    const api = setup('OPEN', {
+      'GET /api/v1/items/by-code/B-9': { id: 9, code: 'B-9', name: 'Cat', unit: 'kaleng', category: 'Bahan', price: 0, stock: 5 },
     });
-    await openScanner();
-    scanCode("LBR001");
-    expect(
-      await screen.findByText("Lem Kayu", { selector: "dd" }),
-    ).not.toBeNull();
-    expect(screen.getByText("OLD-7")).not.toBeNull();
-    expect(screen.queryByText("4 kg")).toBeNull();
-    fireEvent.change(screen.getByLabelText("Jumlah fisik"), {
-      target: { value: "3" },
-    });
-    expect(screen.queryByText("-1")).toBeNull();
-    fireEvent.click(screen.getByText("Masukkan ke opname"));
-    expect(screen.queryByText("Masukkan ke opname")).toBeNull();
-    expect(
-      screen.getByText("Lem Kayu dimasukkan ke opname: 3 kg."),
-    ).not.toBeNull();
+    await loaded();
+    fireEvent.click(screen.getByRole('button', { name: 'Scan QR' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'mock scan' }));
+    expect(await screen.findByLabelText('Jumlah fisik scan')).not.toBeNull();
+    fireEvent.change(screen.getByLabelText('Jumlah fisik scan'), { target: { value: '3' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Masukkan ke opname' }));
+    expect(screen.getByLabelText('Jumlah fisik Paku')).toHaveProperty('value', '3');
+    expect(api.calls('GET /api/v1/items/by-code/B-2')).toHaveLength(1);
 
-    submit();
-    await waitFor(() =>
-      expect(api.calls("POST /api/v1/stock-opname").length).toBe(1),
-    );
-    expect(
-      (api.calls("POST /api/v1/stock-opname")[0].body as { lines: unknown })
-        .lines,
-    ).toEqual([{ itemId: 9, physicalQty: 3 }]);
+    nav.scan = 'B-9';
+    fireEvent.click(screen.getByRole('button', { name: 'Scan QR' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'mock scan' }));
+    expect(await screen.findByText('Barang "Cat" tidak ada pada periode opname ini.')).not.toBeNull();
   });
 
-  it("scanning an item already entered pre-fills its jumlah instead of duplicating it", async () => {
-    const { api } = await setup({
-      ...routes,
-      "POST /api/v1/stock-opname": { id: 1 },
-    });
-    fireEvent.change(qtys()[0], { target: { value: "8" } });
-    await openScanner();
-    scanCode("BRG-1");
-    expect(
-      await screen.findByText("Triplex", { selector: "dd" }),
-    ).not.toBeNull();
-    expect(
-      (screen.getByLabelText("Jumlah fisik") as HTMLInputElement).value,
-    ).toBe("8");
-    fireEvent.change(screen.getByLabelText("Jumlah fisik"), {
-      target: { value: "9" },
-    });
-    fireEvent.click(screen.getByText("Masukkan ke opname"));
-    submit();
-    await waitFor(() =>
-      expect(api.calls("POST /api/v1/stock-opname").length).toBe(1),
-    );
-    expect(
-      (api.calls("POST /api/v1/stock-opname")[0].body as { lines: unknown })
-        .lines,
-    ).toEqual([{ itemId: 1, physicalQty: 9 }]);
-  });
-
-  it("a scanned row from another page stays visible, can be emptied and then is not posted", async () => {
-    const { api } = await setup({ ...routes, "POST /api/v1/stock-opname": { id: 1 } });
-    await openScanner();
-    scanCode("LBR001");
-    await screen.findByText("Lem Kayu", { selector: "dd" });
-    fireEvent.change(screen.getByLabelText("Jumlah fisik"), { target: { value: "3,5" } });
-    fireEvent.click(screen.getByText("Masukkan ke opname"));
-    expect(screen.getByText("Lem Kayu", { selector: "span" })).not.toBeNull();
-    expect(qtys().length).toBe(3);
-    fireEvent.change(qtys()[2], { target: { value: "" } });
-    expect(qtys().length).toBe(2);
-    fireEvent.change(qtys()[0], { target: { value: "1" } });
-    submit();
-    await waitFor(() => expect(api.calls("POST /api/v1/stock-opname").length).toBe(1));
-    expect((api.calls("POST /api/v1/stock-opname")[0].body as { lines: unknown }).lines).toEqual([{ itemId: 1, physicalQty: 1 }]);
-  });
-
-  it("draft menyimpan hasil scan di luar halaman dan memulihkannya saat form dibuka kembali", async () => {
-    const { api } = await setup(routes);
-    await openScanner();
-    scanCode("LBR001");
-    await screen.findByText("Lem Kayu", { selector: "dd" });
-    fireEvent.change(screen.getByLabelText("Jumlah fisik"), { target: { value: "3,5" } });
-    fireEvent.click(screen.getByRole('button', { name: 'Simpan Draft' }));
-    expect(screen.getByText(/Masukkan hasil scan ke opname/)).not.toBeNull();
-    expect(push).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByText("Masukkan ke opname"));
-    fireEvent.click(screen.getByRole('button', { name: 'Simpan Draft' }));
-    expect(listOpnameDrafts(opnameDraftKey('/dashboard/gudang', undefined)).drafts[0]?.rows).toEqual([expect.objectContaining({ itemId: '9', jumlah: '3,5', itemName: 'Lem Kayu' })]);
-    expect(api.calls('POST /api/v1/stock-opname')).toHaveLength(0);
-    cleanup();
-    nav.search = `draft=${listOpnameDrafts(opnameDraftKey('/dashboard/gudang', undefined)).drafts[0].id}`;
-    render(<StockOpnameTambah />);
-    await screen.findByText('Triplex');
-    expect(screen.getByText('Lem Kayu', { selector: 'span' })).not.toBeNull();
-    expect(qtys().some((input) => input.value === '3,5')).toBe(true);
-  });
-
-  it("when two scans answer out of order, the last scan wins", async () => {
-    await setup({
-      ...routes,
-      "GET /api/v1/items/by-code/SLOW": { ...lem, id: 5, name: "Lama" },
-    });
-    // hold back the SLOW answer until the second scan has been answered
-    const real = globalThis.fetch;
-    let release!: () => void;
-    vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) =>
-      String(input).includes("SLOW")
-        ? new Promise((res) => { release = () => res(real(input, init)); })
-        : real(input, init));
-    await openScanner();
-    scanCode("SLOW");
-    fireEvent.click(await screen.findByText("Scan lagi"));
-    scanCode("LBR001");
-    await screen.findByText("Lem Kayu", { selector: "dd" });
-    release();
-    await new Promise((r) => setTimeout(r, 20));
-    expect(screen.queryByText("Lama", { selector: "dd" })).toBeNull();
-    expect(screen.getByText("Lem Kayu", { selector: "dd" })).not.toBeNull();
-  });
-
-  it("unknown code shows the rejected message and no card", async () => {
-    await setup(routes);
-    await openScanner();
-    scanCode("NOPE");
-    expect(
-      await screen.findByText('Kode "NOPE" tidak dikenal.'),
-    ).not.toBeNull();
-    expect(screen.queryByText("Masukkan ke opname")).toBeNull();
-    expect(screen.queryByLabelText("Jumlah fisik")).toBeNull();
-  });
-});
-
-describe.each(['/dashboard/gudang', '/dashboard/gudang-barang-jadi'])('draft lokal %s', (base) => {
-  it('draft baru tidak menimpa draft lama dan submit hanya menghapus draft yang dipilih', async () => {
-    nav.pathname = `${base}/transaksi/stock-opname/tambah`;
-    const api = installFakeApi({ 'GET /api/v1/items': items, 'POST /api/v1/stock-opname': { id: 1 } });
-    const key = opnameDraftKey(base, undefined);
-    render(<StockOpnameTambah />);
-    await screen.findByText('Triplex');
-    fireEvent.change(qtys()[0], { target: { value: '8' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Simpan Draft' }));
-    const first = listOpnameDrafts(key).drafts[0];
-    cleanup();
-
-    render(<StockOpnameTambah />);
-    await screen.findByText('Triplex');
-    expect(qtys().map((input) => input.value)).toEqual(['', '']);
-    fireEvent.change(qtys()[1], { target: { value: '4' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Simpan Draft' }));
-    const second = listOpnameDrafts(key).drafts.find((draft) => draft.id !== first.id)!;
-    expect(listOpnameDrafts(key).drafts).toHaveLength(2);
-    expect(readOpnameDraft(key, first.id)?.rows[0].jumlah).toBe('8');
-    cleanup();
-
-    nav.search = `draft=${first.id}`;
-    render(<StockOpnameTambah />);
-    await screen.findByText('Triplex');
-    await waitFor(() => expect(qtys().map((input) => input.value)).toEqual(['8', '']));
-    fireEvent.change(qtys()[0], { target: { value: '7' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Simpan Draft' }));
-    expect(listOpnameDrafts(key).drafts).toHaveLength(2);
-    expect(readOpnameDraft(key, second.id)?.rows[0].jumlah).toBe('4');
-    expect(readOpnameDraft(key, first.id)?.rows[0].jumlah).toBe('7');
-    submit();
-    await waitFor(() => expect(readOpnameDraft(key, first.id)).toBeNull());
-    expect(readOpnameDraft(key, second.id)?.rows[0].jumlah).toBe('4');
-    expect(api.calls('POST /api/v1/stock-opname')).toHaveLength(1);
-  });
-
-  it('menyimpan seluruh hitungan termasuk nol, memulihkan periode, melanjutkan dari daftar, dan menghapus draft setelah submit', async () => {
-    nav.pathname = `${base}/transaksi/stock-opname/tambah`;
-    const api = installFakeApi({ 'GET /api/v1/items': items, 'GET /api/v1/stock-opname': paged([]), 'POST /api/v1/stock-opname': { id: 1 } });
-    const first = render(<StockOpnameTambah />);
-    await screen.findByText('Triplex');
-    fireEvent.change(document.querySelectorAll('select')[0], { target: { value: '2' } });
-    fireEvent.change(qtys()[0], { target: { value: '8,5' } });
-    fireEvent.change(qtys()[1], { target: { value: '0' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Simpan Draft' }));
-    expect(api.calls('POST /api/v1/stock-opname')).toHaveLength(0);
-    const key = opnameDraftKey(base, undefined);
-    const draftId = listOpnameDrafts(key).drafts[0].id;
-    expect(readOpnameDraft(key, draftId)?.rows.map((row) => row.jumlah)).toEqual(['8,5', '0']);
-    expect(push).toHaveBeenCalledWith(`${base}/transaksi/stock-opname`);
-    first.unmount();
-
-    nav.pathname = `${base}/transaksi/stock-opname`;
-    const list = render(<StockOpname />);
-    expect((await screen.findByRole('link', { name: 'Lanjutkan Draft' })).getAttribute('href')).toBe(`${base}/transaksi/stock-opname/tambah?draft=${draftId}`);
-    expect(screen.queryByRole('button', { name: 'Download' })).toBeNull();
-    list.unmount();
-
-    nav.pathname = `${base}/transaksi/stock-opname/tambah`;
-    nav.search = `draft=${draftId}`;
-    render(<StockOpnameTambah />);
-    await screen.findByText('Triplex');
-    expect((document.querySelectorAll('select')[0] as HTMLSelectElement).value).toBe('2');
-    expect(qtys().map((input) => input.value)).toEqual(['8,5', '0']);
-    submit();
-    await waitFor(() => expect(api.calls('POST /api/v1/stock-opname')).toHaveLength(1));
-    expect(api.calls('POST /api/v1/stock-opname')[0].body).toMatchObject({ month: 2, lines: [{ itemId: 1, physicalQty: 8.5 }, { itemId: 2, physicalQty: 0 }] });
-    await waitFor(() => expect(readOpnameDraft(key, draftId)).toBeNull());
-  });
-});
-
-describe('draft lokal: kegagalan', () => {
-  it('draft yang tidak ditemukan tidak mengubah draft lain ketika isian baru disimpan', async () => {
-    await setup();
-    fireEvent.change(qtys()[0], { target: { value: '8' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Simpan Draft' }));
-    const key = opnameDraftKey('/dashboard/gudang', undefined);
-    const first = listOpnameDrafts(key).drafts[0];
-    cleanup();
-    nav.search = 'draft=not-found';
-    render(<StockOpnameTambah />);
-    await screen.findByText('Triplex');
-    expect(screen.getByRole('alert').textContent).toContain('Draft stok opname tidak ditemukan.');
-    fireEvent.change(qtys()[0], { target: { value: '3' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Simpan Draft' }));
-    expect(listOpnameDrafts(key).drafts).toHaveLength(2);
-    expect(readOpnameDraft(key, first.id)?.rows[0].jumlah).toBe('8');
-    expect(readOpnameDraft(key, 'not-found')).toBeNull();
-  });
-
-  it('gagal menyimpan ke browser tidak menghapus isian atau mengirim transaksi', async () => {
-    const { api } = await setup();
-    fireEvent.change(qtys()[0], { target: { value: '8' } });
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Quota exceeded'); });
-    fireEvent.click(screen.getByRole('button', { name: 'Simpan Draft' }));
-    expect(screen.getByText(/Draft gagal disimpan/)).not.toBeNull();
-    expect(qtys()[0].value).toBe('8');
-    expect(push).not.toHaveBeenCalled();
-    expect(api.calls('POST /api/v1/stock-opname')).toHaveLength(0);
-  });
-
-  it('draft rusak tidak mengunci form: form terbuka kosong dengan peringatan', async () => {
-    localStorage.setItem(opnameDraftKey('/dashboard/gudang', undefined), '{not-json');
-    nav.search = 'draft=legacy';
-    installFakeApi({ "GET /api/v1/items": items });
-    render(<StockOpnameTambah />);
-    expect(await screen.findByText('Triplex')).not.toBeNull();
-    expect(screen.getByRole('alert').textContent).toContain('Draft stok opname tidak dapat dibaca');
-    expect(screen.getByRole('button', { name: 'Simpan Draft' })).not.toBeNull();
-    expect(qtys().map((input) => input.value)).toEqual(['', '']);
-    fireEvent.change(qtys()[0], { target: { value: '3' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Simpan Draft' }));
-    expect(localStorage.getItem(opnameDraftKey('/dashboard/gudang', undefined))).toBe('{not-json');
-    expect(listOpnameDrafts(opnameDraftKey('/dashboard/gudang', undefined)).drafts).toHaveLength(1);
-  });
-
-  it('submit gagal mempertahankan draft agar bisa dilanjutkan', async () => {
-    await setup({ 'POST /api/v1/stock-opname': fail(500, 'Gagal submit') });
-    fireEvent.change(qtys()[0], { target: { value: '9' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Simpan Draft' }));
-    const key = opnameDraftKey('/dashboard/gudang', undefined);
-    submit();
-    await screen.findAllByText('Gagal submit');
-    expect(listOpnameDrafts(key).drafts[0]?.rows[0].jumlah).toBe('9');
-    expect(qtys()[0].value).toBe('9');
+  it('renders the invalid-id message', async () => {
+    nav.id = 'abc';
+    installFakeApi({});
+    render(withUser(<StockOpnameIsiGudang />, permissions));
+    expect(await screen.findByText('ID stok opname tidak valid.')).not.toBeNull();
   });
 });
