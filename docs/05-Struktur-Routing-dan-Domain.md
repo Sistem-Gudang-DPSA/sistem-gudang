@@ -138,9 +138,43 @@ tersebut tidak tampil di sidebar (`visibleNav`) tetapi tetap dipakai
 `canAccess`, sehingga URL-nya masih dijaga permission dan bukan terbuka bebas.
 Saat ini yang disembunyikan (#6):
 
-- Divisi **Gudang Barang Jadi**, **Keuangan**, dan **Produksi**.
+- Divisi **Gudang Barang Jadi** dan **Produksi**.
 - Gudang: **Checklist Dokubah**, **Rekap Dokubah**, **Realisasi Dokubah**.
 - PPIC: **Penawaran Harga**, **Dokubah**, **SPK Internal & Mutasi Stok**,
   **Approval**.
 
 Untuk menampilkan kembali, hapus `hidden: true` pada entri terkait.
+
+## Menu Keuangan
+
+Divisi **Keuangan** tampil untuk pengguna domain `keuangan` dengan permission
+`report.view`, serta superadmin. Menu laporannya adalah **Data Barang**
+(`/dashboard/keuangan/laporan/data-barang`) dan **Realisasi Dokubah**
+(`/dashboard/keuangan/laporan/realisasi-spk`). Kedua halaman dijaga dengan
+permission `report.view` dan domain pengguna; akun PPIC dan Purchasing yang
+memiliki `report.view` tetap tidak mendapat akses Keuangan.
+
+Untuk akun tanpa `domainCode`, navigasi mengikuti permission saja sehingga
+`report.view` juga menampilkan Keuangan.
+
+## Laporan Masalah Superadmin
+
+Halaman `/dashboard/superadmin/laporan-masalah` membuka filter Status pada
+**Semua** setiap kali halaman dimasuki. Permintaan `GET /api/v1/bug-reports`
+tidak mengirim parameter `status` pada pilihan Semua. Pengguna dapat memilih
+**Baru**, **Diproses**, atau **Selesai** untuk memfilter daftar; mengganti filter
+mengembalikan paginasi ke halaman pertama.
+
+## Akses Daftar Proyek
+
+Menu dan halaman `/dashboard/daftar-proyek` tersedia untuk semua role yang
+sudah login, termasuk role kustom dan akun tanpa permission tambahan.
+Sumber datanya `GET /api/v1/tracking/spk`, yang dapat dibaca semua akun
+terautentikasi tanpa `dokubah.view`. Ini hanya akses daftar proyek;
+permission halaman Dokubah dan endpoint detail SPK tetap berlaku.
+
+## Urutan master Purchasing
+
+Sidebar Purchasing menampilkan **Data Supplier** sebelum **Data Barang**
+pada grup Master. Masing-masing menu mengikuti permission `supplier.view`
+dan `item.view`.

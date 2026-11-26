@@ -234,7 +234,7 @@ export default function DataSupplierScreen({ detailHref, paginationActiveClass }
       {/* Modal Tambah/Edit Data */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-opacity">
-          <div className="bg-white rounded-2xl w-full max-w-2xl p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-8 shadow-2xl animate-in zoom-in-95 duration-200">
             <h2 className="text-xl font-bold text-gray-900 mb-6 uppercase tracking-wide">DATA SUPPLIER</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 mb-6">
@@ -287,18 +287,25 @@ export default function DataSupplierScreen({ detailHref, paginationActiveClass }
                 />
               </div>
 
-              <div>
-                <label htmlFor="supplier-pajak" className="block text-[15px] font-medium text-gray-800 mb-2">Pajak Vendor</label>
-                <select
-                  id="supplier-pajak"
-                  value={formData.pajak}
-                  onChange={(e) => setFormData({ ...formData, pajak: e.target.value as Pajak })}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"
-                >
-                  <option value="NON_PKP">Non PKP</option>
-                  <option value="PKP">PKP</option>
-                </select>
-              </div>
+              <fieldset>
+                <legend className="block text-[15px] font-medium text-gray-800 mb-2">Pajak Vendor</legend>
+                <div className="grid grid-cols-2 gap-2">
+                  {([['NON_PKP', 'Non PKP'], ['PKP', 'PKP']] as const).map(([value, label]) => (
+                    <label key={value} className="flex items-center gap-2 py-2.5 text-gray-800 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="supplier-pajak"
+                        value={value}
+                        checked={formData.pajak === value}
+                        disabled={saving}
+                        onChange={() => setFormData((prev) => ({ ...prev, pajak: value }))}
+                        className="h-5 w-5 shrink-0 appearance-none rounded-full border-2 border-[#FF8A00] bg-white checked:bg-[#FF8A00] checked:shadow-[inset_0_0_0_3px_white] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF8A00] disabled:opacity-60"
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
 
               <div>
                 <label className="block text-[15px] font-medium text-gray-800 mb-2">No telf</label>
@@ -315,14 +322,15 @@ export default function DataSupplierScreen({ detailHref, paginationActiveClass }
             </div>
 
             <div className="mb-6">
-              <label className="block text-[15px] font-medium text-gray-800 mb-2">Alamat</label>
-              <input
-                type="text"
+              <label htmlFor="supplier-address" className="block text-[15px] font-medium text-gray-800 mb-2">Alamat</label>
+              <textarea
+                id="supplier-address"
+                rows={3}
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 maxLength={255}
                 placeholder="Masukan alamat"
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"
+                className="w-full resize-y px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"
               />
             </div>
 

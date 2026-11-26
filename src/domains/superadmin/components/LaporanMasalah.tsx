@@ -15,7 +15,7 @@ const statuses: Record<BugReportStatus, string> = {
 };
 
 export default function LaporanMasalah() {
-  const [status, setStatus] = useState<BugReportStatus | "">("OPEN");
+  const [status, setStatus] = useState<BugReportStatus | "">("");
   const [page, setPage] = useState(1);
   const [busy, setBusy] = useState<number | null>(null);
   const acting = useRef(false);

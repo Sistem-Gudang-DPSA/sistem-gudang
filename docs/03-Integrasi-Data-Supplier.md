@@ -68,8 +68,18 @@ Purchasing dan Superadmin. Detail alur, endpoint, dan izinnya ada di
 
 ## Status dan Langkah Berikutnya
 
-Selesai untuk cakupan CRUD Supplier. `DataSupplierDetail.tsx` (rincian
-harga barang per bulan per supplier) tetap dummy karena tidak ada
-endpoint yang cocok di `docs/api-1.json`, dan bug tipe pre-existing di
-file itu sudah dicatat di `02-Integrasi-Inventory-Item-Lokasi.md` bagian
-Bug atau Celah.
+CRUD Supplier dan daftar barang per supplier sudah memakai API.
+`DataSupplierDetail.tsx` dipakai bersama oleh Purchasing dan Superadmin
+dan menampilkan identitas barang tanpa kolom harga bulanan atau rata-rata.
+Detail sumber data dijelaskan di `12-Pemesanan-Pembelian-dan-Histori-Harga-Supplier.md`.
+
+## Alamat dan Pajak Vendor pada form supplier
+
+Modal Tambah/Edit di Purchasing dan Superadmin memakai textarea untuk
+Alamat (maksimal 255 karakter), sehingga alamat dapat ditulis beberapa
+baris. Pajak Vendor dipilih melalui dua radio button bulat **Non PKP**
+dan **PKP**; pilihan aktif ditandai titik oranye, dengan satu pilihan
+aktif pada satu waktu. Supplier baru memakai Non PKP secara default;
+form edit mengikuti nilai supplier tersimpan. Nilai API tetap `NON_PKP`
+atau `PKP`. Memilih radio pajak tidak menyimpan form; penyimpanan tetap
+melalui tombol Simpan. Isian tetap ada jika penyimpanan gagal.

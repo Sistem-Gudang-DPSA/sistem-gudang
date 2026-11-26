@@ -48,7 +48,7 @@ function Lampiran({ label, file }: { label: string; file?: string }) {
 
 // `actions` mengganti tampilan status dengan tombol aksi dan `sections` menambah bagian
 // (mis. daftar PO) di detail; dipakai halaman peninjauan PPIC dan Purchasing.
-export default function PermintaanPembelianPPIC({ backPath = rekap_pembelian_path, title = 'Permintaan Pembelian', actions, sections }: { backPath?: string; title?: string; actions?: (permintaan: PermintaanPembelian, reload: () => void) => React.ReactNode; sections?: (permintaan: PermintaanPembelian) => React.ReactNode }) {
+export default function PermintaanPembelianPPIC({ backPath = rekap_pembelian_path, title = 'Permintaan Pembelian', actions, sections, detailBarang, showApprovalHistory = true }: { backPath?: string; title?: string; actions?: (permintaan: PermintaanPembelian, reload: () => void) => React.ReactNode; sections?: (permintaan: PermintaanPembelian) => React.ReactNode; detailBarang?: (permintaan: PermintaanPembelian) => React.ReactNode; showApprovalHistory?: boolean }) {
   const { id } = useParams<{ id: string }>();
   const canResubmit = useCan('purchase-request.create');
   const { data: permintaan, loading, error, reload } = useApiData(() => fetchPermintaan(id), id, 'Gagal memuat permintaan pembelian.');
@@ -91,6 +91,7 @@ export default function PermintaanPembelianPPIC({ backPath = rekap_pembelian_pat
 
         <hr className={dividerClass} />
 
+        {detailBarang ? detailBarang(permintaan) : (<>
         {/* Detail barang */}
         <h2 className="text-base font-bold text-gray-900 mb-4">Detail Barang</h2>
         <div className="overflow-x-auto border-t border-l border-gray-300 rounded-sm max-w-4xl">
@@ -127,6 +128,8 @@ export default function PermintaanPembelianPPIC({ backPath = rekap_pembelian_pat
           </table>
         </div>
 
+        </>)}
+
         {sections?.(permintaan)}
 
         <hr className={dividerClass} />
@@ -138,7 +141,7 @@ export default function PermintaanPembelianPPIC({ backPath = rekap_pembelian_pat
           <Lampiran label="Kartu Stok" file={permintaan.lampiranKartuStok} />
         </div>
 
-        {(permintaan.riwayat?.length ?? 0) > 0 && (
+        {showApprovalHistory && (permintaan.riwayat?.length ?? 0) > 0 && (
           <>
             <hr className={dividerClass} />
             <h2 className="text-base font-bold text-gray-900 mb-4">Riwayat Persetujuan</h2>

@@ -28,7 +28,7 @@ const request = (status: string) => ({
 const suppliers = paged([{ id: 3, code: 'S3', name: 'PT Kayu', bank: 'BCA 123', npwp: '01.2', phone: '0812', address: 'Jl. Mawar', pajak: 'PKP' }]);
 
 function setup(status = 'approved', extra: Record<string, unknown> = {}) {
-  const api = installFakeApi({ 'GET /api/v1/approvals/7': request(status), 'GET /api/v1/suppliers': suppliers, 'GET /api/v1/purchase-orders': paged([]), ...extra });
+  const api = installFakeApi({ 'GET /api/v1/approvals/7': request(status), 'GET /api/v1/suppliers': suppliers, 'GET /api/v1/purchase-orders': paged([]), 'PUT /api/v1/approvals/7/mapping': {}, ...extra });
   render(<PemesananPembelian />);
   return api;
 }
@@ -58,7 +58,7 @@ const submit = () => fireEvent.click(screen.getByText('Buat'));
 describe('PemesananPembelian guards', () => {
   it.each(['pending', 'rejected', 'revision_requested'])('is blocked while status is %s', async (st) => {
     setup(st);
-    expect(await screen.findByText('PO baru bisa dibuat setelah permintaan pembelian disetujui.')).not.toBeNull();
+    expect(await screen.findByText('PO baru bisa dibuat setelah permintaan pembelian disetujui PPIC.')).not.toBeNull();
     expect(screen.queryByText('Pemesanan Pembelian')).toBeNull();
   });
 
