@@ -42,12 +42,12 @@ describe.each([
     }
   });
 
-  it("Tambah stock opname opens the division route", async () => {
+  it("Isi opname opens the division route", async () => {
     nav.pathname = `${base}/transaksi/stock-opname`;
-    installFakeApi({ "GET /api/v1/stock-opname": paged([]) });
+    installFakeApi({ "GET /api/v1/stock-opname": paged([{ id: 7, month: 3, year: 2026, status: "OPEN", progress: { filled: 0, total: 10 }, notes: null, createdBy: 1, createdAt: "2026-03-01T00:00:00Z", lineCount: 0 }]) });
     wrap(<StockOpname />);
-    const href = (await screen.findByRole("link", { name: /Tambah/ })).getAttribute("href")!;
-    expect(href).toBe(`${base}/transaksi/stock-opname/tambah`);
+    const href = (await screen.findByRole("link", { name: /Isi Opname/ })).getAttribute("href")!;
+    expect(href).toBe(`${base}/transaksi/stock-opname/isi/7`);
     expect(canAccess(u, href)).toBe(true);
   });
 

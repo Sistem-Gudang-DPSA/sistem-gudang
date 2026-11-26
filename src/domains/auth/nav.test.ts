@@ -188,6 +188,12 @@ describe("sidebar per seeded role", () => {
     expect(canAccess(ppic, "/dashboard/gudang/master/data-barang")).toBe(false);
   });
 
+  it("PPIC with stock-opname access sees the opname menu", () => {
+    const ppic = withDomain(user(["material-request.create", "stock-opname.view", "stock-opname.open"]), "ppic");
+    expect(itemsOf(ppic, "ppic")).toContain("Stok Opname");
+    expect(canAccess(ppic, "/dashboard/ppic/transaksi/stock-opname")).toBe(true);
+  });
+
   it("Purchasing sees only the Purchasing division with its own pages", () => {
     const p = withDomain(user(SEEDED.kPurchasing), "purchasing");
     expect(labels(p)).toEqual(["purchasing"]);

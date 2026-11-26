@@ -11,7 +11,8 @@ import type {
   CreateItemInput,
   CreateLocationInput,
   CreateOutboundInput,
-  CreateStockOpnameInput,
+  OpenStockOpnameInput,
+  SaveStockOpnameLinesInput,
   ChecklistDokubahDetail,
   ChecklistDokubahInput,
   ChecklistDokubahRow,
@@ -39,6 +40,11 @@ import type {
   StockOpnameDetail,
   StockOpnameListParams,
   StockOpnameRow,
+  SaveStockReconciliationInput,
+  StockReconciliationDetail,
+  StockReconciliationListParams,
+  StockReconciliationRow,
+  StockReconciliationSuggestion,
 
 } from "./types";
 import type { KartuStokData } from '@/domains/inventory/components/KartuStok';
@@ -277,8 +283,44 @@ export function getStockOpname(id: number) {
   return apiClient.get<StockOpnameDetail>(`/api/v1/stock-opname/${id}`);
 }
 
-export function createStockOpname(input: CreateStockOpnameInput) {
+export function openStockOpname(input: OpenStockOpnameInput) {
   return apiClient.post<StockOpnameDetail>("/api/v1/stock-opname", input);
+}
+
+export function saveStockOpnameLines(id: number | string, input: SaveStockOpnameLinesInput) {
+  return apiClient.patch<StockOpnameDetail>(`/api/v1/stock-opname/${id}/lines`, input);
+}
+
+export function submitStockOpname(id: number | string) {
+  return apiClient.post<StockOpnameDetail>(`/api/v1/stock-opname/${id}/submit`);
+}
+
+export function reopenStockOpname(id: number | string) {
+  return apiClient.post<StockOpnameDetail>(`/api/v1/stock-opname/${id}/reopen`);
+}
+
+export function listStockReconciliations(params?: StockReconciliationListParams) {
+  return apiClient.get<PaginatedResult<StockReconciliationRow>>(`/api/v1/stock-reconciliations${toQuery(params)}`);
+}
+
+export function getStockReconciliation(id: number | string) {
+  return apiClient.get<StockReconciliationDetail>(`/api/v1/stock-reconciliations/${id}`);
+}
+
+export function getStockReconciliationSuggestions(params: { month: number; year: number }) {
+  return apiClient.get<StockReconciliationSuggestion[]>(`/api/v1/stock-reconciliations/suggestions${toQuery(params)}`);
+}
+
+export function createStockReconciliation(input: SaveStockReconciliationInput, idempotencyKey: string) {
+  return apiClient.post<StockReconciliationDetail>("/api/v1/stock-reconciliations", input, { "Idempotency-Key": idempotencyKey });
+}
+
+export function updateStockReconciliation(id: number | string, input: SaveStockReconciliationInput) {
+  return apiClient.put<StockReconciliationDetail>(`/api/v1/stock-reconciliations/${id}`, input);
+}
+
+export function postStockReconciliation(id: number | string, idempotencyKey: string) {
+  return apiClient.post<StockReconciliationDetail>(`/api/v1/stock-reconciliations/${id}/post`, undefined, { "Idempotency-Key": idempotencyKey });
 }
 
 export function getRequestsReport(params?: RequestReportParams) {
