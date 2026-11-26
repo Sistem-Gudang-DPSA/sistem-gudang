@@ -449,7 +449,6 @@ export default function DataBarangGudang() {
         <DataBarangTable
           rows={dataBarang}
           loading={d.loading}
-          colSpan={canSelect ? 12 : 11}
           columns={columns}
           sort={d.sort}
           onSort={d.toggle}
