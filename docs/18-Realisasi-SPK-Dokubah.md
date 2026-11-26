@@ -1,10 +1,10 @@
-# Realisasi Dokubah: Data Barang Keluar Sekarang, Dokubah Nanti
+# Realisasi SPK: Data Barang Keluar Sekarang, Dokubah Nanti
 
 Issue: #38
 
 ## Ringkasan
 
-Halaman Realisasi Dokubah (`/dashboard/gudang/laporan/realisasi-dokubah`) memakai
+Halaman Realisasi SPK (`/dashboard/gudang/laporan/realisasi-dokubah`) memakai
 tampilan baru dari PR #36 (daftar per SPK, ringkasan, halaman rincian per SPK),
 tetapi datanya sementara diambil dari **barang keluar**, bukan dari dokubah PPIC.
 Halaman daftar dan rincian menampilkan notice tentang hal ini.
@@ -14,8 +14,8 @@ di atas. Kedua URL memerlukan permission `dokubah.view`.
 
 ## Akses Purchasing
 
-Menu **Purchasing → Laporan → Realisasi Dokubah** membuka
-`/dashboard/purchasing/laporan/realisasi-dokubah` dengan permission `report.view`.
+Menu **Purchasing → Laporan → Realisasi SPK** membuka
+`/dashboard/purchasing/laporan/realisasi-spk` dengan permission `report.view`.
 Route ini me-re-export layar Gudang yang sama, termasuk pencarian, filter,
 centang baris, Export Excel, dan Print PDF. Baris tidak membuka rincian divisi lain.
 Ekspor memakai baris yang dicentang, atau seluruh hasil pencarian dan filter

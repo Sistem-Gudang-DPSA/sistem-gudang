@@ -20,7 +20,7 @@ describe("visibleNav", () => {
     const keuangan = withDomain(user(["report.view"]), "keuangan");
     const paths = ["/dashboard/keuangan/laporan/data-barang", "/dashboard/keuangan/laporan/realisasi-spk"];
     expect(labels(keuangan)).toEqual(["keuangan"]);
-    expect(itemsOf(keuangan, "keuangan")).toEqual(["Data Barang", "Realisasi Dokubah"]);
+    expect(itemsOf(keuangan, "keuangan")).toEqual(["Data Barang", "Realisasi SPK"]);
     expect(visibleNav(keuangan)[0].groups.flatMap((group) => group.items.map((item) => item.href))).toEqual(paths);
     expect(labels(withDomain(user([]), "keuangan"))).toEqual([]);
     for (const path of paths) {
@@ -41,7 +41,7 @@ describe("visibleNav", () => {
     const inventory = withDomain(user(SEEDED.kInventory), "inventory");
     expect(itemsOf(inventory, "gudang")).not.toContain("Checklist Dokubah");
     expect(itemsOf(inventory, "gudang")).not.toContain("Rekap Dokubah");
-    expect(itemsOf(inventory, "gudang")).not.toContain("Realisasi Dokubah");
+    expect(itemsOf(inventory, "gudang")).not.toContain("Realisasi SPK");
   });
 
   it("allows PO readers and creators into PO Barang with their own action permissions", () => {
@@ -57,12 +57,12 @@ describe("visibleNav", () => {
   });
 
   it("guards the purchasing realization report with report.view and its own division", () => {
-    const path = "/dashboard/purchasing/laporan/realisasi-dokubah";
+    const path = "/dashboard/purchasing/laporan/realisasi-spk";
     const purchasing = withDomain(user(["item.set-price", "report.view"]), "purchasing");
     const withoutReport = { ...purchasing, permissions: ["item.set-price"] };
-    expect(itemsOf(purchasing, "purchasing")).toContain("Realisasi Dokubah");
+    expect(itemsOf(purchasing, "purchasing")).toContain("Realisasi SPK");
     expect(canAccess(purchasing, path)).toBe(true);
-    expect(itemsOf(withoutReport, "purchasing")).not.toContain("Realisasi Dokubah");
+    expect(itemsOf(withoutReport, "purchasing")).not.toContain("Realisasi SPK");
     expect(canAccess(withoutReport, path)).toBe(false);
     expect(canAccess(withDomain(purchasing, "inventory"), path)).toBe(false);
   });
@@ -182,8 +182,7 @@ describe("sidebar per seeded role", () => {
     const ppic = withDomain(user(SEEDED.ppic), "ppic");
     expect(labels(ppic)).toEqual(["ppic"]);
     expect(itemsOf(ppic, "ppic")).toEqual([
-      "Data Barang", "Permintaan Pembelian",
-      "Rekap Dokubah", "Rekap Mutasi Barang", "Rekap Stok Opname & Mutasi Stok", "Rekap Pembelian",
+      "Data Barang", "Permintaan Pembelian", "Rekap Pembelian",
     ]);
     expect(canAccess(ppic, "/dashboard/gudang/laporan/rekap-permintaan")).toBe(false);
     expect(canAccess(ppic, "/dashboard/gudang/master/data-barang")).toBe(false);
@@ -193,8 +192,8 @@ describe("sidebar per seeded role", () => {
     const p = withDomain(user(SEEDED.kPurchasing), "purchasing");
     expect(labels(p)).toEqual(["purchasing"]);
     expect(itemsOf(p, "purchasing")).toEqual([
-      "Data Supplier", "Data Barang", "PO Barang", "Penawaran Harga / SPH", "Retur ke Supplier",
-      "Rekap Data Barang Masuk", "Rekap Data Barang Keluar", "Rekap Stock Opname", "Rekap Permintaan Pembelian", "Realisasi Dokubah",
+      "Data Supplier", "Data Barang", "Permintaan Pembelian", "PO Barang",
+      "Rekap Data Barang Masuk", "Rekap Data Barang Keluar", "Realisasi SPK",
     ]);
     expect(canAccess(p, "/dashboard/ppic/transaksi/permintaan-pembelian")).toBe(false);
     expect(canAccess(p, "/dashboard/purchasing/laporan/rekap-pembelian/buat-po/3")).toBe(true);
@@ -203,7 +202,8 @@ describe("sidebar per seeded role", () => {
   it("only PPIC can open the pembelian request pages and only Purchasing approvers see its rekap", () => {
     expect(itemsOf(withDomain(user(SEEDED.kInventory), "inventory"), "gudang")).toContain("Permintaan Pembelian");
     expect(labels(withDomain(user(SEEDED.kInventory), "inventory"))).not.toContain("ppic");
-    expect(itemsOf(withDomain(user(SEEDED.kPurchasing), "purchasing"), "purchasing")).not.toContain("Permintaan Pembelian");
+    expect(itemsOf(withDomain(user(SEEDED.kPurchasing), "purchasing"), "purchasing")).toContain("Permintaan Pembelian");
+    expect(itemsOf(withDomain(user(["item.set-price"]), "purchasing"), "purchasing")).not.toContain("Permintaan Pembelian");
   });
 
   it("every nav item declares the permission it needs", () => {

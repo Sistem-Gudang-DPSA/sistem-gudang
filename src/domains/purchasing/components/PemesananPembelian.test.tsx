@@ -3,6 +3,7 @@ import { render, cleanup, screen, fireEvent, waitFor, within } from '@testing-li
 import { installFakeApi, paged, fail, type FakeRequest } from '@/test/fake-api';
 import PemesananPembelian from './PemesananPembelian';
 import { AuthUserProvider } from '@/domains/auth/user-context';
+import { todayIso } from '@/domains/inventory/date';
 
 vi.setConfig({ testTimeout: 20000 });
 
@@ -60,6 +61,12 @@ describe('PemesananPembelian guards', () => {
     setup(st);
     expect(await screen.findByText('PO baru bisa dibuat setelah permintaan pembelian disetujui PPIC.')).not.toBeNull();
     expect(screen.queryByText('Pemesanan Pembelian')).toBeNull();
+  });
+
+  it('mengisi Tanggal PO dengan tanggal hari ini', async () => {
+    setup('approved');
+    await ready();
+    expect(val('Tanggal PO')).toBe(todayIso());
   });
 
   it('kembali ke daftar PO Barang saat dibuka dengan ?from=po-barang', async () => {
@@ -179,7 +186,7 @@ describe('PemesananPembelian submit', () => {
   });
 
   it.each([
-    ['Tanggal PO wajib diisi.', () => {}],
+    ['Tanggal PO wajib diisi.', () => fireEvent.change(screen.getByLabelText('Tanggal PO'), { target: { value: '' } })],
     ['Pilih supplier terlebih dahulu.', () => fireEvent.change(screen.getByLabelText('Tanggal PO'), { target: { value: '2026-03-10' } })],
   ])('validation: %s', async (msg, prep) => {
     const api = setup();

@@ -13,6 +13,7 @@ import { todayIso } from '@/domains/inventory/date';
 import { ApiError } from '@/shared/lib/api-client';
 import { INTEGER_INPUT, digitsOnly } from '@/shared/lib/input';
 import { useItemSearch } from '@/domains/inventory/use-item-search';
+import { getItem } from '@/domains/inventory/api';
 import { useApiData } from '@/shared/lib/use-api-data';
 import SearchableSelect from '@/shared/components/SearchableSelect';
 import type { ItemListRow } from '@/domains/inventory/types';
@@ -20,7 +21,7 @@ import RekomendasiStokMinimum, { qtySaranRestock } from './RekomendasiStokMinimu
 import { gudang_permintaan_pembelian_path } from '@/domains/inventory/permintaan-pembelian';
 import { cetakFormPermintaanPembelian, penyetujuPermintaanPembelian } from '@/domains/ppic/print-permintaan-pembelian';
 
-const emptyRow = { itemId: undefined as number | undefined, tanggal: "", supplier: "", keterangan: "", dikirimTanggal: "", namaBarang: "", qty: "", satuan: "", proyek: "", client: "", noSpk: "" };
+const emptyRow = { itemId: undefined as number | undefined, stok: null as number | null, tanggal: "", supplier: "", keterangan: "", dikirimTanggal: "", namaBarang: "", qty: "", satuan: "", proyek: "", client: "", noSpk: "" };
 type Row = typeof emptyRow;
 
 const kolomWajib = (r: Row) => [r.namaBarang, r.qty, r.satuan, r.proyek];
@@ -69,7 +70,7 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
     .map((name) => ({ value: name, label: name }));
 
   const handleChange = (index: number, field: keyof Row, value: string) => {
-    setTableData((prev) => prev.map((row, i) => (i === index ? { ...row, [field]: value, ...(field === 'namaBarang' ? { itemId: undefined, satuan: '', supplier: '' } : {}) } : row)));
+    setTableData((prev) => prev.map((row, i) => (i === index ? { ...row, [field]: value, ...(field === 'namaBarang' ? { itemId: undefined, stok: null, satuan: '', supplier: '' } : {}) } : row)));
   };
 
   const patchRow = (index: number, patch: Partial<Row>) =>
@@ -77,13 +78,26 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
 
   // Gudang tidak menetapkan supplier; pilihan supplier dilakukan Purchasing.
   const tambahDariRekomendasi = (item: ItemListRow) => {
-    const barisBaru = { ...emptyRow, itemId: item.id, namaBarang: item.name, satuan: item.unit, supplier: isGudang ? '' : item.supplierName ?? '', qty: String(qtySaranRestock(item)) };
+    const barisBaru = { ...emptyRow, itemId: item.id, stok: item.stock, namaBarang: item.name, satuan: item.unit, supplier: isGudang ? '' : item.supplierName ?? '', qty: String(qtySaranRestock(item)) };
     setTableData((rows) => {
       const kosong = rows.findIndex((row) => !barisTerisi(row));
       return kosong >= 0 ? rows.map((row, i) => (i === kosong ? barisBaru : row)) : [...rows, barisBaru];
     });
   };
   const itemIdsTerpilih = new Set(tableData.flatMap((row) => (row.itemId === undefined ? [] : [row.itemId])));
+
+  // Stok tidak ikut payload permintaan. Untuk baris lama yang belum punya stok, ambil sekali dari master barang.
+  const stokDiminta = useRef(new Set<number>());
+  useEffect(() => {
+    const belum = [...new Set(tableData.flatMap((row) => (row.itemId !== undefined && row.stok === null ? [row.itemId] : [])))]
+      .filter((id) => !stokDiminta.current.has(id));
+    for (const id of belum) {
+      stokDiminta.current.add(id);
+      getItem(id)
+        .then((item) => setTableData((prev) => prev.map((row) => (row.itemId === id ? { ...row, stok: item.stock } : row))))
+        .catch(() => { stokDiminta.current.delete(id); });
+    }
+  }, [tableData]);
 
   // Mencetak isi form saat ini (baris yang sudah terisi), tanpa menunggu disimpan.
   const handleCetak = async () => {
@@ -265,11 +279,11 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
             <div className="overflow-x-auto w-full">
               <table className="w-full min-w-275 table-fixed text-left text-sm border-collapse">
                 <colgroup>
-                  {[4, 12, 13, 24, 6, 6, 13, 11, 11].map((width, i) => <col key={i} style={{ width: `${width}%` }} />)}
+                  {[4, 12, 13, 18, 7, 6, 6, 13, 11, 10].map((width, i) => <col key={i} style={{ width: `${width}%` }} />)}
                 </colgroup>
                 <thead className="bg-gray-50 text-gray-700 text-xs font-bold">
                   <tr>
-                    {['No', 'Tanggal', 'Supplier', 'Nama Barang', 'QTY', 'SAT', 'Proyek', 'Keterangan', 'Dikirim Tanggal'].map((label) => (
+                    {['No', 'Tanggal', 'Supplier', 'Nama Barang', 'Stok', 'QTY', 'SAT', 'Proyek', 'Keterangan', 'Dikirim Tanggal'].map((label) => (
                       <th key={label} className="border border-gray-300 px-2 py-3 text-center">{label}</th>
                     ))}
                   </tr>
@@ -351,13 +365,13 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
                                       onMouseDown={(e) => {
                                         e.preventDefault();
 
-                                        patchRow(i, { itemId: item.id, namaBarang: item.name, satuan: item.unit ?? '', supplier: isGudang ? '' : item.supplierName ?? '' });
+                                        patchRow(i, { itemId: item.id, stok: item.stock, namaBarang: item.name, satuan: item.unit ?? '', supplier: isGudang ? '' : item.supplierName ?? '' });
 
                                         setBarisAktif(null);
                                       }}
                                       onKeyDown={(e) => {
                                         if (e.key === 'Enter') {
-                                          patchRow(i, { itemId: item.id, namaBarang: item.name, satuan: item.unit ?? '', supplier: isGudang ? '' : item.supplierName ?? '' });
+                                          patchRow(i, { itemId: item.id, stok: item.stock, namaBarang: item.name, satuan: item.unit ?? '', supplier: isGudang ? '' : item.supplierName ?? '' });
 
                                           setBarisAktif(null);
                                         }
@@ -382,6 +396,9 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
                               document.body
                             )}
                         </div>
+                      </td>
+                      <td className="p-0 border border-gray-300">
+                        <input aria-label={`Stok baris ${i + 1}`} readOnly tabIndex={-1} value={row.stok ?? ''} placeholder="-" className="w-full h-full min-h-11 cursor-default bg-gray-50/60 px-1 text-center text-gray-600 focus:outline-none" />
                       </td>
                       <td className="p-0 border border-gray-300">
                         <input aria-label={`QTY baris ${i + 1}`} {...INTEGER_INPUT} maxLength={9} value={row.qty} placeholder="0" onChange={(e) => handleChange(i, 'qty', digitsOnly(e.target.value))} className="w-full h-full min-h-11 px-1 text-center bg-transparent focus:outline-none focus:ring-1 focus:ring-inset focus:ring-orange-500/50 placeholder-gray-300 not-italic [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
