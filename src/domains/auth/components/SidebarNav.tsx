@@ -5,11 +5,19 @@ import Link from "next/link";
 import { visibleNav, type NavTheme } from "../nav";
 import { dashboardPathFor } from "../api";
 import type { AuthUser } from "../types";
-import { Bell, ChevronDown, KeyRound, LayoutDashboard, ShieldCheck, Users, Folder, MessageSquareWarning, ScrollText } from "lucide-react";
+import { Bell, BriefcaseBusiness, ChevronDown, KeyRound, LayoutDashboard, ShieldCheck, Users, Folder, MessageSquareWarning, ScrollText } from "lucide-react";
 import LaporMasalahButton from "./LaporMasalahButton";
 
 // Tailwind needs full class names, so each theme lists them literally.
 const THEME: Record<NavTheme, { summary: string; icon: string; border: string; heading: string; active: string; idle: string }> = {
+  fuchsia: {
+    summary: "hover:bg-fuchsia-50 hover:text-fuchsia-700 hover:border-fuchsia-100",
+    icon: "bg-fuchsia-100 text-fuchsia-700",
+    border: "border-fuchsia-100",
+    heading: "hover:text-fuchsia-700",
+    active: "bg-fuchsia-600 text-white font-medium shadow-sm",
+    idle: "text-gray-500 hover:text-fuchsia-700 hover:bg-fuchsia-50",
+  },
   emerald: {
     summary: "finance-nav-summary",
     icon: "finance-nav-icon",
@@ -90,6 +98,9 @@ interface Props {
 
 export default function SidebarNav({ user, pathname, onNavigate }: Props) {
   const divisions = visibleNav(user);
+  if (user.isSuperadmin || user.domainCode === "manajemen") {
+    divisions.push({ key: "manajemen", label: "Manajemen", icon: BriefcaseBusiness, theme: "fuchsia", anyOf: [], groups: [] });
+  }
   // Dashboard mengikuti divisi role-nya; tanpa divisi, jatuh ke halaman ringkasan /dashboard.
   const dashboardHref = dashboardPathFor(user);
   const dashboardActive = pathname === dashboardHref;
@@ -161,7 +172,7 @@ export default function SidebarNav({ user, pathname, onNavigate }: Props) {
               </div>
               <ChevronDown className="w-4 h-4 transition-transform group-open:-rotate-180 text-gray-400" />
             </summary>
-            <div className={`pl-6 pr-2 py-2 space-y-4 ml-4 border-l-2 mt-1 ${t.border}`}>
+            {div.groups.length > 0 && <div className={`pl-6 pr-2 py-2 space-y-4 ml-4 border-l-2 mt-1 ${t.border}`}>
               {div.groups.map((group) => (
                 <details key={group.title} className="group/section" open>
                   <summary
@@ -188,7 +199,7 @@ export default function SidebarNav({ user, pathname, onNavigate }: Props) {
                   </div>
                 </details>
               ))}
-            </div>
+            </div>}
           </details>
         );
       })}

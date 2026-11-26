@@ -44,6 +44,26 @@ describe("dashboard sidebar", () => {
 });
 
 describe("production sidebar", () => {
+  it.each([true, false])("menampilkan divisi Manajemen kosong untuk superadmin atau domain manajemen: superadmin=%s", (isSuperadmin) => {
+    render(<SidebarNav user={{ ...user, isSuperadmin, domainCode: isSuperadmin ? null : "manajemen" }} pathname="/dashboard" />);
+    const title = screen.getByText("Manajemen");
+    const section = title.closest("details")!;
+    expect(title.closest("summary")).not.toBeNull();
+    expect(section.querySelectorAll("a")).toHaveLength(0);
+    expect(section.open).toBe(true);
+    fireEvent.click(title);
+    expect(section.open).toBe(false);
+    fireEvent.click(title);
+    expect(section.open).toBe(true);
+    expect(screen.queryByRole("link", { name: "Manajemen" })).toBeNull();
+  });
+
+  it("tidak menampilkan divisi Manajemen untuk role divisi lain", () => {
+    render(<SidebarNav user={{ ...user, isSuperadmin: false, domainCode: "inventory", permissions: ["inbound.view"] }} pathname="/dashboard/gudang" />);
+    expect(screen.queryByText("Manajemen")).toBeNull();
+    expect(screen.getByText("Gudang")).not.toBeNull();
+  });
+
   it("tidak menampilkan divisi yang disembunyikan (#6)", () => {
     render(<SidebarNav user={user} pathname="/dashboard/superadmin" />);
     expect(screen.queryByText("Produksi")).toBeNull();
