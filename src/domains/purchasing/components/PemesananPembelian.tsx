@@ -8,8 +8,7 @@ import { formatAngka } from '@/domains/ppic/data/dokubah';
 import { approveApproval } from '@/domains/ppic/api';
 import { fetchPermintaan, type PermintaanPembelian } from '@/domains/ppic/data/pembelian';
 import { useApiData } from '@/shared/lib/use-api-data';
-import { updateItem } from '@/domains/inventory/api';
-import { createPurchaseOrder, savePurchaseRequestMapping } from '@/domains/purchasing/api';
+import { createPurchaseOrder, savePurchaseRequestMapping, submitPurchaseOrder } from '@/domains/purchasing/api';
 import { todayIso } from '@/domains/inventory/date';
 import { useSupplierSearch } from '@/domains/purchasing/use-supplier-search';
 import SearchableSelect from '@/shared/components/SearchableSelect';
@@ -100,27 +99,32 @@ function KelompokPemesanan({ permintaan }: { permintaan: PermintaanPembelian }) 
     const backPath = params.get('from') === 'permintaan-po-barang' ? lihatPermintaanPoPath(permintaan.id) : lihatPermintaanPath(permintaan.id);
     return <div role="alert" className="p-6 text-sm text-red-600">Data persiapan PO tidak tersedia atau permintaan sudah berubah. <Link href={backPath} className="underline">Kembali ke detail permintaan dan lengkapi ulang.</Link></div>;
   }
-  const proyek = Array.from(new Set(permintaan.barang.map((b) => b.proyek.trim())));
+  const lokasi = Array.from(new Map(permintaan.barang.map((b) => {
+    const proyek = b.proyek.trim();
+    const noSpk = b.noSpk?.trim() ?? '';
+    return [JSON.stringify([proyek, noSpk]), { proyek, noSpk }];
+  })).values());
   if (prepared) {
     const groups = groupPoPreparation(permintaan, prepared.lines);
     return <>
-      <p className="mb-4 text-sm text-gray-600">Barang dikelompokkan otomatis per supplier dan proyek. Qty Beli digunakan sebagai jumlah pesanan. Lengkapi harga, tanggal PO, serta PIC lalu simpan setiap PO.</p>
-      {groups.map((group, index) => <FormPemesanan key={JSON.stringify([group.proyek, group.supplier.id])} permintaan={permintaan} proyek={group.proyek} initialSupplier={group.supplier} preparedLines={group.lines} showHeader={index === 0} poState={poState} ensureApproved={ensureApproved} />)}
+      <p className="mb-4 text-sm text-gray-600">Barang dikelompokkan otomatis per supplier, proyek, dan SPK. Qty Beli digunakan sebagai jumlah pesanan. Lengkapi harga, tanggal PO, serta PIC lalu simpan setiap PO sebagai DRAFT; yang sudah final bisa di-submit agar harganya beku.</p>
+      {groups.map((group, index) => <FormPemesanan key={JSON.stringify([group.proyek, group.noSpk, group.supplier.id])} permintaan={permintaan} proyek={group.proyek} noSpk={group.noSpk} initialSupplier={group.supplier} preparedLines={group.lines} showHeader={index === 0} poState={poState} ensureApproved={ensureApproved} />)}
     </>;
   }
   return (
     <>
-      <p className="mb-4 text-sm text-gray-600">Barang dikelompokkan otomatis per proyek. Lengkapi dan simpan setiap PO secara terpisah. Untuk supplier berbeda, pilih sebagian barang lalu buat PO berikutnya pada proyek yang sama.</p>
-      {(proyek.length ? proyek : ['']).map((nama, index) => (
-        <FormPemesanan key={nama} permintaan={permintaan} proyek={nama} showHeader={index === 0} poState={poState} ensureApproved={ensureApproved} />
+      <p className="mb-4 text-sm text-gray-600">Barang dikelompokkan otomatis per proyek dan SPK. Lengkapi dan simpan setiap PO sebagai DRAFT secara terpisah. Untuk supplier berbeda, pilih sebagian barang lalu buat PO berikutnya pada proyek dan SPK yang sama.</p>
+      {(lokasi.length ? lokasi : [{ proyek: '', noSpk: '' }]).map(({ proyek, noSpk }, index) => (
+        <FormPemesanan key={JSON.stringify([proyek, noSpk])} permintaan={permintaan} proyek={proyek} noSpk={noSpk} showHeader={index === 0} poState={poState} ensureApproved={ensureApproved} />
       ))}
     </>
   );
 }
 
-function FormPemesanan({ permintaan, proyek, showHeader, poState, initialSupplier, preparedLines, ensureApproved }: { permintaan: PermintaanPembelian; proyek: string; showHeader: boolean; poState: ReturnType<typeof usePoPermintaan>; initialSupplier?: Supplier; preparedLines?: PreparedPoLine[]; ensureApproved: () => Promise<void> }) {
+function FormPemesanan({ permintaan, proyek, noSpk, showHeader, poState, initialSupplier, preparedLines, ensureApproved }: { permintaan: PermintaanPembelian; proyek: string; noSpk: string; showHeader: boolean; poState: ReturnType<typeof usePoPermintaan>; initialSupplier?: Supplier; preparedLines?: PreparedPoLine[]; ensureApproved: () => Promise<void> }) {
 
   const idPrefix = useId();
+  const canUpdate = useCan('purchase-order.update');
   const [pesanan, setPesanan] = useState<{ po: PurchaseOrder; indices: number[] }[]>([]);
   const [saving, setSaving] = useState(false);
   const [dibuat, setDibuat] = useState<PurchaseOrder | null>(null);
@@ -140,8 +144,8 @@ function FormPemesanan({ permintaan, proyek, showHeader, poState, initialSupplie
   const [persenPpn, setPersenPpn] = useState('12');
   const [jasa, setJasa] = useState('');
   const [formError, setFormError] = useState('');
-  const [priceWarning, setPriceWarning] = useState('');
-  const canSetPrice = useCan('item.set-price');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   // Baris permintaan yang sudah masuk PO aktif tidak boleh dipesan lagi.
   // Pada draf Generate PO, satu baris boleh dipecah ke beberapa supplier, jadi kunci per baris tidak dipakai.
@@ -168,15 +172,13 @@ function FormPemesanan({ permintaan, proyek, showHeader, poState, initialSupplie
     </div>
   );
 
-  const kebutuhanProyek = proyek;
-
   const barisSemua = permintaan.barang.map((b, index) => {
     const baris = barisHarga[index];
     const qty = preparedLines?.find((line) => line.lineIndex === index)?.qtyBeli ?? b.qty;
     const hargaSatuan = toNumber(baris.harga);
     const diskon = toNumber(baris.diskon);
     return { ...b, qty, index, kodeBarang: baris.kodeBarang, hargaSatuan, diskon, total: qty * hargaSatuan - diskon, dipilih: terpilih(index) };
-  }).filter((b) => b.proyek.trim() === proyek && (!preparedLines || preparedLines.some((line) => line.lineIndex === b.index)));
+  }).filter((b) => b.proyek.trim() === proyek && (b.noSpk?.trim() ?? '') === noSpk && (!preparedLines || preparedLines.some((line) => line.lineIndex === b.index)));
   const sisaBarang = barisSemua.filter((b) => !sudahDipesan.has(b.index));
   // Hanya baris yang dicentang yang masuk PO ini; sisanya untuk PO supplier lain.
   const barang = barisSemua.filter((b) => b.dipilih);
@@ -235,7 +237,7 @@ function FormPemesanan({ permintaan, proyek, showHeader, poState, initialSupplie
     }
     setSaving(true);
     setFormError('');
-    setPriceWarning('');
+    setSubmitError('');
     try {
       await ensureApproved();
       // Mapping sudah disimpan saat Generate PO. Menyimpannya lagi di sini akan menimpa split supplier.
@@ -252,7 +254,6 @@ function FormPemesanan({ permintaan, proyek, showHeader, poState, initialSupplie
           tanggalPo,
           supplierId: supplier.id,
           picSupplier: picSupplier.trim(),
-          kebutuhanProyek,
           barang: barang.map((b) => ({
             lineIndex: b.index,
             kodeBarang: b.kodeBarang.trim(),
@@ -267,31 +268,25 @@ function FormPemesanan({ permintaan, proyek, showHeader, poState, initialSupplie
         });
       setPesanan((prev) => [...prev, { po, indices: barang.map((b) => b.index) }]);
       setDibuat(po);
-      if (preparedLines) {
-        const changed = barang.filter((b) => {
-          const prepared = preparedLines.find((line) => line.lineIndex === b.index);
-          return !!b.itemId && b.hargaSatuan > 0 && prepared && prepared.hargaTerbaru !== b.hargaSatuan;
-        });
-        const withoutItem = barang.filter((b) => b.hargaSatuan > 0 && !b.itemId).map((b) => b.namaBarang);
-        if (changed.length && !canSetPrice) {
-          setPriceWarning(`PO tersimpan, tetapi harga master ${changed.length} barang tidak diperbarui karena akun tidak punya izin item.set-price.`);
-        } else {
-          const failed: string[] = [];
-          for (const b of changed) {
-            try {
-              await updateItem(b.itemId!, { price: b.hargaSatuan });
-            } catch {
-              failed.push(b.namaBarang);
-            }
-          }
-          const skipped = [...failed, ...withoutItem];
-          if (skipped.length) setPriceWarning(`PO tersimpan, tetapi harga master gagal diperbarui untuk: ${skipped.join(', ')}.`);
-        }
-      }
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Gagal membuat PO.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSubmit = async (po: PurchaseOrder) => {
+    if (submitting || !canUpdate) return;
+    setSubmitting(true);
+    setSubmitError('');
+    try {
+      const submitted = await submitPurchaseOrder(po.id);
+      setDibuat(submitted);
+      setPesanan((prev) => prev.map((entry) => entry.po.id === po.id ? { ...entry, po: submitted } : entry));
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Gagal submit PO.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -308,19 +303,22 @@ function FormPemesanan({ permintaan, proyek, showHeader, poState, initialSupplie
   };
 
   if (dibuat) {
+    const isDraft = !dibuat.status || dibuat.status === 'DRAFT';
     return (
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
         {showHeader && header}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-6 py-10 text-center">
-          <p className="mb-2 text-sm font-semibold text-gray-900">Proyek: {proyek || 'Belum diisi'}</p>
-          <p className="text-base font-bold text-gray-900">PO {dibuat.nomorPo} berhasil dibuat</p>
+          <p className="mb-2 text-sm font-semibold text-gray-900">Proyek: {proyek || 'Belum diisi'}{noSpk ? ` · No SPK: ${noSpk}` : ''}</p>
+          <p className="text-base font-bold text-gray-900">PO {dibuat.nomorPo} berhasil disimpan sebagai {dibuat.status || 'DRAFT'}</p>
           <p className="mt-2 text-sm text-gray-600">Supplier {dibuat.supplierName}, grand total Rp. {formatAngka(dibuat.grandTotal)}</p>
-          {priceWarning && <p role="alert" className="mt-4 text-sm text-amber-700">{priceWarning}</p>}
+          {isDraft && <p className="mt-4 text-sm text-amber-700">Harga masih bisa diedit. Submit PO untuk membekukan harga dan mengizinkan penerimaan barang.</p>}
+          {submitError && <p role="alert" className="mt-4 text-sm text-red-600">{submitError}</p>}
           {!preparedLines && sisaBarang.length > 0 && (
-            <button type="button" onClick={() => { setDibuat(null); setDipilih({}); setSupplier(initialSupplier ?? null); setPicSupplier(''); setJasa(''); }} className={`${orangeButtonClass} inline-block mt-6`}>Buat PO berikutnya untuk proyek ini ({sisaBarang.length} barang tersisa)</button>
+            <button type="button" onClick={() => { setDibuat(null); setDipilih({}); setSupplier(initialSupplier ?? null); setPicSupplier(''); setJasa(''); }} className={`${orangeButtonClass} inline-block mt-6`}>Simpan Draft PO berikutnya untuk proyek ini ({sisaBarang.length} barang tersisa)</button>
           )}
           {printError && <p role="alert" className="mt-4 text-sm text-red-600">{printError}</p>}
           <button type="button" onClick={() => void handlePrint(dibuat)} disabled={printing} className={`${orangeButtonClass} inline-block mt-6 disabled:opacity-50`}>{printing ? 'Menyiapkan cetak...' : 'Cetak PO'}</button>
+          {isDraft && canUpdate && <button type="button" onClick={() => void handleSubmit(dibuat)} disabled={submitting} className={`${orangeButtonClass} inline-block mt-6 ml-3 disabled:opacity-50`}>{submitting ? 'Mengirim...' : 'Submit PO'}</button>}
           <Link href={backPath} className={`${orangeButtonClass} inline-block mt-6 ml-3`}>Kembali ke {from === 'po-barang' ? 'PO Barang' : 'Detail Permintaan'}</Link>
         </div>
       </div>
@@ -334,8 +332,8 @@ function FormPemesanan({ permintaan, proyek, showHeader, poState, initialSupplie
       <form aria-label={`PO ${proyek || 'Belum diisi'}${initialSupplier ? ` — ${initialSupplier.name}` : ''}`} onSubmit={handleBuat} noValidate className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <h2 className="text-base font-bold text-gray-900 text-center mb-6">Pemesanan Pembelian</h2>
 
-        <h3 className="mb-4 text-sm font-bold text-gray-900">Proyek: {proyek || 'Belum diisi'}{initialSupplier && ` — Supplier: ${initialSupplier.name}`}</h3>
-        {pesanan.map(({ po }) => <p key={po.id} role="status" className="mb-3 text-sm text-green-700">PO {po.nomorPo} berhasil dibuat untuk proyek {proyek}.</p>)}
+        <h3 className="mb-4 text-sm font-bold text-gray-900">Proyek: {proyek || 'Belum diisi'}{noSpk ? ` — No SPK: ${noSpk}` : ''}{initialSupplier && ` — Supplier: ${initialSupplier.name}`}</h3>
+        {pesanan.map(({ po }) => <p key={po.id} role="status" className="mb-3 text-sm text-green-700">PO {po.nomorPo} berhasil disimpan sebagai DRAFT untuk proyek {proyek}.</p>)}
         <fieldset disabled={saving}>
         {/* Nomor & tanggal PO */}
         <div className="flex flex-col gap-2 max-w-sm">
@@ -369,7 +367,7 @@ function FormPemesanan({ permintaan, proyek, showHeader, poState, initialSupplie
           supplierError={supplierError}
           pic={picSupplier}
           onPicChange={setPicSupplier}
-          project={kebutuhanProyek}
+          project={proyek}
         />
 
         <hr className={dividerClass} />
@@ -482,7 +480,7 @@ function FormPemesanan({ permintaan, proyek, showHeader, poState, initialSupplie
         )}
 
         <div className="flex justify-end mt-8">
-          <button type="submit" disabled={saving || poLoading || !!poError || sisaBarang.length === 0 || !proyek} className={`${orangeButtonClass} disabled:opacity-60`}>{saving ? 'Menyimpan...' : 'Buat'}</button>
+          <button type="submit" disabled={saving || poLoading || !!poError || sisaBarang.length === 0 || !proyek} className={`${orangeButtonClass} disabled:opacity-60`}>{saving ? 'Menyimpan...' : 'Simpan Draft'}</button>
         </div>
         </fieldset>
       </form>

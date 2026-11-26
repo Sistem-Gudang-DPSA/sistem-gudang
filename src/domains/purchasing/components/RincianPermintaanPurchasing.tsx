@@ -218,6 +218,7 @@ function TabelRincian({ permintaan, fromPoBarang, poState, supplierState }: Prop
         supplier: suppliers.get(row.supplier!.id)!,
         kodeBarang: item?.code ?? '',
         itemId: permintaan.barang[line.lineIndex].itemId,
+        noSpk: permintaan.barang[line.lineIndex].noSpk?.trim() ?? '',
         harga: Number(hargaValue(line.lineIndex, row) || 0),
         hargaTerbaru: item?.price ?? 0,
       }));
@@ -232,7 +233,7 @@ function TabelRincian({ permintaan, fromPoBarang, poState, supplierState }: Prop
       <div className="overflow-x-auto border-t border-l border-gray-300 rounded-lg">
         <table className="w-full text-left text-sm border-collapse">
           <thead className="bg-gray-100 text-gray-800 font-semibold text-xs whitespace-nowrap"><tr>
-            {['No', 'Nama Barang', 'Satuan', 'Stok Saat Ini', 'Supplier', 'Harga Terakhir', 'Harga Saat Ini', 'Qty Permintaan', 'Qty Dibeli', 'Keterangan', 'Tanggal Datang'].map((label) => <th key={label} scope="col" className={`${cellClass} text-center`}>{label}</th>)}
+            {['No', 'Nama Barang', 'Satuan', 'No SPK', 'Stok Saat Ini', 'Supplier', 'Harga Terakhir', 'Harga Saat Ini', 'Qty Permintaan', 'Qty Dibeli', 'Keterangan', 'Tanggal Datang'].map((label) => <th key={label} scope="col" className={`${cellClass} text-center`}>{label}</th>)}
           </tr></thead>
           <tbody className="text-gray-600">
             {permintaan.barang.map((line, index) => {
@@ -248,6 +249,7 @@ function TabelRincian({ permintaan, fromPoBarang, poState, supplierState }: Prop
                     <td rowSpan={rows.length} className={cellClass}>{index + 1}</td>
                     <td rowSpan={rows.length} className={`${cellClass} min-w-48 font-semibold text-gray-900`}>{firstName}{lineLocked(index) && <p className="text-xs font-normal text-gray-500">Sudah dipesan</p>}</td>
                     <td rowSpan={rows.length} className={`${cellClass} text-center`}>{line.satuan}</td>
+                    <td rowSpan={rows.length} className={`${cellClass} text-center whitespace-nowrap`}>{line.noSpk || '-'}</td>
                     <td rowSpan={rows.length} className={`${cellClass} text-center`}>{!canViewItem ? 'Tidak memiliki izin melihat stok' : loading ? 'Memuat...' : master?.[index] ? formatAngka(master[index].stock) : <span title="Stok tidak tersedia atau barang belum terhubung ke satu master barang yang unik">Tidak tersedia</span>}</td>
                   </>}
                   <td className={cellClass}>
@@ -273,7 +275,7 @@ function TabelRincian({ permintaan, fromPoBarang, poState, supplierState }: Prop
                 );
               });
             })}
-            {!permintaan.barang.length && <tr><td colSpan={11} className={`${cellClass} text-center text-gray-400`}>Belum ada barang pada permintaan ini.</td></tr>}
+            {!permintaan.barang.length && <tr><td colSpan={12} className={`${cellClass} text-center text-gray-400`}>Belum ada barang pada permintaan ini.</td></tr>}
           </tbody>
         </table>
       </div>

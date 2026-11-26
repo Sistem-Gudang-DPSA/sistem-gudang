@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { itemHasSupplier } from '@/domains/inventory/item-supplier';
 import { getItemByCode } from '@/domains/inventory/api';
 import { todayIso } from '@/domains/inventory/date';
 import type { CreateInboundBatchInput } from '@/domains/inventory/types';
@@ -106,15 +105,15 @@ export function useFormBarangMasuk(onSave: SaveBarangMasuk) {
     setScanError('');
     const item = itemSearch.items.find((candidate) => String(candidate.id) === id);
     if (!item) return;
-    // Pilihan header harus ada dalam daftar supplier material.
-    if (!itemHasSupplier(item, supplierRef.current?.id)) {
+    // Endpoint batch mengambil supplier dari master barang; pilihan header harus cocok dengan mapping tersebut.
+    if (item.supplierId !== supplierRef.current?.id) {
       setError(`Barang "${item.name}" bukan dari supplier yang dipilih.`);
       return;
     }
     const duplicate = rowsRef.current.findIndex((row) => row.key !== key && row.itemId === item.id);
     if (duplicate !== -1) { setError(`Barang "${item.name}" sudah ada di baris ${duplicate + 1}. Ubah jumlah di baris tersebut.`); return; }
     updateRows((rows) => rows.map((row) => row.key === key ? {
-      ...row, itemId: item.id, code: item.code, name: item.name, unit: item.unit, supplierId: supplierRef.current!.id,
+      ...row, itemId: item.id, code: item.code, name: item.name, unit: item.unit, supplierId: item.supplierId,
     } : row));
   };
 
@@ -126,7 +125,7 @@ export function useFormBarangMasuk(onSave: SaveBarangMasuk) {
   };
 
   const tambahHasilScan = (item: Awaited<ReturnType<typeof getItemByCode>>) => {
-    if (!itemHasSupplier(item, supplierRef.current?.id)) {
+    if (item.supplierId !== supplierRef.current?.id) {
       setScanError(item.supplierId === null
         ? `Barang "${item.name}" belum memiliki supplier.`
         : `Barang "${item.name}" bukan dari supplier yang dipilih.`);
@@ -140,7 +139,7 @@ export function useFormBarangMasuk(onSave: SaveBarangMasuk) {
       if (rowsRef.current.length >= MAX_LINES) { setScanError('Maksimal 200 jenis barang dalam satu form.'); return; }
       updateRows((rows) => [...rows, {
         key: randomId(), manual: false, itemId: item.id, code: item.code, name: item.name, unit: item.unit,
-        supplierId: supplierRef.current!.id, qtyArrived: '1', qtyPurchased: '',
+        supplierId: item.supplierId, qtyArrived: '1', qtyPurchased: '',
       }]);
     }
     setLockedName(item.name);
@@ -208,7 +207,7 @@ export function useFormBarangMasuk(onSave: SaveBarangMasuk) {
     const input: CreateInboundBatchInput = {
       date: tanggal,
       source: 'SUPPLIER',
-      lines: baris.map((row) => ({ itemId: row.itemId!, supplierId: row.supplierId!, qtyArrived: Number(row.qtyArrived), qtyPurchased: Number(row.qtyPurchased), statusQc: 'PASS' })),
+      lines: baris.map((row) => ({ itemId: row.itemId!, qtyArrived: Number(row.qtyArrived), qtyPurchased: Number(row.qtyPurchased), statusQc: 'PASS' })),
     };
     const body = JSON.stringify(input);
     if (submissionRef.current?.body !== body) submissionRef.current = { body, key: randomId() };
