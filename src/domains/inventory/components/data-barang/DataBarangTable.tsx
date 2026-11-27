@@ -34,7 +34,7 @@ type Props = {
   photo: { canUpload: boolean; onUploaded?: () => void };
   selection?: BarangSelection;
   rowActions?: (item: ItemListRow) => ReactNode;
-  // Klik baris untuk membuka detail; kontrol di dalam baris tidak memicu navigasi.
+  // Klik baris untuk membuka detail; kontrol dan overlay di dalam baris tidak memicu navigasi.
   onRowClick?: (item: ItemListRow) => void;
   rowClassName: (item: ItemListRow, index: number) => string;
   tbodyClassName?: string;
@@ -84,7 +84,7 @@ export default function DataBarangTable({ rows, loading, columns, sort, onSort, 
               className={rowClassName(item, index)}
               tabIndex={onRowClick ? 0 : undefined}
               onClick={onRowClick ? (event) => {
-                if ((event.target as Element).closest('button, a, input, select, textarea, label')) return;
+                if ((event.target as Element).closest('button, a, input, select, textarea, label, [data-row-click-ignore]')) return;
                 onRowClick(item);
               } : undefined}
               onKeyDown={onRowClick ? (event) => {

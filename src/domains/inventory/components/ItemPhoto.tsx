@@ -82,7 +82,7 @@ export default function ItemPhoto({ item, canUpload = false, onUploaded }: Props
       )}
 
       {preview && displaySrc && (
-        <div role="dialog" aria-label={`Foto ${item.name}`} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm" onClick={() => setPreview(false)}>
+        <div data-row-click-ignore role="dialog" aria-label={`Foto ${item.name}`} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm" onClick={() => setPreview(false)}>
           <div className="relative bg-white rounded-2xl p-3 shadow-2xl max-w-2xl w-full" onClick={(e) => e.stopPropagation()}>
             <button type="button" onClick={() => setPreview(false)} aria-label="Tutup foto" className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-white/90 text-gray-500 hover:text-gray-800 shadow">
               <X className="w-4 h-4" />
