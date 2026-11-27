@@ -27,19 +27,21 @@ export type BarangSelection = {
 type Props = {
   rows: ItemListRow[];
   loading: boolean;
-  colSpan: number;
   columns: BarangColumn[];
   sort: Sort;
   onSort: (by: string) => void;
   photo: { canUpload: boolean; onUploaded?: () => void };
   selection?: BarangSelection;
   rowActions?: (item: ItemListRow) => ReactNode;
+  // Klik baris untuk membuka detail; kontrol dan overlay di dalam baris tidak memicu navigasi.
+  onRowClick?: (item: ItemListRow) => void;
   rowClassName: (item: ItemListRow, index: number) => string;
   tbodyClassName?: string;
 };
 
 // Tabel Data Barang: kolom No, Foto, kolom per peran, dan Aksi. Kolom centang hanya bila `selection` diisi.
-export default function DataBarangTable({ rows, loading, colSpan, columns, sort, onSort, photo, selection, rowActions, rowClassName, tbodyClassName }: Props) {
+export default function DataBarangTable({ rows, loading, columns, sort, onSort, photo, selection, rowActions, onRowClick, rowClassName, tbodyClassName }: Props) {
+  const colSpan = columns.length + 2 + Number(!!selection) + Number(!!rowActions);
   return (
     <ScrollableTable ariaLabel="Tabel Data Barang">
       <table className="w-full text-left text-sm whitespace-nowrap">
@@ -75,7 +77,20 @@ export default function DataBarangTable({ rows, loading, colSpan, columns, sort,
             <tr><td colSpan={colSpan} className="px-6 py-6 text-center text-gray-400">Belum ada data barang.</td></tr>
           )}
           {!loading && rows.map((item, index) => (
-            <tr key={item.id} className={rowClassName(item, index)}>
+            <tr
+              key={item.id}
+              className={rowClassName(item, index)}
+              tabIndex={onRowClick ? 0 : undefined}
+              onClick={onRowClick ? (event) => {
+                if ((event.target as Element).closest('button, a, input, select, textarea, label, [data-row-click-ignore]')) return;
+                onRowClick(item);
+              } : undefined}
+              onKeyDown={onRowClick ? (event) => {
+                if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return;
+                event.preventDefault();
+                onRowClick(item);
+              } : undefined}
+            >
               {selection && (
                 <td className="px-4 py-3">
                   <input type="checkbox" aria-label={`Pilih ${item.name}`} checked={selection.selected.has(item.id)} onChange={() => selection.onToggleRow(item)} className={selection.checkboxClassName} />

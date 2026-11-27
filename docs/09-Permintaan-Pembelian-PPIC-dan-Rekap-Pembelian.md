@@ -160,11 +160,10 @@ memakai judul **DAFTAR PERMINTAAN PEMBELIAN** dengan teks pengantar
 **Kelola pengajuan permintaan pembelian barang.** Menu Permintaan Pembelian
 Purchasing berada di grup **Transaksi**, tepat di atas **PO Barang**.
 
-Kartu putih dan tabel rekap bersama di PPIC dan Purchasing memenuhi lebar
-halaman. Lebar kolom dibagi secara proporsional agar ruang kosong tersebar
-merata di antara Tanggal, Permintaan, Status, dan Aksi. Teks
-permintaan panjang membungkus ke baris berikutnya. Pada layar sempit,
-tabel dapat digulir secara horizontal.
+Kartu dan tabel rekap memenuhi lebar halaman. Lebar kolom dibagi secara
+proporsional agar jarak Tanggal, Permintaan, Status, dan Aksi seimbang.
+Header dan isi kolom sejajar; teks permintaan panjang membungkus ke baris
+berikutnya. Pada layar sempit, tabel dapat digulir secara horizontal.
 
 ## Tanggal pada form permintaan
 
@@ -217,6 +216,45 @@ dan mengubah **Qty Beli**, yang awalnya sama dengan QTY. Supplier wajib
 dipilih untuk setiap baris yang belum dipesan. Tombol **Buat PO** langsung
 tersedia setelah PPIC menyetujui, tanpa keputusan Purchasing terpisah.
 Menyiapkan rincian dan membuka form tidak menerbitkan PO.
+
+Dropdown supplier pada rincian Purchasing memuat seluruh halaman
+`GET /api/v1/suppliers`, lalu menyediakan pencarian lokal pada dua bagian:
+**Supplier Material** di atas berisi supplier yang sudah dipetakan pada
+master material (`suppliers`), dan **Supplier Lainnya** di bawah garis
+pemisah berisi supplier di luar pemetaan tersebut. Supplier tidak muncul
+dua kali dan seluruh pilihan tetap bisa dipilih. Setiap material memakai
+pemetaan masing-masing; pemetaan katalog tidak otomatis memilih supplier
+pesanan. Jika daftar `suppliers` belum tersedia, supplier tunggal
+`supplierId` dipakai sebagai pemetaan lama; daftar kosong berarti belum
+ada pemetaan. Permintaan lama memakai master yang cocok secara unik
+berdasarkan nama dan satuan. Jika master tidak tersedia atau akun tidak
+memiliki `item.view`, bagian atas menampilkan pemetaan belum tersedia dan
+supplier lainnya tetap bisa dipilih. Perilaku ini dipakai pada kedua jalur
+masuk rincian Purchasing; dropdown pada form PO tetap memakai pencarian server.
+
+Memilih **Supplier Lainnya** langsung menambahkan supplier itu ke master
+material, tanpa menunggu **Generate PO**. Frontend membaca ulang
+`GET /api/v1/items/{id}`, menggabungkan supplier terpilih dengan seluruh
+supplier yang sudah ada, lalu menyimpan `PUT /api/v1/items/{id}/suppliers`
+dengan `{ supplierIds: number[] }`. Pemetaan lama tetap dipertahankan dan
+supplier tidak diduplikasi. Supplier yang berhasil tersimpan langsung
+muncul di bagian **Supplier Material** pada seluruh baris material yang
+sama, tetap tersedia setelah halaman dimuat ulang, dan tampil pada
+**Detail Supplier Material** di Data Barang Purchasing. Memilih supplier
+yang sudah dipetakan tidak menyimpan ulang. Mengganti pilihan PO tidak
+menghapus supplier yang pernah ditambahkan ke material. Penambahan ini
+tidak membuat stok, harga, atau transaksi PO baru.
+
+Penyimpanan otomatis memerlukan `item.view`, `item.update`, dan
+`item.set-supplier`, serta ID master material yang diketahui; untuk
+permintaan lama, kecocokan nama dan satuan harus unik. Selama simpan,
+pilihan supplier, penambahan/penghapusan baris supplier, dan **Generate PO**
+dikunci. Jika gagal menyimpan, pilihan supplier untuk PO tetap terisi,
+pemetaan material tidak dianggap berhasil, dan pesan kegagalan menyediakan
+tombol **Coba lagi simpan supplier material**. Tanpa izin atau master yang
+dapat dikenali, pengguna tetap bisa memilih supplier PO dan diberi tahu
+bahwa pemetaan material belum disimpan.
+
 Qty Beli wajib berupa
 bilangan bulat positif, maksimal 1.000.000. Qty Beli boleh lebih kecil
 atau lebih besar dari QTY permintaan asli, misalnya permintaan 12 dibeli

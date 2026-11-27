@@ -4,9 +4,10 @@ import StockNotificationDetail from '@/domains/inventory/components/data-barang/
 
 import StokMinimumCell from '@/domains/inventory/components/data-barang/StokMinimumCell';
 import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 import { useAuthUser, useCan } from '@/domains/auth/user-context';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { Images, Trash2, Edit2, Truck, Info } from 'lucide-react';
+import { Images, Trash2, Edit2, Truck } from 'lucide-react';
 import { adjustItemStock, assignItemLocation, deleteItem, updateItem } from '@/domains/inventory/api';
 import type { ItemListRow, UpdateItemInput } from '@/domains/inventory/types';
 import { ApiError } from '@/shared/lib/api-client';
@@ -21,13 +22,12 @@ import BarangFilterPanel, { countActiveFilters } from '@/domains/inventory/compo
 import EditModeBar, { useBatchEdit } from '@/shared/components/EditModeBar';
 import { kodeKategoriNotice, type CodeChange } from '@/domains/inventory/item-code-notice';
 import { useDataBarang } from '@/domains/inventory/components/data-barang/useDataBarang';
-import DataBarangTable, { type BarangColumn, HargaCell, KategoriBadge, StokCell, SupplierCell } from '@/domains/inventory/components/data-barang/DataBarangTable';
+import DataBarangTable, { type BarangColumn, HargaCell, KategoriBadge, StokCell } from '@/domains/inventory/components/data-barang/DataBarangTable';
 import { totalStockValue } from '@/domains/inventory/components/data-barang/dummy-receipts';
 import DataBarangToolbar, { FilterToggle } from '@/domains/inventory/components/data-barang/DataBarangToolbar';
 import { useBulkSupplierAction, type SupplierMappingResult } from '@/domains/inventory/components/data-barang/useBulkSupplierAction';
 import ActionMenu from '@/shared/components/ActionMenu';
 import AdjustStokModal from '@/domains/inventory/components/data-barang/modals/AdjustStokModal';
-import Link from 'next/link';
 import { MasterData, mstrDataTemplateExample, mstrDataTemplateHeaders, type MasterDataImportRow, MAX_IMPORT_ROWS } from '@/domains/inventory/components/data-barang/modals/ImportMasterData';
 
 export { MasterData, mstrDataTemplateExample, mstrDataTemplateHeaders };
@@ -43,7 +43,9 @@ export default function DataBarangGudang() {
   const canAdjust = useCan('item.adjust-stock');
   const canDelete = useCan('item.delete');
   const canView = useCan('item.view');
-  const showAksi = canView || canAdjust || canDelete;
+  const router = useRouter();
+  // Detail sudah dipindah ke klik baris, jadi kolom Aksi hanya diperlukan untuk tombol yang tersisa.
+  const showAksi = canAdjust || canDelete;
   // BE allows recode for a superadmin only; no user in context means the route guard already let us in, as in useCan
   const isSuperadmin = useAuthUser()?.isSuperadmin ?? true;
   const canUpdate = useCan('item.update');
@@ -56,7 +58,7 @@ export default function DataBarangGudang() {
   const edit = useBatchEdit();
   const seen = useRef(new Map<number, ItemListRow>()); // semua baris yang pernah tampil, untuk menyimpan perubahan dari halaman lain
   const d = useDataBarang();
-  const { dataBarang, total, selected, setSelected, clearSelection, toggleRow, toggleAll, allSelected, reload, loaded, locations, suppliers, categories, units, supplierName, locationCode, debouncedSearch, filters } = d;
+  const { dataBarang, total, selected, setSelected, clearSelection, toggleRow, toggleAll, allSelected, reload, loaded, locations, suppliers, categories, units, locationCode, debouncedSearch, filters } = d;
 
   const [pendingImport, setPendingImport] = useState<MasterDataImportRow[]>([]);
   const [importNote, setImportNote] = useState('');
@@ -252,16 +254,6 @@ export default function DataBarangGudang() {
         {edit.errors[item.id] && <span className="text-xs text-red-600 mt-0.5 whitespace-normal">{edit.errors[item.id]}</span>}
       </div>
     ) },
-    { label: 'Supplier', sortKey: 'supplierName', cell: (item) => (
-      edit.editing && canSetSupplier ? (
-        <select aria-label={`Supplier ${item.name}`} className={cellInput} value={edit.value(item.id, 'supplierId', idText(item.supplierId))} onChange={setF(item, 'supplierId', idText(item.supplierId))}>
-          <option value="">Belum ada supplier</option>
-          {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-      ) : (
-        <SupplierCell name={supplierName(item.supplierId)} />
-      )
-    ) },
     { label: 'Stok', sortKey: 'stock', cell: (item) => <StokCell stock={item.stock} /> },
     { label: 'Stok Minimum', cell: (item) => <StokMinimumCell item={item} onSaved={reload} /> },
     { label: 'Satuan', tdClassName: 'px-6 py-4 text-gray-600', cell: (item) => item.unit },
@@ -298,15 +290,6 @@ export default function DataBarangGudang() {
 
   const renderRowActions = (item: ItemListRow) => (
     <div className="flex items-center justify-center gap-2">
-      {canView && <Link
-        href={`/dashboard/superadmin/master/data-barang/${item.id}`}
-        className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-sky-50 text-sky-700 text-xs font-bold rounded-lg hover:bg-sky-100 transition-colors"
-        aria-label={`Detail ${item.name}`}
-        title="Detail barang"
-      >
-        <Info className="w-3.5 h-3.5" strokeWidth={2.5} />
-        Detail
-      </Link>}
       {canAdjust && <button
         onClick={() => openStockModal(item)}
         className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-100 transition-all duration-200 opacity-90 group-hover:opacity-100"
@@ -322,7 +305,6 @@ export default function DataBarangGudang() {
           title="Hapus barang (dobel/salah input)"
         >
           <Trash2 className="w-3.5 h-3.5" strokeWidth={2.5} />
-          Hapus
         </button>
       )}
     </div>
@@ -449,7 +431,6 @@ export default function DataBarangGudang() {
         <DataBarangTable
           rows={dataBarang}
           loading={d.loading}
-          colSpan={canSelect ? 13 : 12}
           columns={columns}
           sort={d.sort}
           onSort={d.toggle}
@@ -462,7 +443,8 @@ export default function DataBarangGudang() {
             checkboxClassName: 'w-4 h-4 rounded border-gray-300 text-[#FF8A00] focus:ring-[#FF8A00]',
           } : undefined}
           rowActions={showAksi ? renderRowActions : undefined}
-          rowClassName={(item, index) => `${edit.isDirty(item.id) ? 'bg-amber-50' : index % 2 ? 'bg-gray-50' : 'bg-white'} hover:bg-[#FF8A00]/5 transition-colors group`}
+          onRowClick={canView ? (item) => router.push(`/dashboard/superadmin/master/data-barang/${item.id}`) : undefined}
+          rowClassName={(item, index) => `${edit.isDirty(item.id) ? 'bg-amber-50' : index % 2 ? 'bg-gray-50' : 'bg-white'} hover:bg-[#FF8A00]/5 transition-colors group${canView ? ' cursor-pointer' : ''}`}
         />
 
         <TableFooter total={total} unit="barang" />

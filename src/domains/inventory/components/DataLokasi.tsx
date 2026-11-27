@@ -293,7 +293,7 @@ export function DataLokasi({
                   <SortableTh label="Kode Lokasi" sortKey="code" sort={sort} onSort={sortBy} className="px-4 py-4 whitespace-nowrap" />
                   <SortableTh label="Nama Rak" sortKey="rackName" sort={sort} onSort={sortBy} className="px-4 py-4 whitespace-nowrap" />
                   <SortableTh label="Nomer Rak" sortKey="rackNumber" sort={sort} onSort={sortBy} className="px-4 py-4 whitespace-nowrap" />
-                  <SortableTh label="Keterangan" sortKey="description" sort={sort} onSort={sortBy} className="px-3 py-4 text-left min-w-30" />
+                  <SortableTh label="Keterangan" sortKey="description" sort={sort} onSort={sortBy} className="px-4 py-4 text-left whitespace-nowrap" />
                   <th scope="col" className="px-4 py-4 text-left whitespace-nowrap">Informasi Barang</th>
                   {dataLokasi.length !== 0 && (
                     <th className="px-4 py-4 text-center whitespace-nowrap">Aksi</th>
@@ -319,17 +319,17 @@ export function DataLokasi({
                         {isEditing ? `${nama}.${nomor}` : item.code}
                         {edit.errors[item.id] && <p className="text-xs font-normal text-red-600">{edit.errors[item.id]}</p>}
                       </td>
-                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                      <td className="px-4 py-3 text-gray-600 whitespace-normal wrap-break-word">
                         {isEditing ? (
                           <input disabled={edit.saving} aria-label={`Nama rak ${item.code}`} className={sel} maxLength={10} value={nama} onChange={(e) => edit.set(item.id, "rackName", e.target.value.toUpperCase(), item.rackName)} />
                         ) : item.rackName}
                       </td>
-                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                      <td className="px-4 py-3 text-gray-600 whitespace-normal wrap-break-word">
                         {isEditing ? (
                           <input disabled={edit.saving} aria-label={`Nomer rak ${item.code}`} className={sel} maxLength={10} placeholder="Kolom.Baris" value={nomor} onChange={(e) => edit.set(item.id, "rackNumber", e.target.value, item.rackNumber)} />
                         ) : item.rackNumber}
                       </td>
-                      <td className="px-3 py-2 text-gray-600">
+                      <td className="px-4 py-2 text-gray-600">
                         {isEditing ? (
                           <input disabled={edit.saving} aria-label={`Keterangan ${item.code}`} className={`${sel} w-full text-sm px-2 py-1`} maxLength={255} placeholder="Opsional" value={edit.value(item.id, "description", item.description ?? "")} onChange={(e) => edit.set(item.id, "description", e.target.value, item.description ?? "")} />
                         ) : (
@@ -339,7 +339,7 @@ export function DataLokasi({
                         )}
                       </td>
                       <td className="px-4 py-4 text-gray-600"><BarangLokasi location={item} /></td>
-                      <td className="px-4 py-4 text-gray-600 text-center whitespace-nowrap">
+                      <td className="px-4 py-4 text-center text-gray-600 whitespace-nowrap">
                         <div className="flex flex-wrap items-center justify-center gap-2">
                           {canUpdate && !isEditing && (
                             <button
