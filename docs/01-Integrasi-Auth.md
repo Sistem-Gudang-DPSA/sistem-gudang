@@ -51,7 +51,8 @@ dll) tidak terpakai di file manapun, jadi dihapus bersih. Sekarang berisi
   unduhan file. Backend mengembalikan ID itu di field `requestId` pada body
   error, dan `ApiError.requestId` menyimpannya (memakai ID yang dikirim bila
   body tidak menyertakannya), supaya laporan error bisa dicocokkan dengan log
-  server.
+  server. ID yang diberikan caller lewat opsi header (huruf besar/kecil
+  diabaikan) menggantikan ID hasil generate.
 - Otomatis mencoba `POST /auth/refresh` sekali kalau request pertama
   balas 401, lalu mengulang request aslinya. Kalau refresh juga gagal,
   error asli tetap dilempar ke pemanggil.
