@@ -61,7 +61,9 @@ it('DataBarang memuat semua halaman lokasi dan supplier', async () => {
   expect(api.calls('GET /api/v1/locations').map((c) => c.query.get('page')).sort()).toEqual(['1', '2']);
   expect(api.calls('GET /api/v1/locations')[0].query.get('pageSize')).toBe('100');
   // Id 150 hanya ada di halaman kedua.
-  expect(await screen.findByText('Supplier Terakhir')).not.toBeNull();
+  expect(screen.queryByRole('columnheader', { name: 'Supplier' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: /Filter/ }));
+  expect(await screen.findByRole('option', { name: 'Supplier Terakhir' })).not.toBeNull();
 });
 
 it('menampilkan kolom Harga Terbaru untuk Keuangan', async () => {

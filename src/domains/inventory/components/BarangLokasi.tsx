@@ -25,7 +25,7 @@ function InformasiBarang({ location }: Props) {
     'Gagal memuat informasi barang.',
   );
   return (
-    <div className="min-w-56 max-w-sm whitespace-normal">
+    <div className="min-w-0 max-w-sm wrap-break-word whitespace-normal">
       {loading ? <p className="text-xs text-gray-500">Memuat barang...</p> : error ? (
         <p role="alert" className="text-xs text-red-600">{error} <button type="button" onClick={reload} className="underline" aria-label={`Coba lagi informasi barang ${location.code}`}>Coba lagi</button></p>
       ) : (

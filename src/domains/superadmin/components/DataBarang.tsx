@@ -21,7 +21,7 @@ import BarangFilterPanel, { countActiveFilters } from '@/domains/inventory/compo
 import EditModeBar, { useBatchEdit } from '@/shared/components/EditModeBar';
 import { kodeKategoriNotice, type CodeChange } from '@/domains/inventory/item-code-notice';
 import { useDataBarang } from '@/domains/inventory/components/data-barang/useDataBarang';
-import DataBarangTable, { type BarangColumn, HargaCell, KategoriBadge, StokCell, SupplierCell } from '@/domains/inventory/components/data-barang/DataBarangTable';
+import DataBarangTable, { type BarangColumn, HargaCell, KategoriBadge, StokCell } from '@/domains/inventory/components/data-barang/DataBarangTable';
 import { totalStockValue } from '@/domains/inventory/components/data-barang/dummy-receipts';
 import DataBarangToolbar, { FilterToggle } from '@/domains/inventory/components/data-barang/DataBarangToolbar';
 import { useBulkSupplierAction, type SupplierMappingResult } from '@/domains/inventory/components/data-barang/useBulkSupplierAction';
@@ -56,7 +56,7 @@ export default function DataBarangGudang() {
   const edit = useBatchEdit();
   const seen = useRef(new Map<number, ItemListRow>()); // semua baris yang pernah tampil, untuk menyimpan perubahan dari halaman lain
   const d = useDataBarang();
-  const { dataBarang, total, selected, setSelected, clearSelection, toggleRow, toggleAll, allSelected, reload, loaded, locations, suppliers, categories, units, supplierName, locationCode, debouncedSearch, filters } = d;
+  const { dataBarang, total, selected, setSelected, clearSelection, toggleRow, toggleAll, allSelected, reload, loaded, locations, suppliers, categories, units, locationCode, debouncedSearch, filters } = d;
 
   const [pendingImport, setPendingImport] = useState<MasterDataImportRow[]>([]);
   const [importNote, setImportNote] = useState('');
@@ -252,16 +252,6 @@ export default function DataBarangGudang() {
         {edit.errors[item.id] && <span className="text-xs text-red-600 mt-0.5 whitespace-normal">{edit.errors[item.id]}</span>}
       </div>
     ) },
-    { label: 'Supplier', sortKey: 'supplierName', cell: (item) => (
-      edit.editing && canSetSupplier ? (
-        <select aria-label={`Supplier ${item.name}`} className={cellInput} value={edit.value(item.id, 'supplierId', idText(item.supplierId))} onChange={setF(item, 'supplierId', idText(item.supplierId))}>
-          <option value="">Belum ada supplier</option>
-          {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-      ) : (
-        <SupplierCell name={supplierName(item.supplierId)} />
-      )
-    ) },
     { label: 'Stok', sortKey: 'stock', cell: (item) => <StokCell stock={item.stock} /> },
     { label: 'Stok Minimum', cell: (item) => <StokMinimumCell item={item} onSaved={reload} /> },
     { label: 'Satuan', tdClassName: 'px-6 py-4 text-gray-600', cell: (item) => item.unit },
@@ -449,7 +439,6 @@ export default function DataBarangGudang() {
         <DataBarangTable
           rows={dataBarang}
           loading={d.loading}
-          colSpan={canSelect ? 13 : 12}
           columns={columns}
           sort={d.sort}
           onSort={d.toggle}
