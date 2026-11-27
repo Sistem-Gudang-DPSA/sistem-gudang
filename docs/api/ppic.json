@@ -1620,7 +1620,7 @@
           "Stock Reconciliation"
         ],
         "summary": "Post a stock reconciliation",
-        "description": "Optional Idempotency-Key prevents double posting. Sets stock to physicalQty and closes every difference.",
+        "description": "Only PPIC. Applies every line to items.stock and the FIFO cost layers in one transaction. After posting every line has difference 0 and the old snapshot stays in the audit log. Optional Idempotency-Key prevents double posting.",
         "responses": {
           "200": {
             "description": "Posted stock reconciliation"
@@ -1971,7 +1971,7 @@
           "Stock Opname"
         ],
         "summary": "Record a stock opname",
-        "description": "Sets each counted item's stock to physicalQty in one transaction and records audit logs. The price is not sent: systemPrice and physicalPrice on each line are both the item master price at that moment, and the master is never changed by an opname. An item may appear only once per opname. Optional Idempotency-Key header (8 to 100 characters): with it, the same key and payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true and does not repeat the write; the same key with a different payload is 409; a malformed key is 400. Without it the request behaves as before.",
+        "description": "PPIC opens exactly one opname per month and year. No stock value changes. systemPrice and physicalPrice on each line are snapshotted from the item master and are not sent; submit only locks the count, and PPIC pemutihan applies the stock and FIFO cost layers. Optional Idempotency-Key header (8 to 100 characters) replays the stored answer within 24 hours.",
         "security": [
           {
             "bearerAuth": []
