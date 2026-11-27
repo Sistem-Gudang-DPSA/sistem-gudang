@@ -47,6 +47,11 @@ dll) tidak terpakai di file manapun, jadi dihapus bersih. Sekarang berisi
 - Membongkar envelope `{ success, message, data }` / `{ success: false,
   message, errors }` dan melempar `ApiError` kalau `success` bernilai
   `false`.
+- Mengirim `X-Request-Id` unik pada setiap request, termasuk refresh dan
+  unduhan file. Backend mengembalikan ID itu di field `requestId` pada body
+  error, dan `ApiError.requestId` menyimpannya (memakai ID yang dikirim bila
+  body tidak menyertakannya), supaya laporan error bisa dicocokkan dengan log
+  server.
 - Otomatis mencoba `POST /auth/refresh` sekali kalau request pertama
   balas 401, lalu mengulang request aslinya. Kalau refresh juga gagal,
   error asli tetap dilempar ke pemanggil.
