@@ -79,8 +79,10 @@ Tabel supplier di Purchasing dan Superadmin menampilkan kolom **PIC**
 sebelum kolom **Kontak**. Nilainya dibaca dari field `pic` pada payload
 supplier; supplier tanpa nilai ditampilkan sebagai `-`. Kolom ini belum
 memakai sort karena endpoint supplier belum menerima `pic` sebagai kunci
-urut. Field `pic` di form tambah/edit dan di API supplier masih menunggu
-dukungan backend.
+urut. Field **Nama PIC** tersedia di modal tambah/edit Purchasing dan
+Superadmin (komponen yang sama) dan ikut dikirim pada `POST /suppliers`
+maupun `PUT /suppliers/{id}`. Input **Nomor Kontak** pada modal adalah field
+`phone`, yang ditampilkan sebagai kolom **Kontak** di tabel.
 
 Kolom **Kode** tidak ditampilkan di tabel supplier. Kode tetap ada di
 form tambah/edit karena `POST /suppliers` mewajibkannya, dan tetap dipakai

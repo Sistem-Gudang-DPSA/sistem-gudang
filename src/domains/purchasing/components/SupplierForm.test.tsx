@@ -5,7 +5,7 @@ import { withUser } from '@/test/as-user';
 import Purchasing from './DataSupplier';
 import Superadmin from '@/domains/superadmin/components/DataSupplier';
 
-const supplier = { id: 7, code: 'S7', name: 'PT Contoh', bank: 'BCA', npwp: '123', phone: '0812', address: 'Jl. Lama\nBlok A', pajak: 'PKP' };
+const supplier = { id: 7, code: 'S7', name: 'PT Contoh', bank: 'BCA', npwp: '123', pic: 'Andi', phone: '0812', address: 'Jl. Lama\nBlok A', pajak: 'PKP' };
 const address = 'Jl. Baru No. 20\nBlok B, Gudang 2';
 const change = (placeholder: string, value: string) => fireEvent.change(screen.getByPlaceholderText(placeholder), { target: { value } });
 
@@ -30,11 +30,12 @@ for (const [division, Page] of [['Purchasing', Purchasing], ['Superadmin', Super
       change('Masukan nama supplier', 'PT Contoh');
       change('Masukan nama Bank', 'BCA');
       change('Masukan Npwp', '123');
-      change('Masukan no telepon', '0812');
+      change('Masukan nama PIC', 'Budi');
+      change('Masukan nomor kontak', '0812');
       fireEvent.change(textarea, { target: { value: address } });
       fireEvent.click(screen.getByRole('button', { name: 'Simpan' }));
       await waitFor(() => expect(api.calls('POST /api/v1/suppliers')).toHaveLength(1));
-      expect(api.calls('POST /api/v1/suppliers')[0].body).toEqual({ code: 'S7', name: 'PT Contoh', bank: 'BCA', npwp: '123', phone: '0812', address, pajak: 'PKP' });
+      expect(api.calls('POST /api/v1/suppliers')[0].body).toEqual({ code: 'S7', name: 'PT Contoh', bank: 'BCA', npwp: '123', pic: 'Budi', phone: '0812', address, pajak: 'PKP' });
     });
 
     it('membuka pilihan pajak dan alamat tersimpan lalu menyimpan perubahan melalui PUT', async () => {
@@ -44,12 +45,16 @@ for (const [division, Page] of [['Purchasing', Purchasing], ['Superadmin', Super
       const tax = within(screen.getByRole('group', { name: 'Pajak Vendor' }));
       expect(tax.getByRole('radio', { name: 'PKP', checked: true })).toBeTruthy();
       expect(screen.getByRole('textbox', { name: 'Alamat' })).toHaveProperty('value', supplier.address);
+      expect(screen.getByPlaceholderText('Masukan nama PIC')).toHaveProperty('value', supplier.pic);
+      expect(screen.getByPlaceholderText('Masukan nomor kontak')).toHaveProperty('value', supplier.phone);
       fireEvent.click(tax.getByRole('radio', { name: 'Non PKP' }));
       expect(tax.getByRole('radio', { name: 'PKP', checked: false })).toBeTruthy();
+      change('Masukan nama PIC', 'Rina');
+      change('Masukan nomor kontak', '0813');
       fireEvent.change(screen.getByRole('textbox', { name: 'Alamat' }), { target: { value: address } });
       fireEvent.click(screen.getByRole('button', { name: 'Simpan' }));
       await waitFor(() => expect(api.calls('PUT /api/v1/suppliers/7')).toHaveLength(1));
-      expect(api.calls('PUT /api/v1/suppliers/7')[0].body).toMatchObject({ address, pajak: 'NON_PKP' });
+      expect(api.calls('PUT /api/v1/suppliers/7')[0].body).toMatchObject({ pic: 'Rina', phone: '0813', address, pajak: 'NON_PKP' });
       expect(api.calls('POST /api/v1/suppliers')).toHaveLength(0);
     });
 
