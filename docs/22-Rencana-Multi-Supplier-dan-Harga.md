@@ -212,22 +212,22 @@ Sebelum push atau PR, jalankan `bun run lint`, `bunx tsc --noEmit`, dan `bun run
 15. Pemutihan sampai stok nol, lalu opname lebih → layer baru memakai harga konsumsi terakhir, bukan `items.price`
 ```
 
-Semua skenario kini bisa dijalankan dari test otomatis. Tahap 5 menjalankan dua lapis: test terarah 8 file BE (200 passed) dan 12 file FE (263 passed), lalu gate penuh BE (45 file, 547 passed, 6 skipped) dan FE (117 file, 1067 passed, 1 expected fail). Hasilnya:
+Semua skenario kini memiliki test otomatis pendukung. Skenario 1 dan 9 hanya lulus parsial (lihat catatan), dan langkah manual di bawah belum tercakup test otomatis. Tahap 5 menjalankan dua lapis: test terarah 8 file BE (200 passed) dan 12 file FE (263 passed), lalu gate penuh BE (45 file, 547 passed, 6 skipped) dan FE (117 file, 1067 passed, 1 expected fail). Hasilnya:
 
 | No | Test pendukung | Hasil | Catatan |
 |---|---|---|---|
-| 1 | BE `approval.route.test.ts` (auto-approve langkah pemohon); FE `TinjauPermintaanPembelian.test.tsx` (PPIC → Purchasing) | Lulus | Parsial: jalur PPIC sebagai pemohon belum tersedia di UI; izin `purchase-request.approve` untuk PPIC masih konfigurasi manual. |
-| 2 | BE `approval.route.test.ts` (domain/langkah dan approve akhir); FE `PermintaanPembelianTambah.test.tsx`, `TinjauPermintaanPembelian.test.tsx` | Lulus | Parsial: tinjauan PPIC memerlukan grant manual `purchase-request.approve`. |
+| 1 | BE `approval.route.test.ts` (auto-approve langkah pemohon); FE `TinjauPermintaanPembelian.test.tsx` (PPIC → Purchasing) | Parsial | Parsial: jalur PPIC sebagai pemohon belum tersedia di UI; izin `purchase-request.approve` untuk PPIC masih konfigurasi manual. |
+| 2 | BE `approval.route.test.ts` (domain/langkah dan approve akhir); FE `PermintaanPembelianTambah.test.tsx`, `TinjauPermintaanPembelian.test.tsx` | Lulus | Catatan: tinjauan PPIC memerlukan grant manual `purchase-request.approve`. |
 | 3 | BE `purchase-order.route.test.ts` (mapping 1 baris ke 2 supplier, 2 PO); FE `RincianPermintaanPurchasing.test.tsx`, `PemesananPembelian.test.tsx` | Lulus | BE penuh; FE menguji pemecahan dan PO berurutan, bukan satu alur tunggal. |
 | 4 | BE `purchase-order.route.test.ts` (edit DRAFT); FE `EditPOBarang.test.tsx` | Lulus | Harga berubah, total dihitung ulang, supplier tetap. |
 | 5 | BE `purchase-order.route.test.ts` (submit sekali, `PUT` berikutnya 409); FE `EditPOBarang.test.tsx` | Lulus | Harga beku setelah submit. |
 | 6 | BE `po-receipt.route.test.ts` (PO DRAFT ditolak); FE `BarangMasuk.test.tsx` | Lulus | Dropdown hanya menawarkan PO `ISSUED`/`PARTIALLY_RECEIVED`. |
-| 7 | BE `po-receipt.route.test.ts` (partial lalu sisa, SPK dan harga tersalin); FE `BarangMasuk.test.tsx` | Lulus | Parsial: dua layer dengan harga sama belum ditegaskan dalam satu test. |
-| 8 | BE `inbound.route.test.ts`, `po-receipt.route.test.ts`; FE `BarangMasuk.test.tsx` | Lulus | Parsial: kasus `purchaseOrderId` ada tetapi `purchaseOrderLineId` hilang belum ditegaskan eksplisit; validasi ada di schema. |
-| 9 | BE `po-receipt.route.test.ts` (batch atomik); FE `BarangMasuk.test.tsx` (ganti PO dalam satu batch) | Lulus | Parsial: dua supplier dalam satu batch belum ditegaskan BE dalam satu test. |
-| 10 | BE `outbound.route.test.ts`, `stock-reconciliation.route.test.ts`; FE tidak ada | Lulus | Parsial: konsumsi FIFO diuji lewat pemutihan; harga layer pada outbound belum ditegaskan dalam satu test. |
+| 7 | BE `po-receipt.route.test.ts` (partial lalu sisa, SPK dan harga tersalin); FE `BarangMasuk.test.tsx` | Lulus | Catatan: dua layer dengan harga sama belum ditegaskan dalam satu test. |
+| 8 | BE `inbound.route.test.ts`, `po-receipt.route.test.ts`; FE `BarangMasuk.test.tsx` | Lulus | Catatan: kasus `purchaseOrderId` ada tetapi `purchaseOrderLineId` hilang belum ditegaskan eksplisit; validasi ada di schema. |
+| 9 | BE `po-receipt.route.test.ts` (batch atomik); FE `BarangMasuk.test.tsx` (ganti PO dalam satu batch) | Parsial | Parsial: dua supplier dalam satu batch belum ditegaskan BE dalam satu test. |
+| 10 | BE `outbound.route.test.ts`, `stock-reconciliation.route.test.ts`; FE tidak ada | Lulus | Catatan: konsumsi FIFO diuji lewat pemutihan; harga layer pada outbound belum ditegaskan dalam satu test. |
 | 11 | BE `outbound.route.test.ts` (`BAHAN_BAKU`, SPK tracking, SPK unknown 400); FE `BarangKeluar.test.tsx` | Lulus | — |
-| 12 | BE `stock-reconciliation.route.test.ts`, `report.route.test.ts`; FE tidak ada | Lulus | Parsial: nilai ledger dan konsumsi FIFO memakai fixture terpisah. |
+| 12 | BE `stock-reconciliation.route.test.ts`, `report.route.test.ts`; FE tidak ada | Lulus | Catatan: nilai ledger dan konsumsi FIFO memakai fixture terpisah. |
 | 13 | BE `stock-reconciliation.route.test.ts` (layer lebih memakai harga layer tersisa); FE `StockOpnameTambah.test.tsx` | Lulus | Opname hanya snapshot; pemutihan yang menulis layer. |
 | 14 | BE `dokubah.route.test.ts`, `outbound.route.test.ts` (`/usage`); FE `RealisasiSPK.test.ts`, `RealisasiDokubah.test.tsx` | Lulus | Realisasi dibaca dari outbound per SPK dan barang. |
 | 15 | BE `stock-reconciliation.route.test.ts` (harga konsumsi aktif terakhir); FE `PemutihanStok.test.tsx`, `StockOpnameTambah.test.tsx` | Lulus | `items.price` tidak dipakai setelah stok pernah nol. |
