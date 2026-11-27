@@ -164,17 +164,17 @@ export default function POBarang() {
           <table className="w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
               <tr>
+                <th scope="col" className="px-6 py-4">
+                  <label className="flex items-center gap-2">
+                    {canView && <input type="checkbox" aria-label="Centang semua PO di halaman ini" checked={selection.allSelected(filteredData)} disabled={loading || printing || filteredData.length === 0} onChange={() => { selection.toggleMany(filteredData); setPrintNotice(null); }} className="h-4 w-4 accent-orange-500" />}
+                  </label>
+                </th>
                 <th scope="col" className="px-6 py-4">No</th>
                 <SortableTh label="Tanggal" sortKey="date" sort={sort} onSort={toggle} />
                 <th scope="col" className="px-6 py-4">Nomor PO</th>
                 <th scope="col" className="px-6 py-4">Supplier</th>
                 <SortableTh label="Status" sortKey="status" sort={sort} onSort={toggle} />
                 <th scope="col" className="px-6 py-4">Aksi</th>
-                <th scope="col" className="px-6 py-4">
-                  <label className="flex items-center gap-2">Check
-                    {canView && <input type="checkbox" aria-label="Centang semua PO di halaman ini" checked={selection.allSelected(filteredData)} disabled={loading || printing || filteredData.length === 0} onChange={() => { selection.toggleMany(filteredData); setPrintNotice(null); }} className="h-4 w-4 accent-orange-500" />}
-                  </label>
-                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -186,6 +186,9 @@ export default function POBarang() {
               )}
               {!loading && filteredData.map((item, index) => (
                 <tr key={item.id} className="hover:bg-purple-50/30 transition-colors group">
+                  <td className="px-6 py-4">
+                    {canView && <input type="checkbox" aria-label={`Centang ${item.nomorPo}`} checked={selection.isSelected(item.id)} disabled={printing} onChange={() => { selection.toggle(item); setPrintNotice(null); }} className="h-4 w-4 accent-orange-500" />}
+                  </td>
                   <td className="px-6 py-4 text-gray-500">{(page - 1) * 20 + index + 1}</td>
 
                   <td className="px-6 py-4">
@@ -230,9 +233,6 @@ export default function POBarang() {
                         </Link>}
                       </span>
                     </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    {canView && <input type="checkbox" aria-label={`Centang ${item.nomorPo}`} checked={selection.isSelected(item.id)} disabled={printing} onChange={() => { selection.toggle(item); setPrintNotice(null); }} className="h-4 w-4 accent-orange-500" />}
                   </td>
                 </tr>
               ))}

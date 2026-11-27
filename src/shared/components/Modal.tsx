@@ -19,8 +19,9 @@ export default function Modal({ title, onClose, children, footer, size = 'md' }:
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  // Modal bisa dirender di dalam baris tabel; penanda ini dipakai handler klik baris agar klik di overlay tidak menavigasi.
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+    <div data-row-click-ignore className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
       <div role="dialog" aria-modal="true" className={`relative w-full ${SIZE[size]} max-h-[90vh] overflow-y-auto bg-white rounded-2xl p-6 sm:p-8 shadow-2xl animate-in zoom-in-95 duration-200`}>
         <div className="flex items-start justify-between gap-4 mb-6">
           <h2 className="text-xl font-bold text-gray-900 uppercase tracking-wide">{title}</h2>
