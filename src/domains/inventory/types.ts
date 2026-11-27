@@ -1,3 +1,10 @@
+export interface ItemSupplier {
+  id: number;
+  name: string;
+  remainingStock?: number | null;
+  price?: number | null;
+}
+
 export interface Item {
   id: number;
   // kode internal, dibuat dari lokasi; null sampai barang punya lokasi
@@ -16,6 +23,7 @@ export interface Item {
   minimumStock?: number | null;
   locationId: number | null;
   supplierId: number | null;
+  suppliers?: ItemSupplier[];
   // Path relatif foto barang (dilayani lewat fileUrl); null bila belum ada foto.
   photo?: { thumb: string; display: string } | null;
   createdAt: string | null;

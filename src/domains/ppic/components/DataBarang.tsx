@@ -15,7 +15,7 @@ import TableFooter from '@/shared/components/TableFooter';
 import { ExportExcellButton } from '@/shared/components/Tombol';
 import { kodeKategoriNotice } from '@/domains/inventory/item-code-notice';
 import { useDataBarang } from '@/domains/inventory/components/data-barang/useDataBarang';
-import DataBarangTable, { type BarangColumn, HargaCell, KategoriBadge, StokCell, SupplierCell } from '@/domains/inventory/components/data-barang/DataBarangTable';
+import DataBarangTable, { type BarangColumn, HargaCell, KategoriBadge, StokCell } from '@/domains/inventory/components/data-barang/DataBarangTable';
 import DataBarangToolbar from '@/domains/inventory/components/data-barang/DataBarangToolbar';
 import ItemFormModal, { type ItemForm } from '@/domains/inventory/components/data-barang/modals/ItemFormModal';
 import BulkStokMinimumModal from '@/domains/inventory/components/data-barang/BulkStokMinimumModal';
@@ -128,7 +128,6 @@ export default function DataBarangPPIC() {
   const columns: BarangColumn[] = [
     { label: 'Kode Barang', tdClassName: 'px-6 py-4 font-mono text-xs text-gray-500', cell: (item) => item.code ?? '-' },
     { label: 'Informasi Barang', sortKey: 'name', tdClassName: 'px-6 py-4 font-bold text-gray-900', cell: (item) => item.name },
-    { label: 'Supplier', sortKey: 'supplierName', cell: (item) => <SupplierCell name={supplierName(item.supplierId)} /> },
     { label: 'Stok', sortKey: 'stock', cell: (item) => <StokCell stock={item.stock} /> },
     { label: 'Stok Minimum', cell: (item) => <StokMinimumCell item={item} onSaved={reload} /> },
     { label: 'Satuan', tdClassName: 'px-6 py-4 text-gray-600', cell: (item) => item.unit },
@@ -231,7 +230,6 @@ export default function DataBarangPPIC() {
         <DataBarangTable
           rows={dataBarang}
           loading={d.loading}
-          colSpan={showSelection ? 15 : 14}
           columns={columns}
           sort={d.sort}
           onSort={d.toggle}

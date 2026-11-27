@@ -8,7 +8,7 @@ import SelectionBanner from '@/shared/components/SelectionBanner';
 import { printItemLabels } from '@/domains/inventory/label-print';
 import BarangFilterPanel, { countActiveFilters } from '@/domains/inventory/components/BarangFilterPanel';
 import { useDataBarang } from '@/domains/inventory/components/data-barang/useDataBarang';
-import DataBarangTable, { type BarangColumn, HargaCell, KategoriBadge, StokCell, SupplierCell } from '@/domains/inventory/components/data-barang/DataBarangTable';
+import DataBarangTable, { type BarangColumn, HargaCell, KategoriBadge, StokCell } from '@/domains/inventory/components/data-barang/DataBarangTable';
 import DataBarangToolbar, { FilterToggle } from '@/domains/inventory/components/data-barang/DataBarangToolbar';
 
 export default function DataBarangGudang() {
@@ -35,7 +35,6 @@ export default function DataBarangGudang() {
   const columns: BarangColumn[] = [
     { label: 'Kode Barang', tdClassName: 'px-6 py-4 font-mono text-xs text-gray-500', cell: (item) => item.code ?? '-' },
     { label: 'Informasi Barang', sortKey: 'name', tdClassName: 'px-6 py-4 font-bold text-gray-900', cell: (item) => item.name },
-    { label: 'Supplier', sortKey: 'supplierName', cell: (item) => <SupplierCell name={supplierName(item.supplierId)} /> },
     { label: 'Stok', sortKey: 'stock', cell: (item) => <StokCell stock={item.stock} /> },
     { label: 'Satuan', tdClassName: 'px-6 py-4 text-gray-600', cell: (item) => item.unit },
     { label: 'Kategori', sortKey: 'category', cell: (item) => <KategoriBadge category={item.category} /> },
@@ -94,7 +93,6 @@ export default function DataBarangGudang() {
         <DataBarangTable
           rows={dataBarang}
           loading={d.loading}
-          colSpan={12}
           columns={columns}
           sort={d.sort}
           onSort={d.toggle}

@@ -36,23 +36,27 @@ it('DataBarang memuat semua halaman lokasi dan supplier', async () => {
   expect(api.calls('GET /api/v1/locations').map((c) => c.query.get('page')).sort()).toEqual(['1', '2']);
   expect(api.calls('GET /api/v1/locations')[0].query.get('pageSize')).toBe('100');
   // Id 150 hanya ada di halaman kedua.
-  expect(await screen.findByText('Supplier Terakhir')).not.toBeNull();
+  expect(screen.queryByRole('columnheader', { name: 'Supplier' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: /Filter/ }));
+  expect(await screen.findByRole('option', { name: 'Supplier Terakhir' })).not.toBeNull();
 });
 
-it('menampilkan kolom Harga Terbaru dengan format ribuan seperti Superadmin', async () => {
+it('menampilkan rata-rata biasa dari harga supplier, tanpa pembobotan stok atau harga master', async () => {
   installFakeApi({
-    'GET /api/v1/items': paged([item]),
+    'GET /api/v1/items': paged([{ ...item, suppliers: [{ id: 7, name: 'PT Kayu', remainingStock: 2, price: 10000 }, { id: 8, name: 'CV Baja', remainingStock: 8, price: 20000 }] }]),
     'GET /api/v1/locations': paged([]),
     'GET /api/v1/suppliers': paged([]),
   });
   render(<DataBarang />);
   const row = (await screen.findByText('Barang 1')).closest('tr');
-  expect(screen.getByRole('columnheader', { name: 'Harga Terbaru' })).toBeTruthy();
-  expect(within(row!).getByText('1.000')).toBeTruthy();
+  expect(screen.getByRole('columnheader', { name: 'Harga Rata-rata' })).toBeTruthy();
+  expect(screen.queryByRole('columnheader', { name: 'Harga Terbaru' })).toBeNull();
+  expect(within(row!).getByText('15.000')).toBeTruthy();
+  expect(within(row!).queryByText('1.000')).toBeNull();
   expect(within(row!).queryByText(/^per /)).toBeNull();
 });
 
-it('menampilkan tanggal harga dan tidak lagi punya tombol Lengkapi', async () => {
+it('tidak memakai harga dan tanggal master saat harga supplier belum tersedia', async () => {
   installFakeApi({
     'GET /api/v1/items': paged([{ ...item, priceUpdatedAt: '2026-11-23' }]),
     'GET /api/v1/locations': paged([]),
@@ -60,7 +64,10 @@ it('menampilkan tanggal harga dan tidak lagi punya tombol Lengkapi', async () =>
   });
   render(<DataBarang />);
   const row = (await screen.findByText('Barang 1')).closest('tr');
-  expect(within(row!).getByText('per 23-11-2026')).toBeTruthy();
+  expect(within(row!).queryByText('per 23-11-2026')).toBeNull();
+  expect(within(row!).queryByText('1.000')).toBeNull();
+  const headers = screen.getAllByRole('columnheader').map((header) => header.textContent);
+  expect(row!.children[headers.indexOf('Harga Rata-rata')].textContent).toBe('-');
   expect(screen.queryByRole('button', { name: 'Lengkapi' })).toBeNull();
 });
 
@@ -93,8 +100,8 @@ it('memetakan supplier untuk barang yang dicentang', async () => {
   const api = installFakeApi({
     ...supplierRoutes,
     'GET /api/v1/items': paged([first, second]),
-    'PUT /api/v1/items/1': { ...first, supplierId: 7, supplierName: 'PT Kayu' },
-    'PUT /api/v1/items/2': { ...second, supplierId: 7, supplierName: 'PT Kayu' },
+    'PUT /api/v1/items/1/suppliers': { ...first, supplierId: 7, suppliers: [{ id: 7, name: 'PT Kayu' }, { id: 8, name: 'CV Baja' }] },
+    'PUT /api/v1/items/2/suppliers': { ...second, supplierId: 7, suppliers: [{ id: 7, name: 'PT Kayu' }, { id: 8, name: 'CV Baja' }] },
   });
   render(<DataBarang />);
   await screen.findByText('Barang 1');
@@ -102,20 +109,23 @@ it('memetakan supplier untuk barang yang dicentang', async () => {
   fireEvent.click(screen.getByRole('checkbox', { name: 'Pilih Barang 1' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Pilih Barang 2' }));
   fireEvent.click(screen.getByRole('button', { name: 'Edit Supplier (2)' }));
-  expect(screen.getByText('1 barang sudah punya supplier dan akan diganti.')).not.toBeNull();
+  expect(screen.getByText('1 barang sudah punya supplier. Daftar suppliernya akan diganti sesuai pilihan.')).not.toBeNull();
 
   const dialog = within(screen.getByRole('dialog'));
   fireEvent.click(dialog.getByRole('button', { name: 'Supplier' }));
   fireEvent.click(dialog.getByRole('option', { name: 'PT Kayu' }));
+  fireEvent.click(dialog.getByRole('button', { name: 'Supplier' }));
+  fireEvent.click(dialog.getByRole('option', { name: 'CV Baja' }));
   fireEvent.click(dialog.getByRole('button', { name: 'Tinjau 2 Barang' }));
   expect(dialog.getByText('Barang 1')).not.toBeNull();
+  expect(dialog.getByText('PT Kayu, CV Baja')).not.toBeNull();
   expect(dialog.getByText('CV Baja')).not.toBeNull();
   fireEvent.click(dialog.getByRole('button', { name: 'Simpan 2 Barang' }));
 
-  await waitFor(() => expect(api.calls('PUT /api/v1/items/2')).toHaveLength(1));
-  expect(api.calls('PUT /api/v1/items/1')[0].body).toEqual({ supplierId: 7 });
-  expect(api.calls('PUT /api/v1/items/2')[0].body).toEqual({ supplierId: 7 });
-  expect(await screen.findByText('2 barang dipetakan ke PT Kayu.')).not.toBeNull();
+  await waitFor(() => expect(api.calls('PUT /api/v1/items/2/suppliers')).toHaveLength(1));
+  expect(api.calls('PUT /api/v1/items/1/suppliers')[0].body).toEqual({ supplierIds: [7, 8] });
+  expect(api.calls('PUT /api/v1/items/2/suppliers')[0].body).toEqual({ supplierIds: [7, 8] });
+  expect(await screen.findByText('2 barang dipetakan ke PT Kayu, CV Baja.')).not.toBeNull();
 });
 
 it('menyembunyikan checklist tanpa item.set-supplier', async () => {
@@ -145,4 +155,48 @@ it('Filter stok kosong dikirim ke API daftar barang', async () => {
   fireEvent.click(screen.getByRole('button', { name: /filter/i }));
   fireEvent.click(screen.getByLabelText(/Stok kosong/));
   await waitFor(() => expect(api.calls('GET /api/v1/items').at(-1)?.query.get('stock')).toBe('empty'));
+});
+
+it('menempatkan Detail tepat di kanan Lokasi dan membuka material sesuai baris', async () => {
+  installFakeApi({ ...supplierRoutes, 'GET /api/v1/items': paged([item, { ...item, id: 2, name: 'Barang 2' }]) });
+  render(<AuthUserProvider user={userWith(['item.view'])}><DataBarang /></AuthUserProvider>);
+  await screen.findByText('Barang 1');
+  const headers = screen.getAllByRole('columnheader').map((header) => header.textContent);
+  expect(headers.slice(-2)).toEqual(['Lokasi', 'Detail']);
+  expect(screen.getByRole('link', { name: 'Detail supplier Barang 1' }).getAttribute('href')).toBe('/dashboard/purchasing/master/data-barang/1');
+  expect(screen.getByRole('link', { name: 'Detail supplier Barang 2' }).getAttribute('href')).toBe('/dashboard/purchasing/master/data-barang/2');
+});
+
+it('menyembunyikan tombol Detail tanpa permission item.view', async () => {
+  installFakeApi({ ...supplierRoutes, 'GET /api/v1/items': paged([item]) });
+  render(<AuthUserProvider user={userWith(['item.update', 'item.set-supplier'])}><DataBarang /></AuthUserProvider>);
+  await screen.findByText('Barang 1');
+  expect(screen.queryByRole('link', { name: /Detail supplier/ })).toBeNull();
+});
+
+it('export memakai rata-rata harga supplier dan menandai data harga yang belum tersedia', async () => {
+  installFakeApi({ ...supplierRoutes, 'GET /api/v1/items': paged([{ ...item, suppliers: [{ id: 7, name: 'PT Kayu', price: 10000 }, { id: 8, name: 'CV Baja', price: 20000 }] }, { ...item, id: 2, name: 'Barang 2' }]) });
+  render(<DataBarang />);
+  await screen.findByText('Barang 1');
+  fireEvent.click(screen.getByRole('button', { name: /export/i }));
+  const [, rows] = vi.mocked(downloadCsv).mock.calls[0];
+  expect(rows[0][7]).toBe('Harga Rata-rata');
+  expect(rows[1][7]).toBe(15000);
+  expect(rows[2][7]).toBe('-');
+});
+
+it('mengurutkan seluruh material menurut rata-rata tanpa mengirim sort key yang tidak didukung backend', async () => {
+  const api = installFakeApi({ ...supplierRoutes, 'GET /api/v1/items': paged([
+    { ...item, price: 1, suppliers: [{ id: 7, name: 'PT Kayu', price: 20000 }] },
+    { ...item, id: 2, name: 'Barang 2', price: 999999, suppliers: [{ id: 8, name: 'CV Baja', price: 10000 }] },
+    { ...item, id: 3, name: 'Barang 3' },
+  ]) });
+  render(<DataBarang />);
+  await screen.findByText('Barang 1');
+  const links = () => screen.getAllByRole('link', { name: /Detail supplier/ }).map((link) => link.getAttribute('href'));
+  fireEvent.click(screen.getByRole('button', { name: 'Harga Rata-rata' }));
+  expect(links()).toEqual(['/dashboard/purchasing/master/data-barang/2', '/dashboard/purchasing/master/data-barang/1', '/dashboard/purchasing/master/data-barang/3']);
+  fireEvent.click(screen.getByRole('button', { name: 'Harga Rata-rata' }));
+  expect(links()).toEqual(['/dashboard/purchasing/master/data-barang/1', '/dashboard/purchasing/master/data-barang/2', '/dashboard/purchasing/master/data-barang/3']);
+  expect(api.calls('GET /api/v1/items').every((call) => !call.query.has('sortBy'))).toBe(true);
 });

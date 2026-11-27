@@ -65,6 +65,14 @@ pengurutan, atau pindah halaman meminta konfirmasi jika ada perubahan yang
 belum disimpan dan dikunci selama penyimpanan berlangsung. Hapus lokasi
 memerlukan role Superadmin serta permission `location.delete`.
 
+Kartu dan tabel Data Lokasi memenuhi lebar halaman. Lebar kolom dibagi
+secara proporsional agar Keterangan, Informasi Barang, dan Aksi seimbang.
+Judul Aksi serta tombol Edit, Hapus, Simpan, dan Batal berada di tengah
+kolom Aksi. Header dan isi sejajar; kode, nama rak, keterangan, dan nama barang panjang
+membungkus di dalam kolom. Pada layar sempit tabel dapat digulir horizontal,
+sedangkan pencarian dan tombol toolbar menyesuaikan lebar kartu. Tampilan
+ini dipakai bersama oleh Gudang Bahan Baku, Gudang Barang Jadi, dan Superadmin.
+
 ### `src/domains/ppic/components/DataBarang.tsx`
 
 List dari `listItems()`. Form tambah dan edit memanggil `createItem()`
@@ -74,10 +82,69 @@ atau `updateItem()` dengan field lengkap. Tombol hapus memanggil
 
 ### `src/domains/purchasing/components/DataBarang.tsx`
 
-List dari `listItems()`. Harga master hanya ditampilkan, tidak diisi dari
-layar ini (harga transaksi diisi di baris PO). Pemetaan supplier massal
-memakai `BulkSupplierAction` dengan `PUT /items/{id}` untuk supplier saja,
-karena API butuh `supplierId` bukan nama supplier.
+List dari `listItems()`. Kolom **Harga Rata-rata** menggantikan Harga Terbaru
+khusus Purchasing. Nilainya adalah jumlah harga material dari seluruh
+supplier dibagi jumlah supplier, tanpa pembobotan sisa stok. Supplier dengan
+stok nol dan harga nol tetap dihitung. Nilai tersebut juga dipakai pada
+export CSV. Pengurutan Harga Rata-rata dilakukan pada seluruh hasil yang
+sudah dimuat, tanpa mengirim sort key `averagePrice` ke backend.
+
+Kolom **Detail** tepat di kanan Lokasi membuka
+`/dashboard/purchasing/master/data-barang/[id]` dengan permission `item.view`.
+Halaman membaca `GET /api/v1/items/{id}` dan menampilkan daftar supplier,
+sisa stok per supplier, harga material per supplier, total harga, jumlah
+supplier, dan harga rata-rata. Link kembali menuju Data Barang Purchasing.
+
+Respons `GET /api/v1/items` dan `GET /api/v1/items/{id}` perlu menyertakan
+`suppliers[].remainingStock` dan `suppliers[].price` untuk setiap material.
+Keduanya berupa angka non-negatif atau null bila belum tersedia. Sisa stok
+dan harga per satuan memakai satuan material (`item.unit`), contohnya:
+
+```json
+{
+  "suppliers": [
+    { "id": 7, "name": "PT Kayu", "remainingStock": 2, "price": 10000 },
+    { "id": 8, "name": "CV Baja", "remainingStock": 8, "price": 20000 }
+  ]
+}
+```
+
+Contoh tersebut menghasilkan total harga Rp30.000 dan rata-rata Rp15.000.
+Harga master `item.price` tidak dipakai sebagai pengganti harga supplier.
+Data yang belum tersedia ditampilkan `-`, bukan nol. Jika satu harga supplier
+belum tersedia, total dan rata-rata belum dihitung agar tidak menampilkan
+rata-rata parsial. Tampilan harga dibulatkan hingga dua angka desimal;
+perhitungan dan export mempertahankan nilai angkanya.
+
+Harga transaksi tetap diisi di baris PO. Pemetaan supplier massal
+memakai `BulkSupplierAction` bersama layar Superadmin. Modal **Edit Supplier**
+mendukung beberapa supplier untuk satu material: pilih supplier satu per satu,
+dan nama yang dipilih tampil sebagai daftar centang. Saat mengedit satu
+material, seluruh `suppliers` yang sudah terpasang tetap dicentang; respons
+lama tanpa daftar tersebut memakai `supplierId` sebagai pilihan awal.
+Pengguna dapat menambah supplier atau menghapus centang salah satu supplier.
+Pilihan **Kosongkan supplier** menghapus seluruh pemetaan secara eksplisit.
+
+Setelah tinjauan, frontend mengirim `PUT /api/v1/items/{id}/suppliers` dengan
+`{ supplierIds: number[] }` untuk setiap material yang dicentang. Daftar kosong
+menghapus pemetaan. Supplier utama tetap tersedia melalui `supplierId`,
+sedangkan `GET /items` dan `GET /items/{id}` mengembalikan daftar lengkap
+`suppliers: [{ id, name }]`. Simpan memerlukan `item.update` dan
+`item.set-supplier`. Hasil massal menampilkan jumlah yang berhasil serta nama
+material dan alasan setiap kegagalan; material yang gagal tetap dipilih agar
+bisa dicoba ulang. Backend menyediakan endpoint sesuai kontrak di
+`docs/api/item.json`. Pemetaan master ini tidak mengubah supplier transaksi PO.
+
+Pilihan **Supplier Lainnya** pada rincian permintaan pembelian Purchasing
+juga menambahkan supplier ke material melalui endpoint yang sama. Frontend
+membaca ulang material sebelum menyimpan gabungan supplier lama dan baru;
+supplier lama tidak diganti atau dihapus. Aksi ini memerlukan `item.view`,
+`item.update`, dan `item.set-supplier`. Setelah berhasil, supplier masuk ke
+bagian atas dropdown dan daftar Detail Supplier Material, termasuk setelah
+muat ulang halaman. Kegagalan ditampilkan dengan pilihan mencoba ulang;
+pemilihan supplier PO tetap tersedia tanpa mengklaim pemetaan tersimpan.
+Supplier baru belum memiliki stok atau harga kecuali backend menyediakannya;
+nilai yang belum tersedia ditampilkan `-`.
 
 Panel Filter (kategori, satuan, supplier, lokasi, stok kosong) dikirim ke
 `listItems()` lewat `toItemFilterParams`, sama seperti Data Barang Gudang.
@@ -124,9 +191,12 @@ dan field `createdAt`/`updatedAt` di response Item. Sudah disambungkan:
 Juga diperbaiki di ketiga halaman Data Barang (Gudang, PPIC, Purchasing):
 kolom Lokasi sebelumnya menampilkan `locationId` mentah (angka), sekarang
 di-resolve ke kode lokasi yang bisa dibaca (misal "A04") lewat
-`listLocations()`, sama seperti cara supplier di-resolve. Kolom Supplier
-yang sempat hilang di halaman Gudang saat migrasi ke API asli juga
-dikembalikan.
+`listLocations()`. Tabel utama Data Barang tidak menampilkan kolom Supplier
+di Gudang Bahan Baku, Gudang Barang Jadi, PPIC, Purchasing, Superadmin,
+Keuangan, dan Produksi. Filter supplier dan Edit Supplier tetap tersedia
+sesuai permission. Daftar supplier, sisa stok, dan harga per supplier tetap
+dapat dibuka melalui Detail di Purchasing. Ekspor dan template impor tetap
+memuat data supplier.
 
 Data Barang di semua divisi memuat seluruh baris yang cocok dengan
 pencarian/filter (semua halaman `GET /items`), lalu menampilkannya dalam
