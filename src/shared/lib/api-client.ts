@@ -1,17 +1,25 @@
 import { downloadBlob } from "./download";
+import { randomId } from "./random-id";
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
+const REQUEST_ID_HEADER = "X-Request-Id";
+
+// The backend echoes this id in the error body; keeping it on ApiError lets a
+// bug report be matched to the server log for the exact request that failed.
+// randomId (not crypto.randomUUID directly) keeps this working over plain HTTP on the LAN.
 
 export class ApiError extends Error {
   status: number;
   // a list of { row, message } for a spreadsheet import that has bad rows
   errors?: Record<string, string[]> | RowError[];
   retryAfter?: number;
+  requestId?: string;
 
-  constructor(message: string, status: number, errors?: Record<string, string[]> | RowError[], retryAfter?: number) {
+  constructor(message: string, status: number, errors?: Record<string, string[]> | RowError[], retryAfter?: number, requestId?: string) {
     super(message);
     this.status = status;
     this.errors = errors;
     this.retryAfter = retryAfter;
+    this.requestId = requestId;
   }
 }
 
@@ -19,7 +27,7 @@ type RowError = { row: number; message: string };
 
 type ApiEnvelope<T> =
   | { success: true; message: string; data: T }
-  | { success: false; message: string; errors?: Record<string, string[]> | RowError[] };
+  | { success: false; message: string; requestId?: string; errors?: Record<string, string[]> | RowError[] };
 
 let accessToken: string | null = null;
 
@@ -32,6 +40,19 @@ export function getAccessToken() {
 }
 
 const CSRF_HEADER = { "X-Requested-With": "XMLHttpRequest" };
+
+// Headers normalizes names, so a caller-supplied `x-request-id` replaces the
+// generated one instead of being sent alongside it.
+function requestHeaders(options: RequestInit): Headers {
+  const headers = new Headers(options.headers);
+  if (!(options.body instanceof FormData) && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  if (accessToken && !headers.has("Authorization")) headers.set("Authorization", `Bearer ${accessToken}`);
+  for (const [name, value] of Object.entries(CSRF_HEADER)) {
+    if (!headers.has(name)) headers.set(name, value);
+  }
+  if (!headers.has(REQUEST_ID_HEADER)) headers.set(REQUEST_ID_HEADER, randomId());
+  return headers;
+}
 
 // One refresh in flight at a time: the BE rotates the refresh token, and a second
 // request with the same cookie would be treated as token reuse.
@@ -46,7 +67,7 @@ export function refreshSessionData<T extends { accessToken: string }>(): Promise
         const res = await fetch(`${BASE_URL}/api/v1/auth/refresh`, {
           method: "POST",
           credentials: "include",
-          headers: CSRF_HEADER,
+          headers: { ...CSRF_HEADER, [REQUEST_ID_HEADER]: randomId() },
         });
         const body: ApiEnvelope<T> = await res.json();
         if (!body.success) return null;
@@ -75,16 +96,13 @@ const isAuthPath = (path: string) => path.startsWith("/api/v1/auth/");
 
 async function request<T>(path: string, options: RequestInit = {}, retryOn401 = true): Promise<T> {
   const sentToken = accessToken;
+  // FormData gets its multipart Content-Type from the browser, not from us.
+  const headers = requestHeaders(options);
+  const requestId = headers.get(REQUEST_ID_HEADER) ?? undefined;
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
     credentials: "include",
-    headers: {
-      // FormData sets its own multipart Content-Type with the boundary.
-      ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      ...CSRF_HEADER, // the backend requires it on /auth/refresh and /auth/logout
-      ...options.headers,
-    },
+    headers,
   });
 
   const body: ApiEnvelope<T> = await res.json();
@@ -98,7 +116,8 @@ async function request<T>(path: string, options: RequestInit = {}, retryOn401 = 
     // Rate limits report the wait in seconds; `?.` because test doubles may omit headers.
     const header = res.headers?.get("Retry-After") ?? res.headers?.get("RateLimit-Reset");
     const retryAfter = header == null ? NaN : Number(header);
-    throw new ApiError(body.message, res.status, body.errors, Number.isNaN(retryAfter) ? undefined : retryAfter);
+    const errorRequestId = body.requestId ?? res.headers?.get(REQUEST_ID_HEADER) ?? requestId;
+    throw new ApiError(body.message, res.status, body.errors, Number.isNaN(retryAfter) ? undefined : retryAfter, errorRequestId);
   }
 
   return body.data;
@@ -107,9 +126,13 @@ async function request<T>(path: string, options: RequestInit = {}, retryOn401 = 
 // Fetches a binary file (e.g. xlsx export) and saves it via a temporary link.
 export async function downloadFile(path: string, fallbackName: string, retryOn401 = true): Promise<void> {
   const sentToken = accessToken;
+  const requestId = randomId();
   const res = await fetch(`${BASE_URL}${path}`, {
     credentials: "include",
-    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    headers: {
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      [REQUEST_ID_HEADER]: requestId,
+    },
   });
 
   if (!res.ok) {
@@ -117,7 +140,13 @@ export async function downloadFile(path: string, fallbackName: string, retryOn40
       return downloadFile(path, fallbackName, false);
     }
     const body = await res.json().catch(() => null);
-    throw new ApiError(body?.message ?? "Gagal mengunduh file.", res.status, body?.errors);
+    throw new ApiError(
+      body?.message ?? "Gagal mengunduh file.",
+      res.status,
+      body?.errors,
+      undefined,
+      body?.requestId ?? res.headers?.get(REQUEST_ID_HEADER) ?? requestId,
+    );
   }
 
   const name = /filename="?([^";]+)"?/.exec(res.headers.get("Content-Disposition") ?? "")?.[1] ?? fallbackName;
