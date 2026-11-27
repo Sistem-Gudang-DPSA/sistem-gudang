@@ -4,7 +4,7 @@
 
 Satu barang dapat dipasok oleh banyak supplier dengan harga berbeda. Harga final ditetapkan Purchasing di baris PO, dikunci saat PO di-submit, dan dipakai sebagai nilai stok FIFO saat barang diterima. PPIC menentukan kebutuhan dan SPK, Gudang menerima barang per baris PO, dan laporan membaca nilai dari ledger biaya.
 
-Sebagian besar fondasi ini sudah ada di backend. Pekerjaan yang tersisa adalah menyambung rantai yang masih putus, bukan membuat tabel baru. Dokumen ini dipakai untuk review. Belum ada kode yang diubah untuk rencana ini.
+Fondasi backend sudah ada dan rantai yang putus sudah disambung bertahap tanpa tabel baru. Tahap 1-2 backend, Tahap 3-4 frontend, dan prasyarat izin Gudang sudah di-merge ke `dev` lewat PR BE #54, #55 serta FE #179, #180. Dokumen ini dipakai sebagai catatan keputusan dan hasil uji; Tahap 5 merapikan status dokumen dan mencatat hasil 15 skenario uji. Poin 6 tetap berupa konfigurasi manual yang perlu diverifikasi di lingkungan target.
 
 ## Prinsip
 
@@ -179,14 +179,14 @@ Lini Keuangan memang sudah ada sebagai domain, tetapi untuk sementara tidak berp
 
 Satu PR untuk satu tujuan. Backend dikerjakan lebih dulu karena frontend bergantung pada kontraknya. Gudang dikerjakan terakhir karena modulnya sudah berjalan dan diuji.
 
-| Tahap | Repo | Tujuan | Isi | Gate |
-|---|---|---|---|---|
-| 0 | FE/BE | Kunci keputusan dan akses | Setujui dokumen ini, centang manual `purchase-request.approve` untuk Koor PPIC, dan selesaikan PR #170 di jalur prod | Tidak ada kode yang diubah |
-| 1 | BE | PO sebagai sumber harga | `noSpk` di PO line dan pengelompokan per `(proyek, noSpk)`, status `DRAFT` + submit, inbound wajib PO line, layer dari `hargaSatuan` | Test BE hijau, `docs/05`, `09`, `10`, `11`, `12` |
-| 2 | BE | Nilai pemutihan konsisten | Urutan harga layer/konsumsi, `unitPrice` diteruskan ke layer, `totalAdjustmentNilai` dari ledger | Test after-zeroing hijau, `docs/07`, `08` |
-| 3 | FE | Purchasing mengikuti PO | Angkat potongan mapping dari branch lama, tombol Simpan Draft dan Submit PO, harga read-only setelah submit, tampilkan SPK | `lint`, `tsc`, `test` hijau, `docs/12`, `api-1.json` |
-| 4 | FE | Gudang memilih PO | Form terima per baris PO, hapus filter supplier, scan per PO line, batch boleh campur PO | Regresi Gudang hijau, `docs/02`, `06` |
-| 5 | FE/BE | Penutupan | Rapikan seluruh docs terkait dan jalankan 15 skenario uji | Semua test dan type check hijau |
+| Tahap | Repo | Tujuan | Isi | Gate | Status |
+|---|---|---|---|---|---|
+| 0 | FE/BE | Kunci keputusan dan akses | Setujui dokumen ini, centang manual `purchase-request.approve` untuk Koor PPIC, dan selesaikan PR #170 di jalur prod | Tidak ada kode yang diubah | Dokumen disetujui lewat PR FE #171; PR FE #170 sudah merge. Izin PPIC masih perlu diverifikasi manual di lingkungan target. |
+| 1 | BE | PO sebagai sumber harga | `noSpk` di PO line dan pengelompokan per `(proyek, noSpk)`, status `DRAFT` + submit, inbound wajib PO line, layer dari `hargaSatuan` | Test BE hijau, `docs/05`, `09`, `10`, `11`, `12` | Selesai di PR BE #54 (merge 26 Nov 2026). |
+| 2 | BE | Nilai pemutihan konsisten | Urutan harga layer/konsumsi, `unitPrice` diteruskan ke layer, `totalAdjustmentNilai` dari ledger | Test after-zeroing hijau, `docs/07`, `08` | Selesai di PR BE #54. |
+| 3 | FE | Purchasing mengikuti PO | Angkat potongan mapping dari branch lama, tombol Simpan Draft dan Submit PO, harga read-only setelah submit, tampilkan SPK | `lint`, `tsc`, `test` hijau, `docs/12`, `api-1.json` | Selesai di PR FE #179; mapping supplier sudah tersedia di `dev` lewat halaman Rincian Permintaan. |
+| 4 | FE | Gudang memilih PO | Form terima per baris PO, hapus filter supplier, scan per PO line, batch boleh campur PO | Regresi Gudang hijau, `docs/02`, `06` | Selesai di PR BE #55 dan FE #180 (merge 26 Nov 2026). |
+| 5 | FE/BE | Penutupan | Rapikan seluruh docs terkait dan jalankan 15 skenario uji | Semua test dan type check hijau | Selesai: docs dirapikan dan 15 skenario dijalankan; hasilnya ada di bawah. |
 
 Tahap 1 dan 2 boleh dikerjakan berdekatan, tetapi tetap dua commit dengan tujuan berbeda. Tahap 4 tidak dimulai sebelum tahap 1 dan 3 selesai, karena kontrak PO belum final.
 
@@ -212,16 +212,40 @@ Sebelum push atau PR, jalankan `bun run lint`, `bunx tsc --noEmit`, dan `bun run
 15. Pemutihan sampai stok nol, lalu opname lebih → layer baru memakai harga konsumsi terakhir, bukan `items.price`
 ```
 
-Skenario 1, 2, 3, 10, 11, dan 14 bisa diuji dengan kode yang ada sekarang, asalkan permission PPIC sudah dicentang dan halaman mapping diangkat ke branch uji. Skenario 4 sampai 9, 12, 13, dan 15 baru bisa diuji setelah tahap 1 dan 2 backend selesai. Jadi untuk akhir pekan ini yang realistis adalah menguji enam skenario pertama dari kode lama sambil mencatat gap-nya, bukan menunggu seluruh tahap selesai.
+Semua skenario kini memiliki test otomatis pendukung. Skenario 1 dan 9 hanya lulus parsial (lihat catatan), dan langkah manual di bawah belum tercakup test otomatis. Tahap 5 menjalankan dua lapis: test terarah 8 file BE (200 passed) dan 12 file FE (263 passed), lalu gate penuh BE (45 file, 547 passed, 6 skipped) dan FE (117 file, 1067 passed, 1 expected fail). Hasilnya:
+
+| No | Test pendukung | Hasil | Catatan |
+|---|---|---|---|
+| 1 | BE `approval.route.test.ts` (auto-approve langkah pemohon); FE `TinjauPermintaanPembelian.test.tsx` (PPIC → Purchasing) | Parsial | Parsial: jalur PPIC sebagai pemohon belum tersedia di UI; izin `purchase-request.approve` untuk PPIC masih konfigurasi manual. |
+| 2 | BE `approval.route.test.ts` (domain/langkah dan approve akhir); FE `PermintaanPembelianTambah.test.tsx`, `TinjauPermintaanPembelian.test.tsx` | Lulus | Catatan: tinjauan PPIC memerlukan grant manual `purchase-request.approve`. |
+| 3 | BE `purchase-order.route.test.ts` (mapping 1 baris ke 2 supplier, 2 PO); FE `RincianPermintaanPurchasing.test.tsx`, `PemesananPembelian.test.tsx` | Lulus | BE penuh; FE menguji pemecahan dan PO berurutan, bukan satu alur tunggal. |
+| 4 | BE `purchase-order.route.test.ts` (edit DRAFT); FE `EditPOBarang.test.tsx` | Lulus | Harga berubah, total dihitung ulang, supplier tetap. |
+| 5 | BE `purchase-order.route.test.ts` (submit sekali, `PUT` berikutnya 409); FE `EditPOBarang.test.tsx` | Lulus | Harga beku setelah submit. |
+| 6 | BE `po-receipt.route.test.ts` (PO DRAFT ditolak); FE `BarangMasuk.test.tsx` | Lulus | Dropdown hanya menawarkan PO `ISSUED`/`PARTIALLY_RECEIVED`. |
+| 7 | BE `po-receipt.route.test.ts` (partial lalu sisa, SPK dan harga tersalin); FE `BarangMasuk.test.tsx` | Lulus | Catatan: dua layer dengan harga sama belum ditegaskan dalam satu test. |
+| 8 | BE `inbound.route.test.ts`, `po-receipt.route.test.ts`; FE `BarangMasuk.test.tsx` | Lulus | Catatan: kasus `purchaseOrderId` ada tetapi `purchaseOrderLineId` hilang belum ditegaskan eksplisit; validasi ada di schema. |
+| 9 | BE `po-receipt.route.test.ts` (batch atomik); FE `BarangMasuk.test.tsx` (ganti PO dalam satu batch) | Parsial | Parsial: dua supplier dalam satu batch belum ditegaskan BE dalam satu test. |
+| 10 | BE `outbound.route.test.ts`, `stock-reconciliation.route.test.ts`; FE tidak ada | Lulus | Catatan: konsumsi FIFO diuji lewat pemutihan; harga layer pada outbound belum ditegaskan dalam satu test. |
+| 11 | BE `outbound.route.test.ts` (`BAHAN_BAKU`, SPK tracking, SPK unknown 400); FE `BarangKeluar.test.tsx` | Lulus | — |
+| 12 | BE `stock-reconciliation.route.test.ts`, `report.route.test.ts`; FE tidak ada | Lulus | Catatan: nilai ledger dan konsumsi FIFO memakai fixture terpisah. |
+| 13 | BE `stock-reconciliation.route.test.ts` (layer lebih memakai harga layer tersisa); FE `StockOpnameTambah.test.tsx` | Lulus | Opname hanya snapshot; pemutihan yang menulis layer. |
+| 14 | BE `dokubah.route.test.ts`, `outbound.route.test.ts` (`/usage`); FE `RealisasiSPK.test.ts`, `RealisasiDokubah.test.tsx` | Lulus | Realisasi dibaca dari outbound per SPK dan barang. |
+| 15 | BE `stock-reconciliation.route.test.ts` (harga konsumsi aktif terakhir); FE `PemutihanStok.test.tsx`, `StockOpnameTambah.test.tsx` | Lulus | `items.price` tidak dipakai setelah stok pernah nol. |
+
+Dua hal tetap di luar jangkauan otomatis dan perlu diverifikasi manual di lingkungan target:
+
+1. Centang `purchase-request.approve` untuk Koor PPIC lewat Superadmin → Roles. Endpointnya `replace-all`, jadi permission lama harus ikut dicentang.
+2. Jalur PPIC sebagai pemohon: halaman tambah PPIC saat ini mengarah kembali ke daftar tinjauan. Rencana awal menempatkan PPIC sebagai jalur utama; implementasinya saat ini memakai Gudang sebagai pemohon dan PPIC sebagai gerbang tinjauan. Ini perlu keputusan terpisah apakah akan dibuka kembali.
 
 ## Dokumen yang Perlu Disesuaikan
 
-Repo ini:
+Repo ini (diperbarui di PR FE #179/#180 dan dirapikan lagi di Tahap 5):
 
-- `docs/09-Permintaan-Pembelian-PPIC-dan-Rekap-Pembelian.md` — dua jalur permintaan dan gerbang PPIC.
-- `docs/12-Pemesanan-Pembelian-dan-Histori-Harga-Supplier.md` — DRAFT, submit, dan pengelompokan per SPK.
-- `docs/06-Integrasi-Modul-Gudang.md` — nilai opname dan pemutihan dari ledger.
-- `docs/api-1.json` — kontrak endpoint submit PO dan field baru.
+- `docs/09-Permintaan-Pembelian-PPIC-dan-Rekap-Pembelian.md` — gerbang PPIC, permission approve yang perlu dicentang manual, dan pengelompokan per `(proyek, noSpk, supplier)`.
+- `docs/12-Pemesanan-Pembelian-dan-Histori-Harga-Supplier.md` — DRAFT, submit, supplier read-only, dan penyelesaian langkah Purchasing sekali saat PO pertama.
+- `docs/06-Integrasi-Modul-Gudang.md` — opname hanya snapshot; pemutihan yang mengubah stok dan menulis ledger.
+- `docs/02-Integrasi-Inventory-Item-Lokasi.md` — harga transaksi berasal dari PO, bukan master barang.
+- `docs/api-1.json` — di-regenerate dari fragmen; deskripsi opname, pemutihan, dan `totalAdjustmentNilai` disamakan dengan spec backend.
 
 Repo backend, lewat PR terpisah:
 
@@ -240,4 +264,4 @@ Repo backend, lewat PR terpisah:
 - `src/domains/inventory/components/barang-masuk/useFormBarangMasuk.ts`.
 - `src/domains/purchasing/components/PemesananPembelian.tsx`.
 - `src/domains/ppic/components/AksiPersetujuanPembelian.tsx`.
-- Branch lokal `mapping-supplier` yang tertinggal 307 commit dari `dev`; bagian fiturnya perlu diambil ke branch baru berbasis `dev`, bukan di-merge langsung.
+- Branch lokal `mapping-supplier` sudah tidak dipakai: halaman mapping supplier tersedia di `dev`, sedangkan branch lama tertinggal 342 commit dan lebih 6 commit.
