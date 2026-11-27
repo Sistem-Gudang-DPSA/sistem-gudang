@@ -79,9 +79,9 @@ berupa kode, nama, pajak vendor, satuan, dan kategori.
   `/dashboard/purchasing/transaksi/buat-po-barang/permintaan-pembelian/{id}`;
   panah kembali menuju daftar PO Barang. Detail permintaan dari Rekap
   Pembelian tetap memakai URL lama dan kembali ke Rekap Pembelian.
-- Cetak massal: centang PO (per baris atau semua di halaman), tombol **Print**
-  mengambil detail tiap PO lewat `GET /purchase-orders/{id}` lalu membuka satu
-  dialog cetak. Pilihan bertahan lintas halaman, pencarian, filter tanggal,
+- Cetak massal: kolom centang berada di depan tabel; centang PO (per baris
+  atau semua di halaman), tombol **Print** mengambil detail tiap PO lewat
+  `GET /purchase-orders/{id}` lalu membuka satu dialog cetak. Pilihan bertahan lintas halaman, pencarian, filter tanggal,
   dan urutan; hilang saat layar ditutup. Banner hijau di atas tabel
   menampilkan jumlah PO terpilih dan tombol **Reset pilihan PO**. Jika satu detail gagal dimuat, seluruh cetak
   dibatalkan dan pesan menampilkan PO yang berhasil dan gagal.
