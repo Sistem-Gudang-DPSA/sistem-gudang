@@ -4,6 +4,10 @@ function jsonResponse(status: number, body: unknown) {
   return { status, json: async () => body } as Response;
 }
 
+function sentHeader(init: RequestInit | undefined, name: string) {
+  return new Headers(init?.headers).get(name);
+}
+
 describe("apiClient", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -60,8 +64,7 @@ describe("apiClient", () => {
       status: 400,
       requestId: expect.stringMatching(/^[0-9a-f-]{36}$/),
     });
-    const headers = fetchMock.mock.calls[0][1].headers as Record<string, string>;
-    expect(headers["X-Request-Id"]).toMatch(/^[0-9a-f-]{36}$/);
+    expect(sentHeader(fetchMock.mock.calls[0][1], "X-Request-Id")).toMatch(/^[0-9a-f-]{36}$/);
   });
 
   it("prefers the requestId echoed in the error body", async () => {
@@ -85,8 +88,34 @@ describe("apiClient", () => {
 
     await apiClient.patch("/api/v1/items/1/stock", { delta: -1 }, { "X-Request-Id": "fe-123" });
 
-    const headers = fetchMock.mock.calls[0][1].headers as Record<string, string>;
-    expect(headers["X-Request-Id"]).toBe("fe-123");
+    expect(sentHeader(fetchMock.mock.calls[0][1], "X-Request-Id")).toBe("fe-123");
+  });
+
+  it("uses a case-insensitive caller override as the error fallback too", async () => {
+    const { apiClient } = await import("./api-client");
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse(400, { success: false, message: "Gagal" })
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(
+      apiClient.post("/api/v1/items", {}, { "x-request-id": "fe-lower" })
+    ).rejects.toMatchObject({ status: 400, requestId: "fe-lower" });
+    expect(sentHeader(fetchMock.mock.calls[0][1], "X-Request-Id")).toBe("fe-lower");
+  });
+
+  it("reads the response header request id when a failed download has no body id", async () => {
+    const { downloadFile } = await import("./api-client");
+    global.fetch = vi.fn().mockResolvedValue({
+      status: 404,
+      headers: new Headers({ "X-Request-Id": "be-404" }),
+      json: async () => ({ success: false, message: "Tidak ada" }),
+    }) as unknown as typeof fetch;
+
+    await expect(downloadFile("/api/v1/items/1/foto", "foto.jpg")).rejects.toMatchObject({
+      status: 404,
+      requestId: "be-404",
+    });
   });
 
   it("retries the request once after a successful silent refresh on 401", async () => {
@@ -107,7 +136,7 @@ describe("apiClient", () => {
     expect(result).toEqual({ id: 42 });
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(fetchMock.mock.calls[1][0]).toContain("/api/v1/auth/refresh");
-    expect(fetchMock.mock.calls[1][1].headers).toMatchObject({ "X-Requested-With": "XMLHttpRequest" });
+    expect(sentHeader(fetchMock.mock.calls[1][1], "X-Requested-With")).toBe("XMLHttpRequest");
     expect(getAccessToken()).toBe("new-token");
   });
 
@@ -161,7 +190,7 @@ describe("apiClient", () => {
       if (String(url).includes("/auth/refresh")) {
         return jsonResponse(200, { success: true, message: "ok", data: { accessToken: "new" } });
       }
-      const auth = (init.headers as Record<string, string>).Authorization;
+      const auth = sentHeader(init, "Authorization");
       return auth === "Bearer new"
         ? jsonResponse(200, { success: true, message: "ok", data: 1 })
         : jsonResponse(401, { success: false, message: "Token invalid" });
