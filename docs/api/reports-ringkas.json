@@ -357,7 +357,7 @@
           "Report"
         ],
         "summary": "Stock opname totals for a period",
-        "description": "totalAudit is the number of opnames, totalItemSelisih the counted lines whose physical quantity differs from the system quantity, totalAdjustmentNilai the rupiah value of those differences at the line price (negative is a loss). Both filters are optional.",
+        "description": "totalAudit is the number of opnames, totalItemSelisih the counted lines whose physical quantity differs from the system quantity, totalAdjustmentNilai the net rupiah value posted by reconciliations in the period: surplus cost layers minus write-off consumptions (reversed ones excluded), rounded to whole rupiah (negative is a loss). Both filters are optional.",
         "security": [
           {
             "bearerAuth": []

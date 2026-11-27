@@ -7,7 +7,12 @@ permintaan, lalu Purchasing langsung menyiapkan PO tanpa tombol persetujuan terp
 Menu **Permintaan Pembelian** di PPIC merupakan daftar untuk meninjau
 permintaan Gudang, tanpa tombol pengajuan baru, edit, atau pembatalan pemohon.
 Menu yang sama di Gudang tetap menyediakan pengajuan, edit, dan pembatalan
-sesuai permission serta kepemilikan permintaan.
+sesuai permission serta kepemilikan permintaan. Rencana PO-first di
+`22-Rencana-Multi-Supplier-dan-Harga.md` menempatkan PPIC sebagai jalur utama
+pemohon; sampai sekarang URL tambah PPIC mengarah kembali ke daftar tinjauan,
+jadi jalur PPIC sebagai pemohon belum tersedia di UI dan perlu dikerjakan
+terpisah. PPIC tetap dapat mengedit atau mengirim ulang permintaan yang
+direvisi lewat halaman terkait.
 
 ## Alur Persetujuan
 
@@ -41,8 +46,12 @@ Riwayat seluruh langkah dibaca dari `GET /api/v1/approvals/{id}`.
 ## Permission dan navigasi
 
 Gudang menggunakan `purchase-request.create`. PPIC memakai
-`purchase-request.approve` untuk keputusan permintaan; role Koor PPIC diberi
-permission tersebut oleh migrasi/seeder. Purchasing memakai
+`purchase-request.approve` untuk keputusan permintaan, tetapi permission ini
+**tidak** diberikan oleh migrasi/seeder: sesuai `src/test/integration/permissions.test.ts`,
+izin tersebut saat ini melekat pada Koor Purchasing. Untuk memakai jalur
+tinjauan PPIC, Koor PPIC harus diberi `purchase-request.approve` manual lewat
+Superadmin → Roles (`PUT /api/v1/superadmin/roles/{id}/permissions`, replace-all,
+jadi permission lama harus tetap dicentang). Purchasing memakai
 `purchase-order.create` untuk menyiapkan dan menyimpan PO. Selama backend
 masih memiliki langkah Purchasing, penyimpanan PO dari permintaan
 `pending` langkah 3 juga memerlukan `purchase-request.approve`; akun tanpa
@@ -50,7 +59,6 @@ izin ini mendapat pesan bahwa proses tidak dapat dilanjutkan, tanpa
 mengirim pemetaan atau PO. Permintaan yang sudah `approved` tidak
 memerlukan panggilan persetujuan lagi. Role PPIC lainnya dapat membaca
 sesuai izin menu, tetapi tidak mendapat tombol keputusan tanpa izin approve.
-Role khusus dikelola melalui pengaturan permission Superadmin.
 PPIC tidak dapat membuat permintaan baru meskipun masih memiliki permission
 create dari pengaturan lama. URL tambah PPIC mengarah kembali ke daftar
 peninjauan. Form bersama tetap dipakai oleh Gudang.
@@ -219,9 +227,10 @@ kecocokan tunggal yang digunakan; barang ambigu, tidak ditemukan, atau
 gagal dimuat ditampilkan **Tidak tersedia**, bukan stok nol.
 
 Tombol **Buat PO** membuka form PO terisi, tanpa langsung menerbitkan PO.
-Barang dikelompokkan menurut pasangan supplier dan proyek; pasangan yang
-berbeda memiliki form terpisah. Nama barang, satuan, proyek, supplier, kode
-barang dari master bila tersedia, dan **Qty Beli** diteruskan ke form.
+Barang dikelompokkan menurut pasangan proyek dan `noSpk`, lalu per supplier;
+kombinasi yang berbeda memiliki form terpisah. Nama barang, satuan, proyek,
+SPK, supplier, kode barang dari master bila tersedia, dan **Qty Beli**
+diteruskan ke form.
 Jumlah pesanan dan perhitungan total memakai Qty Beli. Indeks baris asli
 (`lineIndex`) dipertahankan walaupun barang terbagi ke beberapa form.
 Data persiapan disimpan di `sessionStorage` tab browser dengan token acak
