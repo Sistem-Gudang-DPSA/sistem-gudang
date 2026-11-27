@@ -152,6 +152,12 @@ memakai judul **DAFTAR PERMINTAAN PEMBELIAN** dengan teks pengantar
 **Kelola pengajuan permintaan pembelian barang.** Menu Permintaan Pembelian
 Purchasing berada di grup **Transaksi**, tepat di atas **PO Barang**.
 
+Kartu putih dan tabel rekap bersama di PPIC dan Purchasing memenuhi lebar
+halaman. Lebar kolom dibagi secara proporsional agar ruang kosong tersebar
+merata di antara Tanggal, Permintaan, Status, dan Aksi. Teks
+permintaan panjang membungkus ke baris berikutnya. Pada layar sempit,
+tabel dapat digulir secara horizontal.
+
 ## Tanggal pada form permintaan
 
 Kolom **Dikirim Tanggal** pada form tambah, edit, dan revisi dipetakan ke
