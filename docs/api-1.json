@@ -33832,7 +33832,7 @@
           "Stock Opname"
         ],
         "summary": "Record a stock opname",
-        "description": "PPIC opens exactly one opname per month and year. No stock value changes. systemPrice and physicalPrice on each line are snapshotted from the item master and are not sent; submit only locks the count, and PPIC pemutihan applies the stock and FIFO cost layers. Optional Idempotency-Key header (8 to 100 characters) replays the stored answer within 24 hours.",
+        "description": "PPIC opens exactly one opname per month and year. No stock value changes. systemPrice and physicalPrice on each line are snapshotted from the item master and are not sent; submit only locks the count, and PPIC pemutihan applies the stock and FIFO cost layers. Optional Idempotency-Key header (8 to 100 characters): with it, the same key and payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true and does not repeat the write; the same key with a different payload is 409; a malformed key is 400.",
         "security": [
           {
             "bearerAuth": []
