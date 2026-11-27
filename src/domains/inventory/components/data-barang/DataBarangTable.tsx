@@ -40,7 +40,7 @@ type Props = {
 };
 
 // Tabel Data Barang: kolom No, Foto, kolom per peran, dan Aksi. Kolom centang hanya bila `selection` diisi.
-export default function DataBarangTable({ rows, loading, columns, sort, onSort, photo, selection, rowActions, rowClassName, tbodyClassName }: Props) {
+export default function DataBarangTable({ rows, loading, columns, sort, onSort, photo, selection, rowActions, onRowClick, rowClassName, tbodyClassName }: Props) {
   const colSpan = columns.length + 2 + Number(!!selection) + Number(!!rowActions);
   return (
     <ScrollableTable ariaLabel="Tabel Data Barang">
