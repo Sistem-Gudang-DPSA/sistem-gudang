@@ -13,8 +13,9 @@ const REFERENCE_CACHE_MS = 60_000;
 
 // Bagian yang sama di layar Data Barang Gudang, PPIC dan Superadmin: data, cari, filter, dan pilihan baris.
 // Semua baris terfilter dimuat sekaligus dan dirender dalam satu tabel scroll.
-export function useDataBarang({ cacheReferenceLists = false }: { cacheReferenceLists?: boolean } = {}) {
-  const { sort, toggle, params: sortParams } = useSort();
+export function useDataBarang({ cacheReferenceLists = false, clientSortKeys = [] }: { cacheReferenceLists?: boolean; clientSortKeys?: readonly string[] } = {}) {
+  const { sort, toggle, params } = useSort();
+  const sortParams = sort && clientSortKeys.includes(sort.by) ? {} : params;
   const [filters, setFilters] = useState(emptyBarangFilters);
   const [showFilter, setShowFilter] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');

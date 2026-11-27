@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import SearchableSelect from './SearchableSelect';
 
 const options = [
@@ -72,5 +72,45 @@ describe('SearchableSelect', () => {
     expect(screen.queryAllByRole('option')).toHaveLength(0);
     fireEvent.keyDown(screen.getByLabelText('Cari Nama barang'), { key: 'Enter' });
     expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('SearchableSelect berkelompok', () => {
+  const groupedOptions = [
+    { value: '1', label: 'PT Kayu', group: 'Supplier Lainnya' },
+    { value: '2', label: 'PT Besi', group: 'Supplier Material' },
+  ];
+  const groups = [{ label: 'Supplier Material', emptyText: 'Belum dipetakan' }, { label: 'Supplier Lainnya' }];
+
+  it('mengurutkan pilihan menurut kelompok dan melewati judul kelompok saat navigasi keyboard', () => {
+    const onChange = vi.fn();
+    render(<SearchableSelect value="" onChange={onChange} options={groupedOptions} groups={groups} placeholder="Pilih" aria-label="Supplier" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Supplier' }));
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['PT Besi', 'PT Kayu']);
+    expect(within(screen.getByRole('group', { name: 'Supplier Material' })).getByRole('option').textContent).toBe('PT Besi');
+    const search = screen.getByLabelText('Cari Supplier');
+    fireEvent.keyDown(search, { key: 'ArrowDown' });
+    fireEvent.keyDown(search, { key: 'Enter' });
+    expect(onChange).toHaveBeenCalledWith('1');
+  });
+
+  it('mencari di kedua kelompok dan tetap memilih hasil yang tepat dengan Enter', () => {
+    const onChange = vi.fn();
+    render(<SearchableSelect value="1" onChange={onChange} options={groupedOptions} groups={groups} placeholder="Pilih" aria-label="Supplier" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Supplier' }));
+    const search = screen.getByLabelText('Cari Supplier');
+    fireEvent.change(search, { target: { value: 'BESI' } });
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['PT Besi']);
+    fireEvent.keyDown(search, { key: 'Enter' });
+    expect(onChange).toHaveBeenCalledWith('2');
+  });
+
+  it('menampilkan kelompok kosong dan garis pemisah tanpa menjadikannya pilihan', () => {
+    render(<SearchableSelect value="" onChange={vi.fn()} options={groupedOptions.slice(0, 1)} groups={groups} placeholder="Pilih" aria-label="Supplier" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Supplier' }));
+    expect(screen.getByText('Belum dipetakan')).toBeTruthy();
+    expect(screen.getByRole('group', { name: 'Supplier Lainnya' }).parentElement?.className).toContain('border-t');
+    expect(screen.getAllByRole('option')).toHaveLength(1);
   });
 });

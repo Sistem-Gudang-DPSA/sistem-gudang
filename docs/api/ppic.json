@@ -1,0 +1,4003 @@
+{
+  "paths": {
+    "/api/v1/spk-internal": {
+      "get": {
+        "tags": [
+          "SPK Internal"
+        ],
+        "summary": "List SPK internal lines",
+        "description": "One row per document line, each carrying its document header. Newest tanggalTerbit first. search matches noSpk, spkKlienInduk, sku or namaBarang.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "maximum": 100,
+              "default": 10
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "required": false,
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "LOCKED",
+                "BUFFER"
+              ]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SPK internal line list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "rows": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "noSpk": {
+                                "type": "string",
+                                "example": "SPK-INT/2026/003",
+                                "description": "Generated"
+                              },
+                              "tanggalTerbit": {
+                                "type": "string",
+                                "example": "2026-10-01"
+                              },
+                              "tujuanProduksi": {
+                                "type": "string"
+                              },
+                              "spkKlienInduk": {
+                                "type": "string",
+                                "description": "A noSpk from GET /api/v1/tracking/spk"
+                              },
+                              "penanggungJawab": {
+                                "type": "string",
+                                "description": "A name from GET /api/v1/tracking/pic"
+                              },
+                              "targetSelesai": {
+                                "type": "string",
+                                "example": "2026-12-31"
+                              },
+                              "catatan": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "id": {
+                                "type": "number",
+                                "description": "Line id, the id /allocate takes"
+                              },
+                              "spkInternalId": {
+                                "type": "number"
+                              },
+                              "sku": {
+                                "type": "string",
+                                "description": "Item code, empty when the item has none"
+                              },
+                              "namaBarang": {
+                                "type": "string"
+                              },
+                              "periode": {
+                                "type": "string",
+                                "example": "Oktober 2026",
+                                "description": "Month of tanggalTerbit"
+                              },
+                              "totalQty": {
+                                "type": "number"
+                              },
+                              "alokasiSpkKlien": {
+                                "type": "number"
+                              },
+                              "alokasiStokBebas": {
+                                "type": "number"
+                              },
+                              "totalStock": {
+                                "type": "number",
+                                "description": "Same as totalQty"
+                              },
+                              "totalBisaPakai": {
+                                "type": "number",
+                                "description": "Left of alokasiStokBebas, reduced by /allocate"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "LOCKED",
+                                  "BUFFER"
+                                ],
+                                "description": "LOCKED when totalBisaPakai is 0"
+                              }
+                            },
+                            "required": [
+                              "noSpk",
+                              "tanggalTerbit",
+                              "tujuanProduksi",
+                              "spkKlienInduk",
+                              "penanggungJawab",
+                              "targetSelesai",
+                              "catatan",
+                              "id",
+                              "spkInternalId",
+                              "sku",
+                              "namaBarang",
+                              "periode",
+                              "totalQty",
+                              "alokasiSpkKlien",
+                              "alokasiStokBebas",
+                              "totalStock",
+                              "totalBisaPakai",
+                              "status"
+                            ]
+                          }
+                        },
+                        "total": {
+                          "type": "number"
+                        },
+                        "page": {
+                          "type": "number"
+                        },
+                        "pageSize": {
+                          "type": "number"
+                        },
+                        "summary": {
+                          "type": "object",
+                          "properties": {
+                            "totalBuffer": {
+                              "type": "number",
+                              "description": "Sum of totalQty of BUFFER lines"
+                            },
+                            "stockUnallocated": {
+                              "type": "number",
+                              "description": "Sum of totalBisaPakai"
+                            },
+                            "dialokasikan": {
+                              "type": "number",
+                              "description": "Sum of totalQty of LOCKED lines"
+                            }
+                          },
+                          "required": [
+                            "totalBuffer",
+                            "stockUnallocated",
+                            "dialokasikan"
+                          ],
+                          "description": "Over every line the filters match, not just the page"
+                        }
+                      },
+                      "required": [
+                        "rows",
+                        "total",
+                        "page",
+                        "pageSize",
+                        "summary"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "SPK Internal"
+        ],
+        "summary": "Create an SPK internal document with its lines",
+        "description": "noSpk is generated. spkKlienInduk must be one of GET /api/v1/tracking/spk and penanggungJawab one of GET /api/v1/tracking/pic, 400 otherwise. Per line alokasiSpkKlien + alokasiStokBebas must equal totalQty, and totalBisaPakai starts at alokasiStokBebas. An item may appear once per document.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tanggalTerbit": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "tujuanProduksi": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "spkKlienInduk": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "penanggungJawab": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 191
+                  },
+                  "targetSelesai": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "catatan": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "lines": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "itemId": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        },
+                        "totalQty": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        },
+                        "alokasiSpkKlien": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "alokasiStokBebas": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      },
+                      "required": [
+                        "itemId",
+                        "totalQty",
+                        "alokasiSpkKlien",
+                        "alokasiStokBebas"
+                      ]
+                    },
+                    "minItems": 1
+                  }
+                },
+                "required": [
+                  "tanggalTerbit",
+                  "tujuanProduksi",
+                  "spkKlienInduk",
+                  "penanggungJawab",
+                  "targetSelesai",
+                  "lines"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "SPK internal created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "noSpk": {
+                          "type": "string",
+                          "example": "SPK-INT/2026/003",
+                          "description": "Generated"
+                        },
+                        "tanggalTerbit": {
+                          "type": "string",
+                          "example": "2026-10-01"
+                        },
+                        "tujuanProduksi": {
+                          "type": "string"
+                        },
+                        "spkKlienInduk": {
+                          "type": "string",
+                          "description": "A noSpk from GET /api/v1/tracking/spk"
+                        },
+                        "penanggungJawab": {
+                          "type": "string",
+                          "description": "A name from GET /api/v1/tracking/pic"
+                        },
+                        "targetSelesai": {
+                          "type": "string",
+                          "example": "2026-12-31"
+                        },
+                        "catatan": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "id": {
+                          "type": "number"
+                        },
+                        "lines": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "noSpk": {
+                                "type": "string",
+                                "example": "SPK-INT/2026/003",
+                                "description": "Generated"
+                              },
+                              "tanggalTerbit": {
+                                "type": "string",
+                                "example": "2026-10-01"
+                              },
+                              "tujuanProduksi": {
+                                "type": "string"
+                              },
+                              "spkKlienInduk": {
+                                "type": "string",
+                                "description": "A noSpk from GET /api/v1/tracking/spk"
+                              },
+                              "penanggungJawab": {
+                                "type": "string",
+                                "description": "A name from GET /api/v1/tracking/pic"
+                              },
+                              "targetSelesai": {
+                                "type": "string",
+                                "example": "2026-12-31"
+                              },
+                              "catatan": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "id": {
+                                "type": "number",
+                                "description": "Line id, the id /allocate takes"
+                              },
+                              "spkInternalId": {
+                                "type": "number"
+                              },
+                              "sku": {
+                                "type": "string",
+                                "description": "Item code, empty when the item has none"
+                              },
+                              "namaBarang": {
+                                "type": "string"
+                              },
+                              "periode": {
+                                "type": "string",
+                                "example": "Oktober 2026",
+                                "description": "Month of tanggalTerbit"
+                              },
+                              "totalQty": {
+                                "type": "number"
+                              },
+                              "alokasiSpkKlien": {
+                                "type": "number"
+                              },
+                              "alokasiStokBebas": {
+                                "type": "number"
+                              },
+                              "totalStock": {
+                                "type": "number",
+                                "description": "Same as totalQty"
+                              },
+                              "totalBisaPakai": {
+                                "type": "number",
+                                "description": "Left of alokasiStokBebas, reduced by /allocate"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "LOCKED",
+                                  "BUFFER"
+                                ],
+                                "description": "LOCKED when totalBisaPakai is 0"
+                              }
+                            },
+                            "required": [
+                              "noSpk",
+                              "tanggalTerbit",
+                              "tujuanProduksi",
+                              "spkKlienInduk",
+                              "penanggungJawab",
+                              "targetSelesai",
+                              "catatan",
+                              "id",
+                              "spkInternalId",
+                              "sku",
+                              "namaBarang",
+                              "periode",
+                              "totalQty",
+                              "alokasiSpkKlien",
+                              "alokasiStokBebas",
+                              "totalStock",
+                              "totalBisaPakai",
+                              "status"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "noSpk",
+                        "tanggalTerbit",
+                        "tujuanProduksi",
+                        "spkKlienInduk",
+                        "penanggungJawab",
+                        "targetSelesai",
+                        "catatan",
+                        "id",
+                        "lines"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/spk-internal/{id}": {
+      "get": {
+        "tags": [
+          "SPK Internal"
+        ],
+        "summary": "Get one SPK internal line",
+        "description": "id is the line id from the list. Same row shape as the list. 404 when unknown.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The line",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "noSpk": {
+                          "type": "string",
+                          "example": "SPK-INT/2026/003",
+                          "description": "Generated"
+                        },
+                        "tanggalTerbit": {
+                          "type": "string",
+                          "example": "2026-10-01"
+                        },
+                        "tujuanProduksi": {
+                          "type": "string"
+                        },
+                        "spkKlienInduk": {
+                          "type": "string",
+                          "description": "A noSpk from GET /api/v1/tracking/spk"
+                        },
+                        "penanggungJawab": {
+                          "type": "string",
+                          "description": "A name from GET /api/v1/tracking/pic"
+                        },
+                        "targetSelesai": {
+                          "type": "string",
+                          "example": "2026-12-31"
+                        },
+                        "catatan": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "id": {
+                          "type": "number",
+                          "description": "Line id, the id /allocate takes"
+                        },
+                        "spkInternalId": {
+                          "type": "number"
+                        },
+                        "sku": {
+                          "type": "string",
+                          "description": "Item code, empty when the item has none"
+                        },
+                        "namaBarang": {
+                          "type": "string"
+                        },
+                        "periode": {
+                          "type": "string",
+                          "example": "Oktober 2026",
+                          "description": "Month of tanggalTerbit"
+                        },
+                        "totalQty": {
+                          "type": "number"
+                        },
+                        "alokasiSpkKlien": {
+                          "type": "number"
+                        },
+                        "alokasiStokBebas": {
+                          "type": "number"
+                        },
+                        "totalStock": {
+                          "type": "number",
+                          "description": "Same as totalQty"
+                        },
+                        "totalBisaPakai": {
+                          "type": "number",
+                          "description": "Left of alokasiStokBebas, reduced by /allocate"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "LOCKED",
+                            "BUFFER"
+                          ],
+                          "description": "LOCKED when totalBisaPakai is 0"
+                        }
+                      },
+                      "required": [
+                        "noSpk",
+                        "tanggalTerbit",
+                        "tujuanProduksi",
+                        "spkKlienInduk",
+                        "penanggungJawab",
+                        "targetSelesai",
+                        "catatan",
+                        "id",
+                        "spkInternalId",
+                        "sku",
+                        "namaBarang",
+                        "periode",
+                        "totalQty",
+                        "alokasiSpkKlien",
+                        "alokasiStokBebas",
+                        "totalStock",
+                        "totalBisaPakai",
+                        "status"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/spk-internal/{id}/allocate": {
+      "post": {
+        "tags": [
+          "SPK Internal"
+        ],
+        "summary": "Allocate quantity on a line",
+        "description": "id is the line id from the list. Subtracts jumlah from totalBisaPakai. 400 when jumlah is not a positive integer or is more than totalBisaPakai. The line becomes LOCKED at 0. Item stock is not changed. Optional Idempotency-Key header (8 to 100 characters): with it, the same key and payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true and does not repeat the write; the same key with a different payload is 409; a malformed key is 400. Without it the request behaves as before.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "example": "6f1c2d3e-0b7a-4c55-9a3e-1d2f3a4b5c6d"
+            },
+            "required": false,
+            "name": "Idempotency-Key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "jumlah": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true
+                  }
+                },
+                "required": [
+                  "jumlah"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The line after allocation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "noSpk": {
+                          "type": "string",
+                          "example": "SPK-INT/2026/003",
+                          "description": "Generated"
+                        },
+                        "tanggalTerbit": {
+                          "type": "string",
+                          "example": "2026-10-01"
+                        },
+                        "tujuanProduksi": {
+                          "type": "string"
+                        },
+                        "spkKlienInduk": {
+                          "type": "string",
+                          "description": "A noSpk from GET /api/v1/tracking/spk"
+                        },
+                        "penanggungJawab": {
+                          "type": "string",
+                          "description": "A name from GET /api/v1/tracking/pic"
+                        },
+                        "targetSelesai": {
+                          "type": "string",
+                          "example": "2026-12-31"
+                        },
+                        "catatan": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "id": {
+                          "type": "number",
+                          "description": "Line id, the id /allocate takes"
+                        },
+                        "spkInternalId": {
+                          "type": "number"
+                        },
+                        "sku": {
+                          "type": "string",
+                          "description": "Item code, empty when the item has none"
+                        },
+                        "namaBarang": {
+                          "type": "string"
+                        },
+                        "periode": {
+                          "type": "string",
+                          "example": "Oktober 2026",
+                          "description": "Month of tanggalTerbit"
+                        },
+                        "totalQty": {
+                          "type": "number"
+                        },
+                        "alokasiSpkKlien": {
+                          "type": "number"
+                        },
+                        "alokasiStokBebas": {
+                          "type": "number"
+                        },
+                        "totalStock": {
+                          "type": "number",
+                          "description": "Same as totalQty"
+                        },
+                        "totalBisaPakai": {
+                          "type": "number",
+                          "description": "Left of alokasiStokBebas, reduced by /allocate"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "LOCKED",
+                            "BUFFER"
+                          ],
+                          "description": "LOCKED when totalBisaPakai is 0"
+                        }
+                      },
+                      "required": [
+                        "noSpk",
+                        "tanggalTerbit",
+                        "tujuanProduksi",
+                        "spkKlienInduk",
+                        "penanggungJawab",
+                        "targetSelesai",
+                        "catatan",
+                        "id",
+                        "spkInternalId",
+                        "sku",
+                        "namaBarang",
+                        "periode",
+                        "totalQty",
+                        "alokasiSpkKlien",
+                        "alokasiStokBebas",
+                        "totalStock",
+                        "totalBisaPakai",
+                        "status"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stock-reconciliations": {
+      "get": {
+        "tags": [
+          "Stock Reconciliation"
+        ],
+        "summary": "List stock reconciliations",
+        "description": "PPIC sees drafts and posted rows. Gudang only sees POSTED rows.",
+        "responses": {
+          "200": {
+            "description": "Stock reconciliations"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Stock Reconciliation"
+        ],
+        "summary": "Create a stock reconciliation draft",
+        "description": "Optional Idempotency-Key replays the draft within 24 hours. Lines are prefilled from the suggestions endpoint.",
+        "responses": {
+          "200": {
+            "description": "Stock reconciliation draft"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 100
+            },
+            "required": false,
+            "name": "Idempotency-Key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "month": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 12
+                  },
+                  "year": {
+                    "type": "integer",
+                    "minimum": 2000,
+                    "maximum": 2100
+                  },
+                  "notes": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "lines": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "itemId": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        },
+                        "physicalQty": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1000000,
+                          "multipleOf": 0.001
+                        },
+                        "note": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        }
+                      },
+                      "required": [
+                        "itemId",
+                        "physicalQty"
+                      ]
+                    },
+                    "minItems": 1
+                  }
+                },
+                "required": [
+                  "month",
+                  "year",
+                  "lines"
+                ]
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/v1/stock-reconciliations/suggestions": {
+      "get": {
+        "tags": [
+          "Stock Reconciliation"
+        ],
+        "summary": "Suggest stock reconciliation lines for a month",
+        "responses": {
+          "200": {
+            "description": "Suggested lines"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 12
+            },
+            "required": true,
+            "name": "month",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 2000,
+              "maximum": 2100
+            },
+            "required": true,
+            "name": "year",
+            "in": "query"
+          }
+        ]
+      }
+    },
+    "/api/v1/stock-reconciliations/{id}": {
+      "get": {
+        "tags": [
+          "Stock Reconciliation"
+        ],
+        "summary": "Stock reconciliation detail",
+        "description": "Gudang gets 404 for a DRAFT document.",
+        "responses": {
+          "200": {
+            "description": "Stock reconciliation detail"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Stock Reconciliation"
+        ],
+        "summary": "Update a stock reconciliation draft",
+        "responses": {
+          "200": {
+            "description": "Stock reconciliation detail"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "month": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 12
+                  },
+                  "year": {
+                    "type": "integer",
+                    "minimum": 2000,
+                    "maximum": 2100
+                  },
+                  "notes": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "lines": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "itemId": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        },
+                        "physicalQty": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1000000,
+                          "multipleOf": 0.001
+                        },
+                        "note": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        }
+                      },
+                      "required": [
+                        "itemId",
+                        "physicalQty"
+                      ]
+                    },
+                    "minItems": 1
+                  }
+                },
+                "required": [
+                  "month",
+                  "year",
+                  "lines"
+                ]
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/v1/stock-reconciliations/{id}/post": {
+      "post": {
+        "tags": [
+          "Stock Reconciliation"
+        ],
+        "summary": "Post a stock reconciliation",
+        "description": "Only PPIC. Applies every line to items.stock and the FIFO cost layers in one transaction. After posting every line has difference 0 and the old snapshot stays in the audit log. Optional Idempotency-Key prevents double posting.",
+        "responses": {
+          "200": {
+            "description": "Posted stock reconciliation"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 100
+            },
+            "required": false,
+            "name": "Idempotency-Key",
+            "in": "header"
+          }
+        ]
+      }
+    },
+    "/api/v1/stock-opname": {
+      "get": {
+        "tags": [
+          "Stock Opname"
+        ],
+        "summary": "List stock opnames",
+        "description": "Newest period first. search matches the notes or the code/name of any counted item. Rows carry lineCount, lines are on the detail endpoint.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "maximum": 100,
+              "default": 10
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "required": false,
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 12
+            },
+            "required": false,
+            "name": "month",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 2000,
+              "maximum": 2100
+            },
+            "required": false,
+            "name": "year",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "period",
+                "createdAt",
+                "createdBy"
+              ]
+            },
+            "required": false,
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            },
+            "required": false,
+            "name": "sortDir",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stock opname list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "rows": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "number"
+                              },
+                              "month": {
+                                "type": "number"
+                              },
+                              "year": {
+                                "type": "number"
+                              },
+                              "notes": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "createdBy": {
+                                "type": "number"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              },
+                              "lineCount": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "month",
+                              "year",
+                              "notes",
+                              "createdBy",
+                              "createdAt",
+                              "lineCount"
+                            ]
+                          }
+                        },
+                        "total": {
+                          "type": "number"
+                        },
+                        "page": {
+                          "type": "number"
+                        },
+                        "pageSize": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "rows",
+                        "total",
+                        "page",
+                        "pageSize"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Stock Opname"
+        ],
+        "summary": "Record a stock opname",
+        "description": "PPIC opens exactly one opname per month and year. No stock value changes. systemPrice and physicalPrice on each line are snapshotted from the item master and are not sent; submit only locks the count, and PPIC pemutihan applies the stock and FIFO cost layers. Optional Idempotency-Key header (8 to 100 characters): with it, the same key and payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true and does not repeat the write; the same key with a different payload is 409; a malformed key is 400.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "6f1c2d3e-0b7a-4c55-9a3e-1d2f3a4b5c6d"
+            },
+            "required": false,
+            "name": "Idempotency-Key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "month": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 12
+                  },
+                  "year": {
+                    "type": "integer",
+                    "minimum": 2000,
+                    "maximum": 2100
+                  },
+                  "notes": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "lines": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "itemId": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        },
+                        "physicalQty": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1000000,
+                          "multipleOf": 0.001
+                        },
+                        "note": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        }
+                      },
+                      "required": [
+                        "itemId",
+                        "physicalQty"
+                      ]
+                    },
+                    "minItems": 1
+                  }
+                },
+                "required": [
+                  "month",
+                  "year",
+                  "lines"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Stock opname created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "month": {
+                          "type": "number"
+                        },
+                        "year": {
+                          "type": "number"
+                        },
+                        "notes": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdBy": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "lines": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "itemId": {
+                                "type": "number"
+                              },
+                              "itemCode": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "itemName": {
+                                "type": "string"
+                              },
+                              "category": {
+                                "type": "string"
+                              },
+                              "unit": {
+                                "type": "string"
+                              },
+                              "systemQty": {
+                                "type": "number"
+                              },
+                              "physicalQty": {
+                                "type": "number"
+                              },
+                              "difference": {
+                                "type": "number",
+                                "description": "physicalQty minus systemQty"
+                              },
+                              "systemPrice": {
+                                "type": "number"
+                              },
+                              "physicalPrice": {
+                                "type": "number"
+                              },
+                              "note": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "itemId",
+                              "itemCode",
+                              "itemName",
+                              "category",
+                              "unit",
+                              "systemQty",
+                              "physicalQty",
+                              "difference",
+                              "systemPrice",
+                              "physicalPrice",
+                              "note"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "month",
+                        "year",
+                        "notes",
+                        "createdBy",
+                        "createdAt",
+                        "lines"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stock-opname/{id}/lines": {
+      "patch": {
+        "tags": [
+          "Stock Opname"
+        ],
+        "summary": "Save part of an open stock opname",
+        "description": "Gudang saves counted lines in parts. physicalQty null removes the line. itemId must not repeat in one request.",
+        "responses": {
+          "200": {
+            "description": "Stock opname lines saved"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "lines": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "itemId": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        },
+                        "physicalQty": {
+                          "type": "number",
+                          "nullable": true,
+                          "minimum": 0,
+                          "maximum": 1000000,
+                          "multipleOf": 0.001
+                        },
+                        "note": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 255
+                        }
+                      },
+                      "required": [
+                        "itemId",
+                        "physicalQty"
+                      ]
+                    },
+                    "minItems": 1,
+                    "maxItems": 500
+                  }
+                },
+                "required": [
+                  "lines"
+                ]
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/v1/stock-opname/{id}/submit": {
+      "post": {
+        "tags": [
+          "Stock Opname"
+        ],
+        "summary": "Submit a stock opname",
+        "description": "Closes the physical count. System stock is not changed by submit; PPIC posts the write-off later.",
+        "responses": {
+          "200": {
+            "description": "Stock opname submitted"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ]
+      }
+    },
+    "/api/v1/stock-opname/{id}/reopen": {
+      "post": {
+        "tags": [
+          "Stock Opname"
+        ],
+        "summary": "Reopen a submitted stock opname",
+        "description": "PPIC reopens a submitted opname so Gudang can correct the count.",
+        "responses": {
+          "200": {
+            "description": "Stock opname reopened"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ]
+      }
+    },
+    "/api/v1/stock-opname/{id}": {
+      "get": {
+        "tags": [
+          "Stock Opname"
+        ],
+        "summary": "Get one stock opname with its lines",
+        "description": "Each line carries systemQty and systemPrice as they were when the count was recorded.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stock opname",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "month": {
+                          "type": "number"
+                        },
+                        "year": {
+                          "type": "number"
+                        },
+                        "notes": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdBy": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "lines": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "itemId": {
+                                "type": "number"
+                              },
+                              "itemCode": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "itemName": {
+                                "type": "string"
+                              },
+                              "category": {
+                                "type": "string"
+                              },
+                              "unit": {
+                                "type": "string"
+                              },
+                              "systemQty": {
+                                "type": "number"
+                              },
+                              "physicalQty": {
+                                "type": "number"
+                              },
+                              "difference": {
+                                "type": "number",
+                                "description": "physicalQty minus systemQty"
+                              },
+                              "systemPrice": {
+                                "type": "number"
+                              },
+                              "physicalPrice": {
+                                "type": "number"
+                              },
+                              "note": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "itemId",
+                              "itemCode",
+                              "itemName",
+                              "category",
+                              "unit",
+                              "systemQty",
+                              "physicalQty",
+                              "difference",
+                              "systemPrice",
+                              "physicalPrice",
+                              "note"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "month",
+                        "year",
+                        "notes",
+                        "createdBy",
+                        "createdAt",
+                        "lines"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/material-requests": {
+      "get": {
+        "tags": [
+          "Material Request"
+        ],
+        "summary": "List material requests (Rekap Permintaan)",
+        "description": "Requests for materials to be issued from the warehouse, not purchase requests. startDate and endDate are inclusive and filter on requestDate. search matches SPK, client, production item and tool group.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "maximum": 100,
+              "default": 10
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "required": false,
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "PROSES",
+                "SELESAI"
+              ]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false,
+            "name": "startDate",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false,
+            "name": "endDate",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "requestDate",
+                "spk",
+                "clientName",
+                "productionItem",
+                "toolGroup",
+                "status"
+              ]
+            },
+            "required": false,
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            },
+            "required": false,
+            "name": "sortDir",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Material request list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "rows": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "number"
+                              },
+                              "requestDate": {
+                                "type": "string",
+                                "example": "2026-09-30"
+                              },
+                              "spk": {
+                                "type": "string"
+                              },
+                              "clientName": {
+                                "type": "string"
+                              },
+                              "productionItem": {
+                                "type": "string"
+                              },
+                              "toolGroup": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "PENDING",
+                                  "PROSES",
+                                  "SELESAI"
+                                ]
+                              },
+                              "notes": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "createdBy": {
+                                "type": "number"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              },
+                              "updatedAt": {
+                                "type": "string"
+                              },
+                              "lineCount": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "requestDate",
+                              "spk",
+                              "clientName",
+                              "productionItem",
+                              "toolGroup",
+                              "status",
+                              "notes",
+                              "createdBy",
+                              "createdAt",
+                              "updatedAt",
+                              "lineCount"
+                            ]
+                          }
+                        },
+                        "total": {
+                          "type": "number"
+                        },
+                        "page": {
+                          "type": "number"
+                        },
+                        "pageSize": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "rows",
+                        "total",
+                        "page",
+                        "pageSize"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Material Request"
+        ],
+        "summary": "File a material request",
+        "description": "spk must be one of GET /api/v1/tracking/spk (400 otherwise) and clientName is taken from there, a clientName in the body is ignored. Always created as PENDING, with at least one item line. Creating a request or changing its status never changes stock, only outbound does. Optional Idempotency-Key header (8 to 100 characters): with it, the same key and payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true and does not repeat the write; the same key with a different payload is 409; a malformed key is 400. Without it the request behaves as before.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "6f1c2d3e-0b7a-4c55-9a3e-1d2f3a4b5c6d"
+            },
+            "required": false,
+            "name": "Idempotency-Key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "requestDate": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "spk": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "productionItem": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 191
+                  },
+                  "toolGroup": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 191
+                  },
+                  "notes": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "lines": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "itemId": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true
+                        },
+                        "qty": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "exclusiveMinimum": true,
+                          "maximum": 1000000
+                        }
+                      },
+                      "required": [
+                        "itemId",
+                        "qty"
+                      ]
+                    },
+                    "minItems": 1
+                  }
+                },
+                "required": [
+                  "requestDate",
+                  "spk",
+                  "productionItem",
+                  "toolGroup",
+                  "lines"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Material request created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "requestDate": {
+                          "type": "string",
+                          "example": "2026-09-30"
+                        },
+                        "spk": {
+                          "type": "string"
+                        },
+                        "clientName": {
+                          "type": "string"
+                        },
+                        "productionItem": {
+                          "type": "string"
+                        },
+                        "toolGroup": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "PENDING",
+                            "PROSES",
+                            "SELESAI"
+                          ]
+                        },
+                        "notes": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdBy": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        },
+                        "lines": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "itemId": {
+                                "type": "number"
+                              },
+                              "itemCode": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "itemName": {
+                                "type": "string"
+                              },
+                              "locationCode": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "unit": {
+                                "type": "string"
+                              },
+                              "qty": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "itemId",
+                              "itemCode",
+                              "itemName",
+                              "locationCode",
+                              "unit",
+                              "qty"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "requestDate",
+                        "spk",
+                        "clientName",
+                        "productionItem",
+                        "toolGroup",
+                        "status",
+                        "notes",
+                        "createdBy",
+                        "createdAt",
+                        "updatedAt",
+                        "lines"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/material-requests/{id}": {
+      "get": {
+        "tags": [
+          "Material Request"
+        ],
+        "summary": "Get one material request with its lines",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Material request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "requestDate": {
+                          "type": "string",
+                          "example": "2026-09-30"
+                        },
+                        "spk": {
+                          "type": "string"
+                        },
+                        "clientName": {
+                          "type": "string"
+                        },
+                        "productionItem": {
+                          "type": "string"
+                        },
+                        "toolGroup": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "PENDING",
+                            "PROSES",
+                            "SELESAI"
+                          ]
+                        },
+                        "notes": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdBy": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        },
+                        "lines": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "itemId": {
+                                "type": "number"
+                              },
+                              "itemCode": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "itemName": {
+                                "type": "string"
+                              },
+                              "locationCode": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "unit": {
+                                "type": "string"
+                              },
+                              "qty": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "itemId",
+                              "itemCode",
+                              "itemName",
+                              "locationCode",
+                              "unit",
+                              "qty"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "requestDate",
+                        "spk",
+                        "clientName",
+                        "productionItem",
+                        "toolGroup",
+                        "status",
+                        "notes",
+                        "createdBy",
+                        "createdAt",
+                        "updatedAt",
+                        "lines"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/material-requests/{id}/status": {
+      "patch": {
+        "tags": [
+          "Material Request"
+        ],
+        "summary": "Move a material request to the next status",
+        "description": "Status only moves forward: PENDING, then PROSES, then SELESAI. Moving backward or to the same status returns 400.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "PENDING",
+                      "PROSES",
+                      "SELESAI"
+                    ]
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Status updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "requestDate": {
+                          "type": "string",
+                          "example": "2026-09-30"
+                        },
+                        "spk": {
+                          "type": "string"
+                        },
+                        "clientName": {
+                          "type": "string"
+                        },
+                        "productionItem": {
+                          "type": "string"
+                        },
+                        "toolGroup": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "PENDING",
+                            "PROSES",
+                            "SELESAI"
+                          ]
+                        },
+                        "notes": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdBy": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        },
+                        "lines": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "itemId": {
+                                "type": "number"
+                              },
+                              "itemCode": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "itemName": {
+                                "type": "string"
+                              },
+                              "locationCode": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "unit": {
+                                "type": "string"
+                              },
+                              "qty": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "itemId",
+                              "itemCode",
+                              "itemName",
+                              "locationCode",
+                              "unit",
+                              "qty"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "requestDate",
+                        "spk",
+                        "clientName",
+                        "productionItem",
+                        "toolGroup",
+                        "status",
+                        "notes",
+                        "createdBy",
+                        "createdAt",
+                        "updatedAt",
+                        "lines"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

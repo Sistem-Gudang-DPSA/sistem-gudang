@@ -29,7 +29,7 @@ async function ready(api: ReturnType<typeof installFakeApi>) {
 }
 
 describe('DataBarang list', () => {
-  it('hides the supplier column while keeping supplier filters and location codes', async () => {
+  it('hides supplier cells while keeping location codes and supplier filter options', async () => {
     const api = setup();
     await ready(api);
     expect(screen.queryByRole('columnheader', { name: 'Supplier' })).toBeNull();

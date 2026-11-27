@@ -8,7 +8,6 @@ import type { ItemListRow } from '@/domains/inventory/types';
 
 export type BarangColumn = {
   label: string;
-  hidden?: boolean;
   sortKey?: string;
   align?: 'left' | 'right' | 'center';
   tdClassName?: string;
@@ -42,8 +41,7 @@ type Props = {
 
 // Tabel Data Barang: kolom No, Foto, kolom per peran, dan Aksi. Kolom centang hanya bila `selection` diisi.
 export default function DataBarangTable({ rows, loading, columns, sort, onSort, photo, selection, rowActions, onRowClick, rowClassName, tbodyClassName }: Props) {
-  const visibleColumns = columns.filter((column) => !column.hidden);
-  const colSpan = visibleColumns.length + 2 + Number(!!selection) + Number(!!rowActions);
+  const colSpan = columns.length + 2 + Number(!!selection) + Number(!!rowActions);
   return (
     <ScrollableTable ariaLabel="Tabel Data Barang">
       <table className="w-full text-left text-sm whitespace-nowrap">
@@ -63,7 +61,7 @@ export default function DataBarangTable({ rows, loading, columns, sort, onSort, 
             )}
             <th scope="col" className="px-6 py-3">No</th>
             <th scope="col" className="px-6 py-3">Foto</th>
-            {visibleColumns.map((col) => col.sortKey ? (
+            {columns.map((col) => col.sortKey ? (
               <SortableTh key={col.label} label={col.label} sortKey={col.sortKey} sort={sort} onSort={onSort} align={col.align} />
             ) : (
               <th key={col.label} scope="col" className="px-6 py-3">{col.label}</th>
@@ -102,7 +100,7 @@ export default function DataBarangTable({ rows, loading, columns, sort, onSort, 
               <td className="px-6 py-3">
                 <ItemPhoto item={item} canUpload={photo.canUpload} onUploaded={photo.onUploaded} />
               </td>
-              {visibleColumns.map((col) => col.cell && (
+              {columns.map((col) => col.cell && (
                 <td key={col.label} className={col.tdClassName ?? 'px-6 py-3'}>{col.cell(item, index)}</td>
               ))}
               {rowActions && <td className="px-6 py-3 text-center">{rowActions(item)}</td>}

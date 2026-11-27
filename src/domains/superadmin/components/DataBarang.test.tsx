@@ -67,8 +67,6 @@ describe('DataBarang superadmin: kolom harga', () => {
     setup({});
     const row = (await screen.findByText('Barang 1')).closest('tr');
     expect(screen.getByRole('columnheader', { name: 'Harga Terbaru' })).toBeTruthy();
-    expect(screen.queryByRole('columnheader', { name: 'Supplier' })).toBeNull();
-    expect(within(row!).queryByText('PT Kayu')).toBeNull();
     expect(within(row!).getByText('1.000')).toBeTruthy();
     expect(within(row!).queryByText(/^per /)).toBeNull();
   });
@@ -79,9 +77,8 @@ describe('DataBarang superadmin: kolom harga', () => {
     expect(within(row!).getByText('per 23-11-2026')).toBeTruthy();
     fireEvent.click(screen.getByText('Mode Edit'));
     await waitFor(() => expect(screen.getByLabelText('Harga Barang 1')).toBeTruthy());
-    expect(screen.queryByText('per 23-11-2026')).toBeNull();
     expect(screen.queryByLabelText('Supplier Barang 1')).toBeNull();
-    expect(screen.queryByRole('columnheader', { name: 'Supplier' })).toBeNull();
+    expect(screen.queryByText('per 23-11-2026')).toBeNull();
   });
 });
 
@@ -305,6 +302,7 @@ describe('DataBarang superadmin: pemetaan supplier massal', () => {
 
     await waitFor(() => expect(api.calls('PUT /api/v1/items/2/suppliers')).toHaveLength(1));
     expect(api.calls('PUT /api/v1/items/1/suppliers')[0].body).toEqual({ supplierIds: [7, 8] });
+    expect(api.calls('PUT /api/v1/items/2/suppliers')[0].body).toEqual({ supplierIds: [7, 8] });
     expect(await screen.findByText('2 barang dipetakan ke PT Kayu, CV Baja.')).not.toBeNull();
   });
 

@@ -1,0 +1,2823 @@
+{
+  "paths": {
+    "/api/v1/dokubah": {
+      "get": {
+        "tags": [
+          "Dokubah"
+        ],
+        "summary": "List dokubah",
+        "description": "Newest tanggalMulai first. search matches noSpk or client. startDate and endDate filter on tanggalMulai. Rows carry totalKuota and totalRealisasi, materials are on the detail endpoint.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "maximum": 100,
+              "default": 10
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "required": false,
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DRAFT",
+                "PENDING",
+                "APPROVED",
+                "REJECTED"
+              ]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false,
+            "name": "startDate",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false,
+            "name": "endDate",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "noSpk",
+                "client",
+                "totalAnggaran",
+                "status"
+              ]
+            },
+            "required": false,
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            },
+            "required": false,
+            "name": "sortDir",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dokubah list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "rows": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "number"
+                              },
+                              "noSpk": {
+                                "type": "string"
+                              },
+                              "client": {
+                                "type": "string"
+                              },
+                              "tanggalMulai": {
+                                "type": "string",
+                                "example": "2026-10-01"
+                              },
+                              "tanggalSelesai": {
+                                "type": "string",
+                                "example": "2026-12-31"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "DRAFT",
+                                  "PENDING",
+                                  "APPROVED",
+                                  "REJECTED"
+                                ]
+                              },
+                              "fileDokubah": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "penanggungJawab": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "A name from GET /api/v1/tracking/pic"
+                              },
+                              "totalAnggaran": {
+                                "type": "number",
+                                "description": "Sum of kuota * hargaSatuan, computed"
+                              },
+                              "createdBy": {
+                                "type": "number"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              },
+                              "updatedAt": {
+                                "type": "string"
+                              },
+                              "totalKuota": {
+                                "type": "number"
+                              },
+                              "totalRealisasi": {
+                                "type": "number"
+                              },
+                              "totalRealisasiNilai": {
+                                "type": "number",
+                                "description": "Rupiah: sum of realisasi * hargaSatuan"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "noSpk",
+                              "client",
+                              "tanggalMulai",
+                              "tanggalSelesai",
+                              "status",
+                              "fileDokubah",
+                              "penanggungJawab",
+                              "totalAnggaran",
+                              "createdBy",
+                              "createdAt",
+                              "updatedAt",
+                              "totalKuota",
+                              "totalRealisasi",
+                              "totalRealisasiNilai"
+                            ]
+                          }
+                        },
+                        "total": {
+                          "type": "number"
+                        },
+                        "page": {
+                          "type": "number"
+                        },
+                        "pageSize": {
+                          "type": "number"
+                        },
+                        "summary": {
+                          "type": "object",
+                          "properties": {
+                            "totalDokubah": {
+                              "type": "number"
+                            },
+                            "totalApproved": {
+                              "type": "number",
+                              "description": "APPROVED count"
+                            },
+                            "overbudgetCount": {
+                              "type": "number",
+                              "description": "Dokubah whose nilaiRealisasi exceeds its totalAnggaran"
+                            },
+                            "totalKuota": {
+                              "type": "number"
+                            },
+                            "totalRealisasi": {
+                              "type": "number"
+                            },
+                            "nilaiKuota": {
+                              "type": "number",
+                              "description": "Rupiah: sum of totalAnggaran"
+                            },
+                            "nilaiRealisasi": {
+                              "type": "number",
+                              "description": "Rupiah"
+                            }
+                          },
+                          "required": [
+                            "totalDokubah",
+                            "totalApproved",
+                            "overbudgetCount",
+                            "totalKuota",
+                            "totalRealisasi",
+                            "nilaiKuota",
+                            "nilaiRealisasi"
+                          ],
+                          "description": "Over every dokubah the filters match, not just the page"
+                        }
+                      },
+                      "required": [
+                        "rows",
+                        "total",
+                        "page",
+                        "pageSize",
+                        "summary"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Dokubah"
+        ],
+        "summary": "Create a dokubah",
+        "description": "noSpk must be one of GET /api/v1/tracking/spk (400 otherwise) and client is taken from there, a client in the body is ignored. status DRAFT (default) may have no materials. status PENDING releases it and needs at least one. totalAnggaran is computed, realisasi is read from outbound, neither is accepted. noSpk must be unique (409 otherwise), kodeBarang unique within the dokubah.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "noSpk": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "client": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 191
+                  },
+                  "tanggalMulai": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "tanggalSelesai": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "fileDokubah": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  },
+                  "penanggungJawab": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 191
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "DRAFT",
+                      "PENDING"
+                    ],
+                    "default": "DRAFT"
+                  },
+                  "bahan": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "kodeBarang": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 191
+                        },
+                        "namaBahan": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 191
+                        },
+                        "satuan": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 50
+                        },
+                        "hargaSatuan": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 2000000000,
+                          "default": 0
+                        },
+                        "kuota": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 1000000
+                        },
+                        "keterangan": {
+                          "type": "string",
+                          "maxLength": 500,
+                          "default": ""
+                        }
+                      },
+                      "required": [
+                        "kodeBarang",
+                        "namaBahan",
+                        "satuan",
+                        "kuota"
+                      ]
+                    },
+                    "default": []
+                  }
+                },
+                "required": [
+                  "noSpk",
+                  "tanggalMulai",
+                  "tanggalSelesai"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Dokubah created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "noSpk": {
+                          "type": "string"
+                        },
+                        "client": {
+                          "type": "string"
+                        },
+                        "tanggalMulai": {
+                          "type": "string",
+                          "example": "2026-10-01"
+                        },
+                        "tanggalSelesai": {
+                          "type": "string",
+                          "example": "2026-12-31"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "DRAFT",
+                            "PENDING",
+                            "APPROVED",
+                            "REJECTED"
+                          ]
+                        },
+                        "fileDokubah": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "penanggungJawab": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "A name from GET /api/v1/tracking/pic"
+                        },
+                        "totalAnggaran": {
+                          "type": "number",
+                          "description": "Sum of kuota * hargaSatuan, computed"
+                        },
+                        "createdBy": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        },
+                        "bahan": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kodeBarang": {
+                                "type": "string"
+                              },
+                              "namaBahan": {
+                                "type": "string"
+                              },
+                              "satuan": {
+                                "type": "string"
+                              },
+                              "hargaSatuan": {
+                                "type": "number"
+                              },
+                              "kuota": {
+                                "type": "number"
+                              },
+                              "realisasi": {
+                                "type": "number",
+                                "description": "Read-only. Quantity of outbound lines whose SPK equals the dokubah noSpk and whose item code equals kodeBarang, counted once the dokubah is APPROVED, otherwise 0"
+                              },
+                              "keterangan": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kodeBarang",
+                              "namaBahan",
+                              "satuan",
+                              "hargaSatuan",
+                              "kuota",
+                              "realisasi",
+                              "keterangan"
+                            ]
+                          }
+                        },
+                        "riwayat": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "aksi": {
+                                "type": "string",
+                                "enum": [
+                                  "SUBMITTED",
+                                  "APPROVED",
+                                  "REJECTED"
+                                ]
+                              },
+                              "catatan": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "The reason, set for REJECTED"
+                              },
+                              "actorName": {
+                                "type": "string",
+                                "description": "Username of the actor"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "aksi",
+                              "catatan",
+                              "actorName",
+                              "createdAt"
+                            ]
+                          },
+                          "description": "Submit, approve and reject actions, oldest first"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "noSpk",
+                        "client",
+                        "tanggalMulai",
+                        "tanggalSelesai",
+                        "status",
+                        "fileDokubah",
+                        "penanggungJawab",
+                        "totalAnggaran",
+                        "createdBy",
+                        "createdAt",
+                        "updatedAt",
+                        "bahan",
+                        "riwayat"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dokubah/bahan-by-spk": {
+      "get": {
+        "tags": [
+          "Dokubah"
+        ],
+        "summary": "Get the bahan of many SPK at once",
+        "description": "Needs dokubah.view. Repeat the spk param (?spk=A&spk=B), 1 to 100 values, 400 otherwise. Returns one entry per requested spk in request order. bahan has the same shape and realisasi as bahan in GET /api/v1/dokubah/{id}, and is [] when the SPK has no dokubah. noSpk is unique per dokubah, so there is never more than one dokubah to pick from.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1,
+              "maxItems": 100
+            },
+            "required": true,
+            "name": "spk",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bahan per SPK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "noSpk": {
+                            "type": "string"
+                          },
+                          "bahan": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "kodeBarang": {
+                                  "type": "string"
+                                },
+                                "namaBahan": {
+                                  "type": "string"
+                                },
+                                "satuan": {
+                                  "type": "string"
+                                },
+                                "hargaSatuan": {
+                                  "type": "number"
+                                },
+                                "kuota": {
+                                  "type": "number"
+                                },
+                                "realisasi": {
+                                  "type": "number",
+                                  "description": "Read-only. Quantity of outbound lines whose SPK equals the dokubah noSpk and whose item code equals kodeBarang, counted once the dokubah is APPROVED, otherwise 0"
+                                },
+                                "keterangan": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "kodeBarang",
+                                "namaBahan",
+                                "satuan",
+                                "hargaSatuan",
+                                "kuota",
+                                "realisasi",
+                                "keterangan"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "noSpk",
+                          "bahan"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dokubah/{id}": {
+      "get": {
+        "tags": [
+          "Dokubah"
+        ],
+        "summary": "Get one dokubah with its materials",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dokubah",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "noSpk": {
+                          "type": "string"
+                        },
+                        "client": {
+                          "type": "string"
+                        },
+                        "tanggalMulai": {
+                          "type": "string",
+                          "example": "2026-10-01"
+                        },
+                        "tanggalSelesai": {
+                          "type": "string",
+                          "example": "2026-12-31"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "DRAFT",
+                            "PENDING",
+                            "APPROVED",
+                            "REJECTED"
+                          ]
+                        },
+                        "fileDokubah": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "penanggungJawab": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "A name from GET /api/v1/tracking/pic"
+                        },
+                        "totalAnggaran": {
+                          "type": "number",
+                          "description": "Sum of kuota * hargaSatuan, computed"
+                        },
+                        "createdBy": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        },
+                        "bahan": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kodeBarang": {
+                                "type": "string"
+                              },
+                              "namaBahan": {
+                                "type": "string"
+                              },
+                              "satuan": {
+                                "type": "string"
+                              },
+                              "hargaSatuan": {
+                                "type": "number"
+                              },
+                              "kuota": {
+                                "type": "number"
+                              },
+                              "realisasi": {
+                                "type": "number",
+                                "description": "Read-only. Quantity of outbound lines whose SPK equals the dokubah noSpk and whose item code equals kodeBarang, counted once the dokubah is APPROVED, otherwise 0"
+                              },
+                              "keterangan": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kodeBarang",
+                              "namaBahan",
+                              "satuan",
+                              "hargaSatuan",
+                              "kuota",
+                              "realisasi",
+                              "keterangan"
+                            ]
+                          }
+                        },
+                        "riwayat": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "aksi": {
+                                "type": "string",
+                                "enum": [
+                                  "SUBMITTED",
+                                  "APPROVED",
+                                  "REJECTED"
+                                ]
+                              },
+                              "catatan": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "The reason, set for REJECTED"
+                              },
+                              "actorName": {
+                                "type": "string",
+                                "description": "Username of the actor"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "aksi",
+                              "catatan",
+                              "actorName",
+                              "createdAt"
+                            ]
+                          },
+                          "description": "Submit, approve and reject actions, oldest first"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "noSpk",
+                        "client",
+                        "tanggalMulai",
+                        "tanggalSelesai",
+                        "status",
+                        "fileDokubah",
+                        "penanggungJawab",
+                        "totalAnggaran",
+                        "createdBy",
+                        "createdAt",
+                        "updatedAt",
+                        "bahan",
+                        "riwayat"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dokubah/{id}/materials": {
+      "put": {
+        "tags": [
+          "Dokubah"
+        ],
+        "summary": "Replace the material list",
+        "description": "Replaces the whole list and recomputes totalAnggaran. realisasi is read from outbound, not stored. Rejected with 409 when the dokubah is APPROVED.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "bahan": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "kodeBarang": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 191
+                        },
+                        "namaBahan": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 191
+                        },
+                        "satuan": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 50
+                        },
+                        "hargaSatuan": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 2000000000,
+                          "default": 0
+                        },
+                        "kuota": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 1000000
+                        },
+                        "keterangan": {
+                          "type": "string",
+                          "maxLength": 500,
+                          "default": ""
+                        }
+                      },
+                      "required": [
+                        "kodeBarang",
+                        "namaBahan",
+                        "satuan",
+                        "kuota"
+                      ]
+                    },
+                    "minItems": 1
+                  }
+                },
+                "required": [
+                  "bahan"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Dokubah with new materials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "noSpk": {
+                          "type": "string"
+                        },
+                        "client": {
+                          "type": "string"
+                        },
+                        "tanggalMulai": {
+                          "type": "string",
+                          "example": "2026-10-01"
+                        },
+                        "tanggalSelesai": {
+                          "type": "string",
+                          "example": "2026-12-31"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "DRAFT",
+                            "PENDING",
+                            "APPROVED",
+                            "REJECTED"
+                          ]
+                        },
+                        "fileDokubah": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "penanggungJawab": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "A name from GET /api/v1/tracking/pic"
+                        },
+                        "totalAnggaran": {
+                          "type": "number",
+                          "description": "Sum of kuota * hargaSatuan, computed"
+                        },
+                        "createdBy": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        },
+                        "bahan": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kodeBarang": {
+                                "type": "string"
+                              },
+                              "namaBahan": {
+                                "type": "string"
+                              },
+                              "satuan": {
+                                "type": "string"
+                              },
+                              "hargaSatuan": {
+                                "type": "number"
+                              },
+                              "kuota": {
+                                "type": "number"
+                              },
+                              "realisasi": {
+                                "type": "number",
+                                "description": "Read-only. Quantity of outbound lines whose SPK equals the dokubah noSpk and whose item code equals kodeBarang, counted once the dokubah is APPROVED, otherwise 0"
+                              },
+                              "keterangan": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kodeBarang",
+                              "namaBahan",
+                              "satuan",
+                              "hargaSatuan",
+                              "kuota",
+                              "realisasi",
+                              "keterangan"
+                            ]
+                          }
+                        },
+                        "riwayat": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "aksi": {
+                                "type": "string",
+                                "enum": [
+                                  "SUBMITTED",
+                                  "APPROVED",
+                                  "REJECTED"
+                                ]
+                              },
+                              "catatan": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "The reason, set for REJECTED"
+                              },
+                              "actorName": {
+                                "type": "string",
+                                "description": "Username of the actor"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "aksi",
+                              "catatan",
+                              "actorName",
+                              "createdAt"
+                            ]
+                          },
+                          "description": "Submit, approve and reject actions, oldest first"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "noSpk",
+                        "client",
+                        "tanggalMulai",
+                        "tanggalSelesai",
+                        "status",
+                        "fileDokubah",
+                        "penanggungJawab",
+                        "totalAnggaran",
+                        "createdBy",
+                        "createdAt",
+                        "updatedAt",
+                        "bahan",
+                        "riwayat"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dokubah/{id}/submit": {
+      "post": {
+        "tags": [
+          "Dokubah"
+        ],
+        "summary": "Release a draft",
+        "description": "DRAFT or REJECTED to PENDING, needs at least one material. A rejected dokubah is fixed with PUT /materials first. 409 from any other status.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dokubah",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "noSpk": {
+                          "type": "string"
+                        },
+                        "client": {
+                          "type": "string"
+                        },
+                        "tanggalMulai": {
+                          "type": "string",
+                          "example": "2026-10-01"
+                        },
+                        "tanggalSelesai": {
+                          "type": "string",
+                          "example": "2026-12-31"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "DRAFT",
+                            "PENDING",
+                            "APPROVED",
+                            "REJECTED"
+                          ]
+                        },
+                        "fileDokubah": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "penanggungJawab": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "A name from GET /api/v1/tracking/pic"
+                        },
+                        "totalAnggaran": {
+                          "type": "number",
+                          "description": "Sum of kuota * hargaSatuan, computed"
+                        },
+                        "createdBy": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        },
+                        "bahan": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kodeBarang": {
+                                "type": "string"
+                              },
+                              "namaBahan": {
+                                "type": "string"
+                              },
+                              "satuan": {
+                                "type": "string"
+                              },
+                              "hargaSatuan": {
+                                "type": "number"
+                              },
+                              "kuota": {
+                                "type": "number"
+                              },
+                              "realisasi": {
+                                "type": "number",
+                                "description": "Read-only. Quantity of outbound lines whose SPK equals the dokubah noSpk and whose item code equals kodeBarang, counted once the dokubah is APPROVED, otherwise 0"
+                              },
+                              "keterangan": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kodeBarang",
+                              "namaBahan",
+                              "satuan",
+                              "hargaSatuan",
+                              "kuota",
+                              "realisasi",
+                              "keterangan"
+                            ]
+                          }
+                        },
+                        "riwayat": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "aksi": {
+                                "type": "string",
+                                "enum": [
+                                  "SUBMITTED",
+                                  "APPROVED",
+                                  "REJECTED"
+                                ]
+                              },
+                              "catatan": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "The reason, set for REJECTED"
+                              },
+                              "actorName": {
+                                "type": "string",
+                                "description": "Username of the actor"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "aksi",
+                              "catatan",
+                              "actorName",
+                              "createdAt"
+                            ]
+                          },
+                          "description": "Submit, approve and reject actions, oldest first"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "noSpk",
+                        "client",
+                        "tanggalMulai",
+                        "tanggalSelesai",
+                        "status",
+                        "fileDokubah",
+                        "penanggungJawab",
+                        "totalAnggaran",
+                        "createdBy",
+                        "createdAt",
+                        "updatedAt",
+                        "bahan",
+                        "riwayat"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dokubah/{id}/approve": {
+      "post": {
+        "tags": [
+          "Dokubah"
+        ],
+        "summary": "Approve a dokubah",
+        "description": "PENDING to APPROVED. 409 from any other status.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dokubah",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "noSpk": {
+                          "type": "string"
+                        },
+                        "client": {
+                          "type": "string"
+                        },
+                        "tanggalMulai": {
+                          "type": "string",
+                          "example": "2026-10-01"
+                        },
+                        "tanggalSelesai": {
+                          "type": "string",
+                          "example": "2026-12-31"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "DRAFT",
+                            "PENDING",
+                            "APPROVED",
+                            "REJECTED"
+                          ]
+                        },
+                        "fileDokubah": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "penanggungJawab": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "A name from GET /api/v1/tracking/pic"
+                        },
+                        "totalAnggaran": {
+                          "type": "number",
+                          "description": "Sum of kuota * hargaSatuan, computed"
+                        },
+                        "createdBy": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        },
+                        "bahan": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kodeBarang": {
+                                "type": "string"
+                              },
+                              "namaBahan": {
+                                "type": "string"
+                              },
+                              "satuan": {
+                                "type": "string"
+                              },
+                              "hargaSatuan": {
+                                "type": "number"
+                              },
+                              "kuota": {
+                                "type": "number"
+                              },
+                              "realisasi": {
+                                "type": "number",
+                                "description": "Read-only. Quantity of outbound lines whose SPK equals the dokubah noSpk and whose item code equals kodeBarang, counted once the dokubah is APPROVED, otherwise 0"
+                              },
+                              "keterangan": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kodeBarang",
+                              "namaBahan",
+                              "satuan",
+                              "hargaSatuan",
+                              "kuota",
+                              "realisasi",
+                              "keterangan"
+                            ]
+                          }
+                        },
+                        "riwayat": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "aksi": {
+                                "type": "string",
+                                "enum": [
+                                  "SUBMITTED",
+                                  "APPROVED",
+                                  "REJECTED"
+                                ]
+                              },
+                              "catatan": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "The reason, set for REJECTED"
+                              },
+                              "actorName": {
+                                "type": "string",
+                                "description": "Username of the actor"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "aksi",
+                              "catatan",
+                              "actorName",
+                              "createdAt"
+                            ]
+                          },
+                          "description": "Submit, approve and reject actions, oldest first"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "noSpk",
+                        "client",
+                        "tanggalMulai",
+                        "tanggalSelesai",
+                        "status",
+                        "fileDokubah",
+                        "penanggungJawab",
+                        "totalAnggaran",
+                        "createdBy",
+                        "createdAt",
+                        "updatedAt",
+                        "bahan",
+                        "riwayat"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dokubah/{id}/reject": {
+      "post": {
+        "tags": [
+          "Dokubah"
+        ],
+        "summary": "Reject a dokubah",
+        "description": "PENDING to REJECTED. The body needs a note with the reason, 400 without it. 409 from any other status.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "note": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "note"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Dokubah",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "noSpk": {
+                          "type": "string"
+                        },
+                        "client": {
+                          "type": "string"
+                        },
+                        "tanggalMulai": {
+                          "type": "string",
+                          "example": "2026-10-01"
+                        },
+                        "tanggalSelesai": {
+                          "type": "string",
+                          "example": "2026-12-31"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "DRAFT",
+                            "PENDING",
+                            "APPROVED",
+                            "REJECTED"
+                          ]
+                        },
+                        "fileDokubah": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "penanggungJawab": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "A name from GET /api/v1/tracking/pic"
+                        },
+                        "totalAnggaran": {
+                          "type": "number",
+                          "description": "Sum of kuota * hargaSatuan, computed"
+                        },
+                        "createdBy": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "updatedAt": {
+                          "type": "string"
+                        },
+                        "bahan": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kodeBarang": {
+                                "type": "string"
+                              },
+                              "namaBahan": {
+                                "type": "string"
+                              },
+                              "satuan": {
+                                "type": "string"
+                              },
+                              "hargaSatuan": {
+                                "type": "number"
+                              },
+                              "kuota": {
+                                "type": "number"
+                              },
+                              "realisasi": {
+                                "type": "number",
+                                "description": "Read-only. Quantity of outbound lines whose SPK equals the dokubah noSpk and whose item code equals kodeBarang, counted once the dokubah is APPROVED, otherwise 0"
+                              },
+                              "keterangan": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "kodeBarang",
+                              "namaBahan",
+                              "satuan",
+                              "hargaSatuan",
+                              "kuota",
+                              "realisasi",
+                              "keterangan"
+                            ]
+                          }
+                        },
+                        "riwayat": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "aksi": {
+                                "type": "string",
+                                "enum": [
+                                  "SUBMITTED",
+                                  "APPROVED",
+                                  "REJECTED"
+                                ]
+                              },
+                              "catatan": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "The reason, set for REJECTED"
+                              },
+                              "actorName": {
+                                "type": "string",
+                                "description": "Username of the actor"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "aksi",
+                              "catatan",
+                              "actorName",
+                              "createdAt"
+                            ]
+                          },
+                          "description": "Submit, approve and reject actions, oldest first"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "noSpk",
+                        "client",
+                        "tanggalMulai",
+                        "tanggalSelesai",
+                        "status",
+                        "fileDokubah",
+                        "penanggungJawab",
+                        "totalAnggaran",
+                        "createdBy",
+                        "createdAt",
+                        "updatedAt",
+                        "bahan",
+                        "riwayat"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

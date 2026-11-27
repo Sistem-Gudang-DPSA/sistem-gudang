@@ -21,8 +21,3 @@ export async function bulkAssignItemSupplier(
   }
   return { assigned: itemIds.length - failed.length, failed };
 }
-
-// The API's suppliers array is authoritative; legacy rows fall back to supplierId.
-export function itemHasSupplier(item: { supplierId: number | null; suppliers?: { id: number }[] }, supplierId: number | undefined): boolean {
-  return supplierId !== undefined && (item.suppliers ? item.suppliers.some((supplier) => supplier.id === supplierId) : item.supplierId === supplierId);
-}

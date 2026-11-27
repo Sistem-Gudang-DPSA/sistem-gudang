@@ -104,8 +104,8 @@ export type BulkItemsResult = { dryRun: boolean; created: number; skipped: { row
 
 export type InboundScanBatchInput = {
   date: string;
-  pass: { itemId: number; supplierId?: number; qtyArrived: number }[];
-  retur: { itemId: number; supplierId?: number; qty: number; reason: string }[];
+  pass: { itemId: number; purchaseOrderId: number; purchaseOrderLineId: number; qtyArrived: number }[];
+  retur: { itemId: number; qty: number; reason: string }[];
 };
 
 export type InboundScanBatchResult = {

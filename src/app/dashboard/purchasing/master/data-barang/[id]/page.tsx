@@ -1,1 +1,1 @@
-export { default } from "@/domains/purchasing/components/ItemSupplierDetail";
+export { default } from "@/domains/purchasing/components/DetailMaterialSupplier";

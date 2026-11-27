@@ -4,6 +4,7 @@ import StockNotificationDetail from '@/domains/inventory/components/data-barang/
 
 import StokMinimumCell from '@/domains/inventory/components/data-barang/StokMinimumCell';
 import { useState } from 'react';
+import Link from 'next/link';
 import { downloadCsv } from '@/shared/lib/csv';
 import { useCan } from '@/domains/auth/user-context';
 import { ExportExcellButton } from '@/shared/components/Tombol';
@@ -11,19 +12,20 @@ import TableFooter from '@/shared/components/TableFooter';
 import SelectionBanner from '@/shared/components/SelectionBanner';
 import BarangFilterPanel, { countActiveFilters } from '@/domains/inventory/components/BarangFilterPanel';
 import { useDataBarang } from '@/domains/inventory/components/data-barang/useDataBarang';
-import DataBarangTable, { type BarangColumn, HargaCell, KategoriBadge, StokCell, SupplierCell } from '@/domains/inventory/components/data-barang/DataBarangTable';
+import DataBarangTable, { type BarangColumn, KategoriBadge, StokCell } from '@/domains/inventory/components/data-barang/DataBarangTable';
 import DataBarangToolbar, { FilterToggle } from '@/domains/inventory/components/data-barang/DataBarangToolbar';
 import BulkSupplierAction, { type SupplierMappingResult } from '@/domains/inventory/components/data-barang/BulkSupplierAction';
-import Link from 'next/link';
+import { formatSupplierAmount, materialSuppliers, sortBySupplierAverage, supplierPriceSummary } from '../material-suppliers';
 
 export default function DataBarangPurchasing() {
   const canView = useCan('item.view');
-  // PUT /items/:id menolak perubahan supplierId tanpa item.update + item.set-supplier.
+  // PUT /items/:id/suppliers membutuhkan item.update + item.set-supplier.
   const canUpdateItem = useCan('item.update');
   const canSetSupplier = useCan('item.set-supplier');
   const canAssignSupplier = canUpdateItem && canSetSupplier;
-  const d = useDataBarang();
+  const d = useDataBarang({ clientSortKeys: ['averagePrice'] });
   const { dataBarang, total, supplierName, locationCode, reload, selected, setSelected, clearSelection, toggleRow, toggleAll, allSelected } = d;
+  const displayedItems = sortBySupplierAverage(dataBarang, d.sort);
 
   const [exportError, setExportError] = useState('');
   const [supplierNotice, setSupplierNotice] = useState<{ text: string; failed: boolean } | null>(null);
@@ -45,8 +47,8 @@ export default function DataBarangPurchasing() {
   const handleExportCSV = () => {
     setExportError('');
     try {
-      const rows: unknown[][] = [['No', 'Kode Barang', 'Nama Barang', 'Supplier', 'Jumlah Stok', 'Satuan', 'Kategori', 'Harga', 'Lokasi']];
-      dataBarang.forEach((item, index) => rows.push([index + 1, item.code ?? '-', item.name, supplierName(item.supplierId), item.stock, item.unit, item.category, item.price, locationCode(item.locationId)]));
+      const rows: unknown[][] = [['No', 'Kode Barang', 'Nama Barang', 'Supplier', 'Jumlah Stok', 'Satuan', 'Kategori', 'Harga Rata-rata', 'Lokasi']];
+      displayedItems.forEach((item, index) => rows.push([index + 1, item.code ?? '-', item.name, supplierName(item.supplierId), item.stock, item.unit, item.category, supplierPriceSummary(materialSuppliers(item)).average ?? '-', locationCode(item.locationId)]));
       downloadCsv('Data_Barang_Purchasing.csv', rows);
     } catch (err) {
       setExportError(err instanceof Error ? err.message : 'Gagal export data barang.');
@@ -56,19 +58,23 @@ export default function DataBarangPurchasing() {
   const columns: BarangColumn[] = [
     { label: 'Kode Barang', tdClassName: 'px-6 py-4 font-mono text-xs text-gray-500', cell: (item) => item.code ?? '-' },
     { label: 'Informasi Barang', sortKey: 'name', tdClassName: 'px-6 py-4 font-bold text-gray-900', cell: (item) => item.name },
-    { label: 'Supplier', hidden: true, sortKey: 'supplierName', cell: (item) => <SupplierCell name={supplierName(item.supplierId)} /> },
     { label: 'Stok', sortKey: 'stock', cell: (item) => <StokCell stock={item.stock} /> },
     // Stok minimum diatur PPIC; Purchasing hanya melihat nilainya.
     { label: 'Stok Minimum', cell: (item) => <StokMinimumCell item={item} onSaved={reload} readOnly /> },
     { label: 'Satuan', tdClassName: 'px-6 py-4 text-gray-600', cell: (item) => item.unit },
     { label: 'Kategori', sortKey: 'category', cell: (item) => <KategoriBadge category={item.category} /> },
-    { label: 'Harga Terbaru', sortKey: 'price', tdClassName: 'px-6 py-4 text-gray-700', cell: (item) => <HargaCell price={item.price} updatedAt={item.priceUpdatedAt} /> },
+    { label: 'Harga Rata-rata', sortKey: 'averagePrice', tdClassName: 'px-6 py-4 text-gray-700', cell: (item) => formatSupplierAmount(supplierPriceSummary(materialSuppliers(item)).average) },
     { label: 'Lokasi', sortKey: 'locationCode', cell: (item) => (
       <span className="inline-flex items-center gap-1 text-gray-600 font-medium">
         <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
         {locationCode(item.locationId)}
       </span>
     ) },
+    { label: 'Detail', cell: (item) => canView ? (
+      <Link href={`/dashboard/purchasing/master/data-barang/${item.id}`} aria-label={`Detail supplier ${item.name}`} className="inline-block rounded-lg border border-purple-100 bg-purple-50 px-3 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-100">
+        Detail
+      </Link>
+    ) : '-' },
   ];
 
   return (
@@ -125,7 +131,7 @@ export default function DataBarangPurchasing() {
         )}
 
         <DataBarangTable
-          rows={dataBarang}
+          rows={displayedItems}
           loading={d.loading}
           columns={columns}
           sort={d.sort}
@@ -138,11 +144,6 @@ export default function DataBarangPurchasing() {
             onToggleAll: toggleAll,
             disableAllWhenEmpty: true,
           } : undefined}
-          rowActions={canView ? (item) => (
-            <Link href={`/dashboard/purchasing/master/data-barang/${item.id}`} aria-label={`Detail supplier ${item.name}`} className="rounded-lg border border-purple-100 bg-purple-50 px-3 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-100">
-              Detail
-            </Link>
-          ) : undefined}
           rowClassName={() => 'hover:bg-purple-50/30 transition-colors group'}
           tbodyClassName="divide-y divide-gray-50"
         />

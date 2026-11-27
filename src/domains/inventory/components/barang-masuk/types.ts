@@ -1,3 +1,5 @@
+// Satu baris form mengacu ke satu baris PO yang sudah disubmit. Supplier, harga
+// dan SPK dibaca dari PO, bukan dipilih ulang oleh Gudang.
 export type BarisBarangMasuk = {
   key: string;
   manual: boolean;
@@ -5,9 +7,18 @@ export type BarisBarangMasuk = {
   code: string | null;
   name: string;
   unit: string;
-  supplierId: number | null;
-  qtyArrived: string;
+  purchaseOrderId: number;
+  purchaseOrderLineId: number;
+  poNumber: string;
+  supplierName: string;
+  noSpk: string | null;
   qtyPurchased: string;
+  sisa: number;
+  qtyArrived: string;
 };
 
-export type SupplierTerpilih = { id: number; name: string };
+export type PoTerpilih = {
+  id: number;
+  nomorPo: string;
+  supplierName: string;
+};

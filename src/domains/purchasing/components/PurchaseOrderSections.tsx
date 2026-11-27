@@ -17,13 +17,14 @@ const readOnlyClass = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-s
 const totalLabelClass = 'text-xs font-bold text-gray-900 uppercase';
 const totalWidthClass = 'w-64 max-w-full shrink-0';
 
-export function PurchaseOrderParties({ supplier, supplierControl, supplierError, pic, onPicChange, picLabel = 'PIC / Telp', project }: {
+export function PurchaseOrderParties({ supplier, supplierControl, supplierError, pic, onPicChange, picLabel = 'PIC / Telp', projectLabel = 'Kebutuhan Proyek', project }: {
   supplier: Supplier | null;
   supplierControl: ReactNode;
   supplierError?: string;
   pic: string;
   onPicChange: (value: string) => void;
   picLabel?: string;
+  projectLabel?: string;
   project: ReactNode;
 }) {
   const id = useId();
@@ -64,7 +65,7 @@ export function PurchaseOrderParties({ supplier, supplierControl, supplierError,
             <tbody>
               <tr><th scope="row" className={`${infoLabelClass} font-normal`}>NPWP</th><td className={infoValueClass}>{PEMESAN.npwp}</td></tr>
               <tr><th scope="row" className={`${infoLabelClass} font-normal`}>Alamat Pengiriman</th><td className={infoValueClass}>{PEMESAN.alamatPengiriman}</td></tr>
-              <tr><th scope="row" className={`${infoLabelClass} font-normal`}>Kebutuhan Proyek</th><td className={infoValueClass}>{project}</td></tr>
+              <tr><th scope="row" className={`${infoLabelClass} font-normal`}>{projectLabel}</th><td className={infoValueClass}>{project}</td></tr>
               <tr><th scope="row" className={`${infoLabelClass} font-normal`}>PIC / Telp</th><td className={infoValueClass}>{PEMESAN.pic}</td></tr>
             </tbody>
           </table>

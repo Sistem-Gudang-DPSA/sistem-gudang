@@ -139,7 +139,7 @@ describe('purchase requests stay in Rekap Pembelian', () => {
   });
 });
 
-const savedOrder = (id: number) => ({ ...order(id), kebutuhanProyek: `Proyek ${id}`, barang: [{ kodeBarang: 'B-1', namaBarang: 'Triplex', satuan: 'Lembar', jumlah: 1, hargaSatuan: 2000, diskon: 0 }], grandTotal: 2220 });
+const savedOrder = (id: number) => ({ ...order(id), barang: [{ kodeBarang: 'B-1', namaBarang: 'Triplex', satuan: 'Lembar', jumlah: 1, hargaSatuan: 2000, diskon: 0 }], grandTotal: 2220 });
 
 describe('printing checked purchase orders', () => {
   it('prints only checked PO details and requires at least one selection', async () => {
@@ -231,8 +231,8 @@ describe('printing checked purchase orders', () => {
 });
 
 describe('tombol edit per baris PO', () => {
-  it.each([true, false])('mengikuti permission purchase-order.update=%s dan hanya membuka PO aktif', async (canUpdate) => {
-    installFakeApi({ 'GET /api/v1/purchase-orders': paged([order(1), { ...order(2), status: 'CANCELLED' }]) });
+  it.each([true, false])('mengikuti permission purchase-order.update=%s dan hanya membuka PO draft', async (canUpdate) => {
+    installFakeApi({ 'GET /api/v1/purchase-orders': paged([{ ...order(1), status: 'DRAFT' }, order(2)]) });
     const user: AuthUser = { id: 1, username: 'p', email: 'p@example.test', roleId: 2, roleName: 'Purchasing', domainCode: 'purchasing', isSuperadmin: false, permissions: ['purchase-order.view', ...(canUpdate ? ['purchase-order.update'] : [])] };
     render(<AuthUserProvider user={user}><POBarang /></AuthUserProvider>);
     await screen.findByText('PO-1');

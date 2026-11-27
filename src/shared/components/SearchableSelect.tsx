@@ -3,12 +3,13 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 
-export type SelectOption = { value: string; label: string };
+export type SelectOption = { value: string; label: string; group?: string };
 
 type Props = {
   value: string;
   onChange: (value: string) => void;
   options: SelectOption[];
+  groups?: { label: string; emptyText?: string }[];
   placeholder: string;
   'aria-label': string;
   className?: string;
@@ -22,7 +23,7 @@ type Props = {
 
 // Dropdown like a native <select>, with a search box on top of the list.
 // The list is position: fixed so the scrolling table it sits in cannot clip it.
-export default function SearchableSelect({ value, onChange, options, placeholder, 'aria-label': ariaLabel, className = '', emptyText = 'Tidak ada data', disabled = false, onSearch, pending = false }: Props) {
+export default function SearchableSelect({ value, onChange, options, groups, placeholder, 'aria-label': ariaLabel, className = '', emptyText = 'Tidak ada data', disabled = false, onSearch, pending = false }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
@@ -33,14 +34,19 @@ export default function SearchableSelect({ value, onChange, options, placeholder
 
   const selected = options.find((o) => o.value === value);
   const q = query.trim().toLowerCase();
-  const filtered = q && !onSearch ? options.filter((o) => o.label.toLowerCase().includes(q)) : options;
+  const ordered = groups ? [
+    ...groups.flatMap((group) => options.filter((o) => o.group === group.label)),
+    ...options.filter((o) => !groups.some((group) => o.group === group.label)),
+  ] : options;
+  const filtered = q && !onSearch ? ordered.filter((o) => o.label.toLowerCase().includes(q)) : ordered;
+  const indices = new Map(filtered.map((o, i) => [o.value, i]));
 
   const buka = () => {
     const rect = buttonRef.current?.getBoundingClientRect();
     if (rect) setPos({ top: rect.bottom + 2, left: rect.left, width: Math.max(rect.width, 220) });
     setQuery('');
     onSearch?.('');
-    setActive(Math.max(0, options.findIndex((o) => o.value === value)));
+    setActive(Math.max(0, ordered.findIndex((o) => o.value === value)));
     setOpen(true);
   };
 
@@ -88,6 +94,20 @@ export default function SearchableSelect({ value, onChange, options, placeholder
     }
   };
 
+  const renderOption = (o: SelectOption) => (
+    <li
+      key={o.value}
+      role="option"
+      aria-selected={o.value === value}
+      onMouseEnter={() => setActive(indices.get(o.value) ?? 0)}
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={() => pilih(o)}
+      className={`px-3 py-2 text-sm cursor-pointer ${indices.get(o.value) === active ? 'bg-gray-200' : ''} ${o.value === value ? 'font-semibold text-gray-900' : 'text-gray-800'}`}
+    >
+      {o.label}
+    </li>
+  );
+
   return (
     <>
       <button
@@ -125,19 +145,19 @@ export default function SearchableSelect({ value, onChange, options, placeholder
           </div>
           <ul id={listId} role="listbox" aria-label={`Pilihan ${ariaLabel}`} className="max-h-56 overflow-y-auto py-1">
             {(pending || filtered.length === 0) && <li className="px-3 py-2 text-sm text-gray-400 italic">{pending ? 'Memuat...' : emptyText}</li>}
-            {!pending && filtered.map((o, i) => (
-              <li
-                key={o.value}
-                role="option"
-                aria-selected={o.value === value}
-                onMouseEnter={() => setActive(i)}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => pilih(o)}
-                className={`px-3 py-2 text-sm cursor-pointer ${i === active ? 'bg-gray-200' : ''} ${o.value === value ? 'font-semibold text-gray-900' : 'text-gray-800'}`}
-              >
-                {o.label}
-              </li>
-            ))}
+            {!pending && (groups ? <>
+              {groups.map((group, i) => {
+                const members = filtered.filter((o) => o.group === group.label);
+                return <li key={group.label} role="presentation" className={i > 0 ? 'mt-1 border-t border-gray-200 pt-1' : ''}>
+                  <ul role="group" aria-label={group.label}>
+                    <li role="presentation" className="px-3 py-2 text-xs font-semibold text-gray-500">{group.label}</li>
+                    {members.map(renderOption)}
+                    {!members.length && !q && group.emptyText && <li role="presentation" className="px-3 pb-2 text-xs text-gray-400 italic">{group.emptyText}</li>}
+                  </ul>
+                </li>;
+              })}
+              {filtered.filter((o) => !groups.some((group) => o.group === group.label)).map(renderOption)}
+            </> : filtered.map(renderOption))}
           </ul>
         </div>
       )}
