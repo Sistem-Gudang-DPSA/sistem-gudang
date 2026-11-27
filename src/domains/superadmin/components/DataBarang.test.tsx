@@ -6,14 +6,15 @@ import type { AuthUser } from '@/domains/auth/types';
 import DataBarangGudang from './DataBarang';
 import ItemReceiptDetail from '@/domains/inventory/components/data-barang/ItemReceiptDetail';
 
+const nav = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+  useRouter: () => ({ push: nav.push, replace: vi.fn(), back: vi.fn() }),
   useParams: () => ({ id: '1' }),
   usePathname: () => '/superadmin/barang',
 }));
 
-const item = { id: 1, code: 'LEM013', externalCode: null, name: 'Barang 1', detail: null, supplierId: 7, supplierName: 'PT Kayu', stock: 30, unit: 'pcs', category: 'Lembaran', locationId: 1, locationCode: 'A01', price: 1000, photo: null };
+const item = { id: 1, code: 'LEM013', externalCode: null, name: 'Barang 1', detail: null, supplierId: 7, supplierName: 'PT Kayu', stock: 30, unit: 'pcs', category: 'Lembaran', locationId: 1, locationCode: 'A01', price: 1000, photo: null as { thumb: string; display: string } | null };
 
 function setup(updated: Record<string, unknown>, extra: Record<string, unknown> = {}, { rows = [item], user }: { rows?: (typeof item & { priceUpdatedAt?: string | null })[]; user?: AuthUser } = {}) {
   const api = installFakeApi({
@@ -103,28 +104,80 @@ const openBulkMenu = () => fireEvent.click(screen.getByRole('button', { name: /A
 const closeBulkMenu = () => fireEvent.keyDown(document, { key: 'Escape' });
 
 describe('DataBarang superadmin: detail penerimaan dummy', () => {
-  it('mengarah ke halaman detail sesuai barang yang dipilih tanpa membuka popup', async () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    nav.push.mockClear();
+  });
+
+  it('membuka detail sesuai baris yang diklik tanpa tombol Detail', async () => {
     const second = { ...item, id: 2, code: 'LEM014', name: 'Barang 2', unit: 'lembar' };
     setup({}, {}, { rows: [item, second] });
-    expect((await screen.findByRole('link', { name: 'Detail Barang 2' })).getAttribute('href')).toBe('/dashboard/superadmin/master/data-barang/2');
-    expect(screen.getByRole('link', { name: 'Detail Barang 1' }).getAttribute('href')).toBe('/dashboard/superadmin/master/data-barang/1');
+    const row2 = (await screen.findByText('Barang 2')).closest('tr')!;
+    fireEvent.click(within(row2).getByText('LEM014'));
+    expect(nav.push).toHaveBeenCalledWith('/dashboard/superadmin/master/data-barang/2');
+    const row1 = (await screen.findByText('Barang 1')).closest('tr')!;
+    fireEvent.click(row1);
+    expect(nav.push).toHaveBeenCalledWith('/dashboard/superadmin/master/data-barang/1');
+    expect(screen.queryByRole('link', { name: /Detail/ })).toBeNull();
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('tersedia dengan item.view tanpa izin mengubah barang', async () => {
+  it('membuka detail lewat klik atau Enter pada baris dengan item.view tanpa izin mengubah barang', async () => {
     const user: AuthUser = { id: 1, username: 'u', email: 'u@x.id', roleId: 2, roleName: 'Staff', isSuperadmin: false, permissions: ['item.view'] };
     setup({}, {}, { user });
-    expect(await screen.findByRole('link', { name: 'Detail Barang 1' })).not.toBeNull();
+    const row = (await screen.findByText('Barang 1')).closest('tr')!;
+    fireEvent.click(row);
+    fireEvent.keyDown(row, { key: 'Enter' });
+    expect(nav.push).toHaveBeenCalledTimes(2);
+    expect(nav.push).toHaveBeenCalledWith('/dashboard/superadmin/master/data-barang/1');
+    expect(screen.queryByRole('columnheader', { name: 'Aksi' })).toBeNull();
     expect(screen.queryByTitle('Sesuaikan stok')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Hapus' })).toBeNull();
+    expect(screen.queryByTitle('Hapus barang (dobel/salah input)')).toBeNull();
   });
 
-  it('menyembunyikan tombol detail tanpa item.view', async () => {
+  it('tidak membuka detail saat baris diklik tanpa item.view', async () => {
     const user: AuthUser = { id: 1, username: 'u', email: 'u@x.id', roleId: 2, roleName: 'Staff', isSuperadmin: false, permissions: ['item.adjust-stock'] };
     setup({}, {}, { user });
-    await screen.findByText('Barang 1');
-    expect(screen.queryByRole('link', { name: 'Detail Barang 1' })).toBeNull();
+    const row = (await screen.findByText('Barang 1')).closest('tr')!;
+    fireEvent.click(row);
+    expect(nav.push).not.toHaveBeenCalled();
+    expect(screen.getByRole('columnheader', { name: 'Aksi' })).not.toBeNull();
     expect(screen.getByTitle('Sesuaikan stok')).not.toBeNull();
+  });
+
+  it('tidak menavigasi saat checkbox atau tombol aksi di dalam baris diklik', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    setup({}, {}, { rows: [item] });
+    const row = (await screen.findByText('Barang 1')).closest('tr')!;
+    fireEvent.click(within(row).getByLabelText('Pilih Barang 1'));
+    fireEvent.click(within(row).getByTitle('Hapus barang (dobel/salah input)'));
+    fireEvent.click(within(row).getByTitle('Sesuaikan stok'));
+    expect(nav.push).not.toHaveBeenCalled();
+  });
+
+  it('tidak menavigasi saat teks atau latar modal Stok minimum diklik', async () => {
+    setup({});
+    const row = (await screen.findByText('Barang 1')).closest('tr')!;
+    fireEvent.click(within(row).getByLabelText('Atur stok minimum Barang 1'));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByText('Barang 1'));
+    fireEvent.click(dialog.parentElement!);
+    expect(nav.push).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByText('Batal'));
+    fireEvent.click((await screen.findByText('LEM013')).closest('tr')!);
+    expect(nav.push).toHaveBeenCalledWith('/dashboard/superadmin/master/data-barang/1');
+  });
+
+  it('tidak menavigasi saat latar pratinjau foto diklik', async () => {
+    setup({}, {}, { rows: [{ ...item, photo: { thumb: '/thumb.jpg', display: '/display.jpg' } }] });
+    await screen.findByText('Barang 1');
+    fireEvent.click(screen.getByTitle('Lihat foto Barang 1'));
+    expect(nav.push).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('dialog', { name: 'Foto Barang 1' }));
+    expect(nav.push).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog', { name: 'Foto Barang 1' })).toBeNull();
+    fireEvent.click((await screen.findByText('LEM013')).closest('tr')!);
+    expect(nav.push).toHaveBeenCalledWith('/dashboard/superadmin/master/data-barang/1');
   });
 });
 
@@ -145,7 +198,7 @@ describe('DataBarang superadmin: Hapus', () => {
     setup({}, { 'DELETE /api/v1/items/1': fail(409, 'Still in use by other data') });
     await screen.findByText('Barang 1');
     expect(screen.queryByRole('button', { name: /Hapus Massal/ })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Hapus' }));
+    fireEvent.click(screen.getByTitle('Hapus barang (dobel/salah input)'));
     expect(window.confirm).toHaveBeenCalledWith('Hapus barang "Barang 1" (LEM013)? Tindakan ini tidak bisa dibatalkan.');
     expect(await screen.findByText('Barang "Barang 1" tidak bisa dihapus karena sudah dipakai transaksi.')).not.toBeNull();
   });
