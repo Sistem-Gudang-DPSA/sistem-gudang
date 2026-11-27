@@ -22,8 +22,8 @@ export type DataSupplierProps = {
   paginationActiveClass: string;
 };
 
-const emptyForm: { code: string; name: string; bank: string; npwp: string; phone: string; address: string; pajak: Pajak } = {
-  code: '', name: '', bank: '', npwp: '', phone: '', address: '', pajak: 'NON_PKP',
+const emptyForm: { code: string; name: string; bank: string; npwp: string; pic: string; phone: string; address: string; pajak: Pajak } = {
+  code: '', name: '', bank: '', npwp: '', pic: '', phone: '', address: '', pajak: 'NON_PKP',
 };
 
 export default function DataSupplierScreen({ detailHref, paginationActiveClass }: DataSupplierProps) {
@@ -62,7 +62,7 @@ export default function DataSupplierScreen({ detailHref, paginationActiveClass }
 
   const handleEdit = (item: Supplier) => {
     setEditingId(item.id);
-    setFormData({ code: item.code, name: item.name, bank: item.bank, npwp: item.npwp, phone: item.phone, address: item.address, pajak: item.pajak });
+    setFormData({ code: item.code, name: item.name, bank: item.bank, npwp: item.npwp, pic: item.pic ?? '', phone: item.phone, address: item.address, pajak: item.pajak });
     setModalError("");
     setIsModalOpen(true);
   };
@@ -287,6 +287,18 @@ export default function DataSupplierScreen({ detailHref, paginationActiveClass }
                 />
               </div>
 
+              <div>
+                <label className="block text-[15px] font-medium text-gray-800 mb-2">Nama PIC</label>
+                <input
+                  type="text"
+                  value={formData.pic}
+                  onChange={(e) => setFormData({ ...formData, pic: e.target.value })}
+                  maxLength={100}
+                  placeholder="Masukan nama PIC"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"
+                />
+              </div>
+
               <fieldset>
                 <legend className="block text-[15px] font-medium text-gray-800 mb-2">Pajak Vendor</legend>
                 <div className="grid grid-cols-2 gap-2">
@@ -308,14 +320,14 @@ export default function DataSupplierScreen({ detailHref, paginationActiveClass }
               </fieldset>
 
               <div>
-                <label className="block text-[15px] font-medium text-gray-800 mb-2">No telf</label>
+                <label className="block text-[15px] font-medium text-gray-800 mb-2">Nomor Kontak</label>
                 <input
                   type="text"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/[^\d\s+\-()]/g, "") })}
                   maxLength={30}
                   inputMode="tel"
-                  placeholder="Masukan no telepon"
+                  placeholder="Masukan nomor kontak"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"
                 />
               </div>
