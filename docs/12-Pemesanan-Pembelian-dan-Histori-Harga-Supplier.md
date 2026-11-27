@@ -31,11 +31,12 @@ berupa kode, nama, pajak vendor, satuan, dan kategori.
   tabel mapping hanya dijadikan nilai awal saat membuat PO dan tidak
   menimpa `items.price`; backend menyimpan `itemId` dan `noSpk` dari baris
   permintaan, bukan dari input klien.
-- PO hanya bisa dibuat setelah Gudang mengajukan permintaan, PPIC menyetujui
-  tahap awal, dan Purchasing memberi persetujuan akhir. Persetujuan PPIC
-  saja masih berstatus pending dan belum mengizinkan PO. Satu permintaan
-  boleh punya beberapa PO. PIC supplier dan kode barang
-  setiap baris sekarang wajib diisi karena backend mewajibkannya.
+- PO hanya bisa dibuat setelah permintaan Gudang disetujui PPIC. Karena
+  backend masih memiliki langkah Purchasing, frontend menyelesaikan langkah
+  tersebut sekali lewat `POST /approvals/{id}/approve` saat PO pertama
+  disimpan; tidak ada tombol persetujuan Purchasing terpisah. Satu permintaan
+  boleh punya beberapa PO. PIC supplier dan kode barang setiap baris
+  sekarang wajib diisi karena backend mewajibkannya.
 - PO tidak dibuat mandiri: tombol **Buat Pesanan Baru** dan route form PO
   tanpa permintaan sudah dihapus. PO selalu dimulai dari permintaan
   pembelian Gudang maupun PPIC.
@@ -197,11 +198,12 @@ kedua form konsisten. Kolom **Pilih** awalnya mencentang semua barang; hanya
 barang yang tetap dipilih yang dihitung dan disimpan, dengan minimal satu
 barang.
 
-Form memuat nilai tersimpan dan dapat mengubah tanggal PO, supplier,
-PIC supplier, kebutuhan proyek, kode/nama/satuan setiap barang, jumlah,
-harga satuan, diskon, PPN, dan jasa. Memilih supplier memperbarui informasi
-perusahaan dari master supplier. Jumlah pembelian boleh melebihi permintaan
-asli, dengan batas 1.000.000. Nomor PO dibuat sistem dan referensi
+Form memuat nilai tersimpan dan dapat mengubah tanggal PO, PIC supplier,
+kode/nama/satuan setiap barang, jumlah, harga satuan, diskon, PPN, dan jasa.
+Supplier dan kebutuhan proyek tampil read-only: supplier ditetapkan saat PO
+dibuat dan `PUT /purchase-orders/{id}` menolak `supplierId`, sementara SPK
+diambil dari baris PO. Jumlah pembelian boleh melebihi permintaan asli,
+dengan batas 1.000.000. Nomor PO dibuat sistem dan referensi
 permintaan asal tetap. Data pemesan menggunakan identitas perusahaan
 bersama, sedangkan total dihitung ulang otomatis dengan rumus yang sama
 seperti form pembuatan PO.
