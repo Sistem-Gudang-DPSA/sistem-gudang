@@ -14,7 +14,7 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/superadmin/barang',
 }));
 
-const item = { id: 1, code: 'LEM013', externalCode: null, name: 'Barang 1', detail: null, supplierId: 7, supplierName: 'PT Kayu', stock: 30, unit: 'pcs', category: 'Lembaran', locationId: 1, locationCode: 'A01', price: 1000, photo: null };
+const item = { id: 1, code: 'LEM013', externalCode: null, name: 'Barang 1', detail: null, supplierId: 7, supplierName: 'PT Kayu', stock: 30, unit: 'pcs', category: 'Lembaran', locationId: 1, locationCode: 'A01', price: 1000, photo: null as { thumb: string; display: string } | null };
 
 function setup(updated: Record<string, unknown>, extra: Record<string, unknown> = {}, { rows = [item], user }: { rows?: (typeof item & { priceUpdatedAt?: string | null })[]; user?: AuthUser } = {}) {
   const api = installFakeApi({
@@ -153,6 +153,31 @@ describe('DataBarang superadmin: detail penerimaan dummy', () => {
     fireEvent.click(within(row).getByTitle('Hapus barang (dobel/salah input)'));
     fireEvent.click(within(row).getByTitle('Sesuaikan stok'));
     expect(nav.push).not.toHaveBeenCalled();
+  });
+
+  it('tidak menavigasi saat teks atau latar modal Stok minimum diklik', async () => {
+    setup({});
+    const row = (await screen.findByText('Barang 1')).closest('tr')!;
+    fireEvent.click(within(row).getByLabelText('Atur stok minimum Barang 1'));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByText('Barang 1'));
+    fireEvent.click(dialog.parentElement!);
+    expect(nav.push).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByText('Batal'));
+    fireEvent.click((await screen.findByText('LEM013')).closest('tr')!);
+    expect(nav.push).toHaveBeenCalledWith('/dashboard/superadmin/master/data-barang/1');
+  });
+
+  it('tidak menavigasi saat latar pratinjau foto diklik', async () => {
+    setup({}, {}, { rows: [{ ...item, photo: { thumb: '/thumb.jpg', display: '/display.jpg' } }] });
+    await screen.findByText('Barang 1');
+    fireEvent.click(screen.getByTitle('Lihat foto Barang 1'));
+    expect(nav.push).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('dialog', { name: 'Foto Barang 1' }));
+    expect(nav.push).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog', { name: 'Foto Barang 1' })).toBeNull();
+    fireEvent.click((await screen.findByText('LEM013')).closest('tr')!);
+    expect(nav.push).toHaveBeenCalledWith('/dashboard/superadmin/master/data-barang/1');
   });
 });
 
