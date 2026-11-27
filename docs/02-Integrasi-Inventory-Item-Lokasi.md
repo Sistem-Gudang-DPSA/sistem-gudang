@@ -61,6 +61,12 @@ pengurutan, atau pindah halaman meminta konfirmasi jika ada perubahan yang
 belum disimpan dan dikunci selama penyimpanan berlangsung. Hapus lokasi
 memerlukan role Superadmin serta permission `location.delete`.
 
+Kartu dan tabel Data Lokasi memenuhi lebar halaman. Lebar kolom dibagi
+secara proporsional agar ruang kosong tersebar merata dan kolom Informasi
+Barang tidak mengambil seluruh sisa lebar tabel. Keterangan panjang membungkus
+ke baris berikutnya. Pada layar sempit, tabel dapat digulir horizontal,
+sedangkan pencarian dan tombol toolbar menyesuaikan lebar kartu.
+
 ### `src/domains/ppic/components/DataBarang.tsx`
 
 List dari `listItems()`. Form tambah dan edit memanggil `createItem()`
