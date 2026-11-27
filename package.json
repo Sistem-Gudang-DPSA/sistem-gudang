@@ -6,6 +6,7 @@
     "dev": "next dev --webpack",
     "dev:https": "next dev --webpack --experimental-https -H 0.0.0.0",
     "build": "next build",
+    "build:api-contract": "bun scripts/build-api-contract.ts",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",

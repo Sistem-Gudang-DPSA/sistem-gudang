@@ -16,7 +16,7 @@ import SelectionBanner from '@/shared/components/SelectionBanner';
 import PrintQrModal from './data-barang/PrintQrModal';
 import BarangFilterPanel, { countActiveFilters } from './BarangFilterPanel';
 import { useDataBarang } from './data-barang/useDataBarang';
-import DataBarangTable, { type BarangColumn, KategoriBadge, StokCell, SupplierCell } from './data-barang/DataBarangTable';
+import DataBarangTable, { type BarangColumn, KategoriBadge, StokCell } from './data-barang/DataBarangTable';
 import DataBarangToolbar, { FilterToggle } from './data-barang/DataBarangToolbar';
 import { LokasiBulkModal, LokasiModal } from './data-barang/modals/LokasiModal';
 
@@ -102,7 +102,6 @@ export default function DataBarangGudang() {
   const columns: BarangColumn[] = [
     { label: 'Kode Barang', tdClassName: 'px-6 py-4 font-mono text-xs text-gray-500', cell: (item) => item.code ?? '-' },
     { label: 'Informasi Barang', sortKey: 'name', tdClassName: 'px-6 py-4 font-bold text-gray-900', cell: (item) => item.name },
-    { label: 'Supplier', hidden: true, sortKey: 'supplierName', cell: (item) => <SupplierCell name={supplierName(item.supplierId)} /> },
     { label: 'Stok', sortKey: 'stock', cell: (item) => <StokCell stock={item.stock} /> },
     // Stok minimum hanya diatur PPIC dan Superadmin.
     { label: 'Stok Minimum', cell: (item) => <StokMinimumCell item={item} onSaved={reload} readOnly /> },

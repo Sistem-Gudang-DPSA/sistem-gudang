@@ -1,0 +1,3618 @@
+{
+  "paths": {
+    "/api/v1/purchase-orders": {
+      "get": {
+        "tags": [
+          "Purchase order"
+        ],
+        "summary": "List purchase orders",
+        "description": "Newest tanggalPo first. search matches nomorPo and supplier name. status filters DRAFT, ISSUED, PARTIALLY_RECEIVED, RECEIVED or CANCELLED. DRAFT and CANCELLED are stored. ISSUED, PARTIALLY_RECEIVED and RECEIVED are computed from the active inbound rows: ISSUED when nothing arrived, RECEIVED when every line is complete, PARTIALLY_RECEIVED otherwise. A draft stays DRAFT until submit; only an issued PO can receive goods. Cancelling an inbound takes its quantity back out, so a PO can go back to an earlier status. startDate and endDate are inclusive. sortBy is date (tanggalPo) or status, with sortDir asc (default) or desc; without sortBy the newest-first order is kept.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "maximum": 100,
+              "default": 10
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "required": false,
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DRAFT",
+                "ISSUED",
+                "PARTIALLY_RECEIVED",
+                "RECEIVED",
+                "CANCELLED"
+              ]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true
+            },
+            "required": false,
+            "name": "supplierId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true
+            },
+            "required": false,
+            "name": "approvalRequestId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false,
+            "name": "startDate",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "required": false,
+            "name": "endDate",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "date",
+                "status"
+              ]
+            },
+            "required": false,
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "asc"
+            },
+            "required": false,
+            "name": "sortDir",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Purchase order list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "rows": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "number"
+                              },
+                              "nomorPo": {
+                                "type": "string"
+                              },
+                              "approvalRequestId": {
+                                "type": "number"
+                              },
+                              "tanggalPo": {
+                                "type": "string"
+                              },
+                              "supplierId": {
+                                "type": "number"
+                              },
+                              "supplierName": {
+                                "type": "string"
+                              },
+                              "picSupplier": {
+                                "type": "string"
+                              },
+                              "dppLain": {
+                                "type": "number"
+                              },
+                              "persenPpn": {
+                                "type": "number"
+                              },
+                              "jasa": {
+                                "type": "number"
+                              },
+                              "subtotal": {
+                                "type": "number"
+                              },
+                              "nilaiPpn": {
+                                "type": "number"
+                              },
+                              "grandTotal": {
+                                "type": "number"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": [
+                                  "DRAFT",
+                                  "ISSUED",
+                                  "PARTIALLY_RECEIVED",
+                                  "RECEIVED",
+                                  "CANCELLED"
+                                ]
+                              },
+                              "submittedAt": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "submittedBy": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "cancelledAt": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "cancelledBy": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "cancelReason": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "createdBy": {
+                                "type": "number"
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "nomorPo",
+                              "approvalRequestId",
+                              "tanggalPo",
+                              "supplierId",
+                              "supplierName",
+                              "picSupplier",
+                              "dppLain",
+                              "persenPpn",
+                              "jasa",
+                              "subtotal",
+                              "nilaiPpn",
+                              "grandTotal",
+                              "status",
+                              "submittedAt",
+                              "submittedBy",
+                              "cancelledAt",
+                              "cancelledBy",
+                              "cancelReason",
+                              "createdBy",
+                              "createdAt"
+                            ]
+                          }
+                        },
+                        "total": {
+                          "type": "number"
+                        },
+                        "page": {
+                          "type": "number"
+                        },
+                        "pageSize": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "rows",
+                        "total",
+                        "page",
+                        "pageSize"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Purchase order"
+        ],
+        "summary": "Create a purchase order",
+        "description": "A new PO starts as DRAFT; use /purchase-orders/{id}/submit to issue it. nomorPo is generated (PO-001, PO-002, ...). The approval request must be a purchase-request (400 when it is another type) in status approved (409 when it is not). A missing request or supplier is a 404. One request may have several POs. subtotal, dppLain, nilaiPpn and grandTotal are computed by the server and rounded to a rupiah: subtotal = sum of (jumlah * hargaSatuan - diskon), dppLain (DPP nilai lain) = subtotal * 11 / 12, nilaiPpn = dppLain * persenPpn / 100, grandTotal = subtotal + nilaiPpn + jasa. diskon is rupiah per line. Sending dppLain is a 400. A request that has a supplier mapping, or has no PO yet, is ordered through the mapping: every barang line carries lineIndex, the supplier must have that line mapped, jumlah must equal the mapped qty, and an already ordered line is a 409; anything else is a 400. Only a request that already had a PO before mapping existed may skip lineIndex. Each line stores itemId and noSpk, read from the approved request payload by lineIndex, never from the client. hargaSatuan is the final purchase price and is frozen when the PO is submitted. Optional Idempotency-Key header (8 to 100 characters): with it, the same key and payload within 24 hours returns the stored answer with the same status and header Idempotency-Replayed: true and does not repeat the write; the same key with a different payload is 409; a malformed key is 400. Without it the request behaves as before.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "6f1c2d3e-0b7a-4c55-9a3e-1d2f3a4b5c6d"
+            },
+            "required": false,
+            "name": "Idempotency-Key",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "approvalRequestId": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true
+                  },
+                  "tanggalPo": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "supplierId": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true
+                  },
+                  "picSupplier": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 191
+                  },
+                  "barang": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "lineIndex": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "kodeBarang": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 191
+                        },
+                        "namaBarang": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 191
+                        },
+                        "satuan": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 50
+                        },
+                        "jumlah": {
+                          "type": "number",
+                          "minimum": 0,
+                          "exclusiveMinimum": true,
+                          "maximum": 1000000
+                        },
+                        "hargaSatuan": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 2000000000
+                        },
+                        "diskon": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "default": 0
+                        }
+                      },
+                      "required": [
+                        "kodeBarang",
+                        "namaBarang",
+                        "satuan",
+                        "jumlah",
+                        "hargaSatuan"
+                      ]
+                    },
+                    "minItems": 1
+                  },
+                  "persenPpn": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "default": 0
+                  },
+                  "jasa": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 0
+                  }
+                },
+                "required": [
+                  "approvalRequestId",
+                  "tanggalPo",
+                  "supplierId",
+                  "picSupplier",
+                  "barang"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Purchase order created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "nomorPo": {
+                          "type": "string"
+                        },
+                        "approvalRequestId": {
+                          "type": "number"
+                        },
+                        "tanggalPo": {
+                          "type": "string"
+                        },
+                        "supplierId": {
+                          "type": "number"
+                        },
+                        "supplierName": {
+                          "type": "string"
+                        },
+                        "picSupplier": {
+                          "type": "string"
+                        },
+                        "dppLain": {
+                          "type": "number"
+                        },
+                        "persenPpn": {
+                          "type": "number"
+                        },
+                        "jasa": {
+                          "type": "number"
+                        },
+                        "subtotal": {
+                          "type": "number"
+                        },
+                        "nilaiPpn": {
+                          "type": "number"
+                        },
+                        "grandTotal": {
+                          "type": "number"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "DRAFT",
+                            "ISSUED",
+                            "PARTIALLY_RECEIVED",
+                            "RECEIVED",
+                            "CANCELLED"
+                          ]
+                        },
+                        "submittedAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "submittedBy": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "cancelledAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "cancelledBy": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "cancelReason": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdBy": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "barang": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "number",
+                                "description": "Purchase order line id, used as purchaseOrderLineId on inbound"
+                              },
+                              "lineIndex": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "itemId": {
+                                "type": "number",
+                                "nullable": true,
+                                "description": "Catalog item of the request line; null for old POs"
+                              },
+                              "noSpk": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "SPK copied from the request line"
+                              },
+                              "kodeBarang": {
+                                "type": "string"
+                              },
+                              "namaBarang": {
+                                "type": "string"
+                              },
+                              "satuan": {
+                                "type": "string"
+                              },
+                              "jumlah": {
+                                "type": "number"
+                              },
+                              "hargaSatuan": {
+                                "type": "number"
+                              },
+                              "diskon": {
+                                "type": "number"
+                              },
+                              "qtyReceived": {
+                                "type": "number",
+                                "description": "Sum of the active receipts of this line"
+                              },
+                              "sisa": {
+                                "type": "number",
+                                "description": "jumlah minus qtyReceived"
+                              },
+                              "receipts": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "inboundId": {
+                                      "type": "number"
+                                    },
+                                    "date": {
+                                      "type": "string",
+                                      "example": "2026-09-30"
+                                    },
+                                    "qtyArrived": {
+                                      "type": "number"
+                                    },
+                                    "statusQc": {
+                                      "type": "string",
+                                      "nullable": true
+                                    },
+                                    "referenceNo": {
+                                      "type": "string",
+                                      "nullable": true
+                                    },
+                                    "createdAt": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "inboundId",
+                                    "date",
+                                    "qtyArrived",
+                                    "statusQc",
+                                    "referenceNo",
+                                    "createdAt"
+                                  ]
+                                },
+                                "description": "Active receipts of this line, oldest first; cancelled ones are left out"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "lineIndex",
+                              "itemId",
+                              "noSpk",
+                              "kodeBarang",
+                              "namaBarang",
+                              "satuan",
+                              "jumlah",
+                              "hargaSatuan",
+                              "diskon",
+                              "qtyReceived",
+                              "sisa",
+                              "receipts"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "nomorPo",
+                        "approvalRequestId",
+                        "tanggalPo",
+                        "supplierId",
+                        "supplierName",
+                        "picSupplier",
+                        "dppLain",
+                        "persenPpn",
+                        "jasa",
+                        "subtotal",
+                        "nilaiPpn",
+                        "grandTotal",
+                        "status",
+                        "submittedAt",
+                        "submittedBy",
+                        "cancelledAt",
+                        "cancelledBy",
+                        "cancelReason",
+                        "createdBy",
+                        "createdAt",
+                        "barang"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/purchase-orders/{id}": {
+      "get": {
+        "tags": [
+          "Purchase order"
+        ],
+        "summary": "Get a purchase order with its lines and receipts",
+        "description": "Each barang line carries noSpk, qtyReceived, sisa and receipts (the active inbound rows of that line: date, qtyArrived, statusQc, referenceNo and inboundId), oldest first. status is DRAFT until submit, then follows the receipts: ISSUED, PARTIALLY_RECEIVED, RECEIVED, or CANCELLED when it was cancelled. submittedAt and submittedBy are set by the submit endpoint.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Purchase order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "nomorPo": {
+                          "type": "string"
+                        },
+                        "approvalRequestId": {
+                          "type": "number"
+                        },
+                        "tanggalPo": {
+                          "type": "string"
+                        },
+                        "supplierId": {
+                          "type": "number"
+                        },
+                        "supplierName": {
+                          "type": "string"
+                        },
+                        "picSupplier": {
+                          "type": "string"
+                        },
+                        "dppLain": {
+                          "type": "number"
+                        },
+                        "persenPpn": {
+                          "type": "number"
+                        },
+                        "jasa": {
+                          "type": "number"
+                        },
+                        "subtotal": {
+                          "type": "number"
+                        },
+                        "nilaiPpn": {
+                          "type": "number"
+                        },
+                        "grandTotal": {
+                          "type": "number"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "DRAFT",
+                            "ISSUED",
+                            "PARTIALLY_RECEIVED",
+                            "RECEIVED",
+                            "CANCELLED"
+                          ]
+                        },
+                        "submittedAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "submittedBy": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "cancelledAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "cancelledBy": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "cancelReason": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdBy": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "barang": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "number",
+                                "description": "Purchase order line id, used as purchaseOrderLineId on inbound"
+                              },
+                              "lineIndex": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "itemId": {
+                                "type": "number",
+                                "nullable": true,
+                                "description": "Catalog item of the request line; null for old POs"
+                              },
+                              "noSpk": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "SPK copied from the request line"
+                              },
+                              "kodeBarang": {
+                                "type": "string"
+                              },
+                              "namaBarang": {
+                                "type": "string"
+                              },
+                              "satuan": {
+                                "type": "string"
+                              },
+                              "jumlah": {
+                                "type": "number"
+                              },
+                              "hargaSatuan": {
+                                "type": "number"
+                              },
+                              "diskon": {
+                                "type": "number"
+                              },
+                              "qtyReceived": {
+                                "type": "number",
+                                "description": "Sum of the active receipts of this line"
+                              },
+                              "sisa": {
+                                "type": "number",
+                                "description": "jumlah minus qtyReceived"
+                              },
+                              "receipts": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "inboundId": {
+                                      "type": "number"
+                                    },
+                                    "date": {
+                                      "type": "string",
+                                      "example": "2026-09-30"
+                                    },
+                                    "qtyArrived": {
+                                      "type": "number"
+                                    },
+                                    "statusQc": {
+                                      "type": "string",
+                                      "nullable": true
+                                    },
+                                    "referenceNo": {
+                                      "type": "string",
+                                      "nullable": true
+                                    },
+                                    "createdAt": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "inboundId",
+                                    "date",
+                                    "qtyArrived",
+                                    "statusQc",
+                                    "referenceNo",
+                                    "createdAt"
+                                  ]
+                                },
+                                "description": "Active receipts of this line, oldest first; cancelled ones are left out"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "lineIndex",
+                              "itemId",
+                              "noSpk",
+                              "kodeBarang",
+                              "namaBarang",
+                              "satuan",
+                              "jumlah",
+                              "hargaSatuan",
+                              "diskon",
+                              "qtyReceived",
+                              "sisa",
+                              "receipts"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "nomorPo",
+                        "approvalRequestId",
+                        "tanggalPo",
+                        "supplierId",
+                        "supplierName",
+                        "picSupplier",
+                        "dppLain",
+                        "persenPpn",
+                        "jasa",
+                        "subtotal",
+                        "nilaiPpn",
+                        "grandTotal",
+                        "status",
+                        "submittedAt",
+                        "submittedBy",
+                        "cancelledAt",
+                        "cancelledBy",
+                        "cancelReason",
+                        "createdBy",
+                        "createdAt",
+                        "barang"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Purchase order"
+        ],
+        "summary": "Edit a purchase order",
+        "description": "Needs purchase-order.update. Only while status is DRAFT, 409 once submitted or cancelled, because the lines are replaced. Sends tanggalPo, picSupplier, persenPpn, jasa and the full barang list, which replaces the old lines; totals are recomputed with the same rules as create. supplierId, approvalRequestId and nomorPo cannot change: sending them is a 400. 404 when the PO does not exist.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tanggalPo": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "picSupplier": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 191
+                  },
+                  "barang": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "lineIndex": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "kodeBarang": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 191
+                        },
+                        "namaBarang": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 191
+                        },
+                        "satuan": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 50
+                        },
+                        "jumlah": {
+                          "type": "number",
+                          "minimum": 0,
+                          "exclusiveMinimum": true,
+                          "maximum": 1000000
+                        },
+                        "hargaSatuan": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 2000000000
+                        },
+                        "diskon": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "default": 0
+                        }
+                      },
+                      "required": [
+                        "kodeBarang",
+                        "namaBarang",
+                        "satuan",
+                        "jumlah",
+                        "hargaSatuan"
+                      ]
+                    },
+                    "minItems": 1
+                  },
+                  "persenPpn": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "default": 0
+                  },
+                  "jasa": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 0
+                  }
+                },
+                "required": [
+                  "tanggalPo",
+                  "picSupplier",
+                  "barang"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Purchase order after the edit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "nomorPo": {
+                          "type": "string"
+                        },
+                        "approvalRequestId": {
+                          "type": "number"
+                        },
+                        "tanggalPo": {
+                          "type": "string"
+                        },
+                        "supplierId": {
+                          "type": "number"
+                        },
+                        "supplierName": {
+                          "type": "string"
+                        },
+                        "picSupplier": {
+                          "type": "string"
+                        },
+                        "dppLain": {
+                          "type": "number"
+                        },
+                        "persenPpn": {
+                          "type": "number"
+                        },
+                        "jasa": {
+                          "type": "number"
+                        },
+                        "subtotal": {
+                          "type": "number"
+                        },
+                        "nilaiPpn": {
+                          "type": "number"
+                        },
+                        "grandTotal": {
+                          "type": "number"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "DRAFT",
+                            "ISSUED",
+                            "PARTIALLY_RECEIVED",
+                            "RECEIVED",
+                            "CANCELLED"
+                          ]
+                        },
+                        "submittedAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "submittedBy": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "cancelledAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "cancelledBy": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "cancelReason": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdBy": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "barang": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "number",
+                                "description": "Purchase order line id, used as purchaseOrderLineId on inbound"
+                              },
+                              "lineIndex": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "itemId": {
+                                "type": "number",
+                                "nullable": true,
+                                "description": "Catalog item of the request line; null for old POs"
+                              },
+                              "noSpk": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "SPK copied from the request line"
+                              },
+                              "kodeBarang": {
+                                "type": "string"
+                              },
+                              "namaBarang": {
+                                "type": "string"
+                              },
+                              "satuan": {
+                                "type": "string"
+                              },
+                              "jumlah": {
+                                "type": "number"
+                              },
+                              "hargaSatuan": {
+                                "type": "number"
+                              },
+                              "diskon": {
+                                "type": "number"
+                              },
+                              "qtyReceived": {
+                                "type": "number",
+                                "description": "Sum of the active receipts of this line"
+                              },
+                              "sisa": {
+                                "type": "number",
+                                "description": "jumlah minus qtyReceived"
+                              },
+                              "receipts": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "inboundId": {
+                                      "type": "number"
+                                    },
+                                    "date": {
+                                      "type": "string",
+                                      "example": "2026-09-30"
+                                    },
+                                    "qtyArrived": {
+                                      "type": "number"
+                                    },
+                                    "statusQc": {
+                                      "type": "string",
+                                      "nullable": true
+                                    },
+                                    "referenceNo": {
+                                      "type": "string",
+                                      "nullable": true
+                                    },
+                                    "createdAt": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "inboundId",
+                                    "date",
+                                    "qtyArrived",
+                                    "statusQc",
+                                    "referenceNo",
+                                    "createdAt"
+                                  ]
+                                },
+                                "description": "Active receipts of this line, oldest first; cancelled ones are left out"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "lineIndex",
+                              "itemId",
+                              "noSpk",
+                              "kodeBarang",
+                              "namaBarang",
+                              "satuan",
+                              "jumlah",
+                              "hargaSatuan",
+                              "diskon",
+                              "qtyReceived",
+                              "sisa",
+                              "receipts"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "nomorPo",
+                        "approvalRequestId",
+                        "tanggalPo",
+                        "supplierId",
+                        "supplierName",
+                        "picSupplier",
+                        "dppLain",
+                        "persenPpn",
+                        "jasa",
+                        "subtotal",
+                        "nilaiPpn",
+                        "grandTotal",
+                        "status",
+                        "submittedAt",
+                        "submittedBy",
+                        "cancelledAt",
+                        "cancelledBy",
+                        "cancelReason",
+                        "createdBy",
+                        "createdAt",
+                        "barang"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/purchase-orders/{id}/submit": {
+      "post": {
+        "tags": [
+          "Purchase order"
+        ],
+        "summary": "Submit a purchase order",
+        "description": "Needs purchase-order.update. Only a DRAFT can be submitted; 409 when it was already submitted or cancelled. Sets status to ISSUED and records submittedAt and submittedBy. After submit the lines and hargaSatuan are frozen, so edit is rejected and the PO can receive goods. 404 when the PO does not exist.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Submitted purchase order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "nomorPo": {
+                          "type": "string"
+                        },
+                        "approvalRequestId": {
+                          "type": "number"
+                        },
+                        "tanggalPo": {
+                          "type": "string"
+                        },
+                        "supplierId": {
+                          "type": "number"
+                        },
+                        "supplierName": {
+                          "type": "string"
+                        },
+                        "picSupplier": {
+                          "type": "string"
+                        },
+                        "dppLain": {
+                          "type": "number"
+                        },
+                        "persenPpn": {
+                          "type": "number"
+                        },
+                        "jasa": {
+                          "type": "number"
+                        },
+                        "subtotal": {
+                          "type": "number"
+                        },
+                        "nilaiPpn": {
+                          "type": "number"
+                        },
+                        "grandTotal": {
+                          "type": "number"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "DRAFT",
+                            "ISSUED",
+                            "PARTIALLY_RECEIVED",
+                            "RECEIVED",
+                            "CANCELLED"
+                          ]
+                        },
+                        "submittedAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "submittedBy": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "cancelledAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "cancelledBy": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "cancelReason": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdBy": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "barang": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "number",
+                                "description": "Purchase order line id, used as purchaseOrderLineId on inbound"
+                              },
+                              "lineIndex": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "itemId": {
+                                "type": "number",
+                                "nullable": true,
+                                "description": "Catalog item of the request line; null for old POs"
+                              },
+                              "noSpk": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "SPK copied from the request line"
+                              },
+                              "kodeBarang": {
+                                "type": "string"
+                              },
+                              "namaBarang": {
+                                "type": "string"
+                              },
+                              "satuan": {
+                                "type": "string"
+                              },
+                              "jumlah": {
+                                "type": "number"
+                              },
+                              "hargaSatuan": {
+                                "type": "number"
+                              },
+                              "diskon": {
+                                "type": "number"
+                              },
+                              "qtyReceived": {
+                                "type": "number",
+                                "description": "Sum of the active receipts of this line"
+                              },
+                              "sisa": {
+                                "type": "number",
+                                "description": "jumlah minus qtyReceived"
+                              },
+                              "receipts": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "inboundId": {
+                                      "type": "number"
+                                    },
+                                    "date": {
+                                      "type": "string",
+                                      "example": "2026-09-30"
+                                    },
+                                    "qtyArrived": {
+                                      "type": "number"
+                                    },
+                                    "statusQc": {
+                                      "type": "string",
+                                      "nullable": true
+                                    },
+                                    "referenceNo": {
+                                      "type": "string",
+                                      "nullable": true
+                                    },
+                                    "createdAt": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "inboundId",
+                                    "date",
+                                    "qtyArrived",
+                                    "statusQc",
+                                    "referenceNo",
+                                    "createdAt"
+                                  ]
+                                },
+                                "description": "Active receipts of this line, oldest first; cancelled ones are left out"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "lineIndex",
+                              "itemId",
+                              "noSpk",
+                              "kodeBarang",
+                              "namaBarang",
+                              "satuan",
+                              "jumlah",
+                              "hargaSatuan",
+                              "diskon",
+                              "qtyReceived",
+                              "sisa",
+                              "receipts"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "nomorPo",
+                        "approvalRequestId",
+                        "tanggalPo",
+                        "supplierId",
+                        "supplierName",
+                        "picSupplier",
+                        "dppLain",
+                        "persenPpn",
+                        "jasa",
+                        "subtotal",
+                        "nilaiPpn",
+                        "grandTotal",
+                        "status",
+                        "submittedAt",
+                        "submittedBy",
+                        "cancelledAt",
+                        "cancelledBy",
+                        "cancelReason",
+                        "createdBy",
+                        "createdAt",
+                        "barang"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/purchase-orders/{id}/cancel": {
+      "post": {
+        "tags": [
+          "Purchase order"
+        ],
+        "summary": "Cancel a purchase order",
+        "description": "Needs purchase-order.cancel. reason is required (1 to 255 characters). A DRAFT or ISSUED PO can be cancelled; 409 when already cancelled or when an active inbound received goods against its lines. Cancelling is final and releases the supplier mapping. No effect on stock. The purchase request stays approved, so a new PO can be made from it. Sets status, cancelledAt, cancelledBy and cancelReason.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cancelled purchase order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "nomorPo": {
+                          "type": "string"
+                        },
+                        "approvalRequestId": {
+                          "type": "number"
+                        },
+                        "tanggalPo": {
+                          "type": "string"
+                        },
+                        "supplierId": {
+                          "type": "number"
+                        },
+                        "supplierName": {
+                          "type": "string"
+                        },
+                        "picSupplier": {
+                          "type": "string"
+                        },
+                        "dppLain": {
+                          "type": "number"
+                        },
+                        "persenPpn": {
+                          "type": "number"
+                        },
+                        "jasa": {
+                          "type": "number"
+                        },
+                        "subtotal": {
+                          "type": "number"
+                        },
+                        "nilaiPpn": {
+                          "type": "number"
+                        },
+                        "grandTotal": {
+                          "type": "number"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "DRAFT",
+                            "ISSUED",
+                            "PARTIALLY_RECEIVED",
+                            "RECEIVED",
+                            "CANCELLED"
+                          ]
+                        },
+                        "submittedAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "submittedBy": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "cancelledAt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "cancelledBy": {
+                          "type": "number",
+                          "nullable": true
+                        },
+                        "cancelReason": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "createdBy": {
+                          "type": "number"
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        },
+                        "barang": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "number",
+                                "description": "Purchase order line id, used as purchaseOrderLineId on inbound"
+                              },
+                              "lineIndex": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "itemId": {
+                                "type": "number",
+                                "nullable": true,
+                                "description": "Catalog item of the request line; null for old POs"
+                              },
+                              "noSpk": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "SPK copied from the request line"
+                              },
+                              "kodeBarang": {
+                                "type": "string"
+                              },
+                              "namaBarang": {
+                                "type": "string"
+                              },
+                              "satuan": {
+                                "type": "string"
+                              },
+                              "jumlah": {
+                                "type": "number"
+                              },
+                              "hargaSatuan": {
+                                "type": "number"
+                              },
+                              "diskon": {
+                                "type": "number"
+                              },
+                              "qtyReceived": {
+                                "type": "number",
+                                "description": "Sum of the active receipts of this line"
+                              },
+                              "sisa": {
+                                "type": "number",
+                                "description": "jumlah minus qtyReceived"
+                              },
+                              "receipts": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "inboundId": {
+                                      "type": "number"
+                                    },
+                                    "date": {
+                                      "type": "string",
+                                      "example": "2026-09-30"
+                                    },
+                                    "qtyArrived": {
+                                      "type": "number"
+                                    },
+                                    "statusQc": {
+                                      "type": "string",
+                                      "nullable": true
+                                    },
+                                    "referenceNo": {
+                                      "type": "string",
+                                      "nullable": true
+                                    },
+                                    "createdAt": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "inboundId",
+                                    "date",
+                                    "qtyArrived",
+                                    "statusQc",
+                                    "referenceNo",
+                                    "createdAt"
+                                  ]
+                                },
+                                "description": "Active receipts of this line, oldest first; cancelled ones are left out"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "lineIndex",
+                              "itemId",
+                              "noSpk",
+                              "kodeBarang",
+                              "namaBarang",
+                              "satuan",
+                              "jumlah",
+                              "hargaSatuan",
+                              "diskon",
+                              "qtyReceived",
+                              "sisa",
+                              "receipts"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "nomorPo",
+                        "approvalRequestId",
+                        "tanggalPo",
+                        "supplierId",
+                        "supplierName",
+                        "picSupplier",
+                        "dppLain",
+                        "persenPpn",
+                        "jasa",
+                        "subtotal",
+                        "nilaiPpn",
+                        "grandTotal",
+                        "status",
+                        "submittedAt",
+                        "submittedBy",
+                        "cancelledAt",
+                        "cancelledBy",
+                        "cancelReason",
+                        "createdBy",
+                        "createdAt",
+                        "barang"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/purchase-orders/{id}/export": {
+      "get": {
+        "tags": [
+          "Purchase order"
+        ],
+        "summary": "Export a purchase order as xlsx",
+        "description": "Needs purchase-order.view. One sheet with the header, the lines and the totals. Money and dates are real Excel numbers and dates. Works for cancelled POs too, which show the status and reason.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "xlsx file, sent as an attachment",
+            "content": {
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/approvals/mapping-summary": {
+      "get": {
+        "tags": [
+          "Purchase order"
+        ],
+        "summary": "Count approved purchase requests by ordering progress",
+        "description": "Needs purchase-order.view. notStarted: no mapping yet. partial: some mapping, not every line fully mapped. completeNoPo: every line fully mapped but some mapped row has no PO yet. poIssued: every line fully mapped and every row has a PO.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Counts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "notStarted": {
+                          "type": "number"
+                        },
+                        "partial": {
+                          "type": "number"
+                        },
+                        "completeNoPo": {
+                          "type": "number"
+                        },
+                        "poIssued": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "notStarted",
+                        "partial",
+                        "completeNoPo",
+                        "poIssued"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/approvals/{id}/mapping": {
+      "get": {
+        "tags": [
+          "Purchase order"
+        ],
+        "summary": "Get the supplier mapping of a purchase request",
+        "description": "Needs purchase-order.view. 400 when the request is not a purchase-request, 409 when it is not approved. Each line of the request lists the suppliers it is mapped to with qty and, once a PO was issued from the row, purchaseOrderId and nomorPo (null otherwise, also after that PO is cancelled). status is NOT_STARTED, PARTIAL, or COMPLETE when every line is mapped to at least its requested qty. remainingQty is clamped to zero when purchase qty exceeds request qty. Suppliers are never prefilled from the item master.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mapping",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "approvalRequestId": {
+                          "type": "number"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "NOT_STARTED",
+                            "PARTIAL",
+                            "COMPLETE"
+                          ]
+                        },
+                        "lines": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "lineIndex": {
+                                "type": "number"
+                              },
+                              "namaBarang": {
+                                "type": "string"
+                              },
+                              "qty": {
+                                "type": "number"
+                              },
+                              "satuan": {
+                                "type": "string"
+                              },
+                              "proyek": {
+                                "type": "string"
+                              },
+                              "noSpk": {
+                                "type": "string"
+                              },
+                              "itemId": {
+                                "type": "number"
+                              },
+                              "mappedQty": {
+                                "type": "number"
+                              },
+                              "remainingQty": {
+                                "type": "number"
+                              },
+                              "mappings": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "supplierId": {
+                                      "type": "number"
+                                    },
+                                    "supplierName": {
+                                      "type": "string"
+                                    },
+                                    "qty": {
+                                      "type": "number"
+                                    },
+                                    "purchaseOrderId": {
+                                      "type": "number",
+                                      "nullable": true
+                                    },
+                                    "nomorPo": {
+                                      "type": "string",
+                                      "nullable": true
+                                    }
+                                  },
+                                  "required": [
+                                    "supplierId",
+                                    "supplierName",
+                                    "qty",
+                                    "purchaseOrderId",
+                                    "nomorPo"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "lineIndex",
+                              "namaBarang",
+                              "qty",
+                              "satuan",
+                              "proyek",
+                              "noSpk",
+                              "mappedQty",
+                              "remainingQty",
+                              "mappings"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "approvalRequestId",
+                        "status",
+                        "lines"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Purchase order"
+        ],
+        "summary": "Save the supplier mapping of a purchase request",
+        "description": "Needs purchase-order.create. Only the lines sent are replaced; others stay as they are, so mapping can be done in steps. A line may go to several suppliers. Purchase qty may exceed the original request qty, which is kept unchanged. Total qty of a line, including rows already ordered, must not exceed 1000000; a supplier cannot appear twice on a line; rows already ordered are locked. 400 for an unknown lineIndex or a bad total, 404 for an unknown supplier, 409 when the request is not approved. Returns the same body as GET.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "1"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "lines": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "lineIndex": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "suppliers": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "supplierId": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "exclusiveMinimum": true
+                              },
+                              "qty": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "exclusiveMinimum": true
+                              }
+                            },
+                            "required": [
+                              "supplierId",
+                              "qty"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "lineIndex",
+                        "suppliers"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "minItems": 1
+                  }
+                },
+                "required": [
+                  "lines"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Mapping after the save",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        true
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "approvalRequestId": {
+                          "type": "number"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "NOT_STARTED",
+                            "PARTIAL",
+                            "COMPLETE"
+                          ]
+                        },
+                        "lines": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "lineIndex": {
+                                "type": "number"
+                              },
+                              "namaBarang": {
+                                "type": "string"
+                              },
+                              "qty": {
+                                "type": "number"
+                              },
+                              "satuan": {
+                                "type": "string"
+                              },
+                              "proyek": {
+                                "type": "string"
+                              },
+                              "noSpk": {
+                                "type": "string"
+                              },
+                              "itemId": {
+                                "type": "number"
+                              },
+                              "mappedQty": {
+                                "type": "number"
+                              },
+                              "remainingQty": {
+                                "type": "number"
+                              },
+                              "mappings": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "supplierId": {
+                                      "type": "number"
+                                    },
+                                    "supplierName": {
+                                      "type": "string"
+                                    },
+                                    "qty": {
+                                      "type": "number"
+                                    },
+                                    "purchaseOrderId": {
+                                      "type": "number",
+                                      "nullable": true
+                                    },
+                                    "nomorPo": {
+                                      "type": "string",
+                                      "nullable": true
+                                    }
+                                  },
+                                  "required": [
+                                    "supplierId",
+                                    "supplierName",
+                                    "qty",
+                                    "purchaseOrderId",
+                                    "nomorPo"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "lineIndex",
+                              "namaBarang",
+                              "qty",
+                              "satuan",
+                              "proyek",
+                              "noSpk",
+                              "mappedQty",
+                              "remainingQty",
+                              "mappings"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "approvalRequestId",
+                        "status",
+                        "lines"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid access token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authenticated, but not authorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [
+                        false
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "errors": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

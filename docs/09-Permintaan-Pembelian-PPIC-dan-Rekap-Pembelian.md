@@ -7,7 +7,12 @@ permintaan, lalu Purchasing langsung menyiapkan PO tanpa tombol persetujuan terp
 Menu **Permintaan Pembelian** di PPIC merupakan daftar untuk meninjau
 permintaan Gudang, tanpa tombol pengajuan baru, edit, atau pembatalan pemohon.
 Menu yang sama di Gudang tetap menyediakan pengajuan, edit, dan pembatalan
-sesuai permission serta kepemilikan permintaan.
+sesuai permission serta kepemilikan permintaan. Rencana PO-first di
+`22-Rencana-Multi-Supplier-dan-Harga.md` menempatkan PPIC sebagai jalur utama
+pemohon; sampai sekarang URL tambah PPIC mengarah kembali ke daftar tinjauan,
+jadi jalur PPIC sebagai pemohon belum tersedia di UI dan perlu dikerjakan
+terpisah. PPIC tetap dapat mengedit atau mengirim ulang permintaan yang
+direvisi lewat halaman terkait.
 
 ## Alur Persetujuan
 
@@ -41,8 +46,12 @@ Riwayat seluruh langkah dibaca dari `GET /api/v1/approvals/{id}`.
 ## Permission dan navigasi
 
 Gudang menggunakan `purchase-request.create`. PPIC memakai
-`purchase-request.approve` untuk keputusan permintaan; role Koor PPIC diberi
-permission tersebut oleh migrasi/seeder. Purchasing memakai
+`purchase-request.approve` untuk keputusan permintaan, tetapi permission ini
+**tidak** diberikan oleh migrasi/seeder: sesuai `src/test/integration/permissions.test.ts`,
+izin tersebut saat ini melekat pada Koor Purchasing. Untuk memakai jalur
+tinjauan PPIC, Koor PPIC harus diberi `purchase-request.approve` manual lewat
+Superadmin → Roles (`PUT /api/v1/superadmin/roles/{id}/permissions`, replace-all,
+jadi permission lama harus tetap dicentang). Purchasing memakai
 `purchase-order.create` untuk menyiapkan dan menyimpan PO. Selama backend
 masih memiliki langkah Purchasing, penyimpanan PO dari permintaan
 `pending` langkah 3 juga memerlukan `purchase-request.approve`; akun tanpa
@@ -50,7 +59,6 @@ izin ini mendapat pesan bahwa proses tidak dapat dilanjutkan, tanpa
 mengirim pemetaan atau PO. Permintaan yang sudah `approved` tidak
 memerlukan panggilan persetujuan lagi. Role PPIC lainnya dapat membaca
 sesuai izin menu, tetapi tidak mendapat tombol keputusan tanpa izin approve.
-Role khusus dikelola melalui pengaturan permission Superadmin.
 PPIC tidak dapat membuat permintaan baru meskipun masih memiliki permission
 create dari pengaturan lama. URL tambah PPIC mengarah kembali ke daftar
 peninjauan. Form bersama tetap dipakai oleh Gudang.
@@ -152,11 +160,10 @@ memakai judul **DAFTAR PERMINTAAN PEMBELIAN** dengan teks pengantar
 **Kelola pengajuan permintaan pembelian barang.** Menu Permintaan Pembelian
 Purchasing berada di grup **Transaksi**, tepat di atas **PO Barang**.
 
-Kartu putih dan tabel rekap bersama di PPIC dan Purchasing memenuhi lebar
-halaman. Lebar kolom dibagi secara proporsional agar ruang kosong tersebar
-merata di antara Tanggal, Permintaan, Status, dan Aksi. Teks
-permintaan panjang membungkus ke baris berikutnya. Pada layar sempit,
-tabel dapat digulir secara horizontal.
+Kartu dan tabel rekap memenuhi lebar halaman. Lebar kolom dibagi secara
+proporsional agar jarak Tanggal, Permintaan, Status, dan Aksi seimbang.
+Header dan isi kolom sejajar; teks permintaan panjang membungkus ke baris
+berikutnya. Pada layar sempit, tabel dapat digulir secara horizontal.
 
 ## Tanggal pada form permintaan
 
@@ -209,6 +216,45 @@ dan mengubah **Qty Beli**, yang awalnya sama dengan QTY. Supplier wajib
 dipilih untuk setiap baris yang belum dipesan. Tombol **Buat PO** langsung
 tersedia setelah PPIC menyetujui, tanpa keputusan Purchasing terpisah.
 Menyiapkan rincian dan membuka form tidak menerbitkan PO.
+
+Dropdown supplier pada rincian Purchasing memuat seluruh halaman
+`GET /api/v1/suppliers`, lalu menyediakan pencarian lokal pada dua bagian:
+**Supplier Material** di atas berisi supplier yang sudah dipetakan pada
+master material (`suppliers`), dan **Supplier Lainnya** di bawah garis
+pemisah berisi supplier di luar pemetaan tersebut. Supplier tidak muncul
+dua kali dan seluruh pilihan tetap bisa dipilih. Setiap material memakai
+pemetaan masing-masing; pemetaan katalog tidak otomatis memilih supplier
+pesanan. Jika daftar `suppliers` belum tersedia, supplier tunggal
+`supplierId` dipakai sebagai pemetaan lama; daftar kosong berarti belum
+ada pemetaan. Permintaan lama memakai master yang cocok secara unik
+berdasarkan nama dan satuan. Jika master tidak tersedia atau akun tidak
+memiliki `item.view`, bagian atas menampilkan pemetaan belum tersedia dan
+supplier lainnya tetap bisa dipilih. Perilaku ini dipakai pada kedua jalur
+masuk rincian Purchasing; dropdown pada form PO tetap memakai pencarian server.
+
+Memilih **Supplier Lainnya** langsung menambahkan supplier itu ke master
+material, tanpa menunggu **Generate PO**. Frontend membaca ulang
+`GET /api/v1/items/{id}`, menggabungkan supplier terpilih dengan seluruh
+supplier yang sudah ada, lalu menyimpan `PUT /api/v1/items/{id}/suppliers`
+dengan `{ supplierIds: number[] }`. Pemetaan lama tetap dipertahankan dan
+supplier tidak diduplikasi. Supplier yang berhasil tersimpan langsung
+muncul di bagian **Supplier Material** pada seluruh baris material yang
+sama, tetap tersedia setelah halaman dimuat ulang, dan tampil pada
+**Detail Supplier Material** di Data Barang Purchasing. Memilih supplier
+yang sudah dipetakan tidak menyimpan ulang. Mengganti pilihan PO tidak
+menghapus supplier yang pernah ditambahkan ke material. Penambahan ini
+tidak membuat stok, harga, atau transaksi PO baru.
+
+Penyimpanan otomatis memerlukan `item.view`, `item.update`, dan
+`item.set-supplier`, serta ID master material yang diketahui; untuk
+permintaan lama, kecocokan nama dan satuan harus unik. Selama simpan,
+pilihan supplier, penambahan/penghapusan baris supplier, dan **Generate PO**
+dikunci. Jika gagal menyimpan, pilihan supplier untuk PO tetap terisi,
+pemetaan material tidak dianggap berhasil, dan pesan kegagalan menyediakan
+tombol **Coba lagi simpan supplier material**. Tanpa izin atau master yang
+dapat dikenali, pengguna tetap bisa memilih supplier PO dan diberi tahu
+bahwa pemetaan material belum disimpan.
+
 Qty Beli wajib berupa
 bilangan bulat positif, maksimal 1.000.000. Qty Beli boleh lebih kecil
 atau lebih besar dari QTY permintaan asli, misalnya permintaan 12 dibeli
@@ -225,9 +271,10 @@ kecocokan tunggal yang digunakan; barang ambigu, tidak ditemukan, atau
 gagal dimuat ditampilkan **Tidak tersedia**, bukan stok nol.
 
 Tombol **Buat PO** membuka form PO terisi, tanpa langsung menerbitkan PO.
-Barang dikelompokkan menurut pasangan supplier dan proyek; pasangan yang
-berbeda memiliki form terpisah. Nama barang, satuan, proyek, supplier, kode
-barang dari master bila tersedia, dan **Qty Beli** diteruskan ke form.
+Barang dikelompokkan menurut pasangan proyek dan `noSpk`, lalu per supplier;
+kombinasi yang berbeda memiliki form terpisah. Nama barang, satuan, proyek,
+SPK, supplier, kode barang dari master bila tersedia, dan **Qty Beli**
+diteruskan ke form.
 Jumlah pesanan dan perhitungan total memakai Qty Beli. Indeks baris asli
 (`lineIndex`) dipertahankan walaupun barang terbagi ke beberapa form.
 Data persiapan disimpan di `sessionStorage` tab browser dengan token acak

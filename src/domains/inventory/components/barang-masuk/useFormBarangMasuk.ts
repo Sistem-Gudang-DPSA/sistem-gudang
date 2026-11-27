@@ -1,13 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { itemHasSupplier } from '@/domains/inventory/item-supplier';
 import { getItemByCode } from '@/domains/inventory/api';
 import { todayIso } from '@/domains/inventory/date';
 import type { CreateInboundBatchInput } from '@/domains/inventory/types';
-import { useItemSearch } from '@/domains/inventory/use-item-search';
-import { useSupplierSearch } from '@/domains/purchasing/use-supplier-search';
+import { barisPoTersedia, usePoPenerimaan, type BarisPoPenerimaan } from '@/domains/inventory/use-po-penerimaan';
 import { ApiError } from '@/shared/lib/api-client';
 import { randomId } from '@/shared/lib/random-id';
-import type { BarisBarangMasuk, SupplierTerpilih } from './types';
+import type { BarisBarangMasuk, PoTerpilih } from './types';
 
 export const MAX_QTY = 100000;
 export const MAX_LINES = 200;
@@ -28,8 +26,16 @@ export function peringatanJumlahMasuk(value: string, field: 'kedatangan' | 'reka
 
 export type SaveBarangMasuk = (input: CreateInboundBatchInput, key: string, printAfter: boolean) => Promise<void>;
 
+const labelBaris = (baris: { name?: string; code?: string | null; namaBarang?: string; kodeBarang?: string; noSpk?: string | null }) => {
+  const nama = baris.name ?? baris.namaBarang ?? '';
+  const kode = baris.code ?? baris.kodeBarang;
+  const spk = baris.noSpk ? ` · ${baris.noSpk}` : '';
+  return kode ? `${nama} (${kode})${spk}` : `${nama}${spk}`;
+};
+
 export function useFormBarangMasuk(onSave: SaveBarangMasuk) {
-  const [supplier, setSupplier] = useState<SupplierTerpilih | null>(null);
+  const { pos, loading: poLoading, error: poError } = usePoPenerimaan();
+  const [po, setPo] = useState<PoTerpilih | null>(null);
   const [tanggal, setTanggal] = useState(todayIso);
   const [baris, setBaris] = useState<BarisBarangMasuk[]>([]);
   const [preview, setPreview] = useState(false);
@@ -42,9 +48,7 @@ export function useFormBarangMasuk(onSave: SaveBarangMasuk) {
   const [pendingScans, setPendingScans] = useState(0);
   const [cameraOn, setCameraOn] = useState(false);
   const [lockedName, setLockedName] = useState('');
-  const itemSearch = useItemSearch(supplier?.id);
-  const supplierSearch = useSupplierSearch();
-  const supplierRef = useRef(supplier);
+  const poRef = useRef(po);
   const rowsRef = useRef(baris);
   const scanSession = useRef(0);
   const pendingRef = useRef(0);
@@ -70,15 +74,21 @@ export function useFormBarangMasuk(onSave: SaveBarangMasuk) {
     setError('');
   };
 
-  const pilihSupplier = (id: string) => {
-    const selected = supplierSearch.suppliers.find((candidate) => String(candidate.id) === id)
-      ?? (String(supplier?.id) === id ? supplier : null);
-    if (selected?.id === supplierRef.current?.id) return;
+  const barisPoSaatIni = () => {
+    const selected = pos.find((candidate) => candidate.id === poRef.current?.id);
+    return selected ? barisPoTersedia(selected) : [];
+  };
+
+  const pilihPo = (id: string) => {
+    const selected = pos.find((candidate) => String(candidate.id) === id);
+    if (!selected || selected.id === poRef.current?.id) return;
+    // Baris lama tetap ada (satu batch boleh campur PO), tetapi scan yang sedang
+    // berjalan tidak boleh jatuh ke PO yang baru dipilih.
     scanSession.current += 1;
     pendingRef.current = 0;
     scanOpenRef.current = false;
-    supplierRef.current = selected ? { id: selected.id, name: selected.name } : null;
-    setSupplier(supplierRef.current);
+    poRef.current = { id: selected.id, nomorPo: selected.nomorPo, supplierName: selected.supplierName };
+    setPo(poRef.current);
     setPendingScans(0);
     setScanOpen(false);
     setCameraOn(false);
@@ -86,76 +96,91 @@ export function useFormBarangMasuk(onSave: SaveBarangMasuk) {
     setLockedName('');
     setScanError('');
     setError('');
-    itemSearch.onSearch('');
   };
 
   const tambahManual = () => {
-    if (!supplierRef.current || savingRef.current || previewRef.current) return;
+    if (!poRef.current || poLoading || savingRef.current || previewRef.current) return;
     if (rowsRef.current.length >= MAX_LINES) { setError('Maksimal 200 jenis barang dalam satu form.'); return; }
     updateRows((rows) => [...rows, {
-      key: randomId(), manual: true, itemId: null, code: null, name: '', unit: '', supplierId: null,
-      qtyArrived: '1', qtyPurchased: '',
+      key: randomId(), manual: true, itemId: null, code: null, name: '', unit: '',
+      purchaseOrderId: poRef.current!.id, purchaseOrderLineId: 0, poNumber: poRef.current!.nomorPo,
+      supplierName: poRef.current!.supplierName, noSpk: null,
+      qtyArrived: '1', qtyPurchased: '', sisa: 0,
     }]);
   };
 
-  const patchBaris = (key: string, patch: Partial<Pick<BarisBarangMasuk, 'qtyArrived' | 'qtyPurchased'>>) =>
+  const patchBaris = (key: string, patch: Partial<Pick<BarisBarangMasuk, 'qtyArrived'>>) =>
     updateRows((rows) => rows.map((row) => row.key === key ? { ...row, ...patch } : row));
   const hapusBaris = (key: string) => updateRows((rows) => rows.filter((row) => row.key !== key));
 
-  const pilihMaterial = (key: string, id: string) => {
-    setScanError('');
-    const item = itemSearch.items.find((candidate) => String(candidate.id) === id);
-    if (!item) return;
-    // Pilihan header harus ada dalam daftar supplier material.
-    if (!itemHasSupplier(item, supplierRef.current?.id)) {
-      setError(`Barang "${item.name}" bukan dari supplier yang dipilih.`);
+  const pakaiBarisPo = (key: string, line: BarisPoPenerimaan) => {
+    const duplicate = rowsRef.current.findIndex((row) => row.key !== key && row.purchaseOrderLineId === line.purchaseOrderLineId);
+    if (duplicate !== -1) {
+      setError(`Barang "${line.namaBarang}" sudah ada di baris ${duplicate + 1}. Ubah jumlah di baris tersebut.`);
       return;
     }
-    const duplicate = rowsRef.current.findIndex((row) => row.key !== key && row.itemId === item.id);
-    if (duplicate !== -1) { setError(`Barang "${item.name}" sudah ada di baris ${duplicate + 1}. Ubah jumlah di baris tersebut.`); return; }
     updateRows((rows) => rows.map((row) => row.key === key ? {
-      ...row, itemId: item.id, code: item.code, name: item.name, unit: item.unit, supplierId: supplierRef.current!.id,
+      ...row,
+      itemId: line.itemId!, code: line.kodeBarang, name: line.namaBarang, unit: line.satuan,
+      purchaseOrderId: line.purchaseOrderId, purchaseOrderLineId: line.purchaseOrderLineId,
+      poNumber: line.nomorPo, supplierName: line.supplierName, noSpk: line.noSpk ?? null,
+      qtyPurchased: String(line.jumlah), sisa: line.sisa,
     } : row));
   };
 
-  const bukaScan = () => {
-    if (!supplierRef.current || savingRef.current || previewRef.current) return;
-    scanOpenRef.current = true;
-    setScanOpen(true);
-    scanRef.current?.focus();
+  const pilihMaterial = (key: string, id: string) => {
+    setScanError('');
+    const line = barisPoSaatIni().find((candidate) => String(candidate.purchaseOrderLineId) === id);
+    if (!line) return;
+    pakaiBarisPo(key, line);
   };
 
   const tambahHasilScan = (item: Awaited<ReturnType<typeof getItemByCode>>) => {
-    if (!itemHasSupplier(item, supplierRef.current?.id)) {
-      setScanError(item.supplierId === null
-        ? `Barang "${item.name}" belum memiliki supplier.`
-        : `Barang "${item.name}" bukan dari supplier yang dipilih.`);
+    const cocok = barisPoSaatIni().filter((candidate) => candidate.itemId === item.id);
+    if (cocok.length === 0) {
+      setScanError(`Barang "${item.name}" tidak ada di PO yang dipilih.`);
       return;
     }
-    const existing = rowsRef.current.find((row) => row.itemId === item.id);
+    const existing = rowsRef.current.find((row) => cocok.some((candidate) => candidate.purchaseOrderLineId === row.purchaseOrderLineId));
     if (existing) {
-      if (Number(existing.qtyArrived) >= MAX_QTY) { setScanError('Jumlah kedatangan maksimal 100.000 per barang.'); return; }
-      patchBaris(existing.key, { qtyArrived: String(Number(Math.min((Number(existing.qtyArrived) || 0) + 1, MAX_QTY).toFixed(3))) });
+      const batas = Math.min(existing.sisa, MAX_QTY);
+      if (Number(existing.qtyArrived) >= batas) {
+        setScanError(`Jumlah kedatangan "${item.name}" maksimal ${batas} sesuai sisa PO.`);
+        return;
+      }
+      patchBaris(existing.key, { qtyArrived: String(Number(Math.min(Number(existing.qtyArrived) + 1, batas).toFixed(3))) });
     } else {
       if (rowsRef.current.length >= MAX_LINES) { setScanError('Maksimal 200 jenis barang dalam satu form.'); return; }
+      const line = cocok[0];
       updateRows((rows) => [...rows, {
-        key: randomId(), manual: false, itemId: item.id, code: item.code, name: item.name, unit: item.unit,
-        supplierId: supplierRef.current!.id, qtyArrived: '1', qtyPurchased: '',
+        key: randomId(), manual: false, itemId: item.id, code: item.code, name: line.namaBarang,
+        unit: line.satuan, purchaseOrderId: line.purchaseOrderId, purchaseOrderLineId: line.purchaseOrderLineId,
+        poNumber: line.nomorPo, supplierName: line.supplierName, noSpk: line.noSpk ?? null,
+        qtyArrived: String(Number(Math.min(1, line.sisa).toFixed(3))),
+        qtyPurchased: String(line.jumlah), sisa: line.sisa,
       }]);
     }
     setLockedName(item.name);
   };
 
+  const bukaScan = () => {
+    if (!poRef.current || poLoading || savingRef.current || previewRef.current) return;
+    scanOpenRef.current = true;
+    setScanOpen(true);
+    scanRef.current?.focus();
+  };
+
   const readCode = async (rawCode: string) => {
     const code = rawCode.trim();
-    if (!code || !activeRef.current || !scanOpenRef.current || !supplierRef.current || previewRef.current || savingRef.current) return;
+    if (!code || !activeRef.current || !scanOpenRef.current || !poRef.current || previewRef.current || savingRef.current) return;
     const session = scanSession.current;
     setScanError('');
     setLockedName('');
-    const existing = rowsRef.current.find((row) => row.code === code);
-    if (existing && existing.supplierId === supplierRef.current.id) {
-      if (Number(existing.qtyArrived) >= MAX_QTY) { setScanError('Jumlah kedatangan maksimal 100.000 per barang.'); return; }
-      patchBaris(existing.key, { qtyArrived: String(Number(Math.min((Number(existing.qtyArrived) || 0) + 1, MAX_QTY).toFixed(3))) });
+    const existing = rowsRef.current.find((row) =>
+      row.code === code && row.purchaseOrderId === poRef.current?.id && Number(row.qtyArrived) < Math.min(row.sisa, MAX_QTY));
+    if (existing) {
+      const batas = Math.min(existing.sisa, MAX_QTY);
+      patchBaris(existing.key, { qtyArrived: String(Number(Math.min(Number(existing.qtyArrived) + 1, batas).toFixed(3))) });
       setLockedName(existing.name);
       return;
     }
@@ -183,14 +208,14 @@ export function useFormBarangMasuk(onSave: SaveBarangMasuk) {
 
   const openPreview = (cetak: boolean) => {
     if (pendingRef.current > 0 || savingRef.current) return;
-    if (!supplier || !tanggal) { setError('Nama supplier dan tanggal wajib diisi.'); return; }
+    if (!po || !tanggal) { setError('Nomor PO dan tanggal wajib diisi.'); return; }
     if (baris.length === 0) { setError('Tambahkan minimal satu barang.'); return; }
     for (const [index, row] of baris.entries()) {
       const prefix = `Baris ${index + 1}${row.name ? ` (${row.name})` : ''}: `;
-      if (!row.itemId) { setError(`${prefix}pilih material terlebih dahulu.`); return; }
-      if (row.supplierId !== supplier.id) { setError(`${prefix}barang bukan dari supplier yang dipilih. Ganti material atau hapus baris ini.`); return; }
+      if (!row.itemId || !row.purchaseOrderLineId) { setError(`${prefix}pilih material terlebih dahulu.`); return; }
       const warning = peringatanJumlahMasuk(row.qtyArrived, 'kedatangan') || peringatanJumlahMasuk(row.qtyPurchased, 'rekap');
       if (warning) { setError(`${prefix}${warning}`); return; }
+      if (Number(row.qtyArrived) > row.sisa) { setError(`${prefix}jumlah kedatangan melebihi sisa PO (${row.sisa}).`); return; }
     }
     scanSession.current += 1;
     previewRef.current = true;
@@ -208,7 +233,11 @@ export function useFormBarangMasuk(onSave: SaveBarangMasuk) {
     const input: CreateInboundBatchInput = {
       date: tanggal,
       source: 'SUPPLIER',
-      lines: baris.map((row) => ({ itemId: row.itemId!, supplierId: row.supplierId!, qtyArrived: Number(row.qtyArrived), qtyPurchased: Number(row.qtyPurchased), statusQc: 'PASS' })),
+      lines: baris.map((row) => ({
+        itemId: row.itemId!, purchaseOrderId: row.purchaseOrderId,
+        purchaseOrderLineId: row.purchaseOrderLineId,
+        qtyArrived: Number(row.qtyArrived), qtyPurchased: Number(row.qtyPurchased), statusQc: 'PASS',
+      })),
     };
     const body = JSON.stringify(input);
     if (submissionRef.current?.body !== body) submissionRef.current = { body, key: randomId() };
@@ -232,21 +261,20 @@ export function useFormBarangMasuk(onSave: SaveBarangMasuk) {
   };
 
   const pilihanMaterial = (row: BarisBarangMasuk) => {
-    const label = (item: { name: string; code: string | null }) => item.code ? `${item.name} (${item.code})` : item.name;
-    return [
-      ...(row.itemId !== null && !itemSearch.items.some((item) => item.id === row.itemId) ? [{ value: String(row.itemId), label: label(row) }] : []),
-      ...itemSearch.items.map((item) => ({ value: String(item.id), label: label(item) })),
-    ];
+    const opsi = barisPoSaatIni().map((line) => ({ value: String(line.purchaseOrderLineId), label: labelBaris(line) }));
+    const milikSendiri = row.purchaseOrderLineId > 0 && !opsi.some((option) => option.value === String(row.purchaseOrderLineId))
+      ? [{ value: String(row.purchaseOrderLineId), label: `${labelBaris(row)} (${row.poNumber})` }] : [];
+    return [...milikSendiri, ...opsi];
   };
-  const pilihanSupplier = [
-    ...(supplier && !supplierSearch.suppliers.some((candidate) => candidate.id === supplier.id) ? [{ value: String(supplier.id), label: supplier.name }] : []),
-    ...supplierSearch.suppliers.map((candidate) => ({ value: String(candidate.id), label: candidate.name })),
+  const pilihanPo = [
+    ...(po && !pos.some((candidate) => candidate.id === po.id) ? [{ value: String(po.id), label: `${po.nomorPo} — ${po.supplierName}` }] : []),
+    ...pos.map((candidate) => ({ value: String(candidate.id), label: `${candidate.nomorPo} — ${candidate.supplierName}` })),
   ];
 
   return {
-    supplier, tanggal, setTanggal, baris, preview, printAfter, saving, error, itemSearch, supplierSearch,
+    po, poLoading, poError, tanggal, setTanggal, baris, preview, printAfter, saving, error,
     scanOpen, scanValue, setScanValue, scanError, setScanError, pendingScans, cameraOn, setCameraOn, lockedName, scanRef,
-    pilihSupplier, tambahManual, patchBaris, hapusBaris, pilihMaterial, pilihanMaterial, pilihanSupplier,
+    pilihPo, tambahManual, patchBaris, hapusBaris, pilihMaterial, pilihanMaterial, pilihanPo,
     bukaScan, readCode, bacaInputScan, openPreview, kembaliEdit, confirmSave,
   };
 }

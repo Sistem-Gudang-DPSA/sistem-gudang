@@ -3,7 +3,7 @@ import { fail, installFakeApi } from "@/test/fake-api";
 import { bulkAssignItemSupplier } from "./item-supplier";
 
 describe("bulk assign item supplier", () => {
-  it("updates every item with only supplierId and reports the success count", async () => {
+  it("replaces every item's supplier set and reports the success count", async () => {
     const api = installFakeApi({
       "PUT /api/v1/items/1/suppliers": { id: 1 },
       "PUT /api/v1/items/2/suppliers": { id: 2 },
@@ -30,7 +30,7 @@ describe("bulk assign item supplier", () => {
     expect(api.calls("PUT /api/v1/items/3/suppliers")).toHaveLength(1);
   });
 
-  it("clears the supplier when supplierId is null", async () => {
+  it("clears every supplier when the desired set is empty", async () => {
     const api = installFakeApi({ "PUT /api/v1/items/4/suppliers": { id: 4 } });
 
     const result = await bulkAssignItemSupplier([4], []);

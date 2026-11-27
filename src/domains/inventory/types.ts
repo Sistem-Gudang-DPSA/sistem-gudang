@@ -1,3 +1,10 @@
+export interface ItemSupplier {
+  id: number;
+  name: string;
+  remainingStock?: number | null;
+  price?: number | null;
+}
+
 export interface Item {
   id: number;
   // kode internal, dibuat dari lokasi; null sampai barang punya lokasi
@@ -16,7 +23,7 @@ export interface Item {
   minimumStock?: number | null;
   locationId: number | null;
   supplierId: number | null;
-  suppliers?: { id: number; name: string }[];
+  suppliers?: ItemSupplier[];
   // Path relatif foto barang (dilayani lewat fileUrl); null bila belum ada foto.
   photo?: { thumb: string; display: string } | null;
   createdAt: string | null;
@@ -135,6 +142,8 @@ export interface CreateInboundInput {
   date: string;
   source?: "SUPPLIER" | "PRODUKSI";
   supplierId?: number;
+  purchaseOrderId?: number;
+  purchaseOrderLineId?: number;
   qtyArrived: number;
   qtyPurchased?: number;
   statusQc: StatusQc;
@@ -143,9 +152,11 @@ export interface CreateInboundInput {
   notes?: string;
 }
 
+// SUPPLIER lines point at the submitted PO line; supplier, price and SPK come from there.
 export interface InboundBatchLine {
   itemId: number;
-  supplierId?: number;
+  purchaseOrderId: number;
+  purchaseOrderLineId: number;
   qtyArrived: number;
   statusQc: StatusQc;
   qtyPurchased?: number;

@@ -6,21 +6,22 @@ import { useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { useCan } from '@/domains/auth/user-context';
 import { formatAngka, formatRupiah } from '@/domains/ppic/data/dokubah';
-import SearchableSelect from '@/shared/components/SearchableSelect';
+import StatusBadge from '@/shared/components/StatusBadge';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { INTEGER_INPUT, decimalOnly, digitsOnly, parsePpn } from '@/shared/lib/input';
-import { getPurchaseOrder, updatePurchaseOrder } from '../api';
-import { detailPoPath, po_barang_path } from '../data/pembelian';
+import { getPurchaseOrder, submitPurchaseOrder, updatePurchaseOrder } from '../api';
+import { detailPoPath, po_barang_path, purchaseOrderSpk } from '../data/pembelian';
 import { purchaseOrderTotals } from '../po-totals';
 import type { PurchaseOrder, PurchaseOrderLineInput, Supplier } from '../types';
-import { useSupplierSearch } from '../use-supplier-search';
 import { PurchaseOrderParties, PurchaseOrderTotalsSection } from './PurchaseOrderSections';
 
 const fieldClass = 'w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500/20';
 const cellClass = 'px-3 py-2 border-b border-r border-gray-300';
 const cellInputClass = 'w-full min-w-24 px-2 py-1 bg-white border border-gray-300 rounded-md text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500';
 const dividerClass = 'border-t border-gray-400 my-6';
-type DraftLine = { lineIndex?: number; kodeBarang: string; namaBarang: string; satuan: string; jumlah: string; hargaSatuan: string; diskon: string };
+type DraftLine = { lineIndex?: number; noSpk?: string | null; kodeBarang: string; namaBarang: string; satuan: string; jumlah: string; hargaSatuan: string; diskon: string };
+
+const statusTone = (status: string) => status === 'CANCELLED' ? 'red' : status === 'DRAFT' ? 'amber' : 'green';
 
 export default function EditPOBarang() {
   const { id } = useParams<{ id: string }>();
@@ -37,7 +38,7 @@ export default function EditPOBarang() {
       {!allowed ? <p role="alert">Anda tidak memiliki izin untuk mengedit PO.</p>
         : loading ? <p role="status">Memuat data PO...</p>
         : error || !po ? <p role="alert" className="text-red-600">{error || 'PO tidak ditemukan.'}</p>
-        : po.status !== 'ISSUED' ? <p role="alert">PO yang sudah dibatalkan tidak dapat diedit.</p>
+        : po.status !== 'DRAFT' ? <p role="alert">PO yang sudah disubmit atau dibatalkan tidak dapat diedit.</p>
         : <FormEditPO key={po.id} po={po} />}
     </div>
   );
@@ -45,12 +46,21 @@ export default function EditPOBarang() {
 
 function FormEditPO({ po }: { po: PurchaseOrder }) {
   const [tanggal, setTanggal] = useState(po.tanggalPo.slice(0, 10));
-  const [supplier, setSupplier] = useState<Supplier>({ id: po.supplierId, code: '', name: po.supplierName, address: po.supplierAddress ?? '', phone: po.supplierPhone ?? '', bank: po.supplierBank ?? '', npwp: po.supplierNpwp ?? '', pajak: 'NON_PKP' });
-  const { suppliers, onSearch, pending, error: supplierError } = useSupplierSearch();
-  const options = suppliers.some((row) => row.id === supplier.id) ? suppliers : [supplier, ...suppliers];
+  // Supplier is fixed on a PO; the backend PUT rejects supplierId, so it is display only.
+  const supplier: Supplier = { id: po.supplierId, code: '', name: po.supplierName, address: po.supplierAddress ?? '', phone: po.supplierPhone ?? '', bank: po.supplierBank ?? '', npwp: po.supplierNpwp ?? '', pajak: 'NON_PKP' };
   const [pic, setPic] = useState(po.picSupplier);
-  const [proyek, setProyek] = useState(po.kebutuhanProyek ?? '');
-  const [lines, setLines] = useState<DraftLine[]>(() => po.barang.map((line) => ({ ...line, ...(line.lineIndex == null ? { lineIndex: undefined } : {}), jumlah: String(line.jumlah), hargaSatuan: String(line.hargaSatuan), diskon: String(line.diskon) })));
+  // SPK berasal dari baris permintaan yang disalin backend; bukan field PO yang bisa diedit.
+  const noSpk = purchaseOrderSpk(po.barang);
+  const [lines, setLines] = useState<DraftLine[]>(() => po.barang.map((line) => ({
+    lineIndex: line.lineIndex ?? undefined,
+    noSpk: line.noSpk ?? null,
+    kodeBarang: line.kodeBarang,
+    namaBarang: line.namaBarang,
+    satuan: line.satuan,
+    jumlah: String(line.jumlah),
+    hargaSatuan: String(line.hargaSatuan),
+    diskon: String(line.diskon),
+  })));
   const [selected, setSelected] = useState<Record<number, boolean>>({});
   const [ppn, setPpn] = useState(String(po.persenPpn));
   const [jasa, setJasa] = useState(String(po.jasa));
@@ -58,7 +68,17 @@ function FormEditPO({ po }: { po: PurchaseOrder }) {
   const [saving, setSaving] = useState(false);
   const submitting = useRef(false);
   const [saved, setSaved] = useState<PurchaseOrder | null>(null);
-  const numericLines: PurchaseOrderLineInput[] = lines.map((line) => ({ ...line, jumlah: Number(line.jumlah), hargaSatuan: Number(line.hargaSatuan), diskon: Number(line.diskon) }));
+  const [submittingPo, setSubmittingPo] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const numericLines: PurchaseOrderLineInput[] = lines.map((line) => ({
+    lineIndex: line.lineIndex,
+    kodeBarang: line.kodeBarang,
+    namaBarang: line.namaBarang,
+    satuan: line.satuan,
+    jumlah: Number(line.jumlah),
+    hargaSatuan: Number(line.hargaSatuan),
+    diskon: Number(line.diskon),
+  }));
   const chosenLines = lines.filter((_, index) => selected[index] ?? true);
   const orderLines = numericLines.filter((_, index) => selected[index] ?? true);
   const totals = purchaseOrderTotals(orderLines, parsePpn(ppn), Number(jasa));
@@ -77,7 +97,7 @@ function FormEditPO({ po }: { po: PurchaseOrder }) {
     setSaving(true);
     setError('');
     try {
-      const updated = await updatePurchaseOrder(po.id, { tanggalPo: tanggal, supplierId: supplier.id, picSupplier: pic.trim(), kebutuhanProyek: proyek.trim(), barang: orderLines.map((line) => ({ ...line, kodeBarang: line.kodeBarang.trim(), namaBarang: line.namaBarang.trim(), satuan: line.satuan.trim() })), persenPpn, jasa: Number(jasa) });
+      const updated = await updatePurchaseOrder(po.id, { tanggalPo: tanggal, picSupplier: pic.trim(), barang: orderLines.map((line) => ({ ...line, kodeBarang: line.kodeBarang.trim(), namaBarang: line.namaBarang.trim(), satuan: line.satuan.trim() })), persenPpn, jasa: Number(jasa) });
       setSaved(updated);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Gagal menyimpan perubahan PO.');
@@ -87,17 +107,37 @@ function FormEditPO({ po }: { po: PurchaseOrder }) {
     }
   };
 
+  const submitPo = async () => {
+    if (!saved || submittingPo) return;
+    setSubmittingPo(true);
+    setSubmitError('');
+    try {
+      const submitted = await submitPurchaseOrder(saved.id);
+      setSaved(submitted);
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : 'Gagal submit PO.');
+    } finally {
+      setSubmittingPo(false);
+    }
+  };
+
   if (saved) return <div className="rounded-2xl border border-green-100 bg-white p-6">
     <p role="status" className="font-semibold text-green-700">Perubahan PO {saved.nomorPo} berhasil disimpan.</p>
+    <p className="mt-2 flex items-center gap-2 text-sm">Status: <StatusBadge tone={statusTone(saved.status)}>{saved.status}</StatusBadge></p>
     <p className="mt-2 text-sm">Supplier: {saved.supplierName} · Total: {formatRupiah(saved.grandTotal)}</p>
-    <Link href={detailPoPath(saved.id)} className="mt-4 inline-block rounded-lg bg-orange-500 px-4 py-2 text-white">Lihat Detail PO</Link>
+    {saved.status === 'DRAFT' && <p className="mt-3 text-sm text-amber-700">Submit PO untuk membekukan harga dan mengizinkan penerimaan barang.</p>}
+    {submitError && <p role="alert" className="mt-3 text-sm text-red-600">{submitError}</p>}
+    <div className="mt-4 flex flex-wrap gap-3">
+      <Link href={detailPoPath(saved.id)} className="rounded-lg bg-orange-500 px-4 py-2 text-white">Lihat Detail PO</Link>
+      {saved.status === 'DRAFT' && <button type="button" onClick={() => void submitPo()} disabled={submittingPo} className="rounded-lg border border-orange-500 px-4 py-2 text-orange-600 disabled:opacity-50">{submittingPo ? 'Mengirim...' : 'Submit PO'}</button>}
+    </div>
   </div>;
 
   return (
     <form aria-label={`Edit ${po.nomorPo}`} onSubmit={save} noValidate className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
       <h2 className="text-base font-bold text-gray-900 text-center mb-6">Pemesanan Pembelian — {po.nomorPo}</h2>
       <fieldset disabled={saving}>
-        <h3 className="mb-4 text-sm font-bold text-gray-900">Proyek: {proyek || 'Belum diisi'}</h3>
+        <h3 className="mb-4 text-sm font-bold text-gray-900">No SPK: {noSpk || 'Belum diisi'}</h3>
         <div className="flex flex-col gap-2 max-w-sm">
           <div className="flex items-center gap-2">
             <label htmlFor="edit-po-tanggal" className="w-24 shrink-0 text-sm font-medium text-gray-800">Tanggal PO</label>
@@ -108,22 +148,23 @@ function FormEditPO({ po }: { po: PurchaseOrder }) {
         <hr className={dividerClass} />
         <PurchaseOrderParties
           supplier={supplier}
-          supplierControl={<SearchableSelect aria-label="Data Supplier" value={String(supplier.id)} options={options.map((row) => ({ value: String(row.id), label: `${row.code ? `${row.code} - ` : ''}${row.name}` }))} onChange={(id) => { const chosen = options.find((row) => String(row.id) === id); if (chosen) setSupplier(chosen); }} onSearch={onSearch} pending={pending} disabled={saving} placeholder="Kode Supplier" className={cellInputClass} />}
-          supplierError={supplierError}
+          supplierControl={<input type="text" readOnly aria-label="Data Supplier" value={supplier.name} className={`${cellInputClass} cursor-default`} />}
           pic={pic}
           onPicChange={setPic}
           picLabel="PIC / Telp Supplier"
-          project={<input aria-label="Kebutuhan Proyek" type="text" maxLength={191} value={proyek} onChange={(event) => setProyek(event.target.value)} className={cellInputClass} />}
+          projectLabel="No SPK"
+          project={noSpk || '-'}
         />
         <hr className={dividerClass} />
         <h3 className="text-xs font-bold text-gray-900 mb-3">Daftar / Spesifikasi Barang Yang Dipesan :</h3>
         <div className="overflow-x-auto border-t border-l border-gray-300 rounded-sm">
           <table aria-label="Daftar barang PO" className="w-full text-left text-sm whitespace-nowrap border-collapse">
-            <thead className="bg-gray-100 text-gray-900 font-bold text-xs"><tr>{['Pilih', 'No.', 'Kode Barang', 'Nama Item / Barang', 'Satuan', 'Jumlah', 'Harga / Sat (Rp)', 'Diskon (Rp)', 'Total Harga (Rp)'].map((title) => <th scope="col" key={title} className={`${cellClass} text-center ${title === 'Pilih' ? 'w-24' : title === 'No.' ? 'w-12' : ''}`}>{title}</th>)}</tr></thead>
+            <thead className="bg-gray-100 text-gray-900 font-bold text-xs"><tr>{['Pilih', 'No.', 'Kode Barang', 'Nama Item / Barang', 'Satuan', 'No SPK', 'Jumlah', 'Harga / Sat (Rp)', 'Diskon (Rp)', 'Total Harga (Rp)'].map((title) => <th scope="col" key={title} className={`${cellClass} text-center ${title === 'Pilih' ? 'w-24' : title === 'No.' ? 'w-12' : ''}`}>{title}</th>)}</tr></thead>
             <tbody className="text-gray-800">{lines.map((line, index) => <tr key={index} className={(selected[index] ?? true) ? '' : 'opacity-50'}>
               <td className={`${cellClass} text-center`}><input type="checkbox" aria-label={`Pilih baris ${index + 1}`} checked={selected[index] ?? true} onChange={() => setSelected((prev) => ({ ...prev, [index]: !(prev[index] ?? true) }))} /></td>
               <td className={`${cellClass} text-center`}>{index + 1}.</td>
               {(['kodeBarang', 'namaBarang', 'satuan'] as const).map((key) => <td className={cellClass} key={key}><input type="text" aria-label={`${key === 'kodeBarang' ? 'Kode barang' : key === 'namaBarang' ? 'Nama barang' : 'Satuan'} baris ${index + 1}`} value={line[key]} maxLength={key === 'satuan' ? 50 : 191} onChange={(event) => patchLine(index, key, event.target.value)} className={cellInputClass} /></td>)}
+              <td className={`${cellClass} whitespace-nowrap`}>{line.noSpk || '-'}</td>
               {(['jumlah', 'hargaSatuan', 'diskon'] as const).map((key) => <td className={cellClass} key={key}><input {...INTEGER_INPUT} aria-label={`${key === 'jumlah' ? 'Jumlah' : key === 'hargaSatuan' ? 'Harga satuan' : 'Diskon'} baris ${index + 1}`} value={line[key]} maxLength={key === 'jumlah' ? 7 : 10} onChange={(event) => patchLine(index, key, digitsOnly(event.target.value))} className={`${cellInputClass} text-right`} /></td>)}
               <td className={`${cellClass} text-right font-semibold`}>{formatAngka(numericLines[index].jumlah * numericLines[index].hargaSatuan - numericLines[index].diskon)}</td>
             </tr>)}</tbody>

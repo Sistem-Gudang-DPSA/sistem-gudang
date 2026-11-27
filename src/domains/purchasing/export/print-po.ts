@@ -1,5 +1,5 @@
 import type { PurchaseOrder } from '@/domains/purchasing/types';
-import { PEMESAN } from '@/domains/purchasing/data/pembelian';
+import { PEMESAN, purchaseOrderSpk } from '@/domains/purchasing/data/pembelian';
 import { formatAngka } from '@/domains/ppic/data/dokubah';
 import { escapeHtml } from '@/shared/lib/escape-html';
 import { dokumenLaporan, tungguGambarCetak } from '@/shared/lib/print-laporan';
@@ -24,6 +24,7 @@ export function buildPurchaseOrderHtml(po: PurchaseOrder): string {
   const rows = po.barang.map((item, index) => `<tr>
     <td class="c">${index + 1}</td><td>${escapeHtml(item.kodeBarang)}</td>
     <td>${escapeHtml(item.namaBarang)}</td><td class="c">${escapeHtml(item.satuan)}</td>
+    <td class="c">${escapeHtml(item.noSpk || '-')}</td>
     <td class="r">${escapeHtml(quantityFormatter.format(item.jumlah))}</td><td class="r">${amount(item.hargaSatuan)}</td>
     <td class="r">${item.diskon === 0 ? '' : amount(item.diskon)}</td><td class="r">${amount(item.jumlah * item.hargaSatuan - item.diskon)}</td>
   </tr>`).join('');
@@ -40,7 +41,8 @@ export function buildPurchaseOrderHtml(po: PurchaseOrder): string {
     .po-title { text-align: center; text-decoration: underline; font-size: 12px; margin: 20mm 0 3mm; }
     table { width: 100%; margin: 0; font-size: 9px; table-layout: fixed; }
     th, td { overflow-wrap: anywhere; }
-    .cancelled { text-align: center; font-size: 11px; font-weight: bold; color: #900; border: 1px solid #900; padding: 2mm; margin: 0 0 3mm; }
+    .cancelled, .draft { text-align: center; font-size: 11px; font-weight: bold; color: #900; border: 1px solid #900; padding: 2mm; margin: 0 0 3mm; }
+    .draft { color: #a15c00; border-color: #c77700; }
     .meta-row { display: flex; align-items: start; justify-content: space-between; margin-bottom: 5mm; }
     .po-meta { width: 63mm; }
     .po-meta td { border: 1px solid #777; padding: .4mm 1mm; }
@@ -85,7 +87,7 @@ export function buildPurchaseOrderHtml(po: PurchaseOrder): string {
     .signatures td:last-child .signature-role { font-style: italic; }
   </style>
   <h1 class="po-title">PURCHASE ORDER (PO)</h1>
-  ${po.status === 'CANCELLED' ? `<p class="cancelled">DIBATALKAN${po.cancelReason ? `: ${escapeHtml(po.cancelReason)}` : ''}</p>` : ''}
+  ${po.status === 'CANCELLED' ? `<p class="cancelled">DIBATALKAN${po.cancelReason ? `: ${escapeHtml(po.cancelReason)}` : ''}</p>` : po.status === 'DRAFT' ? '<p class="draft">DRAFT — belum disubmit</p>' : ''}
   <div class="meta-row">
     <table class="po-meta"><tbody>
       ${infoRow('Nomor PO', po.nomorPo)}
@@ -106,20 +108,20 @@ export function buildPurchaseOrderHtml(po: PurchaseOrder): string {
       <tr><th colspan="2">${escapeHtml(PEMESAN.nama)}</th></tr>
       ${infoRow('NPWP', PEMESAN.npwp)}
       <tr class="address-row"><td>Alamat Pengiriman</td><td>${escapeHtml(PEMESAN.alamatPengiriman)}</td></tr>
-      ${infoRow('Kebutuhan Proyek', po.kebutuhanProyek || '')}
+      ${infoRow('No SPK', purchaseOrderSpk(po.barang) || '-')}
       ${infoRow('PIC / Telp', PEMESAN.pic)}
     </tbody></table></section>
   </div>
   <h2 class="items-title">Daftar / Spesifikasi Barang yang Dipesan:</h2>
-  <table class="po-items"><colgroup>${[4, 10, 40, 7, 7, 12, 8, 12].map((width) => `<col style="width:${width}%">`).join('')}</colgroup>
-    <thead><tr><th>No</th><th>Kode Barang</th><th>Nama Item / Barang</th><th>Satuan</th><th>Jumlah</th><th>Harga/Sat<br>(Rp)</th><th>Diskon<br>(Rp)</th><th>TOTAL HARGA (Rp)</th></tr></thead>
+  <table class="po-items"><colgroup>${[4, 9, 34, 6, 11, 6, 12, 8, 10].map((width) => `<col style="width:${width}%">`).join('')}</colgroup>
+    <thead><tr><th>No</th><th>Kode Barang</th><th>Nama Item / Barang</th><th>Satuan</th><th>No SPK</th><th>Jumlah</th><th>Harga/Sat<br>(Rp)</th><th>Diskon<br>(Rp)</th><th>TOTAL HARGA (Rp)</th></tr></thead>
     <tbody>${rows}</tbody>
     <tfoot>
-      <tr class="strong"><td colspan="7">TOTAL HARGA SETELAH DISKON</td><td class="r">${amount(po.subtotal)}</td></tr>
-      <tr><td colspan="4"><span class="dpp-label">DPP LAIN :</span><span class="dpp-formula">${escapeHtml(formatAngka(po.subtotal))} &nbsp; X &nbsp; 11/12 &nbsp; = &nbsp; ${escapeHtml(formatAngka(po.dppLain))}</span></td><td colspan="2" class="c"><strong>PPN</strong></td><td class="c">${amount(po.persenPpn)}%</td><td class="r">${amount(po.nilaiPpn)}</td></tr>
-      <tr class="strong"><td colspan="6">TOTAL HARGA SETELAH PPN</td><td class="r">Rp.</td><td class="r">${amount(po.subtotal + po.nilaiPpn)}</td></tr>
-      <tr><td colspan="7">JASA</td><td class="r">${amount(po.jasa)}</td></tr>
-      <tr class="strong grand"><td colspan="7">GRAND TOTAL</td><td class="r">${amount(po.grandTotal)}</td></tr>
+      <tr class="strong"><td colspan="8">TOTAL HARGA SETELAH DISKON</td><td class="r">${amount(po.subtotal)}</td></tr>
+      <tr><td colspan="4"><span class="dpp-label">DPP LAIN :</span><span class="dpp-formula">${escapeHtml(formatAngka(po.subtotal))} &nbsp; X &nbsp; 11/12 &nbsp; = &nbsp; ${escapeHtml(formatAngka(po.dppLain))}</span></td><td colspan="3" class="c"><strong>PPN</strong></td><td class="c">${amount(po.persenPpn)}%</td><td class="r">${amount(po.nilaiPpn)}</td></tr>
+      <tr class="strong"><td colspan="7">TOTAL HARGA SETELAH PPN</td><td class="r">Rp.</td><td class="r">${amount(po.subtotal + po.nilaiPpn)}</td></tr>
+      <tr><td colspan="8">JASA</td><td class="r">${amount(po.jasa)}</td></tr>
+      <tr class="strong grand"><td colspan="8">GRAND TOTAL</td><td class="r">${amount(po.grandTotal)}</td></tr>
     </tfoot>
   </table>
   <div class="approval-area">

@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCan } from '@/domains/auth/user-context';
 import { approveApproval } from '@/domains/ppic/api';
 import { fetchPermintaan, type PermintaanPembelian } from '@/domains/ppic/data/pembelian';
 import { formatAngka, formatTanggal } from '@/domains/ppic/data/dokubah';
 import { getItem, listItems } from '@/domains/inventory/api';
+import type { Item, ItemSupplier } from '@/domains/inventory/types';
 import SearchableSelect from '@/shared/components/SearchableSelect';
 import { useApiData } from '@/shared/lib/use-api-data';
 import { fetchAllPages } from '@/shared/lib/fetch-all';
@@ -17,13 +18,15 @@ import { savePoPreparation, type PreparedPoLine } from '../po-preparation';
 import type { PurchaseRequestMapping, Supplier } from '../types';
 import { lineSudahDipesan, usePoPermintaan } from '../use-po-permintaan';
 import { useSupplierSearch } from '../use-supplier-search';
+import { addMaterialSupplier, materialSuppliers } from '../material-suppliers';
 
 const cellClass = 'px-3 py-3 border-b border-r border-gray-300 align-top';
 const fieldClass = 'w-full min-w-24 rounded-lg border border-gray-300 px-2 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500';
 
 type Props = { permintaan: PermintaanPembelian; fromPoBarang: boolean };
-type ItemLookup = { code: string | null; stock: number; price: number } | null;
+type ItemLookup = { id: number; code: string | null; stock: number; price: number; suppliers: ItemSupplier[] } | null;
 type RowDraft = { supplier: Supplier | null; qty: string; harga: string | null };
+type SupplierNotice = { error: boolean; message: string; retry?: { supplier: Supplier; rowIndex: number } };
 
 export default function RincianPermintaanPurchasing(props: Props) {
   const canCreate = useCan('purchase-order.create');
@@ -35,17 +38,18 @@ export default function RincianPermintaanPurchasing(props: Props) {
 
 function RincianEditor(props: Props) {
   const poState = usePoPermintaan(props.permintaan.id);
-  const supplierState = useSupplierSearch();
+  const supplierState = useSupplierSearch({ loadAll: true });
   return <TabelRincian {...props} poState={poState} supplierState={supplierState} />;
 }
 
 async function loadMaster(request: PermintaanPembelian): Promise<ItemLookup[]> {
+  const lookup = (item: Pick<Item, 'id' | 'code' | 'stock' | 'price' | 'suppliers' | 'supplierId'> & { supplierName?: string | null }): ItemLookup => ({ id: item.id, code: item.code, stock: item.stock, price: item.price, suppliers: materialSuppliers({ ...item, supplierId: item.supplierId ?? null }) });
   const byId = new Map<number, Promise<ItemLookup>>();
   const byName = new Map<string, Promise<ItemLookup>>();
   return Promise.all(request.barang.map(async (line) => {
     try {
       if (line.itemId !== undefined) {
-        if (!byId.has(line.itemId)) byId.set(line.itemId, getItem(line.itemId).then((item) => ({ code: item.code, stock: item.stock, price: item.price })).catch(() => null));
+        if (!byId.has(line.itemId)) byId.set(line.itemId, getItem(line.itemId).then(lookup).catch(() => null));
         return await byId.get(line.itemId) ?? null;
       }
       // Permintaan lama belum menyimpan itemId. Hanya gunakan kecocokan nama dan satuan yang unik.
@@ -53,7 +57,7 @@ async function loadMaster(request: PermintaanPembelian): Promise<ItemLookup[]> {
       if (!byName.has(key)) {
         byName.set(key, fetchAllPages((page, pageSize) => listItems({ search: line.namaBarang, page, pageSize })).then((items) => {
           const matches = items.filter((item) => item.name.trim().toLowerCase() === line.namaBarang.trim().toLowerCase() && item.unit.trim().toLowerCase() === line.satuan.trim().toLowerCase());
-          return matches.length === 1 ? { code: matches[0].code, stock: matches[0].stock, price: matches[0].price } : null;
+          return matches.length === 1 ? lookup(matches[0]) : null;
         }).catch(() => null));
       }
       return await byName.get(key) ?? null;
@@ -65,14 +69,18 @@ async function loadMaster(request: PermintaanPembelian): Promise<ItemLookup[]> {
 
 const emptySupplier = (id: number, name: string): Supplier => ({ id, code: '', name, address: '', phone: '', bank: '', npwp: '', pajak: 'PKP' });
 
-function SupplierBaris({ value, onChange, label, search }: { value: Supplier | null; onChange: (supplier: Supplier) => void; label: string; search: ReturnType<typeof useSupplierSearch> }) {
-  const { suppliers, onSearch, pending, error } = search;
-  const options = value && !suppliers.some((s) => s.id === value.id) ? [value, ...suppliers] : suppliers;
+function SupplierBaris({ value, onChange, label, search, assignedSuppliers, disabled }: { value: Supplier | null; onChange: (supplier: Supplier) => void; label: string; search: ReturnType<typeof useSupplierSearch>; assignedSuppliers: ItemSupplier[] | undefined; disabled: boolean }) {
+  const { suppliers, pending, error } = search;
+  const catalogue = new Map(suppliers.map((supplier) => [supplier.id, supplier]));
+  if (value && !catalogue.has(value.id)) catalogue.set(value.id, value);
+  const mapped = new Map((assignedSuppliers ?? []).map((supplier) => [supplier.id, catalogue.get(supplier.id) ?? emptySupplier(supplier.id, supplier.name)]));
+  const options = [...mapped.values(), ...[...catalogue.values()].filter((supplier) => !mapped.has(supplier.id))];
   return (
     <>
       <SearchableSelect value={value ? String(value.id) : ''} onChange={(id) => { const supplier = options.find((s) => String(s.id) === id); if (supplier) onChange(supplier); }}
-        options={options.map((s) => ({ value: String(s.id), label: `${s.code} - ${s.name}` }))}
-        onSearch={onSearch} pending={pending} placeholder="Pilih supplier" aria-label={label} className={`${fieldClass} min-w-48`} />
+        options={options.map((s) => ({ value: String(s.id), label: s.code ? `${s.code} - ${s.name}` : s.name, group: mapped.has(s.id) ? 'Supplier Material' : 'Supplier Lainnya' }))}
+        groups={[{ label: 'Supplier Material', emptyText: assignedSuppliers ? 'Belum ada supplier yang dipetakan.' : 'Pemetaan material belum tersedia.' }, { label: 'Supplier Lainnya' }]}
+        disabled={disabled} pending={pending} placeholder="Pilih supplier" aria-label={label} className={`${fieldClass} min-w-48`} />
       {error && <p role="alert" className="mt-1 text-xs text-red-600">{error}</p>}
     </>
   );
@@ -83,9 +91,15 @@ function TabelRincian({ permintaan, fromPoBarang, poState, supplierState }: Prop
   const canViewItem = useCan('item.view');
   const canViewMapping = useCan('purchase-order.view');
   const canApprove = useCan('purchase-request.approve');
+  const canUpdateItem = useCan('item.update');
+  const canSetSupplier = useCan('item.set-supplier');
   const [drafts, setDrafts] = useState<Record<number, RowDraft[]>>({});
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [supplierSaving, setSupplierSaving] = useState(false);
+  const supplierSavingRef = useRef(false);
+  const [savedSuppliers, setSavedSuppliers] = useState<Record<number, ItemSupplier[]>>({});
+  const [supplierNotices, setSupplierNotices] = useState<Record<number, SupplierNotice | null>>({});
   const { data: master, loading } = useApiData(
     () => canViewItem ? loadMaster(permintaan) : Promise.resolve<ItemLookup[]>([]),
     `rincian-master|${permintaan.id}|${JSON.stringify(permintaan.barang)}|${canViewItem}`,
@@ -128,6 +142,40 @@ function TabelRincian({ permintaan, fromPoBarang, poState, supplierState }: Prop
   const setRows = (index: number, rows: RowDraft[]) => setDrafts((prev) => ({ ...prev, [index]: rows }));
   const update = (index: number, rowIndex: number, patch: Partial<RowDraft>) => {
     setRows(index, rowsFor(index).map((row, i) => i === rowIndex ? { ...row, ...patch } : row));
+  };
+  const materialId = (index: number) => master?.[index]?.id ?? permintaan.barang[index].itemId;
+  const assignedFor = (index: number) => {
+    const id = materialId(index);
+    return (id === undefined ? undefined : savedSuppliers[id]) ?? master?.[index]?.suppliers;
+  };
+  const chooseSupplier = async (index: number, rowIndex: number, supplier: Supplier) => {
+    if (supplierSavingRef.current) return;
+    update(index, rowIndex, { supplier });
+    setSupplierNotices((prev) => ({ ...prev, [index]: null }));
+    if (assignedFor(index)?.some((mapped) => mapped.id === supplier.id)) return;
+    if (!canUpdateItem || !canSetSupplier) {
+      setSupplierNotices((prev) => ({ ...prev, [index]: { error: true, message: 'Supplier dipilih untuk PO, tetapi akun ini belum memiliki izin menambah supplier material.' } }));
+      return;
+    }
+    const id = materialId(index);
+    if (!canViewItem || id === undefined) {
+      setSupplierNotices((prev) => ({ ...prev, [index]: { error: true, message: 'Supplier dipilih untuk PO. Pemetaan belum disimpan karena material belum terhubung ke data barang yang dapat dibaca.' } }));
+      return;
+    }
+    supplierSavingRef.current = true;
+    setSupplierSaving(true);
+    setSupplierNotices((prev) => ({ ...prev, [index]: { error: false, message: 'Menyimpan supplier material...' } }));
+    try {
+      const suppliers = await addMaterialSupplier(id, supplier);
+      setSavedSuppliers((prev) => ({ ...prev, [id]: suppliers }));
+      setSupplierNotices((prev) => ({ ...prev, [index]: { error: false, message: `${supplier.name} tersimpan sebagai supplier material.` } }));
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : 'Gagal menyimpan supplier.';
+      setSupplierNotices((prev) => ({ ...prev, [index]: { error: true, message: `${supplier.name} dipilih untuk PO, tetapi gagal disimpan sebagai supplier material: ${reason}`, retry: { supplier, rowIndex } } }));
+    } finally {
+      supplierSavingRef.current = false;
+      setSupplierSaving(false);
+    }
   };
   const addRow = (index: number) => setRows(index, [...rowsFor(index), { supplier: null, qty: '', harga: null }]);
   const removeRow = (index: number, rowIndex: number) => {
@@ -176,7 +224,7 @@ function TabelRincian({ permintaan, fromPoBarang, poState, supplierState }: Prop
   };
 
   const prepare = async () => {
-    if (!editable || saving || poState?.loading || poState?.error) return;
+    if (!editable || saving || supplierSavingRef.current || poState?.loading || poState?.error) return;
     setError('');
     setSaving(true);
     let serverWrite = false;
@@ -218,6 +266,7 @@ function TabelRincian({ permintaan, fromPoBarang, poState, supplierState }: Prop
         supplier: suppliers.get(row.supplier!.id)!,
         kodeBarang: item?.code ?? '',
         itemId: permintaan.barang[line.lineIndex].itemId,
+        noSpk: permintaan.barang[line.lineIndex].noSpk?.trim() ?? '',
         harga: Number(hargaValue(line.lineIndex, row) || 0),
         hargaTerbaru: item?.price ?? 0,
       }));
@@ -232,7 +281,7 @@ function TabelRincian({ permintaan, fromPoBarang, poState, supplierState }: Prop
       <div className="overflow-x-auto border-t border-l border-gray-300 rounded-lg">
         <table className="w-full text-left text-sm border-collapse">
           <thead className="bg-gray-100 text-gray-800 font-semibold text-xs whitespace-nowrap"><tr>
-            {['No', 'Nama Barang', 'Satuan', 'Stok Saat Ini', 'Supplier', 'Harga Terakhir', 'Harga Saat Ini', 'Qty Permintaan', 'Qty Dibeli', 'Keterangan', 'Tanggal Datang'].map((label) => <th key={label} scope="col" className={`${cellClass} text-center`}>{label}</th>)}
+            {['No', 'Nama Barang', 'Satuan', 'No SPK', 'Stok Saat Ini', 'Supplier', 'Harga Terakhir', 'Harga Saat Ini', 'Qty Permintaan', 'Qty Dibeli', 'Keterangan', 'Tanggal Datang'].map((label) => <th key={label} scope="col" className={`${cellClass} text-center`}>{label}</th>)}
           </tr></thead>
           <tbody className="text-gray-600">
             {permintaan.barang.map((line, index) => {
@@ -240,6 +289,7 @@ function TabelRincian({ permintaan, fromPoBarang, poState, supplierState }: Prop
               const canEdit = editable && !lineLocked(index) && !poState?.loading && !poState?.error && !mappingLoading;
               const total = totals(index);
               const firstName = line.namaBarang;
+              const notice = supplierNotices[index];
               return rows.map((row, rowIndex) => {
                 const lockedRow = rowOrdered(index, row);
                 return (
@@ -248,15 +298,20 @@ function TabelRincian({ permintaan, fromPoBarang, poState, supplierState }: Prop
                     <td rowSpan={rows.length} className={cellClass}>{index + 1}</td>
                     <td rowSpan={rows.length} className={`${cellClass} min-w-48 font-semibold text-gray-900`}>{firstName}{lineLocked(index) && <p className="text-xs font-normal text-gray-500">Sudah dipesan</p>}</td>
                     <td rowSpan={rows.length} className={`${cellClass} text-center`}>{line.satuan}</td>
+                    <td rowSpan={rows.length} className={`${cellClass} text-center whitespace-nowrap`}>{line.noSpk || '-'}</td>
                     <td rowSpan={rows.length} className={`${cellClass} text-center`}>{!canViewItem ? 'Tidak memiliki izin melihat stok' : loading ? 'Memuat...' : master?.[index] ? formatAngka(master[index].stock) : <span title="Stok tidak tersedia atau barang belum terhubung ke satu master barang yang unik">Tidak tersedia</span>}</td>
                   </>}
                   <td className={cellClass}>
-                    {canEdit && !lockedRow && supplierState ? <SupplierBaris search={supplierState} value={row.supplier} onChange={(supplier) => update(index, rowIndex, { supplier })} label={`Supplier baris ${index + 1} supplier ${rowIndex + 1}`} /> : (row.supplier?.name || line.supplier || '-')}
+                    {canEdit && !lockedRow && supplierState ? <SupplierBaris search={supplierState} assignedSuppliers={assignedFor(index)} disabled={supplierSaving || saving} value={row.supplier} onChange={(supplier) => void chooseSupplier(index, rowIndex, supplier)} label={`Supplier baris ${index + 1} supplier ${rowIndex + 1}`} /> : (row.supplier?.name || line.supplier || '-')}
+                    {rowIndex === 0 && notice && <div role={notice.error ? 'alert' : 'status'} className={`mt-1 max-w-64 text-xs ${notice.error ? 'text-red-600' : 'text-gray-500'}`}>
+                      {notice.message}
+                      {notice.retry && <button type="button" disabled={supplierSaving || saving} onClick={() => { if (notice.retry) void chooseSupplier(index, notice.retry.rowIndex, notice.retry.supplier); }} className="ml-1 underline disabled:opacity-50">Coba lagi simpan supplier material</button>}
+                    </div>}
                     {lockedRow && !lineLocked(index) && <p className="mt-1 text-xs text-gray-500">Sudah dipesan</p>}
                     {canEdit && rowIndex === rows.length - 1 && (
                       <div className="mt-1 flex gap-3 text-xs">
-                        <button type="button" onClick={() => addRow(index)} className="text-orange-600 hover:underline" aria-label={`Tambah supplier baris ${index + 1}`}>+ Supplier</button>
-                        {rows.length > 1 && !lockedRow && <button type="button" onClick={() => removeRow(index, rowIndex)} className="text-red-600 hover:underline" aria-label={`Hapus supplier baris ${index + 1} supplier ${rowIndex + 1}`}>Hapus</button>}
+                        <button type="button" disabled={supplierSaving || saving} onClick={() => addRow(index)} className="text-orange-600 hover:underline disabled:opacity-50" aria-label={`Tambah supplier baris ${index + 1}`}>+ Supplier</button>
+                        {rows.length > 1 && !lockedRow && <button type="button" disabled={supplierSaving || saving} onClick={() => removeRow(index, rowIndex)} className="text-red-600 hover:underline disabled:opacity-50" aria-label={`Hapus supplier baris ${index + 1} supplier ${rowIndex + 1}`}>Hapus</button>}
                       </div>
                     )}
                   </td>
@@ -273,14 +328,14 @@ function TabelRincian({ permintaan, fromPoBarang, poState, supplierState }: Prop
                 );
               });
             })}
-            {!permintaan.barang.length && <tr><td colSpan={11} className={`${cellClass} text-center text-gray-400`}>Belum ada barang pada permintaan ini.</td></tr>}
+            {!permintaan.barang.length && <tr><td colSpan={12} className={`${cellClass} text-center text-gray-400`}>Belum ada barang pada permintaan ini.</td></tr>}
           </tbody>
         </table>
       </div>
       {mappingError && <p role="alert" className="mt-3 text-sm text-red-600">{mappingError} <button type="button" onClick={reloadMapping} className="underline">Coba lagi</button></p>}
       {poState?.error && <p role="alert" className="mt-3 text-sm text-red-600">{poState.error} <button type="button" onClick={poState.reload} className="underline">Coba lagi</button></p>}
       {error && <p role="alert" className="mt-3 text-sm text-red-600">{error}</p>}
-      {editable && available.length > 0 && <div className="mt-4 flex justify-end"><button type="button" onClick={() => void prepare()} disabled={saving || poState?.loading || !!poState?.error || loading || mappingLoading} className="px-8 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 text-sm disabled:opacity-50">{saving ? 'Membuat PO...' : 'Generate PO'}</button></div>}
+      {editable && available.length > 0 && <div className="mt-4 flex justify-end"><button type="button" onClick={() => void prepare()} disabled={saving || supplierSaving || poState?.loading || !!poState?.error || loading || mappingLoading} className="px-8 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 text-sm disabled:opacity-50">{saving ? 'Membuat PO...' : 'Generate PO'}</button></div>}
     </>
   );
 }

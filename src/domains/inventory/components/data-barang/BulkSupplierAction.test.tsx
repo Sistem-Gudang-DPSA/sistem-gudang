@@ -39,6 +39,18 @@ const choose = (label: string) => {
 };
 
 describe("BulkSupplierAction", () => {
+  it("preserves a legacy primary supplier while adding another supplier", async () => {
+    const api = installFakeApi({ "PUT /api/v1/items/1/suppliers": { id: 1, suppliers } });
+    const { onFinished } = renderAction({ selected: new Map([[1, item(1, "Triplex", 7)]]) });
+    fireEvent.click(screen.getByRole("button", { name: "Edit Supplier (1)" }));
+    expect((screen.getByRole("checkbox", { name: "PT Kayu" }) as HTMLInputElement).checked).toBe(true);
+    choose("CV Baja");
+    fireEvent.click(screen.getByRole("button", { name: "Tinjau 1 Barang" }));
+    fireEvent.click(screen.getByRole("button", { name: "Simpan 1 Barang" }));
+    await waitFor(() => expect(onFinished).toHaveBeenCalledOnce());
+    expect(api.calls("PUT /api/v1/items/1/suppliers")[0].body).toEqual({ supplierIds: [7, 8] });
+  });
+
   it("keeps the existing supplier when adding a second supplier to one material", async () => {
     const api = installFakeApi({ "PUT /api/v1/items/1/suppliers": { id: 1, suppliers } });
     const { onFinished } = renderAction({ selected: new Map([[1, { ...item(1, "Triplex", 7), suppliers: [suppliers[0]] }]]) });

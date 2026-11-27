@@ -62,7 +62,6 @@ it('DataBarang memuat semua halaman lokasi dan supplier', async () => {
   expect(api.calls('GET /api/v1/locations')[0].query.get('pageSize')).toBe('100');
   // Id 150 hanya ada di halaman kedua.
   expect(screen.queryByRole('columnheader', { name: 'Supplier' })).toBeNull();
-  expect(screen.queryByText('Supplier Terakhir')).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: /Filter/ }));
   expect(await screen.findByRole('option', { name: 'Supplier Terakhir' })).not.toBeNull();
 });
