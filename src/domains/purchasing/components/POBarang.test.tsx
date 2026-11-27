@@ -1,5 +1,5 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { fail, installFakeApi, paged, type FakeRequest } from '@/test/fake-api';
 import { downloadBlob } from '@/shared/lib/download';
 import POBarang from './POBarang';
@@ -50,6 +50,18 @@ describe('purchasing POBarang', () => {
     await waitFor(() => expect(lastQ(api).get('startDate')).toBe('2026-05-01'));
     expect(lastQ(api).get('endDate')).toBe('2026-05-31');
     expect(lastQ(api).get('page')).toBe('1');
+  });
+
+  it('menaruh kolom centang di depan kolom No pada tabel', async () => {
+    installFakeApi({ 'GET /api/v1/purchase-orders': paged([order(1)]) });
+    render(<POBarang />);
+    await screen.findByText('PO-1');
+    const headers = screen.getAllByRole('columnheader');
+    expect(within(headers[0]).getByRole('checkbox', { name: 'Centang semua PO di halaman ini' })).toBeTruthy();
+    expect(headers[1].textContent).toBe('No');
+    const cells = screen.getByRole('checkbox', { name: 'Centang PO-1' }).closest('tr')!.children;
+    expect(cells[0].querySelector('input[type="checkbox"]')).not.toBeNull();
+    expect(cells[1].textContent).toBe('1');
   });
 
   it('exports a CSV with matching headers, escaped fields, and can export twice', async () => {
