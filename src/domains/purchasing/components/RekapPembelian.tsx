@@ -49,7 +49,7 @@ export function RekapPembelianReport({
         <p className="text-gray-500 text-sm">Kelola pengajuan permintaan pembelian barang.</p>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <div className="w-full bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         {/* Pencarian */}
         <div className="relative w-full max-w-md mb-6">
           <input
@@ -66,14 +66,21 @@ export function RekapPembelianReport({
 
         {/* Tabel */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm whitespace-nowrap">
+          <table className="w-full min-w-[52rem] table-fixed text-left text-sm whitespace-nowrap">
+            <colgroup>
+              <col className="w-16" />
+              <col className="w-[20%]" />
+              <col className="w-[26%]" />
+              <col className="w-[26%]" />
+              <col />
+            </colgroup>
             <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
               <tr>
                 <th scope="col" className="px-6 py-4 w-16 text-center">No</th>
                 <th scope="col" className="px-6 py-4">Tanggal</th>
                 <th scope="col" className="px-6 py-4">Permintaan</th>
-                <th scope="col" className="px-6 py-4 text-center">Status</th>
-                <th scope="col" className="px-6 py-4 text-center">Aksi</th>
+                <th scope="col" className="px-6 py-4">Status</th>
+                <th scope="col" className="px-6 py-4">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -81,11 +88,11 @@ export function RekapPembelianReport({
                 <tr key={item.id} className="hover:bg-[#FF8A00]/5 transition-colors">
                   <td className="px-6 py-4 text-gray-500 text-center font-medium">{(page - 1) * 20 + index + 1}.</td>
                   <td className="px-6 py-4 text-gray-500 font-bold">{formatTanggal(item.tanggal)}</td>
-                  <td className="px-6 py-4 text-gray-700">{item.permintaan}</td>
-                  <td className="px-6 py-4 text-center">
+                  <td className="px-6 py-4 text-gray-700 whitespace-normal break-words">{item.permintaan}</td>
+                  <td className="px-6 py-4">
                     <StatusBadge tone={STATUS_TONE[item.statusApi]}>{item.status}</StatusBadge>
                   </td>
-                  <td className="px-6 py-4 text-center">
+                  <td className="px-6 py-4">
                     <Link
                       href={lihatPath(item.id)}
                       className="inline-block px-3 py-1 bg-[#FF8A00] text-white text-xs font-semibold rounded-md hover:bg-orange-600 transition-colors"
