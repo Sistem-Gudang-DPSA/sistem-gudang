@@ -208,7 +208,7 @@ export function DataLokasi({
       <div className="bg-white w-full rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
         {/* Toolbar */}
         <div className="p-5 border-b border-gray-100 bg-gray-50/50 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="relative w-64 lg:w-72">
+          <div className="relative w-full max-w-72">
             <input
               type="text"
               value={searchQuery}
@@ -221,7 +221,7 @@ export function DataLokasi({
               <Search className="h-4 w-4 text-gray-400" strokeWidth={2.5} />
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {isSuperadmin && canCreate && (
               <ImportExcelButton
                 templateHeaders={LocationTemplateHeaders}
@@ -277,17 +277,26 @@ export function DataLokasi({
         {/* Table */}
         <div className="overflow-hidden w-full">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-5xl text-left text-sm">
+            <table className="w-full min-w-[60rem] table-fixed text-left text-sm">
+              <colgroup>
+                <col className="w-16" />
+                <col className="w-[15%]" />
+                <col className="w-[13%]" />
+                <col className="w-[13%]" />
+                <col className="w-[17%]" />
+                <col className="w-[24%]" />
+                <col />
+              </colgroup>
               <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
                 <tr>
-                  <th scope="col" className="px-6 py-4 w-16 text-center">No</th>
-                  <SortableTh label="Kode Lokasi" sortKey="code" sort={sort} onSort={sortBy} className="px-6 py-4 w-40 whitespace-nowrap" />
-                  <SortableTh label="Nama Rak" sortKey="rackName" sort={sort} onSort={sortBy} className="px-6 py-4 w-40 whitespace-nowrap" />
-                  <SortableTh label="Nomer Rak" sortKey="rackNumber" sort={sort} onSort={sortBy} className="px-6 py-4 w-40 whitespace-nowrap" />
+                  <th scope="col" className="px-4 py-4 text-center">No</th>
+                  <SortableTh label="Kode Lokasi" sortKey="code" sort={sort} onSort={sortBy} className="px-4 py-4 whitespace-nowrap" />
+                  <SortableTh label="Nama Rak" sortKey="rackName" sort={sort} onSort={sortBy} className="px-4 py-4 whitespace-nowrap" />
+                  <SortableTh label="Nomer Rak" sortKey="rackNumber" sort={sort} onSort={sortBy} className="px-4 py-4 whitespace-nowrap" />
                   <SortableTh label="Keterangan" sortKey="description" sort={sort} onSort={sortBy} className="px-3 py-4 text-left min-w-30" />
-                  <th scope="col" className="px-6 py-4 text-left whitespace-nowrap">Informasi Barang</th>
+                  <th scope="col" className="px-4 py-4 text-left whitespace-nowrap">Informasi Barang</th>
                   {dataLokasi.length !== 0 && (
-                    <th className="px-6 py-4 w-28 text-center whitespace-nowrap">Aksi</th>
+                    <th className="px-4 py-4 text-center whitespace-nowrap">Aksi</th>
                   )}
                 </tr>
               </thead>
@@ -305,22 +314,22 @@ export function DataLokasi({
                   const sel = "w-full border border-gray-200 rounded-lg py-1.5 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
                   return (
                     <tr key={item.id} className={`${edit.isDirty(item.id) ? "bg-amber-50" : i % 2 ? "bg-gray-50" : "bg-white"} hover:bg-orange-50/50 transition-colors duration-200`}>
-                      <td className="px-6 py-4 text-center text-gray-500">{(page - 1) * pageSize + i + 1}</td>
-                      <td className="px-6 py-4 h-13 text-gray-700 font-medium whitespace-nowrap">
+                      <td className="px-4 py-4 text-center text-gray-500">{(page - 1) * pageSize + i + 1}</td>
+                      <td className="px-4 py-4 h-13 text-gray-700 font-medium whitespace-normal wrap-break-word">
                         {isEditing ? `${nama}.${nomor}` : item.code}
                         {edit.errors[item.id] && <p className="text-xs font-normal text-red-600">{edit.errors[item.id]}</p>}
                       </td>
-                      <td className="px-6 py-3 text-gray-600 whitespace-nowrap">
+                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
                         {isEditing ? (
                           <input disabled={edit.saving} aria-label={`Nama rak ${item.code}`} className={sel} maxLength={10} value={nama} onChange={(e) => edit.set(item.id, "rackName", e.target.value.toUpperCase(), item.rackName)} />
                         ) : item.rackName}
                       </td>
-                      <td className="px-6 py-3 text-gray-600 whitespace-nowrap">
+                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
                         {isEditing ? (
                           <input disabled={edit.saving} aria-label={`Nomer rak ${item.code}`} className={sel} maxLength={10} placeholder="Kolom.Baris" value={nomor} onChange={(e) => edit.set(item.id, "rackNumber", e.target.value, item.rackNumber)} />
                         ) : item.rackNumber}
                       </td>
-                      <td className="px-3 py-2 text-gray-600 max-w-50 min-w-30 w-auto">
+                      <td className="px-3 py-2 text-gray-600">
                         {isEditing ? (
                           <input disabled={edit.saving} aria-label={`Keterangan ${item.code}`} className={`${sel} w-full text-sm px-2 py-1`} maxLength={255} placeholder="Opsional" value={edit.value(item.id, "description", item.description ?? "")} onChange={(e) => edit.set(item.id, "description", e.target.value, item.description ?? "")} />
                         ) : (
@@ -329,8 +338,8 @@ export function DataLokasi({
                           </span>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-gray-600"><BarangLokasi location={item} /></td>
-                      <td className="px-6 py-4 text-gray-600 text-center whitespace-nowrap">
+                      <td className="px-4 py-4 text-gray-600"><BarangLokasi location={item} /></td>
+                      <td className="px-4 py-4 text-gray-600 text-center whitespace-nowrap">
                         <div className="flex flex-wrap items-center justify-center gap-2">
                           {canUpdate && !isEditing && (
                             <button
