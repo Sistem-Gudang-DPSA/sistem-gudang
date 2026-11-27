@@ -49,6 +49,46 @@ describe("apiClient", () => {
     await expect(apiClient.get("/api/v1/items")).rejects.toMatchObject({ status: 429, retryAfter: 7 });
   });
 
+  it("sends a generated X-Request-Id and keeps it on ApiError when the body omits it", async () => {
+    const { apiClient } = await import("./api-client");
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse(400, { success: false, message: "Gagal" })
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(apiClient.get("/api/v1/items")).rejects.toMatchObject({
+      status: 400,
+      requestId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+    });
+    const headers = fetchMock.mock.calls[0][1].headers as Record<string, string>;
+    expect(headers["X-Request-Id"]).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it("prefers the requestId echoed in the error body", async () => {
+    const { apiClient } = await import("./api-client");
+    global.fetch = vi.fn().mockResolvedValue(
+      jsonResponse(404, { success: false, message: "Tidak ada", requestId: "be-123" })
+    ) as unknown as typeof fetch;
+
+    await expect(apiClient.get("/api/v1/items/1")).rejects.toMatchObject({
+      status: 404,
+      requestId: "be-123",
+    });
+  });
+
+  it("lets the caller override X-Request-Id", async () => {
+    const { apiClient } = await import("./api-client");
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse(200, { success: true, message: "ok", data: null })
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await apiClient.patch("/api/v1/items/1/stock", { delta: -1 }, { "X-Request-Id": "fe-123" });
+
+    const headers = fetchMock.mock.calls[0][1].headers as Record<string, string>;
+    expect(headers["X-Request-Id"]).toBe("fe-123");
+  });
+
   it("retries the request once after a successful silent refresh on 401", async () => {
     const { apiClient, setAccessToken, getAccessToken } = await import("./api-client");
     setAccessToken("expired-token");
