@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.setConfig({ testTimeout: 30000 });
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { fail, installFakeApi, paged, type FakeRequest } from '@/test/fake-api';
+import DaftarPermintaanPembelianReview from './DaftarPermintaanPembelian';
 import { DaftarPermintaanPembelian as DaftarPermintaanPembelianPPIC } from './DaftarPermintaanPembelian';
 import { withUser } from '@/test/as-user';
 import PermintaanPembelianGudang from '@/domains/inventory/components/PermintaanPembelian';
@@ -85,6 +86,21 @@ describe('Daftar permintaan Gudang tanpa cetak', () => {
 });
 
 describe('DaftarPermintaanPembelian', () => {
+  it('PPIC memiliki tombol pengajuan baru menuju form PPIC', async () => {
+    installFakeApi({ 'GET /api/v1/approvals': paged([row(1, 'pending')]) });
+    render(withUser(<DaftarPermintaanPembelianReview />, ['purchase-request.create']));
+    const tambah = await screen.findByRole('link', { name: 'Ajukan Permintaan Pembelian' });
+    expect(tambah.getAttribute('href')).toBe('/dashboard/ppic/transaksi/permintaan-pembelian/tambah');
+    expect(screen.getByRole('link', { name: 'Tinjau Permintaan' })).not.toBeNull();
+  });
+
+  it('menyembunyikan tombol pengajuan PPIC tanpa permission create', async () => {
+    installFakeApi({ 'GET /api/v1/approvals': paged([row(1, 'pending')]) });
+    render(withUser(<DaftarPermintaanPembelianReview />, ['approval.view']));
+    await screen.findByText('Triplex — 5 Lbr');
+    expect(screen.queryByRole('link', { name: 'Ajukan Permintaan Pembelian' })).toBeNull();
+  });
+
   it('loads purchase-request approvals and renders rows', async () => {
     const api = installFakeApi({ 'GET /api/v1/approvals': paged([row(1, 'pending')]) });
     render(<DaftarPermintaanPembelianPPIC />);
@@ -297,6 +313,8 @@ describe.each([
     expect(within(cells[5]).getByText('Untuk lemari ruang rapat')).not.toBeNull();
     expect(within(cells[5]).getByText('Proyek / Client: CV SINAR ABADI')).not.toBeNull();
     expect(cells[5].className).not.toContain('truncate');
+    expect(cells[8].className).toContain('text-center');
+    expect(cells[8].firstElementChild?.className).toContain('justify-center');
     expect(screen.getByRole('link', { name: 'Edit' }).getAttribute('href')).toBe(`${basePath}/1/edit`);
     expect(screen.getByRole('link', { name: 'Ajukan Permintaan Pembelian' }).getAttribute('href')).toBe(`${basePath}/tambah`);
     expect(api.calls('GET /api/v1/approvals')).toHaveLength(1);

@@ -49,25 +49,25 @@ describe('DataBarang superadmin: kolom harga', () => {
     for (const name of ['Barang 1', 'Barang kosong', 'Barang pecahan']) {
       const row = screen.getByText(name).closest('tr')!;
       const cells = within(row).getAllByRole('cell');
-      expect(cells[priceIndex + 1].textContent).toBe('3.700.000');
+      expect(cells[priceIndex + 1].textContent).toBe('Rp 3.700.000');
     }
   });
 
   it('menampilkan angka yang sama pada daftar dan total detail untuk barang yang sama', async () => {
     setup({}, { 'GET /api/v1/items/1': item });
     const row = (await screen.findByText('Barang 1')).closest('tr')!;
-    const listValue = within(row).getByText('3.700.000').textContent;
+    const listValue = within(row).getByText('Rp 3.700.000').textContent;
     const detail = render(<ItemReceiptDetail />);
     const total = await detail.findByRole('rowheader', { name: 'Total Nilai Stok' });
     const detailValue = within(total.closest('tr')!).getByRole('cell', { name: /Rp/ }).textContent;
-    expect(detailValue?.replace(/Rp\s*/, '')).toBe(listValue);
+    expect(detailValue?.replace(/\u00a0/g, ' ')).toBe(listValue);
   });
 
   it('memakai label Harga Terbaru dan format ribuan', async () => {
     setup({});
     const row = (await screen.findByText('Barang 1')).closest('tr');
     expect(screen.getByRole('columnheader', { name: 'Harga Terbaru' })).toBeTruthy();
-    expect(within(row!).getByText('1.000')).toBeTruthy();
+    expect(within(row!).getByText('Rp 1.000')).toBeTruthy();
     expect(within(row!).queryByText(/^per /)).toBeNull();
   });
 

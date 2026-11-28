@@ -132,7 +132,7 @@ export default function DataBarangPPIC() {
     { label: 'Stok Minimum', cell: (item) => <StokMinimumCell item={item} onSaved={reload} /> },
     { label: 'Satuan', tdClassName: 'px-6 py-4 text-gray-600', cell: (item) => item.unit },
     { label: 'Kategori', sortKey: 'category', cell: (item) => <KategoriBadge category={item.category} /> },
-    { label: 'Harga Terbaru', sortKey: 'price', tdClassName: 'px-6 py-4 text-gray-700', cell: (item) => <HargaCell price={item.price} updatedAt={item.priceUpdatedAt} /> },
+    { label: 'Harga Terbaru', sortKey: 'price', align: 'right', tdClassName: 'px-6 py-4 text-gray-700', cell: (item) => <HargaCell price={item.price} updatedAt={item.priceUpdatedAt} /> },
     { label: 'Lokasi', sortKey: 'locationCode', cell: (item) => (
       <span className="inline-flex items-center gap-1 text-gray-600 font-medium">
         <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>

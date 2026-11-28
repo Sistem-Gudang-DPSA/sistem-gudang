@@ -84,7 +84,7 @@ export function DaftarPermintaanPembelian({ basePath = permintaan_pembelian_path
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
       <div className="flex flex-col justify-start mb-8 gap-2">
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 mb-1 uppercase">DAFTAR PERMINTAAN PEMBELIAN</h1>
-        <p className="text-gray-500 text-sm">{reviewMode ? 'Tinjau permintaan dari Gudang sebelum diteruskan ke Purchasing.' : 'Kelola pengajuan permintaan pembelian barang.'}</p>
+        <p className="text-gray-500 text-sm">{reviewMode ? 'Kelola dan tinjau permintaan pembelian sebelum diteruskan ke Purchasing.' : 'Kelola pengajuan permintaan pembelian barang.'}</p>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
@@ -170,7 +170,7 @@ export function DaftarPermintaanPembelian({ basePath = permintaan_pembelian_path
             </div>
           </div>
 
-          {!reviewMode && canCreate && (
+          {canCreate && (
             <Link href={`${basePath}/tambah`} className="w-full lg:w-auto">
               <button className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#FF8A00] text-white font-semibold rounded-xl hover:bg-orange-600 shadow-sm shadow-orange-500/20 transition-all text-sm shrink-0 w-full">
                 <Plus className="w-4 h-4" />
@@ -237,16 +237,16 @@ export function DaftarPermintaanPembelian({ basePath = permintaan_pembelian_path
                     )}
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <div className={`inline-grid ${basePath === permintaan_pembelian_path ? 'grid-cols-[3.5rem_5.75rem_auto_auto]' : 'grid-cols-[3.5rem_5.75rem_auto]'} items-center gap-2`}>
+                    <div className="inline-flex flex-wrap items-center justify-center gap-2">
                       {!reviewMode && canCreate && ['pending', 'revision_requested'].includes(item.status) && (!user || user.isSuperadmin || user.id === item.requestedBy) && (
                         <>
                           <Link href={`${basePath}/${item.id}/edit`} className="px-4 py-1.5 bg-[#FF8A00]/10 text-[#FF8A00] font-bold rounded-lg text-xs hover:bg-[#FF8A00]/20 transition-all">Edit</Link>
                           <BatalkanPermintaan id={item.id} onDone={reload} />
                         </>
                       )}
-                      {reviewMode ? <Link href={`${permintaan_pembelian_path}/${item.id}`} className="col-start-3 inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs hover:bg-blue-100">Tinjau Permintaan</Link> : <button
+                      {reviewMode ? <Link href={`${permintaan_pembelian_path}/${item.id}`} className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs hover:bg-blue-100">Tinjau Permintaan</Link> : <button
                         onClick={() => setDetail(item)}
-                        className="col-start-3 inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs hover:bg-blue-100 transition-all"
+                        className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-blue-50 text-blue-600 font-bold rounded-lg text-xs hover:bg-blue-100 transition-all"
                       >
                         <Eye className="h-3.5 w-3.5" />
                         Detail
@@ -255,7 +255,7 @@ export function DaftarPermintaanPembelian({ basePath = permintaan_pembelian_path
                         type="button"
                         onClick={() => void handleCetak(item)}
                         disabled={!item.payload || printingId !== null}
-                        className="col-start-4 inline-flex items-center gap-1.5 px-4 py-1.5 bg-orange-50 text-orange-700 font-bold rounded-lg text-xs hover:bg-orange-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-orange-50 text-orange-700 font-bold rounded-lg text-xs hover:bg-orange-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Printer className="h-3.5 w-3.5" />
                         {printingId === item.id ? 'Mencetak...' : 'Cetak'}
@@ -306,7 +306,7 @@ export function DaftarPermintaanPembelian({ basePath = permintaan_pembelian_path
                     <th className="px-4 py-3">Proyek</th>
                     <th className="px-4 py-3">No SPK</th>
                     <th className="px-4 py-3">Keterangan</th>
-                    <th className="px-4 py-3">Deadline Tanggal</th>
+                    <th className="px-4 py-3">Tanggal Kirim</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">

@@ -1,6 +1,6 @@
-import { redirect } from 'next/navigation';
 import { permintaan_pembelian_path } from '../data/pembelian';
+import PermintaanPembelianTambahDariAkun from './PermintaanPembelianTambahDariAkun';
 
 export default function PermintaanPembelianPengajuanPpic() {
-  redirect(permintaan_pembelian_path);
+  return <PermintaanPembelianTambahDariAkun basePath={permintaan_pembelian_path} fallbackBagian="PPIC" />;
 }

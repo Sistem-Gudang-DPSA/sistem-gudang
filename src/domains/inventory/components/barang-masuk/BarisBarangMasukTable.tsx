@@ -8,6 +8,7 @@ type TableForm = Pick<ReturnType<typeof useFormBarangMasuk>,
   'baris' | 'preview' | 'pilihanMaterial' | 'pilihMaterial' | 'patchBaris' | 'hapusBaris'>;
 
 export default function BarisBarangMasukTable({ f }: { f: TableForm }) {
+  const adaBaris = f.baris.length > 0;
   return (
     <div className="mt-4 overflow-x-auto border-t border-l border-gray-300 rounded-sm">
       <table className="w-full text-sm border-collapse">
@@ -19,12 +20,12 @@ export default function BarisBarangMasukTable({ f }: { f: TableForm }) {
             <th scope="col" className={`${headClass} min-w-24`}>Kode</th>
             <th scope="col" className={`${headClass} min-w-28`}>Rekap Pembelian</th>
             <th scope="col" className={`${headClass} min-w-36`}>Kedatangan</th>
-            {!f.preview && <th scope="col" className={`${headClass} w-10`}><span className="sr-only">Hapus</span></th>}
+            {!f.preview && adaBaris && <th scope="col" className={`${headClass} w-10`}><span className="sr-only">Hapus</span></th>}
           </tr>
         </thead>
         <tbody>
           {f.baris.length === 0 && (
-            <tr><td colSpan={7} className={`${cellClass} px-4 py-8 text-center text-gray-400`}>
+            <tr><td colSpan={6} className={`${cellClass} px-4 py-8 text-center text-gray-400`}>
               Belum ada barang. Tekan Scan Barang lalu scan QR barang, atau Input Manual untuk memilih baris PO.
             </td></tr>
           )}

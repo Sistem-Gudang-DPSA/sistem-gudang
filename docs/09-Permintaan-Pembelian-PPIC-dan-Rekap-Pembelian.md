@@ -2,17 +2,17 @@
 
 ## Ringkasan
 
-Gudang membuat permintaan pembelian. PPIC meninjau dan memberi persetujuan
-permintaan, lalu Purchasing langsung menyiapkan PO tanpa tombol persetujuan terpisah.
-Menu **Permintaan Pembelian** di PPIC merupakan daftar untuk meninjau
-permintaan Gudang, tanpa tombol pengajuan baru, edit, atau pembatalan pemohon.
-Menu yang sama di Gudang tetap menyediakan pengajuan, edit, dan pembatalan
-sesuai permission serta kepemilikan permintaan. Rencana PO-first di
-`22-Rencana-Multi-Supplier-dan-Harga.md` menempatkan PPIC sebagai jalur utama
-pemohon; sampai sekarang URL tambah PPIC mengarah kembali ke daftar tinjauan,
-jadi jalur PPIC sebagai pemohon belum tersedia di UI dan perlu dikerjakan
-terpisah. PPIC tetap dapat mengedit atau mengirim ulang permintaan yang
-direvisi lewat halaman terkait.
+Gudang dan PPIC dapat membuat permintaan pembelian. PPIC juga meninjau dan
+memberi persetujuan permintaan, lalu Purchasing langsung menyiapkan PO tanpa
+tombol persetujuan terpisah. Menu **Permintaan Pembelian** di PPIC menyediakan
+tombol **Ajukan Permintaan Pembelian** bagi pengguna dengan
+`purchase-request.create` dan daftar tinjauan permintaan yang masuk. Menu yang
+sama di Gudang menyediakan pengajuan, edit, dan pembatalan sesuai permission
+serta kepemilikan permintaan. Form tambah PPIC memakai komponen bersama yang
+sama dengan Gudang, dengan identitas pemohon terisi otomatis dari akun login.
+Rencana PO-first di `22-Rencana-Multi-Supplier-dan-Harga.md` menempatkan PPIC
+sebagai jalur utama pemohon. PPIC tetap dapat mengedit atau mengirim ulang
+permintaan yang direvisi lewat halaman terkait.
 
 ## Alur Persetujuan
 
@@ -59,9 +59,9 @@ izin ini mendapat pesan bahwa proses tidak dapat dilanjutkan, tanpa
 mengirim pemetaan atau PO. Permintaan yang sudah `approved` tidak
 memerlukan panggilan persetujuan lagi. Role PPIC lainnya dapat membaca
 sesuai izin menu, tetapi tidak mendapat tombol keputusan tanpa izin approve.
-PPIC tidak dapat membuat permintaan baru meskipun masih memiliki permission
-create dari pengaturan lama. URL tambah PPIC mengarah kembali ke daftar
-peninjauan. Form bersama tetap dipakai oleh Gudang.
+PPIC dengan `purchase-request.create` dapat membuat permintaan baru lewat
+tombol **Ajukan Permintaan Pembelian**. Halaman tambah PPIC memakai form
+bersama yang sama dengan Gudang dan identitasnya terisi otomatis dari akun.
 
 ## Revisi dan data lama
 
@@ -104,15 +104,12 @@ atau SPK yang tidak terkait stok minimum.
 
 ## Supplier pada form permintaan
 
-Kolom **Supplier** bersifat hanya-baca. Di Gudang kolom ini tetap kosong
-karena supplier pesanan dipilih Purchasing. Pada form historis PPIC,
-nilainya terisi otomatis dari supplier terdaftar pada master barang saat
-barang dipilih dari pencarian,
-dan dikosongkan lagi bila nama barang diubah. PPIC tidak memilih supplier;
-supplier final ditentukan Purchasing saat membuat PO, karena satu PO
+Form tambah, edit, dan revisi tidak menampilkan kolom **Supplier**;
+supplier pesanan dipilih Purchasing saat membuat PO, karena satu PO
 memakai satu supplier dan pemetaan supplier barang adalah kewenangan
-Purchasing (`item.set-supplier`). Barang yang belum dipetakan menampilkan
-kolom supplier kosong; usulan supplier lain bisa ditulis di Keterangan.
+Purchasing (`item.set-supplier`). Panel rekomendasi restock tetap
+menampilkan supplier terdaftar pada master barang sebagai informasi.
+Usulan supplier lain bisa ditulis di **Keterangan**.
 
 ## Cetak form permintaan
 
@@ -130,15 +127,23 @@ Daftar Permintaan Pembelian Gudang tidak menampilkan tombol **Cetak**. Di daftar
 
 ## Pilihan pemohon pada form
 
-Kolom **Bagian/Sub bagian**, **Nama**, dan **Jabatan** pada form tambah, edit,
-dan revisi permintaan historis PPIC memakai dropdown. Di Gudang, ketiganya ditampilkan sebagai kolom baca saja tanpa dropdown. Pilihan sementara berupa
+Kolom **Bagian/Sub bagian**, **Nama**, dan **Jabatan** pada form edit dan
+revisi permintaan historis PPIC memakai dropdown. Di form tambah PPIC maupun
+Gudang, ketiganya ditampilkan sebagai kolom baca saja tanpa dropdown. Pilihan sementara berupa
 data dummy di `src/domains/ppic/data/pemohon-pembelian.ts`, tanpa endpoint baru.
 Ketiga pilihan berdiri sendiri dan wajib terisi sebelum mengajukan.
 Nilainya dikirim sebagai `bagian`, `namaPemohon`, dan `jabatan` pada payload
 permintaan. Saat membuka data lama, nilai yang belum ada di daftar dummy tetap
-muncul dan dipertahankan saat disimpan.
+muncul dan dipertahankan saat disimpan. Identitas ditata dalam dua kolom:
+**Nama** dan **Bagian/Sub bagian** di kiri, **Jabatan** dan **Tanggal Pengajuan**
+di kanan; pada layar sempit kedua kolom bertumpuk. Lebar nilai dibatasi
+sekitar 320 px agar tidak terlalu panjang.
 
-Pada pengajuan baru di Gudang, ketiga kolom otomatis terisi dari akun login: **Bagian/Sub bagian** dari divisi akun, **Nama** dari `username`, dan **Jabatan** dari `roleName`. Jika akun tidak memiliki divisi yang dikenali, bagian memakai **Gudang**. Ketiga nilai identitas dikunci dan tidak dapat diubah di form Gudang; username dan role akun ditampilkan langsung. Edit atau revisi mempertahankan identitas pada permintaan yang tersimpan. Form edit/revisi permintaan historis PPIC tetap mempertahankan identitas tersimpan.
+Pada pengajuan baru di Gudang maupun PPIC, ketiga kolom otomatis terisi dari akun login: **Bagian/Sub bagian** dari divisi akun, **Nama** dari `username`, dan **Jabatan** dari `roleName`. Jika akun tidak memiliki divisi yang dikenali, bagian memakai **Gudang** di form Gudang dan **PPIC** di form PPIC. Ketiga nilai identitas dikunci dan tidak dapat diubah pada form tambah; username dan role akun ditampilkan langsung. Edit atau revisi mempertahankan identitas pada permintaan yang tersimpan. Form edit/revisi permintaan historis PPIC tetap mempertahankan identitas tersimpan.
+
+## Kolom rincian barang pada form
+
+Tabel rincian memakai delapan kolom: **No**, **Nama Barang**, **Stok**, **QTY**, **SAT**, **Proyek**, **Keterangan**, dan **Aksi**. Kolom **Tanggal**, **Supplier**, dan **Dikirim Tanggal** tidak ditampilkan lagi karena tidak diperlukan pengaju di Gudang. Lebar kolom dibagi 4%, 24%, 8%, 8%, 6%, 22%, 22%, dan 6% agar nama barang, proyek, dan keterangan mendapat ruang lebih besar. Kolom **Aksi** di akhir berisi ikon tempat sampah yang selalu terlihat; mengkliknya mengosongkan baris tersebut, sehingga baris itu tidak ikut dikirim saat disimpan.
 
 ## Pilihan proyek pada rincian barang
 
@@ -167,10 +172,11 @@ berikutnya. Pada layar sempit, tabel dapat digulir secara horizontal.
 
 ## Tanggal pada form permintaan
 
-Kolom **Dikirim Tanggal** pada form tambah, edit, dan revisi dipetakan ke
-field API `items[].deadlineTanggal`. Tanggal dari permintaan lama mengisi
-kolom yang sama dan tetap dikirim saat menyimpan. Baris yang hanya berisi
-tanggal tetap dianggap terisi dan wajib dilengkapi sebelum dikirim.
+Form tidak lagi menampilkan kolom **Dikirim Tanggal**, jadi tanggal kirim
+tidak bisa diisi atau diubah dari form. Saat mengedit permintaan lama,
+nilai `items[].deadlineTanggal` yang tersimpan tetap dibawa dan dikirim
+kembali apa adanya. Baris yang hanya berisi **Keterangan** tetap dianggap
+terisi dan wajib dilengkapi sebelum dikirim.
 
 ## Kolom daftar permintaan pembelian
 
@@ -184,6 +190,8 @@ Rincian menampilkan jumlah baris barang, nama setiap barang, kuantitas,
 satuan, dan keterangan bila tersedia. Jika permintaan memuat beberapa
 proyek/client, rincian setiap barang juga menampilkan proyek/client-nya.
 Isi rincian membungkus ke baris berikutnya dan tidak dipotong dengan elipsis.
+Tombol di kolom **Aksi** (Detail, Tinjau Permintaan, Edit, Batalkan, dan Cetak)
+dikelompokkan dan dirata-tengah, termasuk saat sebagian tombol tidak tersedia.
 Identitas atau proyek yang tidak tersedia ditampilkan sebagai `-`.
 Seluruh informasi berasal dari payload daftar `GET /api/v1/approvals`
 dengan `type=purchase-request`; tidak ada pemanggilan detail tambahan per baris.
@@ -309,11 +317,9 @@ pembatasan lima baris.
 
 ## Supplier pada permintaan pembelian Gudang
 
-Form tambah, edit, dan revisi permintaan pembelian Gudang tidak menetapkan
-supplier. Kolom Supplier tetap kosong dengan petunjuk **Diisi Purchasing**;
-memilih barang dengan mouse atau keyboard maupun menambah rekomendasi
-restock tidak menyalin supplier master barang. Saat mengedit permintaan
-lama, supplier pada payload lama juga tidak diisi ulang atau dikirim oleh
-Gudang. Referensi `itemId`, satuan, dan kuantitas barang tetap digunakan.
+Form tambah, edit, dan revisi permintaan pembelian Gudang tidak menampilkan
+kolom **Supplier**. Memilih barang dengan mouse atau keyboard maupun
+menambah rekomendasi restock tidak memasukkan supplier master barang ke
+payload. Referensi `itemId`, satuan, dan kuantitas barang tetap digunakan.
 Penentuan supplier pesanan dilakukan per baris oleh Purchasing pada
 rincian permintaan, terpisah dari supplier katalog barang.

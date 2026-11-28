@@ -35,7 +35,7 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/gudang/barang-masuk',
 }));
 
-const inbound = (id: number, over = {}) => ({ id, itemId: id, date: '2026-03-05T00:00:00.000Z', itemCode: `BRG-${id}`, itemName: `Triplex ${id}`, supplierId: 7, supplierName: 'PT Kayu', clientName: null, source: 'SUPPLIER', qtyArrived: 10, qtyPurchased: 12, ...over });
+const inbound = (id: number, over = {}) => ({ id, itemId: id, date: '2026-03-05T00:00:00.000Z', itemCode: `BRG-${id}`, itemName: `Triplex ${id}`, supplierId: 7, supplierName: 'PT Kayu', clientName: null, source: 'SUPPLIER', referenceNo: `PO-${id}`, qtyArrived: 10, qtyPurchased: 12, ...over });
 const scannedItem = { id: 3, code: 'BRG-3', name: 'Paku', unit: 'pcs', stock: 10, category: 'Material', price: 0, locationId: 1, supplierId: 7, supplierName: 'PT Kayu', createdAt: null, updatedAt: null };
 const firstItem = { ...scannedItem, id: 1, code: 'BRG-1', name: 'Triplex 1', unit: 'lbr' };
 const items = paged([firstItem]);
@@ -78,7 +78,7 @@ const arrived = (name = 'Triplex 1') => screen.getByLabelText(`Jumlah Sesuai Ked
 const tableRow = (code: string) => within(screen.getByRole('dialog')).getByText(code).closest('tr')!;
 
 async function pickPo(name = 'PO-101 — PT Kayu') {
-  fireEvent.click(screen.getByRole('button', { name: 'Nomor PO' }));
+  fireEvent.click(within(formDialog()).getByRole('button', { name: 'Nomor PO' }));
   fireEvent.click(await screen.findByRole('option', { name }));
 }
 async function openBaru({ pilihPo = true, manual = true } = {}) {
@@ -107,7 +107,7 @@ const line1 = (qtyArrived: number, over = {}) => ({ itemId: 1, purchaseOrderId: 
 describe('BarangMasuk list', () => {
   it('shows rows incl. return rows and loads every page with pageSize 100', async () => {
     const { api } = setup();
-    expect(screen.getByText('Memuat data...').closest('td')?.colSpan).toBe(7);
+    expect(screen.getByText('Memuat data...').closest('td')?.colSpan).toBe(8);
     expect(await screen.findByText('Triplex 1')).not.toBeNull();
     expect(screen.getAllByText('05-03-2026').length).toBe(2);
     const q = lastList(api);
@@ -132,22 +132,23 @@ describe('BarangMasuk list', () => {
     const first = (await screen.findByText('Triplex 1')).closest('tr')!;
     const second = screen.getByText('Triplex 2').closest('tr')!;
     expect(screen.getAllByRole('columnheader').slice(1).map((cell) => cell.textContent))
-      .toEqual(['No', 'Tanggal', 'Informasi Barang', 'Supplier', 'Jml Kedatangan', 'Jml Rekap']);
-    expect(within(first).getAllByRole('cell').slice(4).map((cell) => cell.textContent)).toEqual(['PT Kayu', '10', '12']);
-    expect(within(second).getAllByRole('cell')[4].textContent).toBe('-');
+      .toEqual(['No', 'Tanggal', 'Nomor PO', 'Informasi Barang', 'Supplier', 'Jumlah Kedatangan', 'Jumlah Rekap']);
+    expect(within(first).getAllByRole('cell').slice(5).map((cell) => cell.textContent)).toEqual(['PT Kayu', '10', '12']);
+    expect(within(first).getAllByRole('cell')[3].textContent).toBe('PO-1');
+    expect(within(second).getAllByRole('cell')[5].textContent).toBe('-');
     expect(within(second).queryByText('Budi')).toBeNull();
   });
 
   it('shows empty state and API error', async () => {
     setup({}, paged([]));
     const message = await screen.findByText('Data tidak ditemukan untuk filter tersebut.');
-    expect(message.closest('td')?.colSpan).toBe(7);
+    expect(message.closest('td')?.colSpan).toBe(8);
   });
 
   it('shows API error message', async () => {
     setup({ 'GET /api/v1/inbound': fail(500, 'Server rusak') });
     const message = await screen.findByText(/Server rusak|Gagal memuat/);
-    expect(message.closest('td')?.colSpan).toBe(7);
+    expect(message.closest('td')?.colSpan).toBe(8);
   });
 
   it('sends search + date filters', async () => {
@@ -207,8 +208,8 @@ describe('BarangMasuk create inbound', () => {
     expect(within(dialog).getByText('Pilih PO dulu')).not.toBeNull();
     expect(within(dialog).queryByText('Status QC')).toBeNull();
     expect(within(dialog).getByText(/Barang masuk yang diinput adalah barang yang sudah lolos QC/)).not.toBeNull();
-    expect(within(dialog).getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['No', 'Nama Material', 'Satuan/Vol', 'Kode', 'Rekap Pembelian', 'Kedatangan', 'Hapus']);
-    expect(within(dialog).getByText(/Belum ada barang/)).not.toBeNull();
+    expect(within(dialog).getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['No', 'Nama Material', 'Satuan/Vol', 'Kode', 'Rekap Pembelian', 'Kedatangan']);
+    expect(within(dialog).getByText(/Belum ada barang/).closest('td')?.colSpan).toBe(6);
     expect(within(dialog).getByText(/Waktu Sekarang/)).not.toBeNull();
   });
 
@@ -230,7 +231,7 @@ describe('BarangMasuk create inbound', () => {
     expect(api.calls(PO_LIST).some((call) => call.query.get('status') === 'ISSUED')).toBe(true);
     expect(api.calls(PO_LIST).some((call) => call.query.get('status') === 'PARTIALLY_RECEIVED')).toBe(true);
     expect(api.calls('GET /api/v1/purchase-orders/101')).toHaveLength(1);
-    fireEvent.click(screen.getByRole('button', { name: 'Nomor PO' }));
+    fireEvent.click(within(formDialog()).getByRole('button', { name: 'Nomor PO' }));
     expect(await screen.findByRole('option', { name: 'PO-102 — PT Besi' })).not.toBeNull();
   });
 
@@ -247,7 +248,7 @@ describe('BarangMasuk create inbound', () => {
     await screen.findByText('Triplex 1');
     fireEvent.click(screen.getByText('Barang Baru'));
     await screen.findByText('FORM BARANG MASUK');
-    fireEvent.click(screen.getByRole('button', { name: 'Nomor PO' }));
+    fireEvent.click(within(formDialog()).getByRole('button', { name: 'Nomor PO' }));
     expect(await screen.findByRole('option', { name: 'PO-101 — PT Kayu' })).not.toBeNull();
     expect(screen.queryByRole('option', { name: 'PO-104 — PT Kayu' })).toBeNull();
     expect(screen.queryByRole('option', { name: 'PO-105 — PT Besi' })).toBeNull();
@@ -391,7 +392,7 @@ describe('BarangMasuk preview', () => {
     expect(within(previewDialog()).getByText('12-11-2026')).not.toBeNull();
     expect(api.calls(BATCH)).toHaveLength(0);
     fireEvent.click(screen.getByRole('button', { name: 'Kembali Edit' }));
-    expect(screen.getByRole('button', { name: 'Nomor PO' }).textContent).toContain('PO-101');
+    expect(within(formDialog()).getByRole('button', { name: 'Nomor PO' }).textContent).toContain('PO-101');
     expect(arrived().value).toBe('15');
     expect(screen.getByLabelText('Tanggal')).toBeTruthy();
     expect((screen.getByLabelText('Tanggal') as HTMLInputElement).value).toBe('2026-11-12');
@@ -678,6 +679,7 @@ describe('BarangMasuk multiple PO lines in one batch', () => {
     await fillBaru();
     fireEvent.click(screen.getByRole('button', { name: 'Input Manual' }));
     await pickItem('Triplex 1 (BRG-1) · SPK-1', 1);
+    expect(within(formDialog()).getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['No', 'Nama Material', 'Satuan/Vol', 'Kode', 'Rekap Pembelian', 'Kedatangan', 'Hapus']);
     expect(screen.getByText('Barang "Triplex 1" sudah ada di baris 1. Ubah jumlah di baris tersebut.').getAttribute('role')).toBe('alert');
     fireEvent.click(within(within(formDialog()).getAllByRole('row')[2]).getByRole('button', { name: /^Hapus/ }));
     fireEvent.change(arrived(), { target: { value: '1' } });

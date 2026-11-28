@@ -215,50 +215,54 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
           </div>
 
           {/* Form Inputs Header shrinked left align */}
-          <div className="flex flex-col gap-5 mb-10 w-full max-w-lg">
-            <div className="flex items-center">
-              <span className="w-45 text-[15px] font-semibold text-gray-700">Bagian/Sub bagian</span>
-              <span className="w-8 text-center text-gray-700 font-semibold">:</span>
-              {readOnlyPemohon ? (
-                <input aria-label="Bagian / Sub Bagian" type="text" readOnly value={header.bagian} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm text-gray-800 focus:outline-none" />
-              ) : (
-              <select aria-label="Bagian / Sub Bagian" value={header.bagian} onChange={(e) => setHeader({ ...header, bagian: e.target.value })} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200">
-                <option value="">Pilih bagian / sub bagian</option>
-                {header.bagian && !PILIHAN_PEMOHON_PEMBELIAN.bagian.includes(header.bagian) && <option value={header.bagian}>{header.bagian}</option>}
-                {PILIHAN_PEMOHON_PEMBELIAN.bagian.map((value) => <option key={value} value={value}>{value}</option>)}
-              </select>
-              )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-5 mb-10 w-full">
+            <div className="flex flex-col gap-5">
+              <div className="flex items-center">
+                <span className="w-45 text-[15px] font-semibold text-gray-700">Nama</span>
+                <span className="w-8 text-center text-gray-700 font-semibold">:</span>
+                {readOnlyPemohon ? (
+                  <input aria-label="Nama pemohon" type="text" readOnly value={header.namaPemohon} className="flex-1 max-w-xs border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm text-gray-800 focus:outline-none" />
+                ) : (
+                <select aria-label="Nama pemohon" value={header.namaPemohon} onChange={(e) => setHeader({ ...header, namaPemohon: e.target.value })} className="flex-1 max-w-xs border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200">
+                  <option value="">Pilih nama</option>
+                  {header.namaPemohon && !PILIHAN_PEMOHON_PEMBELIAN.namaPemohon.includes(header.namaPemohon) && <option value={header.namaPemohon}>{header.namaPemohon}</option>}
+                  {PILIHAN_PEMOHON_PEMBELIAN.namaPemohon.map((value) => <option key={value} value={value}>{value}</option>)}
+                </select>
+                )}
+              </div>
+              <div className="flex items-center">
+                <span className="w-45 text-[15px] font-semibold text-gray-700">Bagian/Sub bagian</span>
+                <span className="w-8 text-center text-gray-700 font-semibold">:</span>
+                {readOnlyPemohon ? (
+                  <input aria-label="Bagian / Sub Bagian" type="text" readOnly value={header.bagian} className="flex-1 max-w-xs border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm text-gray-800 focus:outline-none" />
+                ) : (
+                <select aria-label="Bagian / Sub Bagian" value={header.bagian} onChange={(e) => setHeader({ ...header, bagian: e.target.value })} className="flex-1 max-w-xs border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200">
+                  <option value="">Pilih bagian / sub bagian</option>
+                  {header.bagian && !PILIHAN_PEMOHON_PEMBELIAN.bagian.includes(header.bagian) && <option value={header.bagian}>{header.bagian}</option>}
+                  {PILIHAN_PEMOHON_PEMBELIAN.bagian.map((value) => <option key={value} value={value}>{value}</option>)}
+                </select>
+                )}
+              </div>
             </div>
-            <div className="flex items-center">
-              <span className="w-45 text-[15px] font-semibold text-gray-700">Nama</span>
-              <span className="w-8 text-center text-gray-700 font-semibold">:</span>
-              {readOnlyPemohon ? (
-                <input aria-label="Nama pemohon" type="text" readOnly value={header.namaPemohon} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm text-gray-800 focus:outline-none" />
-              ) : (
-              <select aria-label="Nama pemohon" value={header.namaPemohon} onChange={(e) => setHeader({ ...header, namaPemohon: e.target.value })} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200">
-                <option value="">Pilih nama</option>
-                {header.namaPemohon && !PILIHAN_PEMOHON_PEMBELIAN.namaPemohon.includes(header.namaPemohon) && <option value={header.namaPemohon}>{header.namaPemohon}</option>}
-                {PILIHAN_PEMOHON_PEMBELIAN.namaPemohon.map((value) => <option key={value} value={value}>{value}</option>)}
-              </select>
-              )}
-            </div>
-            <div className="flex items-center">
-              <span className="w-45 text-[15px] font-semibold text-gray-700">Jabatan</span>
-              <span className="w-8 text-center text-gray-700 font-semibold">:</span>
-              {readOnlyPemohon ? (
-                <input aria-label="Jabatan" type="text" readOnly value={header.jabatan} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm text-gray-800 focus:outline-none" />
-              ) : (
-              <select aria-label="Jabatan" value={header.jabatan} onChange={(e) => setHeader({ ...header, jabatan: e.target.value })} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200">
-                <option value="">Pilih jabatan</option>
-                {header.jabatan && !PILIHAN_PEMOHON_PEMBELIAN.jabatan.includes(header.jabatan) && <option value={header.jabatan}>{header.jabatan}</option>}
-                {PILIHAN_PEMOHON_PEMBELIAN.jabatan.map((value) => <option key={value} value={value}>{value}</option>)}
-              </select>
-              )}
-            </div>
-            <div className="flex items-center">
-              <span className="w-45 text-[15px] font-semibold text-gray-700">Tanggal Pengajuan</span>
-              <span className="w-8 text-center text-gray-700 font-semibold">:</span>
-              <input aria-label="Tanggal Pengajuan" type="date" placeholder="DD/MM/YYYY" value={header.tanggalPengajuan} onChange={(e) => setHeader({ ...header, tanggalPengajuan: e.target.value })} className="flex-1 border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200" />
+            <div className="flex flex-col gap-5">
+              <div className="flex items-center">
+                <span className="w-45 text-[15px] font-semibold text-gray-700">Jabatan</span>
+                <span className="w-8 text-center text-gray-700 font-semibold">:</span>
+                {readOnlyPemohon ? (
+                  <input aria-label="Jabatan" type="text" readOnly value={header.jabatan} className="flex-1 max-w-xs border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm text-gray-800 focus:outline-none" />
+                ) : (
+                <select aria-label="Jabatan" value={header.jabatan} onChange={(e) => setHeader({ ...header, jabatan: e.target.value })} className="flex-1 max-w-xs border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200">
+                  <option value="">Pilih jabatan</option>
+                  {header.jabatan && !PILIHAN_PEMOHON_PEMBELIAN.jabatan.includes(header.jabatan) && <option value={header.jabatan}>{header.jabatan}</option>}
+                  {PILIHAN_PEMOHON_PEMBELIAN.jabatan.map((value) => <option key={value} value={value}>{value}</option>)}
+                </select>
+                )}
+              </div>
+              <div className="flex items-center">
+                <span className="w-45 text-[15px] font-semibold text-gray-700">Tanggal Pengajuan</span>
+                <span className="w-8 text-center text-gray-700 font-semibold">:</span>
+                <input aria-label="Tanggal Pengajuan" type="date" placeholder="DD/MM/YYYY" value={header.tanggalPengajuan} onChange={(e) => setHeader({ ...header, tanggalPengajuan: e.target.value })} className="flex-1 max-w-xs border border-gray-200 bg-gray-50/50 rounded-lg py-2 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 focus:bg-white text-gray-800 placeholder-gray-400 transition-all duration-200" />
+              </div>
             </div>
           </div>
           {editing && <p className="mb-4 text-sm text-gray-500">Perubahan akan mengulang proses persetujuan permintaan.</p>}
@@ -279,11 +283,11 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
             <div className="overflow-x-auto w-full">
               <table className="w-full min-w-275 table-fixed text-left text-sm border-collapse">
                 <colgroup>
-                  {[4, 12, 13, 18, 7, 6, 6, 13, 11, 10].map((width, i) => <col key={i} style={{ width: `${width}%` }} />)}
+                  {[4, 24, 8, 8, 6, 22, 22, 6].map((width, i) => <col key={i} style={{ width: `${width}%` }} />)}
                 </colgroup>
                 <thead className="bg-gray-50 text-gray-700 text-xs font-bold">
                   <tr>
-                    {['No', 'Tanggal', 'Supplier', 'Nama Barang', 'Stok', 'QTY', 'SAT', 'Proyek', 'Keterangan', 'Dikirim Tanggal'].map((label) => (
+                    {['No', 'Nama Barang', 'Stok', 'QTY', 'SAT', 'Proyek', 'Keterangan', 'Aksi'].map((label) => (
                       <th key={label} className="border border-gray-300 px-2 py-3 text-center">{label}</th>
                     ))}
                   </tr>
@@ -291,13 +295,7 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
                 <tbody className="text-gray-800">
                   {tableData.map((row, i) => (
                     <tr key={i} className="group bg-white hover:bg-orange-50/20 transition-colors duration-150">
-                      <td className="relative p-0 text-center text-gray-700 h-11 border border-gray-300">
-                        <span className="group-hover:opacity-0 group-focus-within:opacity-0">{i + 1}</span>
-                        <button type="button" aria-label={`Hapus baris ${i + 1}`} title="Hapus baris" onClick={() => patchRow(i, { ...emptyRow })} className="absolute inset-0 flex items-center justify-center text-red-500 opacity-0 hover:bg-red-50 group-hover:opacity-100 focus:opacity-100"><Trash2 className="h-3.5 w-3.5" /></button>
-                      </td>
-
-                      <td className="p-0 border border-gray-300"><input aria-label={`Tanggal baris ${i + 1}`} type="date" value={row.tanggal} onChange={(e) => handleChange(i, 'tanggal', e.target.value)} className="w-full min-w-0 bg-transparent px-1 py-2.5 text-xs focus:outline-orange-400" /></td>
-                      <td className="p-0 border border-gray-300"><input aria-label={`Supplier baris ${i + 1}`} value={row.supplier} readOnly tabIndex={-1} placeholder={isGudang ? "Diisi Purchasing" : "Dari master barang"} className="w-full min-w-0 cursor-default bg-gray-50/60 px-2 py-2.5 text-gray-600 focus:outline-none" /></td>
+                      <td className="p-0 text-center text-gray-700 h-11 border border-gray-300">{i + 1}</td>
                       <td className="p-0 border border-gray-300">
                         <div className="w-full">
                           <input
@@ -419,7 +417,9 @@ export default function TambahPermintaanPembelianPPIC({ permintaan, basePath = p
                         />
                       </td>
                       <td className="p-0 border border-gray-300"><input aria-label={`Keterangan baris ${i + 1}`} type="text" value={row.keterangan} maxLength={500} onChange={(e) => handleChange(i, 'keterangan', e.target.value)} className="w-full min-w-0 bg-transparent px-2 py-2.5 focus:outline-orange-400" /></td>
-                      <td className="p-0 border border-gray-300"><input aria-label={`Dikirim Tanggal baris ${i + 1}`} type="date" value={row.dikirimTanggal} onChange={(e) => handleChange(i, 'dikirimTanggal', e.target.value)} className="w-full min-w-0 bg-transparent px-2 py-2.5 focus:outline-orange-400" /></td>
+                      <td className="p-0 border border-gray-300 text-center">
+                        <button type="button" aria-label={`Hapus baris ${i + 1}`} title="Hapus baris" onClick={() => patchRow(i, { ...emptyRow })} className="inline-flex h-11 w-full items-center justify-center text-red-500 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-orange-400"><Trash2 className="h-3.5 w-3.5" /></button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

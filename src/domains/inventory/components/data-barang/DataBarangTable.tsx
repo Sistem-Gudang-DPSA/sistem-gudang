@@ -64,7 +64,7 @@ export default function DataBarangTable({ rows, loading, columns, sort, onSort, 
             {columns.map((col) => col.sortKey ? (
               <SortableTh key={col.label} label={col.label} sortKey={col.sortKey} sort={sort} onSort={onSort} align={col.align} />
             ) : (
-              <th key={col.label} scope="col" className="px-6 py-3">{col.label}</th>
+              <th key={col.label} scope="col" className={col.align === 'right' ? 'px-6 py-3 text-right' : 'px-6 py-3'}>{col.label}</th>
             ))}
             {rowActions && <th scope="col" className="px-6 py-3 text-center">Aksi</th>}
           </tr>
@@ -154,8 +154,8 @@ export function SupplierCell({ name }: { name: string }) {
 // Harga terbaru, dengan tanggal harga menempel di baris kedua bila backend mengirimnya.
 export function HargaCell({ price, updatedAt }: { price: number; updatedAt?: string | null }) {
   return (
-    <div className="flex flex-col">
-      <span>{price.toLocaleString('id-ID')}</span>
+    <div className="flex flex-col items-end text-right">
+      <span>Rp {price.toLocaleString('id-ID')}</span>
       {updatedAt && <span className="text-xs text-gray-400">per {displayDate(updatedAt)}</span>}
     </div>
   );

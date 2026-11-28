@@ -76,5 +76,5 @@ it('menampilkan kolom Harga Terbaru untuk Keuangan', async () => {
   });
   render(<DataBarang />);
   expect(await screen.findByRole('columnheader', { name: 'Harga Terbaru' })).not.toBeNull();
-  expect(screen.getByText('1.000')).not.toBeNull();
+  expect(screen.getByText('Rp 1.000')).not.toBeNull();
 });

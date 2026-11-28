@@ -85,9 +85,10 @@ atau `updateItem()` dengan field lengkap. Tombol hapus memanggil
 List dari `listItems()`. Kolom **Harga Rata-rata** menggantikan Harga Terbaru
 khusus Purchasing. Nilainya adalah jumlah harga material dari seluruh
 supplier dibagi jumlah supplier, tanpa pembobotan sisa stok. Supplier dengan
-stok nol dan harga nol tetap dihitung. Nilai tersebut juga dipakai pada
-export CSV. Pengurutan Harga Rata-rata dilakukan pada seluruh hasil yang
-sudah dimuat, tanpa mengirim sort key `averagePrice` ke backend.
+stok nol dan harga nol tetap dihitung. Header dan nilai kolom ini rata kanan.
+Nilai tersebut juga dipakai pada export CSV. Pengurutan Harga Rata-rata
+dilakukan pada seluruh hasil yang sudah dimuat, tanpa mengirim sort key
+`averagePrice` ke backend.
 
 Kolom **Detail** tepat di kanan Lokasi membuka
 `/dashboard/purchasing/master/data-barang/[id]` dengan permission `item.view`.
@@ -209,7 +210,8 @@ ditutup. Banner hijau di atas tabel menampilkan jumlah baris terpilih beserta
 tombol **Bersihkan pilihan**.
 
 Kolom harga pada Data Barang PPIC, Purchasing, dan Superadmin memakai label
-**Harga Terbaru** dan format ribuan `id-ID` yang sama (contoh `1.000`).
+**Harga Terbaru** dan format ribuan `id-ID` yang sama dengan awalan `Rp`
+(contoh `Rp 1.000`), dengan header dan nilai rata kanan.
 Bila respons `GET /items` menyertakan tanggal harga terakhir, sel yang sama
 menampilkan baris kecil **per DD-MM-YYYY** di bawah harga. Field itu belum
 ada di kontrak backend (usul nama `priceUpdatedAt`, diisi saat harga menempel
@@ -220,8 +222,8 @@ punya `item.set-price`.
 Data Barang Superadmin menampilkan kolom **Nilai Stok** tepat di kanan
 **Harga Terbaru**. Nilainya memakai **Total Nilai Stok** dari detail barang,
 yaitu jumlah sisa stok × harga per satuan tiap penerimaan, dengan format
-ribuan `id-ID`. Daftar dan detail memakai sumber dummy bersama sehingga
-angkanya sama: saat ini `3.700.000` untuk setiap barang. Angka ini belum
+ribuan `id-ID`, awalan `Rp`, dan header serta nilai rata kanan. Daftar dan detail memakai sumber dummy bersama
+sehingga angkanya sama: saat ini `Rp 3.700.000` untuk setiap barang. Angka ini belum
 mewakili stok aktual dan bukan hasil stok master × harga terbaru.
 
 ## Status dan Langkah Berikutnya

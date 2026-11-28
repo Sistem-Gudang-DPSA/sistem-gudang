@@ -14,20 +14,27 @@ const row = (step = 2, status = 'pending') => ({
   payload: { bagian: 'Gudang', namaPemohon: 'imel', jabatan: 'Staff', tanggalPengajuan: '2026-11-23', items: [{ namaBarang: 'Triplex', qty: 2, satuan: 'Lbr', proyek: 'PT MAJU JAYA' }] },
 });
 
-it('PPIC sees incoming requests with review links and no new-request or requester editing actions', async () => {
+it('PPIC sees incoming requests with review links and its own new-request action, no requester editing', async () => {
   installFakeApi({ 'GET /api/v1/approvals': paged([row()]) });
   render(withUser(<Inbox />, ['purchase-request.approve', 'purchase-request.create']));
   expect(await screen.findByText('Menunggu PPIC')).not.toBeNull();
   expect(screen.getByText('imel')).not.toBeNull();
   expect(screen.getByRole('link', { name: 'Tinjau Permintaan' }).getAttribute('href')).toBe('/dashboard/ppic/transaksi/permintaan-pembelian/7');
-  expect(screen.queryByRole('link', { name: 'Ajukan Permintaan Pembelian' })).toBeNull();
+  expect(screen.getByRole('link', { name: 'Ajukan Permintaan Pembelian' }).getAttribute('href')).toBe('/dashboard/ppic/transaksi/permintaan-pembelian/tambah');
   expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull();
   expect(screen.queryByRole('button', { name: 'Batalkan' })).toBeNull();
   expect(screen.getByRole('button', { name: 'Cetak' })).not.toBeNull();
 });
 
-it('redirects the old PPIC create URL to its review list', () => {
-  expect(() => TambahPpic()).toThrow('Redirect:/dashboard/ppic/transaksi/permintaan-pembelian');
+it('PPIC create URL membuka form dengan identitas terisi dari akun', () => {
+  nav.redirect.mockClear();
+  installFakeApi({ 'GET /api/v1/tracking/spk': [], 'GET /api/v1/items': paged([]) });
+  render(withUser(<TambahPpic />, ['purchase-request.create']));
+  expect(screen.getByLabelText('Nama Barang baris 1')).toBeTruthy();
+  expect((screen.getByLabelText('Bagian / Sub Bagian') as HTMLInputElement).value).toBe('PPIC');
+  expect((screen.getByLabelText('Nama pemohon') as HTMLInputElement).value).toBe('u');
+  expect((screen.getByLabelText('Jabatan') as HTMLInputElement).value).toBe('Role');
+  expect(nav.redirect).not.toHaveBeenCalled();
 });
 
 it('PPIC approval advances to Purchasing without approving the whole request or showing PO creation', async () => {

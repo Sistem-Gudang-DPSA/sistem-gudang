@@ -124,8 +124,8 @@ export default function BarangMasukGudang() {
   // Ekspor CSV untuk semua baris terfilter.
   const handleExportCsv = () => {
     downloadCsv('Data_Barang_Masuk.csv', [
-      ['No', 'Tanggal', 'Kode Barang', 'Nama Barang', 'Supplier', 'Jumlah Kedatangan', 'Jumlah Rekap'],
-      ...rows.map((r, i) => [i + 1, displayDate(r.date), r.itemCode ?? '', r.itemName, namaSupplier(r, ''), r.qtyArrived, r.qtyPurchased ?? '']),
+      ['No', 'Tanggal', 'Nomor PO', 'Kode Barang', 'Nama Barang', 'Supplier', 'Jumlah Kedatangan', 'Jumlah Rekap'],
+      ...rows.map((r, i) => [i + 1, displayDate(r.date), r.referenceNo ?? '', r.itemCode ?? '', r.itemName, namaSupplier(r, ''), r.qtyArrived, r.qtyPurchased ?? '']),
     ]);
   };
 
@@ -252,18 +252,19 @@ export default function BarangMasukGudang() {
                 </th>
                 <th scope="col" className="px-6 py-3">No</th>
                 <SortableTh label="Tanggal" sortKey="date" sort={sort} onSort={toggle} />
+                <SortableTh label="Nomor PO" sortKey="referenceNo" sort={sort} onSort={toggle} />
                 <SortableTh label="Informasi Barang" sortKey="itemName" sort={sort} onSort={toggle} />
                 <th scope="col" className="px-6 py-3">Supplier</th>
-                <th scope="col" className="px-6 py-3 text-center">Jml Kedatangan</th>
-                <th scope="col" className="px-6 py-3 text-center">Jml Rekap</th>
+                <th scope="col" className="px-6 py-3 text-center">Jumlah Kedatangan</th>
+                <th scope="col" className="px-6 py-3 text-center">Jumlah Rekap</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading && (
-                <tr><td colSpan={7} className="px-6 py-10 text-center text-gray-400">Memuat data...</td></tr>
+                <tr><td colSpan={8} className="px-6 py-10 text-center text-gray-400">Memuat data...</td></tr>
               )}
               {!loading && error && (
-                <tr><td colSpan={7} className="px-6 py-10 text-center text-red-500">{error}</td></tr>
+                <tr><td colSpan={8} className="px-6 py-10 text-center text-red-500">{error}</td></tr>
               )}
               {!loading && !error && rows.map((item, index) => (
                 <tr key={item.id} className="hover:bg-[#FF8A00]/5 transition-colors group">
@@ -272,6 +273,7 @@ export default function BarangMasukGudang() {
                   </td>
                   <td className="px-6 py-3 text-gray-500 text-center">{index + 1}.</td>
                   <td className="px-6 py-3 text-gray-500">{displayDate(item.date)}</td>
+                  <td className="px-6 py-3 text-gray-500">{item.referenceNo ?? '-'}</td>
 
                   <td className="px-6 py-3">
                     <div className="flex flex-col">
@@ -288,7 +290,7 @@ export default function BarangMasukGudang() {
               ))}
               {!loading && !error && rows.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-6 py-10 text-center text-gray-400 italic">
+                  <td colSpan={8} className="px-6 py-10 text-center text-gray-400 italic">
                     Data tidak ditemukan untuk filter tersebut.
                   </td>
                 </tr>

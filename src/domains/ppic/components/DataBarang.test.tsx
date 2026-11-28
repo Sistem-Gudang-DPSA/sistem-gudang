@@ -47,7 +47,7 @@ describe('DataBarang PPIC: header dan sel tabel', () => {
     setup({});
     const row = (await screen.findByText('Barang 1')).closest('tr');
     expect(screen.getByRole('columnheader', { name: 'Harga Terbaru' })).toBeTruthy();
-    expect(within(row!).getByText('1.000')).toBeTruthy();
+    expect(within(row!).getByText('Rp 1.000')).toBeTruthy();
     expect(within(row!).queryByText(/^per /)).toBeNull();
   });
 
