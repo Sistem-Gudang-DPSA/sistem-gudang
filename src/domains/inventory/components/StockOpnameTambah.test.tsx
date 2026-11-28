@@ -41,11 +41,11 @@ describe('isi stok opname Gudang', () => {
     expect(screen.getByLabelText('Jumlah fisik Triplex')).toHaveProperty('value', '8');
   });
 
-  it('saves entered rows in chunks and reports that system stock did not change', async () => {
+  it('saves entered rows as Draft without submitting and reports that system stock did not change', async () => {
     const api = setup();
     await loaded();
     fireEvent.change(screen.getByLabelText('Jumlah fisik Paku'), { target: { value: '3,5' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Simpan Sebagian' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Draft' }));
     expect(await screen.findByText('Isian tersimpan. Stok sistem belum berubah.')).not.toBeNull();
     expect(api.calls('PATCH /api/v1/stock-opname/7/lines')[0].body).toEqual({ lines: [{ itemId: 1, physicalQty: 8, note: 'rak A' }, { itemId: 2, physicalQty: 3.5 }] });
     expect(api.calls('POST /api/v1/stock-opname/7/submit')).toHaveLength(0);
@@ -55,7 +55,7 @@ describe('isi stok opname Gudang', () => {
     const api = setup();
     await loaded();
     fireEvent.click(screen.getByLabelText('Hapus isian Triplex'));
-    fireEvent.click(screen.getByRole('button', { name: 'Simpan Sebagian' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Draft' }));
     await screen.findByText('Isian tersimpan. Stok sistem belum berubah.');
     expect(api.calls('PATCH /api/v1/stock-opname/7/lines')[0].body).toEqual({ lines: [{ itemId: 1, physicalQty: null }] });
   });
@@ -76,7 +76,7 @@ describe('isi stok opname Gudang', () => {
     setup('SUBMITTED');
     await screen.findByText(/Status: Disubmit/);
     expect(screen.queryByLabelText('Jumlah fisik Triplex')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Simpan Sebagian' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Draft' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Submit' })).toBeNull();
     expect(screen.getByText('8')).not.toBeNull();
   });
@@ -85,6 +85,7 @@ describe('isi stok opname Gudang', () => {
     setup('OPEN', {}, ['stock-opname.view']);
     await screen.findByText(/Status: Open/);
     expect(screen.queryByLabelText('Jumlah fisik Triplex')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Draft' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Submit' })).toBeNull();
   });
 
@@ -101,7 +102,7 @@ describe('isi stok opname Gudang', () => {
     const api = setup();
     await loaded();
     fireEvent.change(screen.getByLabelText('Jumlah fisik Paku'), { target: { value: '1000001' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Simpan Sebagian' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Draft' }));
     expect(await screen.findByText(/Jumlah fisik harus 0 sampai 1.000.000/)).not.toBeNull();
     expect(api.calls('PATCH /api/v1/stock-opname/7/lines')).toHaveLength(0);
   });

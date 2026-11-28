@@ -35,7 +35,7 @@ export default function DetailDataBarang() {
         </p>
       </div>
 
-      <div className="w-full max-w-3xl bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+      <div className="w-full bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
         <div className="p-3 border-b border-gray-100 bg-gray-50/50 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
             <div className="relative w-full max-w-xs">
@@ -52,7 +52,12 @@ export default function DetailDataBarang() {
               />
             </div>
           </div>
+          <button type="button" className="flex shrink-0 self-end items-center gap-1.5 rounded-lg border border-[#FF8A00] px-3 py-1.5 text-xs font-semibold text-[#FF8A00] hover:bg-orange-50 lg:self-auto">
+            <Download className="h-3.5 w-3.5" />
+            Download PDF
+          </button>
         </div>
+
 
         {error && <div className="mx-5 mt-5 p-3 bg-red-50 text-red-600 text-sm rounded-lg">{error}</div>}
 
@@ -60,12 +65,12 @@ export default function DetailDataBarang() {
           <table className="w-full min-w-176 table-fixed text-left text-xs whitespace-nowrap border-collapse">
             <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
               <tr>
-                <th className="px-3 py-2.5 border-r border-gray-100 text-center align-middle w-10">No</th>
-                <th className="px-3 py-2.5 border-r border-gray-100 align-middle w-40">Kode Barang</th>
-                <th className="px-3 py-2.5 border-r border-gray-100 align-middle w-56 whitespace-normal uppercase font-bold text-gray-900">Nama Barang</th>
-                <th className="px-3 py-2.5 border-r border-gray-100 text-center align-middle whitespace-normal w-20">Pajak Vendor</th>
-                <th className="px-3 py-2.5 border-r border-gray-100 align-middle w-16 text-center">Satuan</th>
-                <th className="px-3 py-2.5 border-r border-gray-100 align-middle w-24 text-center">Kategori</th>
+                <th className="px-3 py-2.5 border-r border-gray-100 text-center align-middle w-[6%]">No</th>
+                <th className="px-3 py-2.5 border-r border-gray-100 align-middle w-[22%]">Kode Barang</th>
+                <th className="px-3 py-2.5 border-r border-gray-100 align-middle w-[36%] whitespace-normal uppercase font-bold text-gray-900">Nama Barang</th>
+                <th className="px-3 py-2.5 border-r border-gray-100 text-center align-middle whitespace-normal w-[12%]">Pajak Vendor</th>
+                <th className="px-3 py-2.5 border-r border-gray-100 align-middle w-[10%] text-center">Satuan</th>
+                <th className="px-3 py-2.5 border-r border-gray-100 align-middle w-[14%] text-center">Kategori</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 text-gray-600">
@@ -100,15 +105,7 @@ export default function DetailDataBarang() {
         </div>
       </div>
 
-      <div className="flex w-full max-w-3xl flex-wrap justify-end gap-3 mt-5">
-        <button className="flex items-center gap-2 px-6 py-2.5 border-2 border-[#FF8A00] text-[#FF8A00] font-bold rounded-xl hover:bg-orange-50 transition-all text-xs uppercase tracking-wider">
-          <Download className="w-4 h-4" />
-          Download PDF
-        </button>
-        <Link href={backPath} className="flex items-center justify-center px-8 py-2.5 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-all text-xs uppercase tracking-wider">
-          Kembali
-        </Link>
-      </div>
+
     </div>
   );
 }

@@ -40,13 +40,15 @@ describe('superadmin DataSupplier', () => {
     );
     expect(screen.queryByLabelText('Filter pajak')).toBeNull();
     expect(screen.queryByText('Mode Edit')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Aksi Supplier 1' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit' }));
     expect(screen.getByRole('heading', { name: 'DATA SUPPLIER', level: 2 })).toBeTruthy();
   });
 
   it('links the detail button back to the superadmin screen', async () => {
     await setup(userWith([]));
-    const link = screen.getByRole('link', { name: 'Detail Barang' });
+    fireEvent.click(screen.getByRole('button', { name: 'Aksi Supplier 1' }));
+    const link = screen.getByRole('menuitem', { name: 'Detail Barang' });
     expect(link.getAttribute('href')).toBe('/dashboard/superadmin/master/data-supplier/1/detail?from=superadmin');
   });
 });

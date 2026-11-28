@@ -34,6 +34,15 @@ tabel. Perubahan data lewat modal Tambah/Edit yang sama. Yang berbeda hanya
 tautan detail (`?from=purchasing` atau `?from=superadmin`) dan warna halaman
 aktif pada paginasi.
 
+Kolom **Aksi** menampilkan satu tombol titik tiga per supplier. Saat ditekan,
+panel menampilkan ikon detail barang (mata biru), edit (pensil kuning), dan hapus
+(tempat sampah), tanpa teks tombol. Nama aksi muncul saat ikon diarahkan
+atau mendapat fokus keyboard, dan tetap tersedia untuk pembaca layar.
+Edit hanya tersedia dengan `supplier.update`, dan Hapus dengan
+`supplier.delete`. Tautan detail tetap mengikuti divisi asal.
+Simbol, warna, dan ukuran ikon aksi memakai komponen bersama dengan daftar
+permintaan pembelian, sehingga aksi yang sama tampil seragam.
+
 List dari `listSuppliers()`. `editingId` menentukan apakah tombol Simpan
 memanggil `createSupplier()` atau `updateSupplier()`. Tombol Hapus
 memanggil `deleteSupplier()` setelah konfirmasi `window.confirm`, sama
@@ -72,6 +81,11 @@ barang dan `PUT /api/v1/items/{id}` per barang, dengan izin `item.update` dan
 CRUD Supplier dan daftar barang per supplier sudah memakai API.
 `DataSupplierDetail.tsx` dipakai bersama oleh Purchasing dan Superadmin
 dan menampilkan identitas barang tanpa kolom harga bulanan atau rata-rata.
+Tabel detail memenuhi lebar area halaman, dengan kolom nama barang paling
+lebar, diikuti kode barang; kolom nomor, pajak, satuan, dan kategori memakai
+porsi yang lebih kecil. Pada layar sempit, tabel dapat digeser horizontal.
+Tombol **Download PDF** berukuran kecil berada di kanan atas tabel, pada
+area pencarian. Navigasi kembali memakai tombol panah di samping judul.
 Detail sumber data dijelaskan di `12-Pemesanan-Pembelian-dan-Histori-Harga-Supplier.md`.
 
 ## Kolom PIC pada tabel supplier

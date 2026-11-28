@@ -11,6 +11,27 @@ const change = (placeholder: string, value: string) => fireEvent.change(screen.g
 
 for (const [division, Page] of [['Purchasing', Purchasing], ['Superadmin', Superadmin]] as const) {
   describe(`Form Supplier ${division}`, () => {
+    it.each([
+      [[], ['Detail Barang']],
+      [['supplier.update'], ['Detail Barang', 'Edit']],
+      [['supplier.delete'], ['Detail Barang', 'Hapus']],
+      [['supplier.update', 'supplier.delete'], ['Detail Barang', 'Edit', 'Hapus']],
+    ])('menampilkan ikon aksi sesuai permission %j dan tautan khusus divisi', async (permissions, labels) => {
+      installFakeApi({ 'GET /api/v1/suppliers': paged([supplier]) });
+      render(withUser(<Page />, ['supplier.view', ...permissions]));
+      const trigger = await screen.findByRole('button', { name: 'Aksi PT Contoh' });
+      expect(trigger.textContent).toBe('');
+      expect(screen.queryByRole('menuitem')).toBeNull();
+      fireEvent.click(trigger);
+      const actions = screen.getAllByRole('menuitem');
+      expect(actions.map((action) => action.getAttribute('aria-label'))).toEqual(labels);
+      for (const action of actions) expect(action.querySelector('svg')).not.toBeNull();
+      expect(screen.getByRole('menuitem', { name: 'Detail Barang' }).querySelector('.lucide-eye.text-blue-600')).not.toBeNull();
+      if (labels.includes('Edit')) expect(screen.getByRole('menuitem', { name: 'Edit' }).querySelector('.lucide-pencil.text-amber-600')).not.toBeNull();
+      const base = division.toLowerCase();
+      expect(screen.getByRole('menuitem', { name: 'Detail Barang' }).getAttribute('href')).toBe(`/dashboard/${base}/master/data-supplier/7/detail?from=${base}`);
+    });
+
     it('menyimpan alamat multiline dari textarea dan pajak yang dipilih lewat radio button', async () => {
       const api = installFakeApi({ 'GET /api/v1/suppliers': paged([]), 'POST /api/v1/suppliers': supplier });
       render(withUser(<Page />, ['supplier.view', 'supplier.create']));
@@ -41,7 +62,8 @@ for (const [division, Page] of [['Purchasing', Purchasing], ['Superadmin', Super
     it('membuka pilihan pajak dan alamat tersimpan lalu menyimpan perubahan melalui PUT', async () => {
       const api = installFakeApi({ 'GET /api/v1/suppliers': paged([supplier]), 'PUT /api/v1/suppliers/7': supplier });
       render(withUser(<Page />, ['supplier.view', 'supplier.update']));
-      fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Aksi PT Contoh' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Edit' }));
       const tax = within(screen.getByRole('group', { name: 'Pajak Vendor' }));
       expect(tax.getByRole('radio', { name: 'PKP', checked: true })).toBeTruthy();
       expect(screen.getByRole('textbox', { name: 'Alamat' })).toHaveProperty('value', supplier.address);
@@ -61,7 +83,8 @@ for (const [division, Page] of [['Purchasing', Purchasing], ['Superadmin', Super
     it('mempertahankan alamat dan pajak pilihan ketika penyimpanan gagal', async () => {
       installFakeApi({ 'GET /api/v1/suppliers': paged([supplier]), 'PUT /api/v1/suppliers/7': fail(500, 'Supplier gagal disimpan') });
       render(withUser(<Page />, ['supplier.view', 'supplier.update']));
-      fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Aksi PT Contoh' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Edit' }));
       const tax = within(screen.getByRole('group', { name: 'Pajak Vendor' }));
       fireEvent.click(tax.getByRole('radio', { name: 'Non PKP' }));
       fireEvent.change(screen.getByRole('textbox', { name: 'Alamat' }), { target: { value: address } });

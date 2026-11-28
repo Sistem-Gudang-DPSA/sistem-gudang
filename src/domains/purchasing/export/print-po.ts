@@ -30,15 +30,9 @@ export function buildPurchaseOrderHtml(po: PurchaseOrder): string {
   </tr>`).join('');
 
   const content = `<style>
-    @page { size: A4 portrait; margin: 10mm 16mm; }
+    @page { size: A4 portrait; margin: 40mm 16mm 10mm; }
     body { font-size: 9px; line-height: 1.25; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-    .kop { margin: 0 -10mm 0; padding: 0 3mm 3mm 26mm; min-height: 30mm; border-bottom: 1.5px solid #62687d; gap: 4mm; justify-content: flex-start; align-items: center; }
-    .kop .logo { width: 27mm; height: 27mm; }
-    .kop .perusahaan { font-size: 23px; letter-spacing: .2px; color: #596180; }
-    .kop h1 { display: none; }
-    .kop .meta { font-size: 11px; line-height: 1.2; margin: .3mm 0 0; color: #333; }
-    .kop .meta:nth-of-type(5), .kop .meta:nth-of-type(6) { text-decoration: underline; }
-    .po-title { text-align: center; text-decoration: underline; font-size: 12px; margin: 20mm 0 3mm; }
+    .po-title { text-align: center; text-decoration: underline; font-size: 12px; margin: 0 0 3mm; }
     table { width: 100%; margin: 0; font-size: 9px; table-layout: fixed; }
     th, td { overflow-wrap: anywhere; }
     .cancelled, .draft { text-align: center; font-size: 11px; font-weight: bold; color: #900; border: 1px solid #900; padding: 2mm; margin: 0 0 3mm; }
@@ -90,7 +84,7 @@ export function buildPurchaseOrderHtml(po: PurchaseOrder): string {
   ${po.status === 'CANCELLED' ? `<p class="cancelled">DIBATALKAN${po.cancelReason ? `: ${escapeHtml(po.cancelReason)}` : ''}</p>` : po.status === 'DRAFT' ? '<p class="draft">DRAFT — belum disubmit</p>' : ''}
   <div class="meta-row">
     <table class="po-meta"><tbody>
-      ${infoRow('Nomor PO', po.nomorPo)}
+      ${infoRow('Nomor PO', '')}
       ${infoRow('Tanggal PO', dateFormatter.format(new Date(po.tanggalPo)))}
     </tbody></table>
     <table class="doc-control" aria-label="Kode dokumen"><tbody><tr><td rowspan="2">KEU<br>001</td><td>Rev: 00</td></tr><tr><td>Terbit:08/25</td></tr></tbody></table>
@@ -136,13 +130,7 @@ export function buildPurchaseOrderHtml(po: PurchaseOrder): string {
     </section>
   </div>`;
 
-  return dokumenLaporan('PURCHASE ORDER (PO)', [
-    'Interior & Furniture Manufacture',
-    PEMESAN.alamatPengiriman,
-    'Telepon : (0274) 2800089 Fax : (0274) 4332248 Hp : 0811-2850-7788',
-    'E-Mail : dharmaputra04@yahoo.com, dharmaputra888@gmail.com',
-    'website : www.dharmaputrainterior.co.id',
-  ], content);
+  return dokumenLaporan('PURCHASE ORDER (PO)', [], content, false, undefined, { tampilkanKop: false });
 }
 
 export function printPurchaseOrder(po: PurchaseOrder): Promise<void> {

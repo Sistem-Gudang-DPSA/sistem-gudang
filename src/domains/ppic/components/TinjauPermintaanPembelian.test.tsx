@@ -19,11 +19,12 @@ it('PPIC sees incoming requests with review links and no new-request or requeste
   render(withUser(<Inbox />, ['purchase-request.approve', 'purchase-request.create']));
   expect(await screen.findByText('Menunggu PPIC')).not.toBeNull();
   expect(screen.getByText('imel')).not.toBeNull();
-  expect(screen.getByRole('link', { name: 'Tinjau Permintaan' }).getAttribute('href')).toBe('/dashboard/ppic/transaksi/permintaan-pembelian/7');
+  fireEvent.click(screen.getByRole('button', { name: 'Aksi permintaan 7' }));
+  expect(screen.getByRole('menuitem', { name: 'Tinjau Permintaan' }).getAttribute('href')).toBe('/dashboard/ppic/transaksi/permintaan-pembelian/7');
   expect(screen.queryByRole('link', { name: 'Ajukan Permintaan Pembelian' })).toBeNull();
-  expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull();
-  expect(screen.queryByRole('button', { name: 'Batalkan' })).toBeNull();
-  expect(screen.getByRole('button', { name: 'Cetak' })).not.toBeNull();
+  expect(screen.queryByRole('menuitem', { name: 'Edit' })).toBeNull();
+  expect(screen.queryByRole('menuitem', { name: 'Batalkan' })).toBeNull();
+  expect(screen.getByRole('menuitem', { name: 'Cetak' })).not.toBeNull();
 });
 
 it('redirects the old PPIC create URL to its review list', () => {

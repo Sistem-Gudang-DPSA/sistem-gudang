@@ -63,8 +63,6 @@ export default function StokMinimumCell({ item, onSaved, readOnly = false }: { i
         <label htmlFor={inputId} className="mb-2 block text-sm text-gray-600">Batas stok minimum ({item.unit})</label>
         <JumlahInput id={inputId} value={value} onValueChange={(next) => { setValue(next); setError(''); }} validate={peringatanStokMinimum} disabled={saving}
           placeholder="Contoh: 10" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-        <p className="mt-3 text-xs leading-relaxed text-gray-500">Notifikasi muncul jika stok sama dengan atau di bawah batas ini. Kosongkan untuk menonaktifkan.</p>
-        {error && <p role="alert" className="mt-3 text-sm text-red-600">{error}</p>}
       </Modal>}
     </>
   );

@@ -176,7 +176,9 @@ tanggal tetap dianggap terisi dan wajib dilengkapi sebelum dikirim.
 
 Daftar Permintaan Pembelian di PPIC dan Gudang menampilkan Tanggal,
 Bagian / Sub Bagian, Nama Pengaju, Proyek / Client, Rincian Permintaan,
-Status Persetujuan, Status Pembelian, dan Aksi. Bagian dan nama pengaju berasal dari identitas
+Status Permintaan, dan Aksi. Kolom **Status Permintaan** memuat badge
+persetujuan dan pembelian dalam satu sel, tersusun ke bawah. Permintaan
+batal cukup menampilkan satu badge **Dibatalkan**. Bagian dan nama pengaju berasal dari identitas
 pada permintaan yang tersimpan, bukan dari akun yang sedang melihat daftar.
 Kolom Proyek / Client menampilkan semua nilai `items[].proyek` yang berbeda
 pada permintaan tersebut; nama client yang berulang ditampilkan satu kali.
@@ -187,6 +189,18 @@ Isi rincian membungkus ke baris berikutnya dan tidak dipotong dengan elipsis.
 Identitas atau proyek yang tidak tersedia ditampilkan sebagai `-`.
 Seluruh informasi berasal dari payload daftar `GET /api/v1/approvals`
 dengan `type=purchase-request`; tidak ada pemanggilan detail tambahan per baris.
+
+Lebar kolom dibagi proporsional dengan ruang terbesar untuk rincian barang.
+Teks panjang membungkus, dan tabel dapat digeser horizontal pada layar sempit.
+Kolom **Aksi** memakai tombol titik tiga yang membuka ikon, dengan nama aksi
+saat diarahkan atau mendapat fokus. Mode tinjau PPIC menyediakan ikon mata
+untuk **Tinjau Permintaan** dan ikon printer untuk **Cetak** sesuai izin.
+Mode pengaju menyediakan **Detail**, **Edit** (pensil), dan **Batalkan**
+(larangan); edit dan pembatalan hanya untuk permintaan pending/perlu revisi
+milik pengaju dengan `purchase-request.create`, atau Superadmin. Cetak tetap
+hanya ada pada jalur PPIC bagi pengguna dengan `purchase-request.create`,
+`approval.view`, atau `purchase-request.approve`. Jalur Gudang tidak
+menampilkan cetak, dan tautan edit/tambah tetap mengikuti divisi asal.
 
 ## Penandatangan permintaan pembelian Gudang
 

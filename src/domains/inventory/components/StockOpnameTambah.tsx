@@ -179,7 +179,7 @@ function FormIsi({ detail, base }: { detail: StockOpnameDetail; base: string }) 
         </div>
       </div>
 
-      <p className="mb-6 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Simpan Sebagian untuk menyimpan isian ke server. Stok sistem belum berubah. Selisih diproses setelah PPIC memposting pemutihan.</p>
+      <p className="mb-6 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">Draft untuk menyimpan isian ke server. Stok sistem belum berubah. Selisih diproses setelah PPIC memposting pemutihan.</p>
 
       {editable && (
         <div className="mb-6">
@@ -242,7 +242,7 @@ function FormIsi({ detail, base }: { detail: StockOpnameDetail; base: string }) 
       {notice && <p role="status" className="mt-4 text-sm text-green-700">{notice}</p>}
 
       <div className="flex justify-end gap-3 mt-6">
-        {editable && <button type="button" onClick={() => void handleSave()} disabled={saving || submitting || !dirty} className="px-6 py-2.5 border border-orange-300 text-orange-700 rounded-lg font-semibold text-sm disabled:opacity-60">{saving ? 'Menyimpan...' : 'Simpan Sebagian'}</button>}
+        {editable && <button type="button" onClick={() => void handleSave()} disabled={saving || submitting || !dirty} className="px-6 py-2.5 border border-orange-300 text-orange-700 rounded-lg font-semibold text-sm disabled:opacity-60">{saving ? 'Menyimpan...' : 'Draft'}</button>}
         {editable && <button type="button" onClick={() => void handleSubmit()} disabled={saving || submitting} className="px-8 py-2.5 bg-[#ff8a00] text-white rounded-lg font-semibold text-sm disabled:opacity-60">{submitting ? 'Mengirim...' : 'Submit'}</button>}
       </div>
 

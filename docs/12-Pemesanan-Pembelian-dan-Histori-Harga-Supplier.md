@@ -141,8 +141,10 @@ berupa kode, nama, pajak vendor, satuan, dan kategori.
   tombol **Cetak PO**. Tombol ini hanya mencetak PO yang sudah tersimpan
   (`printPurchaseOrder`), termasuk saat mencetak ulang setelah dialog cetak
   gagal. Mencetak tidak membuat PO baru atau mengubah status PO.
-- Template A4 portrait mengikuti dokumen PO: kop dan logo perusahaan,
-  nomor/tanggal PO, tabel supplier dan pemesan, rincian barang, `No SPK`, dan
+- Template A4 portrait untuk cetak satu PO maupun cetak massal menyediakan
+  ruang kosong 4 cm dari tepi atas kertas untuk kop fisik, tanpa mencetak kop
+  atau logo perusahaan. Label **Nomor PO** tetap ada dengan nilai kosong;
+  tanggal PO mengikuti data tersimpan. Template memuat tabel supplier dan pemesan, rincian barang, `No SPK`, dan
   harga, DPP/PPN/jasa/grand total, enam catatan pemesanan, dan kolom tanda
   tangan kosong. PO `DRAFT` diberi penanda belum disubmit; PO batal tetap
   memuat alasan pembatalan. Angka dan total selalu berasal dari PO backend.

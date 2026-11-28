@@ -31,7 +31,8 @@ for (const [division, Page] of [['purchasing', PurchasingPage], ['superadmin', S
       expect(screen.queryByLabelText('Tahun')).toBeNull();
       expect(screen.queryByRole('button', { name: 'Simpan Perubahan' })).toBeNull();
       expect(screen.getByRole('link', { name: 'Kembali ke Data Supplier' }).getAttribute('href')).toBe(`/dashboard/${division}/master/data-supplier`);
-      expect(screen.getByRole('link', { name: 'Kembali' }).getAttribute('href')).toBe(`/dashboard/${division}/master/data-supplier`);
+      expect(screen.getAllByRole('link')).toHaveLength(1);
+      expect(screen.getByRole('button', { name: 'Download PDF' }).querySelector('svg')).not.toBeNull();
       expect(api.calls('GET /api/v1/suppliers/7/prices')).toHaveLength(1);
       expect(api.all().every((req) => req.method === 'GET')).toBe(true);
     });
