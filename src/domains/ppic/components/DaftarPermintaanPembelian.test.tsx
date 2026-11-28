@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.setConfig({ testTimeout: 30000 });
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { fail, installFakeApi, paged, type FakeRequest } from '@/test/fake-api';
 import { DaftarPermintaanPembelian as DaftarPermintaanPembelianPPIC } from './DaftarPermintaanPembelian';
 import { withUser } from '@/test/as-user';
@@ -20,17 +20,30 @@ const row = (id: number, status: string, over: Record<string, unknown> = {}) => 
   ...over,
 });
 
+const openActions = async (id = 1) => {
+  const trigger = await screen.findByRole('button', { name: `Aksi permintaan ${id}` });
+  if (trigger.getAttribute('aria-expanded') !== 'true') {
+    fireEvent.mouseDown(trigger);
+    fireEvent.click(trigger);
+  }
+  return screen.getByRole('menu', { name: `Aksi permintaan ${id}` });
+};
+
 describe.each([
   ['PPIC', DaftarPermintaanPembelianPPIC, '/dashboard/ppic/transaksi/permintaan-pembelian'],
 ] as const)('Cetak daftar permintaan %s', (_, Component, basePath) => {
   it('mencetak data permintaan yang dipilih tanpa menyimpan ulang dan mempertahankan link divisi', async () => {
     const request = row(1, 'pending');
     request.payload.items[0] = { ...request.payload.items[0], namaBarang: '<b>Triplex</b>' };
+    let finishPrint!: () => void;
+    cetak.cetakLaporan.mockImplementationOnce(() => new Promise<void>((resolve) => { finishPrint = resolve; }));
     const api = installFakeApi({ 'GET /api/v1/approvals': paged([request]) });
     render(withUser(<Component />, ['purchase-request.create']));
-    const button = await screen.findByRole('button', { name: 'Cetak' });
+    await openActions();
+    const button = screen.getByRole('menuitem', { name: 'Cetak' });
     fireEvent.click(button);
-    expect((screen.getByRole('button', { name: 'Mencetak...' }) as HTMLButtonElement).disabled).toBe(true);
+    await openActions();
+    expect((screen.getByRole('menuitem', { name: 'Mencetak...' }) as HTMLButtonElement).disabled).toBe(true);
     await waitFor(() => expect(cetak.cetakLaporan).toHaveBeenCalledTimes(1));
     const [title, html, options] = cetak.cetakLaporan.mock.calls[0] as unknown as [string, string, { meta: string[] }];
     expect(title).toBe('Form Permintaan Pembelian Bahan Baku');
@@ -41,23 +54,28 @@ describe.each([
     expect(options.meta.join(' ')).toContain('Budi');
     expect(options.meta.join(' ')).toContain('2026-03-05');
     expect(api.calls('POST /api/v1/purchase-requests')).toHaveLength(0);
-    expect(screen.getByRole('link', { name: 'Edit' }).getAttribute('href')).toBe(`${basePath}/1/edit`);
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Cetak' })).not.toBeNull());
+    expect(screen.getByRole('menuitem', { name: 'Edit' }).getAttribute('href')).toBe(`${basePath}/1/edit`);
+    await act(async () => { finishPrint(); });
+    await waitFor(() => expect(screen.getByRole('menuitem', { name: 'Cetak' })).not.toBeNull());
+    expect((screen.getByRole('menuitem', { name: 'Cetak' }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('menampilkan kegagalan cetak dan mengaktifkan kembali tombol', async () => {
     cetak.cetakLaporan.mockRejectedValueOnce(new Error('Gagal membuka cetak'));
     installFakeApi({ 'GET /api/v1/approvals': paged([row(1, 'approved')]) });
     render(withUser(<Component />, ['approval.view']));
-    fireEvent.click(await screen.findByRole('button', { name: 'Cetak' }));
+    await openActions();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Cetak' }));
     expect((await screen.findByRole('alert')).textContent).toBe('Gagal membuka cetak');
-    expect((screen.getByRole('button', { name: 'Cetak' }) as HTMLButtonElement).disabled).toBe(false);
+    await openActions();
+    expect((screen.getByRole('menuitem', { name: 'Cetak' }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('menonaktifkan cetak jika payload tidak tersedia', async () => {
     installFakeApi({ 'GET /api/v1/approvals': paged([row(1, 'pending', { payload: null })]) });
     render(withUser(<Component />, ['approval.view']));
-    const button = await screen.findByRole('button', { name: 'Cetak' });
+    await openActions();
+    const button = screen.getByRole('menuitem', { name: 'Cetak' });
     expect((button as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(button);
     expect(cetak.cetakLaporan).not.toHaveBeenCalled();
@@ -67,7 +85,8 @@ describe.each([
     installFakeApi({ 'GET /api/v1/approvals': paged([row(1, 'pending')]) });
     render(withUser(<Component />, []));
     await screen.findByText('Triplex — 5 Lbr');
-    expect(screen.queryByRole('button', { name: 'Cetak' })).toBeNull();
+    await openActions();
+    expect(screen.queryByRole('menuitem', { name: 'Cetak' })).toBeNull();
   });
 });
 
@@ -75,12 +94,15 @@ describe('Daftar permintaan Gudang tanpa cetak', () => {
   it.each(['purchase-request.create', 'approval.view'])('menyembunyikan Cetak untuk %s dan tetap membuka Detail', async (permission) => {
     installFakeApi({ 'GET /api/v1/approvals': paged([row(1, 'pending')]) });
     render(withUser(<PermintaanPembelianGudang />, [permission]));
-    fireEvent.click(await screen.findByRole('button', { name: 'Detail' }));
+    await openActions();
+    expect(screen.queryByRole('menuitem', { name: 'Cetak' })).toBeNull();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Detail' }));
     expect(screen.getByText('Tanggal Pengajuan')).not.toBeNull();
     expect(screen.queryByRole('button', { name: 'Cetak' })).toBeNull();
     expect(cetak.cetakLaporan).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Tutup' }));
-    expect(screen.queryByRole('button', { name: 'Cetak' })).toBeNull();
+    await openActions();
+    expect(screen.queryByRole('menuitem', { name: 'Cetak' })).toBeNull();
   });
 });
 
@@ -104,6 +126,7 @@ describe('DaftarPermintaanPembelian', () => {
     installFakeApi({ 'GET /api/v1/approvals': paged([row(1, status)]) });
     render(<DaftarPermintaanPembelianPPIC />);
     await screen.findByText('Triplex — 5 Lbr');
+    await openActions();
     fireEvent.click(screen.getByText('Detail'));
     const dialogStatus = screen.getByText('Status').parentElement as HTMLElement;
     expect(dialogStatus.textContent).toContain(label);
@@ -118,6 +141,7 @@ describe('DaftarPermintaanPembelian', () => {
     installFakeApi({ 'GET /api/v1/approvals': paged([partial]) });
     render(<DaftarPermintaanPembelianPPIC />);
     expect(await screen.findByText('0 barang')).toBeTruthy();
+    await openActions(2);
     fireEvent.click(screen.getByText('Detail'));
     // Without tanggalPengajuan the date falls back to createdAt, like the list row
     expect(screen.getByText('Tanggal Pengajuan').parentElement!.textContent).toContain('01-03-2026');
@@ -128,12 +152,14 @@ describe('DaftarPermintaanPembelian', () => {
     installFakeApi({ 'GET /api/v1/approvals': paged([]) });
     render(<DaftarPermintaanPembelianPPIC />);
     expect(await screen.findByText('Data tidak ditemukan untuk filter tersebut.')).toBeTruthy();
+    expect(screen.getByText('Data tidak ditemukan untuk filter tersebut.').closest('td')?.colSpan).toBe(8);
   });
 
   it('shows the error state', async () => {
     installFakeApi({ 'GET /api/v1/approvals': fail(500, 'Server mati') });
     render(<DaftarPermintaanPembelianPPIC />);
     expect(await screen.findByText('Server mati')).toBeTruthy();
+    expect(screen.getByText('Server mati').closest('td')?.colSpan).toBe(8);
   });
 
   it('requests page=2 from the pagination', async () => {
@@ -178,8 +204,11 @@ describe('permissions', () => {
   it('a view-only user keeps the screen but not the actions', async () => {
     installFakeApi({ 'GET /api/v1/approvals': paged([row(1, 'pending')]) });
     render(withUser(<DaftarPermintaanPembelianPPIC />, ['approval.view']));
-    await screen.findByText('Detail');
+    await openActions();
+    expect(screen.getByRole('menuitem', { name: 'Detail' })).not.toBeNull();
     expect(screen.queryByText('Ajukan Permintaan Pembelian')).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Edit' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Batalkan' })).toBeNull();
   });
 
   it.each([
@@ -188,7 +217,8 @@ describe('permissions', () => {
   ])('a user who %s sees the actions', async (_label, perms, isSuperadmin) => {
     installFakeApi({ 'GET /api/v1/approvals': paged([row(1, 'pending')]) });
     render(withUser(<DaftarPermintaanPembelianPPIC />, perms, isSuperadmin));
-    await screen.findByText('Detail');
+    await openActions();
+    expect(screen.getByRole('menuitem', { name: 'Detail' })).not.toBeNull();
     expect(screen.getByText('Ajukan Permintaan Pembelian')).toBeTruthy();
   });
 });
@@ -205,8 +235,13 @@ describe('purchase status and edit links', () => {
     expect(await screen.findByText('Belum dibeli')).toBeTruthy();
     expect(screen.getByText('Sebagian dibeli')).toBeTruthy();
     expect(screen.getByText('Sudah dibeli')).toBeTruthy();
-    expect(screen.getAllByRole('link', { name: 'Edit' })).toHaveLength(1);
-    expect(screen.getByRole('link', { name: 'Edit' }).getAttribute('href')).toBe('/dashboard/gudang/transaksi/permintaan-pembelian/1/edit');
+    await openActions();
+    expect(screen.getAllByRole('menuitem', { name: 'Edit' })).toHaveLength(1);
+    expect(screen.getByRole('menuitem', { name: 'Edit' }).getAttribute('href')).toBe('/dashboard/gudang/transaksi/permintaan-pembelian/1/edit');
+    for (const id of [2, 3]) {
+      const menu = await openActions(id);
+      expect(within(menu).queryByRole('menuitem', { name: 'Edit' })).toBeNull();
+    }
     expect(screen.getByText('Ajukan Permintaan Pembelian').closest('a')?.getAttribute('href')).toBe('/dashboard/gudang/transaksi/permintaan-pembelian/tambah');
     expect(screen.queryByRole('button', { name: 'Tambah' })).toBeNull();
   });
@@ -214,8 +249,8 @@ describe('purchase status and edit links', () => {
   it('does not expose editing for another requester', async () => {
     installFakeApi({ 'GET /api/v1/approvals': paged([row(9, 'pending', { requestedBy: 42 })]) });
     render(withUser(<DaftarPermintaanPembelianPPIC />, ['purchase-request.create']));
-    await screen.findByText('Detail');
-    expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull();
+    await openActions(9);
+    expect(screen.queryByRole('menuitem', { name: 'Edit' })).toBeNull();
   });
 });
 
@@ -227,8 +262,12 @@ describe('Batalkan', () => {
       row(1, 'pending'), row(2, 'revision_requested'), row(3, 'approved'), row(4, 'pending', { requestedBy: 42 }),
     ]) });
     render(withUser(<DaftarPermintaanPembelianPPIC />, perms));
-    await screen.findAllByText('Detail');
-    expect(screen.getAllByRole('button', { name: 'Batalkan' })).toHaveLength(2);
+    const cancellable = [];
+    for (const id of [1, 2, 3, 4]) {
+      const menu = await openActions(id);
+      if (within(menu).queryByRole('menuitem', { name: 'Batalkan' })) cancellable.push(id);
+    }
+    expect(cancellable).toEqual([1, 2]);
   });
 
   it('posts the reason and reloads the list', async () => {
@@ -237,7 +276,8 @@ describe('Batalkan', () => {
       'POST /api/v1/approvals/1/cancel': () => row(1, 'cancelled'),
     });
     render(withUser(<DaftarPermintaanPembelianPPIC />, perms));
-    fireEvent.click(await screen.findByRole('button', { name: 'Batalkan' }));
+    await openActions();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Batalkan' }));
     fireEvent.change(screen.getByLabelText(/Alasan pembatalan/), { target: { value: 'Salah input' } });
     fireEvent.click(screen.getByRole('button', { name: 'Batalkan Permintaan' }));
     await waitFor(() => expect(api.calls('POST /api/v1/approvals/1/cancel')).toHaveLength(1));
@@ -252,7 +292,8 @@ describe('Batalkan', () => {
       'POST /api/v1/approvals/1/cancel': fail(409, 'Sudah diproses'),
     });
     render(withUser(<DaftarPermintaanPembelianPPIC />, perms));
-    fireEvent.click(await screen.findByRole('button', { name: 'Batalkan' }));
+    await openActions();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Batalkan' }));
     fireEvent.click(screen.getByRole('button', { name: 'Batalkan Permintaan' }));
     expect((await screen.findByRole('alert')).textContent).toContain('Sudah diproses');
     expect(screen.getByRole('dialog')).toBeTruthy();
@@ -261,9 +302,10 @@ describe('Batalkan', () => {
   it('shows Dibatalkan without actions', async () => {
     installFakeApi({ 'GET /api/v1/approvals': paged([row(1, 'cancelled')]) });
     render(withUser(<DaftarPermintaanPembelianPPIC />, perms));
-    expect(await screen.findAllByText('Dibatalkan')).toHaveLength(2);
-    expect(screen.queryByRole('button', { name: 'Batalkan' })).toBeNull();
-    expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull();
+    expect(await screen.findAllByText('Dibatalkan')).toHaveLength(1);
+    await openActions();
+    expect(screen.queryByRole('menuitem', { name: 'Batalkan' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Edit' })).toBeNull();
   });
 });
 
@@ -272,6 +314,27 @@ describe.each([
   ['PPIC', DaftarPermintaanPembelianPPIC, '/dashboard/ppic/transaksi/permintaan-pembelian'],
   ['Gudang', PermintaanPembelianGudang, '/dashboard/gudang/transaksi/permintaan-pembelian'],
 ] as const)('kolom rincian permintaan %s', (_division, Component, basePath) => {
+  it.each([
+    ['pending', 'NOT_PURCHASED', 'Belum Disetujui', 'Belum dibeli'],
+    ['approved', 'NOT_PURCHASED', 'Disetujui', 'Belum dibeli'],
+    ['approved', 'PARTIALLY_PURCHASED', 'Disetujui', 'Sebagian dibeli'],
+    ['approved', 'PURCHASED', 'Disetujui', 'Sudah dibeli'],
+    ['rejected', 'NOT_PURCHASED', 'Ditolak', 'Belum dibeli'],
+    ['revision_requested', 'NOT_PURCHASED', 'Perlu Revisi', 'Belum dibeli'],
+  ])('menyatukan persetujuan %s dan pembelian %s dalam Status Permintaan', async (status, purchaseStatus, approvalLabel, purchaseLabel) => {
+    installFakeApi({ 'GET /api/v1/approvals': paged([row(1, status, { purchaseStatus })]) });
+    render(withUser(<Component />, ['approval.view']));
+    await screen.findByText('Triplex — 5 Lbr');
+    const headers = screen.getAllByRole('columnheader');
+    const statusIndex = headers.findIndex((header) => header.textContent === 'Status Permintaan');
+    const cells = within(screen.getAllByRole('row')[1]).getAllByRole('cell');
+    expect(cells).toHaveLength(headers.length);
+    expect(within(cells[statusIndex]).getByText(approvalLabel)).not.toBeNull();
+    expect(within(cells[statusIndex]).getByText(purchaseLabel)).not.toBeNull();
+    expect(screen.queryByRole('columnheader', { name: 'Status Persetujuan' })).toBeNull();
+    expect(screen.queryByRole('columnheader', { name: 'Status Pembelian' })).toBeNull();
+  });
+
   it('menampilkan bagian, pengaju, seluruh client unik dan rincian setiap barang tanpa memotong isinya', async () => {
     const request = row(1, 'pending', { payload: {
       bagian: 'Gudang Bahan Baku', namaPemohon: 'imel', jabatan: 'Koordinator', tanggalPengajuan: '2026-11-23',
@@ -285,7 +348,7 @@ describe.each([
     render(withUser(<Component />, ['purchase-request.create']));
     await screen.findByText('Triplex 2mm — 10 Lbr');
     expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toEqual([
-      'No', 'Tanggal', 'Bagian / Sub Bagian', 'Nama Pengaju', 'Proyek / Client', 'Rincian Permintaan', 'Status Persetujuan', 'Status Pembelian', 'Aksi',
+      'No', 'Tanggal', 'Bagian / Sub Bagian', 'Nama Pengaju', 'Proyek / Client', 'Rincian Permintaan', 'Status Permintaan', 'Aksi',
     ]);
     const cells = within(screen.getAllByRole('row')[1]).getAllByRole('cell');
     expect(cells[2].textContent).toBe('Gudang Bahan Baku');
@@ -297,7 +360,16 @@ describe.each([
     expect(within(cells[5]).getByText('Untuk lemari ruang rapat')).not.toBeNull();
     expect(within(cells[5]).getByText('Proyek / Client: CV SINAR ABADI')).not.toBeNull();
     expect(cells[5].className).not.toContain('truncate');
-    expect(screen.getByRole('link', { name: 'Edit' }).getAttribute('href')).toBe(`${basePath}/1/edit`);
+    expect(cells).toHaveLength(8);
+    expect(cells[6].textContent).toContain('Belum Disetujui');
+    expect(cells[6].textContent).toContain('Status belum tersedia');
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Aksi permintaan 1' }).textContent).toBe('');
+    await openActions();
+    for (const action of screen.getAllByRole('menuitem')) expect(action.querySelector('svg')).not.toBeNull();
+    expect(screen.getByRole('menuitem', { name: 'Detail' }).querySelector('.lucide-eye.text-blue-600')).not.toBeNull();
+    expect(screen.getByRole('menuitem', { name: 'Edit' }).querySelector('.lucide-pencil.text-amber-600')).not.toBeNull();
+    expect(screen.getByRole('menuitem', { name: 'Edit' }).getAttribute('href')).toBe(`${basePath}/1/edit`);
     expect(screen.getByRole('link', { name: 'Ajukan Permintaan Pembelian' }).getAttribute('href')).toBe(`${basePath}/tambah`);
     expect(api.calls('GET /api/v1/approvals')).toHaveLength(1);
   });
@@ -305,13 +377,14 @@ describe.each([
   it.each([null, {}, { items: [{ namaBarang: 'Paku', qty: 0, satuan: 'Kg', proyek: ' ' }] }])('menampilkan nilai pengganti saat identitas atau proyek tidak tersedia: %j', async (payload) => {
     installFakeApi({ 'GET /api/v1/approvals': paged([row(1, 'approved', { payload })]) });
     render(withUser(<Component />, ['approval.view']));
-    await screen.findByRole('button', { name: 'Detail' });
+    await openActions();
+    expect(screen.getByRole('menuitem', { name: 'Detail' })).not.toBeNull();
     const cells = within(screen.getAllByRole('row')[1]).getAllByRole('cell');
     expect(cells[2].textContent).toBe('-');
     expect(cells[3].textContent).toBe('-');
     expect(cells[4].textContent).toBe('-');
     if (payload && 'items' in payload) expect(cells[5].textContent).toContain('Paku — 0 Kg');
-    expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: 'Edit' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Ajukan Permintaan Pembelian' })).toBeNull();
   });
 });

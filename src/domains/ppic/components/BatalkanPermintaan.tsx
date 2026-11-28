@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Ban, X } from "lucide-react";
 import { cancelApproval } from "@/domains/ppic/api";
@@ -8,7 +8,7 @@ import { MAX_ALASAN } from "@/domains/inventory/components/BatalkanTransaksi";
 
 // "Batalkan" button of a purchase request with its confirmation dialog. The reason is optional.
 // The caller decides whether the button may be shown.
-export default function BatalkanPermintaan({ id, onDone }: { id: number; onDone: () => void }) {
+export default function BatalkanPermintaan({ id, onDone, renderTrigger }: { id: number; onDone: () => void; renderTrigger?: (open: () => void) => ReactNode }) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
@@ -32,14 +32,14 @@ export default function BatalkanPermintaan({ id, onDone }: { id: number; onDone:
 
   return (
     <>
-      <button
+      {renderTrigger ? renderTrigger(() => setOpen(true)) : <button
         type="button"
         onClick={() => setOpen(true)}
         className="inline-flex items-center gap-1.5 rounded-lg border border-red-500 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
       >
         <Ban className="h-3.5 w-3.5" />
         Batalkan
-      </button>
+      </button>}
       {open &&
         createPortal(
           <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm">

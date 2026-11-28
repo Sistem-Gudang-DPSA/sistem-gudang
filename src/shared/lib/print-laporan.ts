@@ -68,7 +68,7 @@ export function kopLaporan(judul: string, meta: string[], identitas?: IdentitasD
 }
 
 // Dokumen HTML lengkap: kop di atas, lalu isi tabel laporan.
-export function dokumenLaporan(judul: string, meta: string[], isi: string, landscape = false, identitas?: IdentitasDokumen): string {
+export function dokumenLaporan(judul: string, meta: string[], isi: string, landscape = false, identitas?: IdentitasDokumen, { tampilkanKop = true }: { tampilkanKop?: boolean } = {}): string {
   return `<!doctype html>
     <html lang="id">
       <head>
@@ -80,7 +80,7 @@ export function dokumenLaporan(judul: string, meta: string[], isi: string, lands
         </style>
       </head>
       <body>
-        ${kopLaporan(judul, meta, identitas)}
+        ${tampilkanKop ? kopLaporan(judul, meta, identitas) : ""}
         ${isi}
       </body>
     </html>`;

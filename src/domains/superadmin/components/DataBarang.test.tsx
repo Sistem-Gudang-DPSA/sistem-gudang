@@ -49,25 +49,28 @@ describe('DataBarang superadmin: kolom harga', () => {
     for (const name of ['Barang 1', 'Barang kosong', 'Barang pecahan']) {
       const row = screen.getByText(name).closest('tr')!;
       const cells = within(row).getAllByRole('cell');
-      expect(cells[priceIndex + 1].textContent).toBe('3.700.000');
+      expect(cells[priceIndex + 1].textContent).toBe('Rp 3.700.000');
+      expect(cells[priceIndex + 1].classList.contains('text-right')).toBe(true);
     }
   });
 
   it('menampilkan angka yang sama pada daftar dan total detail untuk barang yang sama', async () => {
     setup({}, { 'GET /api/v1/items/1': item });
     const row = (await screen.findByText('Barang 1')).closest('tr')!;
-    const listValue = within(row).getByText('3.700.000').textContent;
+    const listValue = within(row).getByText('Rp 3.700.000').textContent;
     const detail = render(<ItemReceiptDetail />);
     const total = await detail.findByRole('rowheader', { name: 'Total Nilai Stok' });
     const detailValue = within(total.closest('tr')!).getByRole('cell', { name: /Rp/ }).textContent;
-    expect(detailValue?.replace(/Rp\s*/, '')).toBe(listValue);
+    expect(detailValue?.replace(/\s+/g, ' ')).toBe(listValue);
   });
 
-  it('memakai label Harga Terbaru dan format ribuan', async () => {
+  it('menampilkan Harga Terbaru dan Nilai Stok dengan awalan Rp serta rata kanan', async () => {
     setup({});
     const row = (await screen.findByText('Barang 1')).closest('tr');
-    expect(screen.getByRole('columnheader', { name: 'Harga Terbaru' })).toBeTruthy();
-    expect(within(row!).getByText('1.000')).toBeTruthy();
+    const priceHeader = screen.getByRole('columnheader', { name: 'Harga Terbaru' });
+    expect(within(priceHeader).getByRole('button').classList.contains('justify-end')).toBe(true);
+    expect(screen.getByRole('columnheader', { name: 'Nilai Stok' }).classList.contains('text-right')).toBe(true);
+    expect(within(row!).getByText('Rp 1.000').closest('td')!.classList.contains('text-right')).toBe(true);
     expect(within(row!).queryByText(/^per /)).toBeNull();
   });
 
@@ -77,6 +80,7 @@ describe('DataBarang superadmin: kolom harga', () => {
     expect(within(row!).getByText('per 23-11-2026')).toBeTruthy();
     fireEvent.click(screen.getByText('Mode Edit'));
     await waitFor(() => expect(screen.getByLabelText('Harga Barang 1')).toBeTruthy());
+    expect(screen.getByLabelText('Harga Barang 1').classList.contains('text-right')).toBe(true);
     expect(screen.queryByLabelText('Supplier Barang 1')).toBeNull();
     expect(screen.queryByText('per 23-11-2026')).toBeNull();
   });

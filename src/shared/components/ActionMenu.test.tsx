@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import ActionMenu, { type ActionMenuItem } from "./ActionMenu";
+import { Pencil } from "lucide-react";
 
 function items(over: Partial<ActionMenuItem> = {}): ActionMenuItem[] {
   return [
@@ -12,6 +13,41 @@ function items(over: Partial<ActionMenuItem> = {}): ActionMenuItem[] {
 }
 
 describe("ActionMenu", () => {
+  it("shows icons with accessible names and hover or keyboard labels in icon-only mode", () => {
+    render(<ActionMenu label="Aksi Supplier" iconOnly items={[{ key: "edit", label: "Edit", icon: <Pencil />, onClick: vi.fn() }]} />);
+    const trigger = screen.getByRole("button", { name: "Aksi Supplier" });
+    expect(trigger.textContent).toBe("");
+    expect(trigger.querySelector("svg")).not.toBeNull();
+    expect(screen.queryByRole("menu")).toBeNull();
+    fireEvent.click(trigger);
+    const item = screen.getByRole("menuitem", { name: "Edit" });
+    expect(item.querySelector("svg")).not.toBeNull();
+    expect(item.querySelector("span")?.classList.contains("opacity-0")).toBe(true);
+    expect(item.querySelector("span")?.classList.contains("group-hover/action:opacity-100")).toBe(true);
+    expect(item.querySelector("span")?.classList.contains("group-focus-visible/action:opacity-100")).toBe(true);
+  });
+
+  it("keeps navigation actions as links and closes the menu when selected", () => {
+    render(<ActionMenu label="Aksi" items={[{ key: "detail", label: "Detail Barang", href: "/supplier/7" }]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Aksi" }));
+    const link = screen.getByRole("menuitem", { name: "Detail Barang" });
+    expect(link.tagName).toBe("A");
+    expect(link.getAttribute("href")).toBe("/supplier/7");
+    link.addEventListener("click", (event) => event.preventDefault());
+    fireEvent.click(link);
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("does not expose a navigable link for disabled navigation actions", () => {
+    render(<ActionMenu label="Aksi" items={[{ key: "detail", label: "Detail Barang", href: "/supplier/7", disabled: true }]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Aksi" }));
+    const item = screen.getByRole("menuitem", { name: "Detail Barang" });
+    expect(item.hasAttribute("disabled")).toBe(true);
+    expect(item.hasAttribute("href")).toBe(false);
+    fireEvent.click(item);
+    expect(screen.getByRole("menu")).not.toBeNull();
+  });
+
   it("renders nothing when every item is hidden", () => {
     render(<ActionMenu label="Aksi Massal" items={[{ key: "x", label: "X", onClick: vi.fn(), hidden: true }]} />);
     expect(screen.queryByRole("button", { name: /Aksi Massal/ })).toBeNull();
@@ -67,6 +103,13 @@ describe("ActionMenu", () => {
     render(<ActionMenu label="Aksi" items={items()} />);
     fireEvent.click(screen.getByRole("button", { name: "Aksi" }));
     fireEvent.mouseDown(document.body);
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("closes on window resize without treating the window as a DOM node", () => {
+    render(<ActionMenu label="Aksi" items={items()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Aksi" }));
+    fireEvent(window, new Event("resize"));
     expect(screen.queryByRole("menu")).toBeNull();
   });
 });

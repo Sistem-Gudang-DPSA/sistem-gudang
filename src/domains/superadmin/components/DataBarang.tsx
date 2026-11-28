@@ -266,12 +266,12 @@ export default function DataBarangGudang() {
         <KategoriBadge category={item.category} />
       )
     ) },
-    { label: 'Harga Terbaru', sortKey: 'price', tdClassName: 'px-6 py-4 text-gray-700', cell: (item) => (
+    { label: 'Harga Terbaru', sortKey: 'price', align: 'right', tdClassName: 'px-6 py-4 text-right text-gray-700', cell: (item) => (
       edit.editing && canSetPrice ? (
-        <input aria-label={`Harga ${item.name}`} inputMode="numeric" className={`${cellInput} min-w-24`} maxLength={9} value={edit.value(item.id, 'price', String(item.price))} onChange={(e) => edit.set(item.id, 'price', e.target.value.replace(/\D/g, ''), String(item.price))} />
-      ) : <HargaCell price={item.price} updatedAt={item.priceUpdatedAt} />
+        <input aria-label={`Harga ${item.name}`} inputMode="numeric" className={`${cellInput} min-w-24 text-right`} maxLength={9} value={edit.value(item.id, 'price', String(item.price))} onChange={(e) => edit.set(item.id, 'price', e.target.value.replace(/\D/g, ''), String(item.price))} />
+      ) : <HargaCell price={item.price} updatedAt={item.priceUpdatedAt} currency />
     ) },
-    { label: 'Nilai Stok', tdClassName: 'px-6 py-4 text-gray-700', cell: () => <span title="Data dummy: total nilai stok dari detail barang">{totalStockValue.toLocaleString('id-ID')}</span> },
+    { label: 'Nilai Stok', align: 'right', tdClassName: 'px-6 py-4 text-right text-gray-700', cell: () => <span title="Data dummy: total nilai stok dari detail barang">Rp {totalStockValue.toLocaleString('id-ID')}</span> },
     // Lokasi: dipilih langsung di barisnya
     { label: 'Lokasi', sortKey: 'locationCode', cell: (item) => (
       edit.editing && canAssign ? (

@@ -61,7 +61,8 @@ describe('purchasing DataSupplier', () => {
     await screen.findByText('Supplier 1');
     fireEvent.click(screen.getByRole('button', { name: '2' }));
     await screen.findByText('Supplier 21');
-    fireEvent.click(screen.getByText('Hapus'));
+    fireEvent.click(screen.getByRole('button', { name: 'Aksi Supplier 21' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Hapus' }));
     await waitFor(() => expect(lastQ(api).get('page')).toBe('1'));
     expect(await screen.findByText('Supplier 1')).not.toBeNull();
   });

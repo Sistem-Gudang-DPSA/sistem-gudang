@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { Search, Plus, FileDown } from 'lucide-react';
-import Link from 'next/link';
 import { createSupplier, deleteSupplier, listSuppliers, updateSupplier } from '@/domains/purchasing/api';
 import type { Pajak, Supplier } from '@/domains/purchasing/types';
 import { ApiError } from '@/shared/lib/api-client';
@@ -11,6 +10,8 @@ import { useCan } from '@/domains/auth/user-context';
 import { useClampPage, usePage } from '@/shared/lib/use-page';
 import Pagination from '@/shared/components/Pagination';
 import SortableTh, { useSort } from '@/shared/components/SortableTh';
+import ActionMenu from '@/shared/components/ActionMenu';
+import ActionIcon from '@/shared/components/ActionIcon';
 import type { SupplierImportRow } from '@/domains/purchasing/modal/supplier';
 import ImportSupplierModal from '@/domains/purchasing/components/ImportSupplierModal';
 import ImportSupplierMapping from '@/domains/purchasing/components/ImportSupplierMapping';
@@ -211,15 +212,11 @@ export default function DataSupplierScreen({ detailHref, paginationActiveClass }
                     <td className="px-6 py-4 max-w-xs truncate" title={item.address}>{item.address}</td>
                     <td className="px-6 py-4 text-center">
                       <div className="flex items-center justify-center gap-2">
-                        <Link href={detailHref(item.id)} className="px-3 py-1 bg-green-50 text-green-600 font-bold rounded-lg text-xs hover:bg-green-100 transition-all border border-green-100">
-                          Detail Barang
-                        </Link>
-                        {canUpdate && <button onClick={() => handleEdit(item)} className="px-3 py-1 bg-amber-50 text-amber-600 font-bold rounded-lg text-xs hover:bg-amber-100 transition-all border border-amber-100">
-                          Edit
-                        </button>}
-                        {canDelete && <button onClick={() => handleHapus(item.id)} className="px-3 py-1 bg-red-50 text-red-600 font-bold rounded-lg text-xs hover:bg-red-100 transition-all border border-red-100">
-                          Hapus
-                        </button>}
+                        <ActionMenu label={`Aksi ${item.name}`} iconOnly items={[
+                          { key: 'detail', label: 'Detail Barang', href: detailHref(item.id), icon: <ActionIcon action="detail" /> },
+                          { key: 'edit', label: 'Edit', onClick: () => handleEdit(item), icon: <ActionIcon action="edit" />, hidden: !canUpdate },
+                          { key: 'delete', label: 'Hapus', onClick: () => { void handleHapus(item.id); }, icon: <ActionIcon action="delete" />, danger: true, hidden: !canDelete },
+                        ]} />
                       </div>
                     </td>
                   </tr>

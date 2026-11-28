@@ -16,13 +16,19 @@ const po: PurchaseOrder = {
 };
 
 describe('Purchase order print template', () => {
-  it('contains the letterhead, saved PO data, two parties, item prices, server totals, notes and blank signatures on A4', () => {
+  it('reserves 4 cm above the PO without a letterhead or PO number and retains the saved details on A4', () => {
     const html = buildPurchaseOrderHtml(po);
     const doc = new DOMParser().parseFromString(html, 'text/html');
     expect(html).toContain('A4 portrait');
-    expect(doc.querySelector('img')?.getAttribute('src')).toContain('/logo-perusahaan.jpg');
+    expect(html).toContain('@page { size: A4 portrait; margin: 40mm 16mm 10mm; }');
+    expect(html).toContain('.po-title { text-align: center; text-decoration: underline; font-size: 12px; margin: 0 0 3mm; }');
+    expect(doc.querySelector('.kop')).toBeNull();
+    expect(doc.querySelector('img')).toBeNull();
     expect(doc.querySelector('.po-title')?.textContent).toBe('PURCHASE ORDER (PO)');
-    expect(doc.querySelector('.po-meta')?.textContent).toContain('PO-054');
+    const numberRow = doc.querySelector('.po-meta tr');
+    expect(numberRow?.querySelector('td:first-child')?.textContent).toBe('Nomor PO');
+    expect(numberRow?.querySelector('td:last-child')?.textContent).toBe('');
+    expect(doc.body.textContent).not.toContain('PO-054');
     expect(doc.querySelector('.po-meta')?.textContent).toContain('20 November 2026');
     const parties = doc.querySelector('.parties')?.textContent;
     for (const value of ['PT Kayu', 'Jl Supplier / 081234', '123.456', 'Bank A', 'Andi / 081234', 'No SPK', 'SPK-1']) expect(parties).toContain(value);
@@ -36,9 +42,6 @@ describe('Purchase order print template', () => {
     expect(doc.querySelector('.space')?.textContent).toBe('');
     expect(doc.querySelectorAll('.notes li')).toHaveLength(6);
     expect(doc.querySelector('.notes')?.textContent).toContain('Menyesuaikan Lokasi');
-    expect(doc.querySelector('.kop')?.textContent).toContain('(0274) 2800089');
-    expect(doc.querySelector('.kop')?.textContent).toContain('dharmaputra04@yahoo.com');
-    expect(doc.querySelector('.kop')?.textContent).toContain('www.dharmaputrainterior.co.id');
     expect(doc.querySelector('.doc-control')?.textContent).toContain('Rev: 00');
     expect(doc.querySelector('.doc-control')?.textContent).toContain('Terbit:08/25');
     expect(doc.querySelector('.dpp-formula')?.textContent).toContain('11/12');
@@ -62,13 +65,19 @@ describe('Purchase order print template', () => {
     const doc = new DOMParser().parseFromString(html, 'text/html');
     const sheets = doc.querySelectorAll('.po-sheet');
     expect(sheets).toHaveLength(2);
-    expect(sheets[0].querySelector('.po-meta')?.textContent).toContain('PO-054');
-    expect(sheets[1].querySelector('.po-meta')?.textContent).toContain('PO-055');
+    for (const sheet of sheets) {
+      expect(sheet.querySelector('.po-meta tr td:last-child')?.textContent).toBe('');
+      expect(sheet.querySelector('.po-meta')?.textContent).toContain('Nomor PO');
+    }
+    expect(sheets[0].querySelector('.parties')?.textContent).toContain('PT Kayu');
     expect(sheets[1].querySelector('.parties')?.textContent).toContain('Supplier kedua');
-    expect(doc.querySelectorAll('.kop')).toHaveLength(2);
+    expect(doc.querySelectorAll('.kop')).toHaveLength(0);
+    expect(doc.querySelectorAll('img')).toHaveLength(0);
+    expect(doc.body.textContent).not.toMatch(/PO-054|PO-055/);
+    expect(html).toContain('@page { size: A4 portrait; margin: 40mm 16mm 10mm; }');
     expect(html).toContain('break-after: page');
     await printPurchaseOrders([po, second]);
-    expect(print.cetakHtml).toHaveBeenLastCalledWith(expect.stringContaining('PO-055'), 'PO terpilih (2)', tungguGambarCetak);
+    expect(print.cetakHtml).toHaveBeenLastCalledWith(html, 'PO terpilih (2)', tungguGambarCetak);
   });
 
   it('does not accept an empty selection', () => {
@@ -87,8 +96,8 @@ describe('Purchase order print template', () => {
     expect(doc.querySelector('.cancelled')).toBeNull();
   });
 
-  it('uses the shared print helper and waits for the logo', async () => {
+  it('uses the shared print helper with the PO number only as the print dialog label', async () => {
     await printPurchaseOrder(po);
-    expect(print.cetakHtml).toHaveBeenCalledWith(expect.stringContaining('PO-054'), 'PO PO-054', tungguGambarCetak);
+    expect(print.cetakHtml).toHaveBeenCalledWith(buildPurchaseOrderHtml(po), 'PO PO-054', tungguGambarCetak);
   });
 });

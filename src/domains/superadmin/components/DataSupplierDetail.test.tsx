@@ -35,7 +35,7 @@ describe('superadmin supplier detail route', () => {
     expect(await screen.findByText('Tripleks')).not.toBeNull();
     expect(screen.getByText('LEM013')).not.toBeNull();
     expect(screen.getByText(/untuk supplier Supplier 12/)).not.toBeNull();
-    expect(screen.getByRole('link', { name: 'Kembali' }).getAttribute('href')).toBe('/dashboard/superadmin/master/data-supplier');
+    expect(screen.getByRole('link', { name: 'Kembali ke Data Supplier' }).getAttribute('href')).toBe('/dashboard/superadmin/master/data-supplier');
     expect(new Set(api.calls('GET /api/v1/suppliers/12/prices').map((call) => call.query.get('tahun'))))
       .toEqual(new Set([String(year)]));
   });

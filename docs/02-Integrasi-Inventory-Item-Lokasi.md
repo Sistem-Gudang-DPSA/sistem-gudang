@@ -217,11 +217,16 @@ dari barang masuk); selama kosong, baris tanggal disembunyikan. Nilai harga
 tetap `item.price`; Superadmin masih dapat mengeditnya di mode edit bila
 punya `item.set-price`.
 
+Pada Data Barang Superadmin, **Harga Terbaru** memakai awalan **Rp**
+(contoh `Rp 22.222`); nilai dan kepala kolom rata kanan. Input harga pada
+mode edit juga rata kanan.
+
 Data Barang Superadmin menampilkan kolom **Nilai Stok** tepat di kanan
 **Harga Terbaru**. Nilainya memakai **Total Nilai Stok** dari detail barang,
 yaitu jumlah sisa stok × harga per satuan tiap penerimaan, dengan format
-ribuan `id-ID`. Daftar dan detail memakai sumber dummy bersama sehingga
-angkanya sama: saat ini `3.700.000` untuk setiap barang. Angka ini belum
+ribuan `id-ID` dengan awalan **Rp**; nilai dan kepala kolom rata kanan.
+Daftar dan detail memakai sumber dummy bersama sehingga
+angkanya sama: saat ini `Rp 3.700.000` untuk setiap barang. Angka ini belum
 mewakili stok aktual dan bukan hasil stok master × harga terbaru.
 
 ## Status dan Langkah Berikutnya
